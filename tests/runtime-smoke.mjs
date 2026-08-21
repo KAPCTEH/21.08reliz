@@ -14,6 +14,8 @@ const atomicMutation = mode === 'atomic-mutation';
 const deepBusiness = mode === 'deep-business';
 const orderPrintMode = mode === 'order-print';
 const orderSaveIntegrityMode = mode === 'order-save-integrity';
+// Route-plan integrity is local; atomic-mutation owns the full VPS command path.
+const runtimeEdition = orderSaveIntegrityMode ? 'demo' : testEdition;
 const roleMatrixMode = mode === 'role-matrix';
 const securityFuzzMode = mode === 'security-fuzz';
 const accessibilityMode = mode === 'accessibility';
@@ -119,11 +121,11 @@ window.fetch = async url => {
 window.JustFunDesktop = {
   version: '7.8.3',
   platform: 'win32',
-  bootstrapEdition: testEdition,
-  bootstrapCompanyId: testEdition === 'full' ? 'cmp_company_test_12345' : '',
+  bootstrapEdition: runtimeEdition,
+  bootstrapCompanyId: runtimeEdition === 'full' ? 'cmp_company_test_12345' : '',
   startupStage(stage, detail) { runtimeTrace('stage', stage, detail || ''); },
   startupReady: async payload => { runtimeTrace('ready', payload?.surface || 'unknown'); window.__startupReadySurface = payload?.surface || 'unknown'; return { ok: true }; },
-  getSession: async () => testEdition === 'demo'
+  getSession: async () => runtimeEdition === 'demo'
     ? ({ edition: 'demo', demoRemainingMs: 60 * 60 * 1000 })
     : ({
         edition: 'full',
@@ -673,6 +675,8 @@ if (orderSaveIntegrityMode) {
   try {
     const saveScript = window.document.createElement('script');
     saveScript.textContent = `window.__orderSaveIntegrityPromise = (async () => {
+      for(let attempt=0;attempt<100&&ordersHydrationPending&&!ordersHydrationDone;attempt++)await new Promise(resolve=>setTimeout(resolve,25));
+      if(ordersHydrationPending&&!ordersHydrationDone)throw new Error('order-save integrity requires completed order hydration');
       const snapshot={orders:cloneValue(orders),routePlans:cloneValue(routePlans),routeAssignments:cloneValue(routeAssignments),routeCatalog:cloneValue(routeCatalog),routeDriverAssignments:cloneValue(routeDriverAssignments),routeLocks:cloneValue(routeLocks),routeOverrides:cloneValue(routeOverrides),routeExecutions:cloneValue(routeExecutions),currentDetailId,selectedGeo:cloneValue(selectedGeo),geoDirty,deliveryCalculation:cloneValue(deliveryCalculation)},previousConfirm=jfConfirm;
       const now=new Date().toISOString(),wid=currentWarehouseIdV560(),item={id:'save-item',name:'Проверочный груз',article:'SAVE-1',unit:'шт',qty:1,price:1000,total:1000,volumeM3:.1,weightKg:10};
       const makeOrder=(id,number,date,region,district)=>normalizeOrder({id,number,orderType:'delivery',createdAt:now,updatedAt:now,contactName:'Получатель',contactMethod:'+7 900 000-00-00',deliveryDate:date,driverNote:'',deliveryAddress:district,geo:{lat:55.7,lon:37.6,displayName:district,region,district,settlement:district,source:'test'},items:[item],goodsTotal:1000,total:1000,deliveryDistanceKm:10,deliveryRate:100,deliveryCost:1000,deliveryAutoCost:1000,deliveryStandaloneCost:1000,grandTotal:2000,paymentMethod:'cash',paymentStatus:'pending',warehouseId:wid});
