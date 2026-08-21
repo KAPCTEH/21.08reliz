@@ -14,8 +14,8 @@ const atomicMutation = mode === 'atomic-mutation';
 const deepBusiness = mode === 'deep-business';
 const orderPrintMode = mode === 'order-print';
 const orderSaveIntegrityMode = mode === 'order-save-integrity';
-// Route-plan integrity is local; atomic-mutation owns the full VPS command path.
-const runtimeEdition = orderSaveIntegrityMode ? 'demo' : testEdition;
+// Local business integrity runs without VPS guards; atomic-mutation owns that path.
+const runtimeEdition = orderSaveIntegrityMode || deepBusiness ? 'demo' : testEdition;
 const roleMatrixMode = mode === 'role-matrix';
 const securityFuzzMode = mode === 'security-fuzz';
 const accessibilityMode = mode === 'accessibility';
