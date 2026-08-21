@@ -76,8 +76,8 @@ try {
   $log0Text = Get-Content -LiteralPath $log0 -Raw
   Write-Output "Fresh-target disk-space log:$([Environment]::NewLine)$log0Text"
   Assert-True ($log0Text -match 'DISK root=.* free_mb=.* required_mb=2000000000') 'Fresh-target disk-space values were not logged.'
-  Assert-True ($log0Text -match 'Недостаточно свободного места') 'Fresh target did not reach the low-space branch.'
-  Assert-True ($log0Text -notmatch 'Не удалось определить свободное место') 'Fresh target was falsely diagnosed as an unreadable disk.'
+  Assert-True ($log0Text -match 'FAIL_CODE low-disk-space') 'Fresh target did not reach the low-space branch.'
+  Assert-True ($log0Text -notmatch 'FAIL_CODE disk-(?:root|space)-unavailable') 'Fresh target was falsely diagnosed as an unreadable disk.'
 
   # 1. Power loss after moving the old installation: restore the last known
   # good backup, remove the partial current/staging trees, then stop on the
@@ -122,7 +122,7 @@ try {
   Assert-True ($exit3 -eq 10) "Corrupt-backup refusal returned $exit3 instead of 10."
   Assert-True (Test-Path -LiteralPath "$program3\current-safe.txt") 'Current installation was deleted despite a corrupt backup.'
   Assert-True (Test-Path -LiteralPath "$backup3\OrdersLogistics.exe") 'Corrupt backup evidence was deleted.'
-  Assert-True ((Get-Content -LiteralPath (Join-Path $case3 'setup.log') -Raw) -match 'Резерв предыдущей установки повреждён') 'Corrupt-backup diagnosis was not logged.'
+  Assert-True ((Get-Content -LiteralPath (Join-Path $case3 'setup.log') -Raw) -match 'RECOVERY corrupt-backup detected') 'Corrupt-backup diagnosis was not logged.'
 
   Write-Output 'Installer crash recovery: PASS (fresh-target disk, restore interrupted, clean completed, preserve corrupt)'
 }

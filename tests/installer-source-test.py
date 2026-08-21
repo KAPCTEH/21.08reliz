@@ -201,6 +201,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
 
     def test_interrupted_update_recovery_is_exercised_on_windows(self):
         test = CRASH_RECOVERY_TEST.read_text(encoding="utf-8")
+        setup = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")
         workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
         for marker in (
             "restore-interrupted",
@@ -210,6 +211,13 @@ class NativeInstallerSourceTests(unittest.TestCase):
             "2000000000",
         ):
             self.assertIn(marker, test)
+        for marker in (
+            "FAIL_CODE low-disk-space",
+            "FAIL_CODE disk-root-unavailable",
+            "FAIL_CODE disk-space-unavailable",
+            "RECOVERY corrupt-backup detected",
+        ):
+            self.assertIn(marker, setup)
         self.assertIn("installer-crash-recovery-test.ps1", workflow)
 
     def test_program_and_data_are_separate_and_data_is_preserved_by_default(self):
