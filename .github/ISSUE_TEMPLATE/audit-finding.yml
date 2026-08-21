@@ -1,0 +1,51 @@
+name: Audit finding
+description: Зафиксировать один подтверждённый или явно не подтверждённый дефект.
+title: "[P?] "
+body:
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options: [P0, P1, P2, P3]
+    validations:
+      required: true
+  - type: dropdown
+    id: verification_status
+    attributes:
+      label: Verification status
+      options:
+        - SOURCE_CONFIRMED
+        - TEST_CONFIRMED
+        - LIVE_CONFIRMED
+        - REPORTED_NOT_REPRODUCED
+        - NOT_VERIFIED
+        - BLOCKED
+    validations:
+      required: true
+  - type: input
+    id: location
+    attributes:
+      label: Точное расположение
+      placeholder: path:line или deployment subject
+    validations:
+      required: true
+  - type: textarea
+    id: fact
+    attributes:
+      label: Факт и доказательство
+      description: Без предположений; укажите commit, команду и evidence.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Влияние
+    validations:
+      required: true
+  - type: textarea
+    id: verification_contract
+    attributes:
+      label: Verification contract
+      description: Условия, после которых Issue разрешено закрыть.
+    validations:
+      required: true

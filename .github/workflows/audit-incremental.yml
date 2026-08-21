@@ -1,0 +1,98 @@
+name: Audit incremental
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "codex/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-incremental-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  impact-and-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact target revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout orphan audit ledger
+        uses: actions/checkout@v4
+        with:
+          ref: audit-ledger
+          path: _audit-ledger
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            tests/package-lock.json
+            source/application/package-lock.json
+            source/desktop-runtime/package-lock.json
+            source/installer/package-lock.json
+            source/license-server/package-lock.json
+            source/company-telegram-broker/package-lock.json
+
+      - name: Configure Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve exact diff range
+        id: range
+        shell: bash
+        env:
+          EVENT_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          EVENT_TARGET: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          target="$EVENT_TARGET"
+          base="$EVENT_BASE"
+          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then base="$(git rev-parse "$target^")"; fi
+          git cat-file -e "$base^{commit}"
+          git cat-file -e "$target^{commit}"
+          echo "base=$base" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+      - name: Calculate impact and selected tests
+        run: node tools/audit/impact.mjs _audit-ledger "${{ steps.range.outputs.base }}" "${{ steps.range.outputs.target }}" audit-impact.json
+
+      - name: Verify permanent ledger
+        run: node tools/audit/verify-ledger.mjs _audit-ledger . audit-ledger-verification.json
+
+      - name: Install lockfile-pinned test dependencies
+        shell: bash
+        run: |
+          for directory in tests source/application source/desktop-runtime source/installer source/license-server source/company-telegram-broker; do
+            npm ci --ignore-scripts --no-audit --no-fund --prefix "$directory"
+          done
+
+      - name: Run safe selected tests
+        run: node tools/audit/run-selected-tests.mjs audit-impact.json selected-test-results.json
+
+      - name: Upload incremental evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-incremental-${{ github.run_id }}
+          path: |
+            audit-impact.json
+            audit-ledger-verification.json
+            selected-test-results.json
+          if-no-files-found: warn
+          retention-days: 14
+

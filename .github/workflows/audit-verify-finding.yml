@@ -1,0 +1,74 @@
+name: Audit verify finding
+
+on:
+  workflow_dispatch:
+    inputs:
+      finding_id:
+        description: JF-AUDIT-NNNN
+        required: true
+      source_ref:
+        description: Exact fix commit or branch
+        required: true
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: verify-${{ inputs.finding_id }}-${{ inputs.source_ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact fix revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout orphan audit ledger
+        uses: actions/checkout@v4
+        with:
+          ref: audit-ledger
+          path: _audit-ledger
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Configure Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install isolated test dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix tests
+
+      - name: Execute verification contract
+        run: node tools/audit/verify-finding.mjs _audit-ledger "${{ inputs.finding_id }}" finding-verification.json
+
+      - name: Close linked Issue only after exact verification succeeds
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          issue="$(node -p "require('./finding-verification.json').issue_number")"
+          state="$(node -p "require('./finding-verification.json').state")"
+          test "$state" = VERIFIED
+          gh issue close "$issue" --repo "$GITHUB_REPOSITORY" --comment "Verification contract passed on commit $GITHUB_SHA. Evidence: workflow run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: Upload before/after verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finding-${{ inputs.finding_id }}-${{ github.run_id }}
+          path: finding-verification.json
+          if-no-files-found: warn
+          retention-days: 30

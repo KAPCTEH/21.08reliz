@@ -1,0 +1,61 @@
+name: Audit baseline
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Exact source commit or ref
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-baseline-${{ inputs.source_ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact source revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout orphan audit ledger
+        uses: actions/checkout@v4
+        with:
+          ref: audit-ledger
+          path: _audit-ledger
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Validate ledger schemas
+        shell: bash
+        run: |
+          npx --yes ajv-cli@5.0.0 validate --spec=draft2020 --strict=false -s _audit-ledger/schemas/audit-index.schema.json -d _audit-ledger/index.json
+          npx --yes ajv-cli@5.0.0 validate --spec=draft2020 --strict=false -s _audit-ledger/schemas/finding.schema.json -d '_audit-ledger/findings/*.json'
+          npx --yes ajv-cli@5.0.0 validate --spec=draft2020 --strict=false -s _audit-ledger/schemas/evidence.schema.json -d '_audit-ledger/evidence/*.json'
+          npx --yes ajv-cli@5.0.0 validate --spec=draft2020 --strict=false -s _audit-ledger/schemas/run.schema.json -d '_audit-ledger/runs/*/run.json'
+
+      - name: Verify hashes, references and exact baseline commit
+        run: node tools/audit/verify-ledger.mjs _audit-ledger . audit-baseline-verification.json
+
+      - name: Publish compact verification evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-baseline-verification-${{ github.run_id }}
+          path: audit-baseline-verification.json
+          if-no-files-found: error
+          retention-days: 14
+
