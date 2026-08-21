@@ -969,6 +969,20 @@ Section "Uninstall"
   Push "START uninstall"
   Call un.WriteLog
 
+  IfFileExists "$INSTDIR\OrdersLogistics.exe" 0 uninstall_window_checks
+  nsExec::ExecToStack /TIMEOUT=15000 '"$INSTDIR\OrdersLogistics.exe" --running-instance-probe'
+  Pop $0
+  Pop $1
+  StrCmp $0 "0" uninstall_window_checks
+  StrCmp $0 "30" uninstall_running
+  Push "FAIL application probe returned $0"
+  Call un.WriteLog
+  Goto uninstall_locked
+uninstall_running:
+  Push "FAIL application is running"
+  Call un.WriteLog
+  Goto uninstall_locked
+uninstall_window_checks:
   FindWindow $0 "" "JustFun Логистика · ${VERSION}"
   StrCmp $0 0 +4
   Push "FAIL application is running"

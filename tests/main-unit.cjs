@@ -13,6 +13,10 @@ process.env.JF_LOG_EXE_DIR_FOR_TEST = path.join(temporary, 'exe');
 process.env.JF_LOG_EMERGENCY_DIR_FOR_TEST = path.join(temporary, 'emergency');
 process.env.JF_DESKTOP_UNIT_TEST = '1';
 
+let singleInstanceAvailable = true;
+let singleInstanceReleaseCount = 0;
+let singleInstanceRequest = null;
+let appExitCode = null;
 const app = {
   getPath(name) {
     const locations = {
@@ -22,6 +26,9 @@ const app = {
     return locations[name] || temporary;
   },
   setPath() {},
+  requestSingleInstanceLock(data) { singleInstanceRequest = data; return singleInstanceAvailable; },
+  releaseSingleInstanceLock() { singleInstanceReleaseCount += 1; },
+  exit(code) { appExitCode = code; },
 };
 const electronMock = {
   app,
@@ -61,6 +68,17 @@ assert.equal(main.isTrustedAppUrl('justfun://evil/web/index.html'), false);
 assert.match(main.resolveAppRendererPath('justfun://app/web/index.html'), /web[\\/]index\.html$/);
 assert.throws(() => main.resolveAppRendererPath('justfun://app/%2e%2e/main.js'));
 assert.throws(() => main.resolveAppRendererPath('justfun://app/web/%2e%2e/%2e%2e/secret.txt'));
+singleInstanceAvailable = true;
+assert.equal(main.runRunningInstanceProbe(), 0);
+assert.deepEqual(singleInstanceRequest, { mode: 'running-instance-probe' });
+assert.equal(singleInstanceReleaseCount, 1);
+assert.equal(appExitCode, 0);
+singleInstanceAvailable = false;
+singleInstanceReleaseCount = 0;
+appExitCode = null;
+assert.equal(main.runRunningInstanceProbe(), 30);
+assert.equal(singleInstanceReleaseCount, 0);
+assert.equal(appExitCode, 30);
 assert.match(main.getMachineCode(), /^JF75-(?:[A-Z0-9_-]{5}-){4}[A-Z0-9_-]{5}$/);
 assert.equal(main.validateWarehouseId('warehouse_01'), 'warehouse_01');
 assert.throws(() => main.validateWarehouseId('../warehouse'));

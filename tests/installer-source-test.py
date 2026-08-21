@@ -185,12 +185,22 @@ class NativeInstallerSourceTests(unittest.TestCase):
             "Call un.ValidatePurgeTarget",
             'StrCmp $2 "1" 0 data_not_confirmed',
             "SetErrorLevel 30",
+            "--running-instance-probe",
+            "FAIL application probe returned $0",
             "Рабочие данные и регистрация не изменены",
             "GetFileAttributesW",
             "0x400",
             "program directory is a reparse point",
         ):
             self.assertIn(marker, source)
+        main_source = APP_MAIN.read_text(encoding="utf-8")
+        for marker in (
+            "runRunningInstanceProbe",
+            "requestSingleInstanceLock({ mode: 'running-instance-probe' })",
+            "releaseSingleInstanceLock()",
+            "acquired ? 0 : 30",
+        ):
+            self.assertIn(marker, main_source)
         self.assertLess(
             uninstall.index('Rename "$INSTDIR" "$RemovalDir"'),
             uninstall.index("DeleteRegKey HKCU"),
