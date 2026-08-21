@@ -445,11 +445,13 @@ function canonicalServerEntity(entity){
 }
 function splitEntitySnapshot(snapshot){
   const map=new Map(),data=asObject(snapshot?.data),warehouse=asObject(snapshot?.warehouse),warehouseId=activeWarehouseId();
+  // Unassigned automatic routes are render-time previews, not server entities.
+  const referencedRouteIds=new Set([...Object.values(asObject(data.routeAssignments)),...Object.values(asObject(data.routeLocks)),...Object.keys(asObject(data.routePlans)),...Object.keys(asObject(data.routeDriverAssignments)),...Object.keys(asObject(data.routeOverrides)),...Object.keys(asObject(data.routeExecutions))].map(String).filter(id=>id&&id!=='__unassigned__'));
   const add=(type,id,payload)=>{id=String(id||'');if(!/^[A-Za-z0-9_-]{1,160}$/.test(id))throw new Error(`Раздел ${type} содержит запись без безопасного идентификатора.`);map.set(entityKey(type,id),{type,id,payload:wrappedEntityPayload(payload),fingerprint:entityFingerprint(wrappedEntityPayload(payload))})};
   add('warehouse',warehouseId,warehouse);
   for(const type of ENTITY_SINGLETON_SECTIONS){const value=data[type];if(value&&typeof value==='object'&&!Array.isArray(value))add(type,type,value)}
   for(const type of ENTITY_ARRAY_SECTIONS){for(const value of asArray(data[type])){const fallback=type==='routeArchives'?(value?.routeId||value?.executionId):'';add(type,value?.id||fallback,value)}}
-  for(const type of ENTITY_MAP_SECTIONS){for(const[id,value]of Object.entries(asObject(data[type])))add(type,id,value)}
+  for(const type of ENTITY_MAP_SECTIONS){for(const[id,value]of Object.entries(asObject(data[type]))){if(type==='routeCatalog'&&value?.custom!==true&&!referencedRouteIds.has(String(id)))continue;add(type,id,value)}}
   return map;
 }
 function canWriteEntity(type){
