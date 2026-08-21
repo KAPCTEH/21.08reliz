@@ -15,6 +15,12 @@ CRASH_RECOVERY_TEST = ROOT / "tests" / "installer-crash-recovery-test.ps1"
 
 
 class NativeInstallerSourceTests(unittest.TestCase):
+    def test_windows_ci_installs_pinned_pillow_dependency(self):
+        workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        install = "python -m pip install --disable-pip-version-check --no-deps Pillow==12.3.0"
+        self.assertIn(install, workflow)
+        self.assertLess(workflow.index("Configure Python 3.12"), workflow.index(install))
+
     def test_old_script_runtime_is_removed(self):
         removed = (
             "bootstrap.c",
