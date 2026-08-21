@@ -18,6 +18,7 @@
 - Runtime load: demo и full загрузили 22/22 скрипта, без runtime errors.
 - Повтор 16 UI-сценариев, ранее завершившихся тайм-аутом при высокой параллельной нагрузке: 16/16 PASS, 0 timeout.
 - Cloudflare read-only: оба deployed Worker не совпадают с clean source; Telegram broker не содержит трёх локальных защит.
+- После перевода GitHub-репозитория в public incremental workflow прошёл полностью; Windows workflow дошёл до release contracts и воспроизвёл JF-AUDIT-0007 до начала installer build.
 
 ## Открытые findings
 
@@ -27,7 +28,8 @@
 - **JF-AUDIT-0004 P1** — Production Cloudflare Workers не соответствуют текущему исходнику (LIVE_CONFIRMED).
 - **JF-AUDIT-0005 P2** — UI-каскад остаётся чрезмерно фрагментированным (TEST_CONFIRMED).
 - **JF-AUDIT-0006 P2** — Source-only ZIP не самодостаточен для двух release-тестов (TEST_CONFIRMED).
+- **JF-AUDIT-0007 P1** — Order-save-integrity падает в sanitizeRouteIntegrity (TEST_CONFIRMED).
 
 ## Не завершено
 
-GitHub-репозиторий и draft PR #7 созданы, но оба workflow job завершились до записи первого шага; точное UI-сообщение GitHub ещё не получено (Issue #10). Branch protection для private-репозитория недоступна на текущем тарифе: API возвращает HTTP 403 с требованием GitHub Pro либо public visibility (Issue #9). Tag, исправление контракта source-only ZIP, installer executable acceptance, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.
+Репозиторий публичный; GitHub runner startup blocker устранён и Issue #10 закрыт. Incremental workflow прошёл, Windows workflow остановлен подтверждённым JF-AUDIT-0007. Branch protection доступна, но ещё не настроена (Issue #9). Tag, исправление order-save/source-only ZIP контрактов, installer executable acceptance, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.

@@ -1,0 +1,37 @@
+{
+  "id": "JF-AUDIT-0007",
+  "issue": "https://github.com/KAPCTEH/21.08reliz/issues/11",
+  "title": "Order-save-integrity падает в sanitizeRouteIntegrity",
+  "severity": "P1",
+  "confidence": "high",
+  "verification_status": "TEST_CONFIRMED",
+  "module": "application",
+  "location": {
+    "path": "source/application/web/assets/js/00-app-bundle-v595.js",
+    "symbol": "sanitizeRouteIntegrity",
+    "line": 388
+  },
+  "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "fact": "Order-save-integrity regression стабильно завершается с кодом 1 в GitHub Windows runner и локально: sanitizeRouteIntegrity выполняет orders.map(o => o.id), когда тестовая цепочка содержит undefined. Подтверждён FAIL и стек; пока не доказано, возникает ли undefined в реальном UI либо только после неуспешной create-фазы fixture.",
+  "evidence": [
+    "JF-EVID-0009"
+  ],
+  "impact": "Windows release gate останавливается до сборки protected payload и установщика; контракт создания, редактирования, удаления заказа и сохранности независимых маршрутов не подтверждён.",
+  "reproduction": [
+    "Установить JF_TEST_EDITION=full.",
+    "Выполнить node tests/runtime-smoke.mjs source/application/web order-save-integrity.",
+    "Проверить exit code 1 и TypeError в sanitizeRouteIntegrity на строке orders.map(o => o.id)."
+  ],
+  "minimal_fix": "В отдельном fix PR диагностировать результат create-фазы до подстановки createdOrder в orders и исправить доказанный root cause — fixture либо production sanitation/save path; не маскировать ошибку пропуском release-проверки.",
+  "verification_contract": [
+    "exact order-save-integrity command завершается кодом 0",
+    "create/edit/pickup/delete/restore/global checks имеют значение true",
+    "Windows source/release contracts проходят и installer build запускается",
+    "регрессия предотвращает повторное попадание undefined либо подтверждает безопасную обработку повреждённого состояния"
+  ],
+  "fingerprint": "sha256:6a7c689d6b0a19284bd68264c8b8be0632225512f5de34c816d58b649efa4287",
+  "related": [],
+  "owner": "@KAPCTEH",
+  "status": "OPEN"
+}

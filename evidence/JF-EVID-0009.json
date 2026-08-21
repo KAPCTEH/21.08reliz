@@ -1,0 +1,26 @@
+{
+  "id": "JF-EVID-0009",
+  "type": "dual-environment-runtime-regression",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "Order save integrity failure reproduced in GitHub Windows runner and local Windows workspace",
+  "input_digests": {
+    "source_commit": "git:f8e12ecee3e9371dea23c76913302db24050160d"
+  },
+  "tool": "runtime-smoke.mjs",
+  "tool_version": "source commit f8e12ec",
+  "command": "JF_TEST_EDITION=full node tests/runtime-smoke.mjs source/application/web order-save-integrity",
+  "cwd": "clean source checkout",
+  "timestamp_utc": "2026-08-21T19:16:18.905Z",
+  "exit_code": 1,
+  "normalized_result": "{\"github_windows\":{\"job_id\":96881411528,\"status\":\"FAIL\"},\"local_windows\":{\"exit_code\":1},\"phase\":\"order-save-integrity\",\"error\":\"TypeError: Cannot read properties of undefined (reading id)\",\"symbol\":\"sanitizeRouteIntegrity\",\"line\":388}",
+  "artifact_sha256": null,
+  "location": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32515468530/job/96881411528",
+  "retention": "permanent metadata; GitHub log is supplemental",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0007"
+  ],
+  "tests": [
+    "JF-TEST-RUNTIME-SMOKE"
+  ]
+}
