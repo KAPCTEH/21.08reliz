@@ -217,8 +217,10 @@ jobs:
             $item = $folder.ParseName('JustFun Логистика.lnk')
             $link = $item.GetLink
             if ([IO.Path]::GetFullPath($link.Path) -ne [IO.Path]::GetFullPath($exe)) { throw 'Desktop shortcut target is invalid' }
-            $iconSource = ($link.GetIconLocation() -split ',')[0].Trim('"')
+            $iconSource = ''
+            $iconIndex = $link.GetIconLocation([ref]$iconSource)
             if ([IO.Path]::GetFullPath($iconSource) -ne [IO.Path]::GetFullPath($exe)) { throw 'Desktop shortcut icon source is invalid' }
+            if ($iconIndex -ne 0) { throw "Desktop shortcut icon index is invalid: $iconIndex" }
 
             $installedIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
             $officialIcon = [System.Drawing.Icon]::new((Join-Path $PWD '.release\assets\JustFun.ico'), 32, 32)

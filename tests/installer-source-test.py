@@ -230,6 +230,12 @@ class NativeInstallerSourceTests(unittest.TestCase):
             workflow,
         )
 
+    def test_shortcut_icon_location_uses_required_com_output_parameter(self):
+        workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("$iconIndex = $link.GetIconLocation([ref]$iconSource)", workflow)
+        self.assertIn("if ($iconIndex -ne 0)", workflow)
+        self.assertNotIn("$link.GetIconLocation()", workflow)
+
     def test_program_and_data_are_separate_and_data_is_preserved_by_default(self):
         source = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")
         self.assertIn(r'InstallDir "$LOCALAPPDATA\Programs\JustFun\OrdersLogistics"', source)
