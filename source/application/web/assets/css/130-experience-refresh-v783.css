@@ -1,0 +1,49 @@
+/* JustFun 7.8.3 — unified identity, accessible help, smart catalogue and guided demo */
+
+/* One official identity everywhere. A customer logo still wins through its inline style. */
+.jf-default-brand .logo:not(.warehouse-custom-logo),
+.brand .logo:not(.warehouse-custom-logo),
+.company-brand .logo:not(.warehouse-custom-logo),
+.jf-auth-logo{
+  background-image:url('../justfun-official-transparent.png')!important;
+  background-color:transparent!important;
+  background-position:center!important;
+  background-repeat:no-repeat!important;
+  background-size:contain!important;
+}
+.logo-preview-v600{background:#092d24 url('../justfun-official-transparent.png') center/contain no-repeat;border-color:#c9ad61!important}
+
+/* Every instruction has one dedicated scrolling body and always-visible controls. */
+.jf-help-modal.open{display:flex!important;align-items:center;justify-content:center;overflow:hidden!important}
+.jf-help-dialog{display:flex!important;flex-direction:column!important;width:min(100%,920px)!important;height:min(900px,calc(100dvh - 36px))!important;max-height:calc(100dvh - 36px)!important;overflow:hidden!important}
+.jf-help-head,.jf-help-dialog>.jf-dialog-actions{flex:0 0 auto}
+.jf-help-scroll{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:0 0 8px;outline:none}
+.jf-help-scroll:focus-visible{box-shadow:inset 0 0 0 3px rgba(16,148,92,.18)}
+.jf-help-scroll::-webkit-scrollbar{width:11px}.jf-help-scroll::-webkit-scrollbar-thumb{background:#8fb4a3;border:3px solid #fff;border-radius:999px}
+
+@media(max-width:860px){
+  .jf-desktop-strip{align-items:stretch!important;flex-direction:column!important;gap:9px!important}
+  .jf-license-banner{width:100%;flex-wrap:wrap}
+  .jf-userbar{width:100%;display:grid!important;grid-template-columns:auto auto;justify-content:start!important}
+  .jf-userbar>span{grid-column:1/-1;overflow-wrap:anywhere}
+}
+
+/* Address results are proper accessible buttons. */
+.geo-result{display:block;width:100%;font:inherit;color:inherit;border:1px solid #d7e5de;background:#fff;text-align:left;cursor:pointer}
+.geo-result:hover,.geo-result:focus-visible{border-color:#15945b;background:#f2faf6;outline:3px solid rgba(21,148,91,.12)}
+
+/* REG.RU and Telegram are independent full-width services. */
+#jfRegIntegrationsBox .jf-integration-card,#jfTelegramIntegrationsBox .jf-integration-card{width:100%}
+#jfRegIntegrationsBox .jf-integration-lead,#jfTelegramIntegrationsBox .jf-integration-lead{max-width:1250px}
+
+/* Guided DEMO control centre. */
+.demo-scenario-center{display:grid;gap:13px;margin-top:14px;padding:17px;border:1px solid #cfe0d8;border-radius:18px;background:linear-gradient(145deg,#f7fcf9,#fff)}
+.demo-scenario-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}.demo-scenario-head>div:first-child{display:grid;gap:4px}.demo-scenario-head b{font-size:16px;color:#16382b}.demo-scenario-head span{font-size:12px;color:#647a70;line-height:1.45}
+.demo-audit-badge{flex:0 0 auto;padding:7px 11px;border-radius:999px;background:#eef3f0;color:#5f746a;font-size:11px;font-weight:900}.demo-audit-badge.ok{background:#e5f7ed;color:#087547}.demo-audit-badge.error{background:#fff0f0;color:#b22e39}
+.demo-scenario-progress{height:7px;border-radius:999px;background:#dfe9e4;overflow:hidden}.demo-scenario-progress i{display:block;width:0;height:100%;border-radius:inherit;background:linear-gradient(90deg,#0b7e50,#e0b34d);transition:width .25s ease}
+.demo-scenario-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.demo-scenario-steps button{display:grid;grid-template-columns:32px 1fr;grid-template-areas:"num title" "num text";gap:2px 9px;min-height:72px;padding:11px;border:1px solid #d7e5de;border-radius:14px;background:#fff;color:#19372b;text-align:left;cursor:pointer}.demo-scenario-steps button:hover{border-color:#259c66;background:#f2faf6}.demo-scenario-steps button.active{border-color:#0a8452;background:#eaf8f1}.demo-scenario-steps button.done{border-color:#b8dcc9}.demo-scenario-steps i{grid-area:num;align-self:center;display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#ecf5f0;color:#13764c;font-style:normal;font-weight:900}.demo-scenario-steps button.done i{background:#108857;color:#fff}.demo-scenario-steps b{grid-area:title;font-size:12px}.demo-scenario-steps span{grid-area:text;font-size:10px;color:#6c7d75}
+.demo-scenario-actions{display:flex;gap:8px;flex-wrap:wrap}.demo-guide-card{padding:14px 15px;border:1px solid #c7ded2;border-left:5px solid #0d8b56;border-radius:14px;background:#f1faf5}.demo-guide-card b{display:block;margin-bottom:4px}.demo-guide-card p{margin:0;color:#4e675c;font-size:12px;line-height:1.5}.demo-guide-card .inline-actions{margin-top:10px}
+body:not(.demo-mode) .demo-scenario-steps button,body:not(.demo-mode) #demoTourStart,body:not(.demo-mode) #demoTourContinue,body:not(.demo-mode) #demoRunAudit{opacity:.52}
+
+@media(max-width:900px){.demo-scenario-steps{grid-template-columns:1fr 1fr}}
+@media(max-width:620px){.jf-help-dialog{height:100dvh!important;max-height:100dvh!important}.demo-scenario-head{flex-direction:column}.demo-scenario-steps{grid-template-columns:1fr}}

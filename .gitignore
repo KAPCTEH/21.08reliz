@@ -1,0 +1,30 @@
+# Generated release artifacts and local dependencies
+build/
+**/node_modules/
+**/bin/
+**/obj/
+**/__pycache__/
+*.pyc
+
+# Local runtime and tooling state
+*.log
+*.tmp
+*.bak
+*.pid
+**/.wrangler/
+**/.cache/
+**/.pytest_cache/
+
+# Secrets and machine-local configuration
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+*.jks
+*.key
+*_private.pem
+*-private.pem
+
+# Root-level live-test screenshots are evidence outside source control
+/*.png

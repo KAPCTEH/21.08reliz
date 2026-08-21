@@ -1,0 +1,9 @@
+/* JustFun 7.8.3 — regression recovery */
+.product-card-v610 footer{grid-template-columns:repeat(auto-fit,minmax(105px,1fr))!important}.product-card-v610 footer[data-actions="2"]{grid-template-columns:1fr 1fr!important}.product-card-v610 footer button{white-space:normal;line-height:1.15}
+.driver-payment-settings-box[hidden],.driver-payment-moved-box[hidden]{display:none!important}
+.settings-accordion-body-v610>.settings-actions-head-v611{display:flex!important;justify-content:flex-end!important;align-items:center!important;gap:10px!important;margin:0 0 14px!important;padding:0 0 12px!important;border-bottom:1px solid #e1ebe6!important}
+.settings-accordion-body-v610>.settings-actions-head-v611>.settings-actions-copy-v611{display:none!important}
+.settings-accordion-body-v610>.settings-actions-head-v611>.toggle-control,.settings-accordion-body-v610>.settings-actions-head-v611>button{display:inline-flex!important;margin-left:auto!important}
+.settings-accordion-body-v610>.warehouse-section-head,.settings-accordion-body-v610>.demo-settings-head,.settings-accordion-body-v610>.driver-payment-head{visibility:visible!important}
+.disabled-option-v611{opacity:.5;cursor:not-allowed}.disabled-option-v611 input{pointer-events:none}
+@media(max-width:620px){.settings-accordion-body-v610>.settings-actions-head-v611{justify-content:stretch!important}.settings-accordion-body-v610>.settings-actions-head-v611>.toggle-control,.settings-accordion-body-v610>.settings-actions-head-v611>button{width:100%;justify-content:center;margin-left:0!important}}

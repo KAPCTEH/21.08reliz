@@ -1,0 +1,79 @@
+/* JustFun 7.8.3: canonical visual tokens shared by every interface layer. */
+:root{
+  color-scheme:light;
+
+  --jf-color-brand-950:#041813;
+  --jf-color-brand-900:#082c23;
+  --jf-color-brand-800:#0b4937;
+  --jf-color-brand-700:#0d684d;
+  --jf-color-brand-600:#10945c;
+  --jf-color-brand-500:#168a55;
+  --jf-color-brand-400:#20b66d;
+  --jf-color-brand-300:#68d999;
+  --jf-color-gold-500:#d5aa54;
+  --jf-color-gold-300:#efd28c;
+
+  --jf-color-canvas:#edf4f0;
+  --jf-color-surface:#ffffff;
+  --jf-color-surface-soft:#f5f9f7;
+  --jf-color-surface-muted:#eef5f2;
+  --jf-color-text:#10241d;
+  --jf-color-text-soft:#5c7067;
+  --jf-color-line:#d5e2dc;
+  --jf-color-info:#1769aa;
+  --jf-color-warning:#b76100;
+  --jf-color-danger:#b72b38;
+
+  --jf-radius-control:13px;
+  --jf-radius-card:18px;
+  --jf-radius-dialog:25px;
+  --jf-radius-pill:999px;
+  --jf-shadow-control:0 8px 20px rgba(13,104,77,.18);
+  --jf-shadow-card:0 14px 38px rgba(22,45,64,.11);
+  --jf-shadow-dialog:0 30px 90px rgba(0,0,0,.35);
+  --jf-focus-ring:0 0 0 4px rgba(22,138,85,.11);
+  --jf-motion-fast:160ms ease;
+  --jf-motion-base:180ms ease;
+
+  /* Compatibility aliases for the audited 7.8.3 interface layers. */
+  --main:var(--jf-color-brand-500);
+  --main2:var(--jf-color-brand-400);
+  --main-2:var(--jf-color-brand-400);
+  --main-dark:var(--jf-color-brand-700);
+  --dark:var(--jf-color-text);
+  --text:var(--jf-color-text);
+  --text-soft:var(--jf-color-text-soft);
+  --muted:var(--jf-color-text-soft);
+  --bg:var(--jf-color-canvas);
+  --card:var(--jf-color-surface);
+  --surface:var(--jf-color-surface);
+  --surface-2:var(--jf-color-surface-soft);
+  --surface-3:var(--jf-color-surface-muted);
+  --line:var(--jf-color-line);
+  --line-soft:var(--jf-color-line);
+  --blue:var(--jf-color-info);
+  --warn:var(--jf-color-warning);
+  --danger:var(--jf-color-danger);
+  --radius:var(--jf-radius-card);
+  --shadow:var(--jf-shadow-card);
+  --shadow-soft:0 18px 44px rgba(17,33,28,.06);
+  --shadow-card:0 22px 60px rgba(13,31,24,.08);
+
+  --jf-emerald-950:var(--jf-color-brand-950);
+  --jf-emerald-900:var(--jf-color-brand-900);
+  --jf-emerald-800:var(--jf-color-brand-800);
+  --jf-emerald-700:var(--jf-color-brand-700);
+  --jf-gold-500:var(--jf-color-gold-500);
+  --jf-gold-300:var(--jf-color-gold-300);
+  --jf-canvas:var(--jf-color-canvas);
+  --jf-surface:var(--jf-color-surface);
+  --jf-surface-soft:var(--jf-color-surface-soft);
+  --jf-ink:var(--jf-color-text);
+  --jf-muted:var(--jf-color-text-soft);
+  --jf-line:var(--jf-color-line);
+  --jf-danger:var(--jf-color-danger);
+  --jf-deep:var(--jf-color-brand-900);
+  --jf-green:var(--jf-color-brand-600);
+  --jf-gold:var(--jf-color-gold-500);
+  --jf-soft:var(--jf-color-surface-soft);
+}

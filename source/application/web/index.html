@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+
+<html lang="ru">
+<head>
+<meta charset="utf-8"/>
+<meta content="default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; font-src 'self' data:; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'self'" http-equiv="Content-Security-Policy"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="origin-when-cross-origin" name="referrer"/>
+<title>JustFun Логистика · 7.8.3</title>
+<link href="assets/vendor/leaflet/leaflet.css" rel="stylesheet"/>
+<link href="assets/css/00-base.css" rel="stylesheet"/>
+<link href="assets/css/01-design-tokens-v783.css" id="design-tokens-v783" rel="stylesheet"/>
+<link href="assets/css/100-multi-warehouse-v600.css" rel="stylesheet"/>
+<meta content="#082c23" name="theme-color"/>
+<link href="assets/justfun-official-transparent.png" rel="icon" type="image/png"/>
+<link href="assets/css/10-smart-status.css" id="smartStatusStyles" rel="stylesheet"/>
+<link href="assets/css/20-demonstration.css" id="demonstration-mode-5-2-0" rel="stylesheet"/>
+<link href="assets/css/30-full-audit.css" id="full-audit-5-0-1-fixes" rel="stylesheet"/>
+<link href="assets/css/40-premium-extension.css" rel="stylesheet"/>
+<link href="assets/css/99-stability-v595.css" id="stability-style-v595" rel="stylesheet"/><meta content="JustFun Логистика 7.8.3" name="application-name"/><meta content="7.8.3-warehouse-isolation" name="justfun-build"/><link href="assets/css/110-desktop-platform-v750.css" id="desktop-platform-style-v750" rel="stylesheet"/></head>
+<body>
+<header class="topbar">
+<div class="nav">
+<div class="brand company-brand"><div aria-label="Официальный логотип JustFun" class="logo" role="img"></div><div class="brand-copy"><div class="brand-title">JustFun Логистика</div><div class="brand-sub">Заказы · склады · маршруты</div></div></div>
+<div class="actions">
+<div class="demo-mode-chip" id="demoModeChip">Демонстрация</div>
+<button class="pickup-nav-btn" data-jf-onclick="openPickupModal()" type="button">📦 Оформить самовывоз</button>
+<button class="btn-primary" data-jf-onclick="openOrderModal()">+ Создать заказ</button>
+</div>
+</div>
+</header>
+<div aria-live="polite" class="demo-mode-banner" id="demoModeBanner" role="status">
+<div class="demo-mode-banner-main"><div class="demo-mode-banner-icon">D</div><div><b>Включена демонстрация программы</b><span>Вы работаете в изолированной учебной базе. Реальные заказы, склад, рейсы, водители и финансовые данные не изменяются.</span></div></div>
+<button class="btn-warn" data-jf-onclick="requestDemonstrationMode(false)" type="button">Выйти из демонстрации</button>
+</div>
+<div class="app-health" id="appHealth"><div class="app-health-box"><div><div class="app-health-title" id="appHealthTitle">Системное сообщение</div><div class="app-health-text" id="appHealthText"></div></div><div class="app-health-actions"><button class="btn-gray" data-jf-onclick="hideAppHealth()">Скрыть</button></div></div></div>
+<main class="wrap">
+<section class="card">
+<div class="tabs">
+<button class="tab active" id="tabOrders" data-jf-onclick="showView('orders')">Заказы</button>
+<button class="tab" id="tabTrips" data-jf-onclick="showView('trips')">Рейсы по районам</button>
+<button class="tab" id="tabProducts" data-jf-onclick="showView('products')">Товары</button>
+<button class="tab" id="tabDrivers" data-jf-onclick="showView('drivers')">Водители</button>
+<button class="tab" id="tabReports" data-jf-onclick="showView('reports')">Отчётность</button>
+<button class="tab" id="tabSettings" data-jf-onclick="showView('settings')">Настройки маршрута</button>
+<button class="tab" id="tabProgramSettings" data-jf-onclick="showView('programSettings')">Настройки программы</button>
+</div>
+<div id="ordersView">
+<div class="orders-view-head">
+<div class="orders-view-copy">
+<div class="view-eyebrow">Операционный журнал</div>
+<h1>Заказы и отгрузки</h1>
+<p>Все ключевые данные собраны в одной строке. Нажмите на заказ, чтобы открыть полную карточку.</p>
+</div>
+<div class="orders-head-side">
+<div class="orders-kpis">
+<div class="orders-kpi"><span>Всего заказов</span><b id="ordersTotalCount">0</b></div>
+<div class="orders-kpi"><span>Найдено</span><b id="ordersVisibleCount">0</b></div>
+<div class="orders-kpi orders-kpi-money"><span>Общая сумма</span><b id="ordersTotalValue">0 ₽</b></div>
+</div>
+<button class="btn-danger orders-delete-all" data-jf-onclick="clearAll()" title="Удаляет все заказы, маршруты и блокировки">🗑 Удалить все заказы</button>
+</div>
+</div>
+<div class="toolbar orders-toolbar">
+<div class="orders-filter-grid">
+<label class="filter-control filter-search"><span>Поиск</span><div class="searchbox">🔎 <input id="searchInput" data-jf-oninput="scheduleRender('orders')" placeholder="Номер, контакт, адрес или товар"/></div></label>
+<label class="filter-control"><span>Область</span><select class="select-small" id="orderRegionFilter" data-jf-onchange="renderOrders()"><option value="">Все области</option></select></label>
+<label class="filter-control"><span>Район</span><select class="select-small" id="orderDistrictFilter" data-jf-onchange="renderOrders()"><option value="">Все районы</option></select></label>
+<label class="filter-control date-calendar-filter"><span>Дата доставки</span><div class="calendar-filter-row"><input class="select-small calendar-input" id="orderDateFilter" data-jf-onchange="renderOrders()" type="date"/><button aria-label="Сбросить дату" class="calendar-clear" data-jf-onclick="document.getElementById('orderDateFilter').value='';renderOrders()" title="Все даты" type="button">×</button></div></label>
+<label class="filter-control"><span>Статус</span><select class="select-small" id="orderStatusFilter" data-jf-onchange="renderOrders()">
+<option value="">Все статусы</option>
+<option value="needs_address">Требует адрес</option>
+<option value="unassigned">Не распределён</option>
+<option value="ready_route">Готов к распределению</option>
+<option value="in_collection">В наборе</option>
+<option value="in_route">В маршрутном листе</option>
+<option value="ready_departure">Готов к выезду</option>
+<option value="driver_issue">Проблема с автомобилем</option>
+<option value="pickup">Самовывоз</option>
+</select></label>
+<label class="filter-control status-scope-filter"><span>Раздел</span><select class="select-small" id="orderArchiveFilter" data-jf-onchange="renderOrders()"><option value="active">Активные</option><option value="archive">Архив</option><option value="all">Все заказы</option></select></label>
+<button class="btn-gray reset-filters-btn" data-jf-onclick="resetOrderFilters()" type="button">↺ Сбросить</button>
+</div>
+</div>
+<div class="order-status-summary" id="orderStatusSummary"></div>
+<div id="ordersArea"></div>
+</div>
+<div id="productsView" style="display:none">
+<div class="warehouse-hero">
+<div class="warehouse-hero-icon">▦</div>
+<div><h2>Склад и товарные остатки</h2><p>Единая система наличия, резервов под рассчитанные рейсы, поступлений, расходов, партий и истории движения. Доступный остаток пересчитывается автоматически.</p><div class="warehouse-hero-tags"><span>Физический остаток</span><span>Резерв рейсов</span><span>Контроль дефицита</span><span>Вес и объём погрузки</span></div></div>
+<div class="warehouse-hero-actions"><button class="btn-soft" data-jf-onclick="importProductsFromOrders()">Импорт из заказов</button><button class="btn-blue" data-jf-onclick="openInventoryMovementModal()">+ Движение товара</button><button class="btn-primary" data-jf-onclick="openProductModal()">+ Новый товар</button></div>
+</div>
+<div class="warehouse-toolbar">
+<div class="field"><label>Поиск товара</label><div class="searchbox"><span aria-hidden="true" class="warehouse-search-icon"></span><input id="productSearch" data-jf-oninput="scheduleRender('products')" placeholder="Название, артикул, ячейка, поставщик..."/></div></div>
+<div class="field"><label>Категория</label><select class="select-small" id="productCategoryFilter" data-jf-onchange="renderProducts()"><option value="">Все категории</option></select></div>
+<div class="field"><label>Состояние склада</label><select class="select-small" id="productStockFilter" data-jf-onchange="renderProducts()"><option value="">Все остатки</option><option value="in_stock">В наличии</option><option value="reserved">Есть резерв</option><option value="low">Ниже минимума</option><option value="out">Нет в наличии</option><option value="untracked">Учёт не настроен</option></select></div>
+<div class="field"><label>Сортировка</label><select class="select-small" id="productSort" data-jf-onchange="renderProducts()"><option value="attention">Требуют внимания</option><option value="name">По названию</option><option value="available_desc">Доступный остаток ↓</option><option value="updated_desc">Последние изменения</option></select></div>
+</div>
+<div class="route-top-summary warehouse-summary" id="productsSummary"></div>
+<div class="warehouse-health" id="warehouseHealth"></div>
+<div id="productsArea"></div>
+</div>
+<div id="tripsView" style="display:none">
+<div class="route-hero">
+<div class="route-hero-icon">✦</div>
+<div class="route-hero-copy"><h2>План рейсов и маршрутов</h2><p>Сформируйте план, проверьте отмеченные системой риски, назначьте автомобили и подготовьте маршрутные листы.</p><div class="route-hero-chips"><span>Дата доставки</span><span>География точек</span><span>Параметры груза</span><span>Свободный автопарк</span></div></div>
+</div>
+<div class="toolbar route-toolbar">
+<div class="toolbar-left route-toolbar-grid">
+<div class="route-filter-group">
+<label class="route-filter-field date-calendar-filter"><span>Дата доставки</span><div class="calendar-filter-row"><input class="select-small calendar-input" id="tripDateFilter" data-jf-onchange="renderTripsPreview()" type="date"/><button aria-label="Сбросить дату" class="calendar-clear" data-jf-onclick="document.getElementById('tripDateFilter').value='';renderTripsPreview()" title="Все даты" type="button">×</button></div></label>
+<label class="route-filter-field"><span>Область</span><select class="select-small" id="tripRegionFilter" data-jf-onchange="renderTripsPreview()"><option value="">Все области</option></select></label>
+</div>
+<div class="route-primary-group"><button class="btn-primary" id="buildRoutesBtn" data-jf-onclick="buildAllRoutes()">✦ Построить оптимальный план</button><button class="btn-soft" data-jf-onclick="createManualRoute()">+ Новый рейс</button></div>
+<details class="route-more-menu"><summary>Ещё действия</summary><div class="route-more-actions"><button class="btn-gray" data-jf-onclick="this.closest('details').removeAttribute('open');clearRoutePlans()">Сбросить дорожные расчёты</button><button class="btn-warn" data-jf-onclick="this.closest('details').removeAttribute('open');resetRouteAssignments()">Сбросить все рейсы и назначения</button></div></details>
+</div>
+</div>
+<div class="notice notice-warn route-progress" id="routeProgress"></div>
+<div class="route-top-summary" id="routeSummary"></div>
+<div class="route-layout">
+<div class="route-list" id="tripsArea"></div>
+<div class="route-map-wrap"><div class="route-map-head"><div class="route-map-heading"><span>Карта выбранного рейса</span><b id="routeMapTitle">Выберите рейс</b><small id="routeMapMeta">Карта появится внутри открытого рейса</small></div></div><div class="map map-large" id="routesMap"></div><div class="jf-map-credit">Картографические данные: <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">© OpenStreetMap</a></div></div>
+</div>
+<details class="route-archive" id="routeArchiveSection"><summary><span>Архив закрытых рейсов</span><span class="badge badge-lock" id="routeArchiveCount">0</span></summary><div class="route-archive-list" id="routeArchiveArea"></div></details>
+</div>
+<div id="driversView" style="display:none">
+<div class="notice notice-info">Здесь хранятся собственные водители, наёмные перевозчики и агрегаторы доставки. Для каждого профиля укажите автомобиль или класс машины, вместимость и индивидуальную схему оплаты — система проверит груз и рассчитает фактические расходы рейса.</div>
+<div class="drivers-toolbar">
+<div class="searchbox">🔎 <input id="driverSearch" data-jf-oninput="scheduleRender('drivers')" placeholder="Поиск по водителю, телефону, марке, модели, госномеру..."/></div>
+<button class="btn-primary" data-jf-onclick="openDriverModal()">+ Добавить водителя / агрегатор</button>
+</div>
+<div class="route-top-summary" id="driversSummary"></div>
+<div id="driversArea"></div>
+</div>
+<div id="reportsView" style="display:none">
+<div class="director-shell">
+<div class="director-hero">
+<div class="director-hero-icon">Д</div>
+<div>
+<div class="director-eyebrow"><i></i>Контроль без звонков сотрудникам</div>
+<h2>Отчёт директора</h2>
+<p>Достоверная картина по заказам, оплатам, маршрутам, складу, товарам, ценам, приходу, расходу, сотрудникам и прибыли. Сначала решения и отклонения, затем подтверждающие расчёты.</p>
+</div>
+<div class="director-hero-actions"><button class="btn-soft" data-jf-onclick="exportReportCSV()">Выгрузить полный отчёт</button><button class="btn-soft" data-jf-onclick="printReport()">Печатная сводка</button><button class="btn-primary" id="reportSettingsToggle" data-jf-onclick="toggleReportSettings()">Методика расчёта</button></div>
+</div>
+<div class="director-toolbar">
+<div class="director-period">
+<div class="director-presets">
+<button class="btn-gray report-preset" data-report-preset="today" data-jf-onclick="setReportPreset('today')" type="button">Сегодня</button>
+<button class="btn-gray report-preset" data-report-preset="week" data-jf-onclick="setReportPreset('week')" type="button">Неделя</button>
+<button class="btn-gray report-preset" data-report-preset="month" data-jf-onclick="setReportPreset('month')" type="button">Месяц</button>
+<button class="btn-gray report-preset" data-report-preset="quarter" data-jf-onclick="setReportPreset('quarter')" type="button">Квартал</button>
+<button class="btn-gray report-preset" data-report-preset="halfyear" data-jf-onclick="setReportPreset('halfyear')" type="button">Полугодие</button>
+<button class="btn-gray report-preset" data-report-preset="year" data-jf-onclick="setReportPreset('year')" type="button">Год</button>
+<button class="btn-gray report-preset" data-report-preset="all" data-jf-onclick="setReportPreset('all')" type="button">Всё время</button>
+</div>
+<div class="director-date-grid">
+<div class="field"><label>Отчёт с</label><input id="reportDateFrom" data-jf-onchange="applyReportPeriod()" type="date"/></div>
+<div class="field"><label>Отчёт по</label><input id="reportDateTo" data-jf-onchange="applyReportPeriod()" type="date"/></div>
+<button class="btn-primary" data-jf-onclick="applyReportPeriod()">Обновить факты</button>
+<div class="director-period-caption" id="reportPeriodCaption"></div>
+</div>
+</div>
+<div class="director-filter-box">
+<div class="director-filter-grid">
+<div class="field"><label>Тип заказа</label><select id="reportScopeFilter" data-jf-onchange="renderReport()"><option value="all">Доставка и самовывоз</option><option value="delivery">Только доставка</option><option value="pickup">Только самовывоз</option></select></div>
+<div class="field"><label>Оплата</label><select id="reportPaymentFilter" data-jf-onchange="renderReport()"><option value="all">Все оплаты</option><option value="paid">Оплачено</option><option value="pending">Должны оплатить</option><option value="refund">Возврат денег</option></select></div>
+<div class="field"><label>Состояние работы</label><select id="reportStateFilter" data-jf-onchange="renderReport()"><option value="all">Все состояния</option><option value="completed">Завершено</option><option value="active">В работе</option><option value="problem">Есть проблема</option></select></div>
+</div>
+<div class="director-filter-context" id="directorContext"></div>
+</div>
+</div>
+<div class="report-settings" id="reportSettingsPanel">
+<div class="report-settings-head"><div><h3>Методика и исходные расходы</h3><p>Здесь задаётся только то, чего нет в заказах, рейсах и складских документах. Все параметры сохраняются в резервной копии.</p></div><button class="btn-gray" data-jf-onclick="toggleReportSettings(false)">Свернуть</button></div>
+<div class="report-settings-grid">
+<div class="field"><label>Операционная дата заказа</label><select id="reportDateBasis"><option value="deliveryDate">Дата доставки / выдачи</option><option value="createdAt">Дата создания</option><option value="closedAt">Дата фактического закрытия</option></select></div>
+<div class="field"><label>Признание выручки</label><select id="reportRevenueRecognition"><option value="fulfilled">Только фактически выполненное</option><option value="all">Все действующие заказы периода</option></select></div>
+<div class="field"><label>Историческая себестоимость</label><select id="reportCostMethod"><option value="smart">Цена в заказе → поступления → карточка</option><option value="receipt">Средняя цена поступлений → карточка</option><option value="card">Текущая цена карточки</option></select></div>
+<div class="field"><label>База налога</label><select id="reportTaxBasis"><option value="recognized">Фактически выполненная выручка</option><option value="paid">Полученные деньги</option></select></div>
+<div class="field"><label>Налог / отчисление, %</label><input id="reportRevenueTaxPct" max="100" min="0" step="0.1" type="number"/></div>
+<div class="field"><label>Начисления на зарплату, %</label><input id="reportPayrollContribPct" max="100" min="0" step="0.1" type="number"/></div>
+<label class="report-check"><input id="reportIncludeDeliveryRevenue" type="checkbox"/>Доход от доставки входит в выручку</label>
+<label class="report-check"><input id="reportIncludeDriverCosts" type="checkbox"/>Оплата водителей входит в расходы</label>
+<label class="report-check"><input id="reportComparePrevious" type="checkbox"/>Показывать сравнение с прошлым периодом</label>
+<label class="report-check"><input id="reportIncludeCancelledOperations" type="checkbox"/>Показывать отменённые и неактуальные заказы</label>
+</div>
+<div class="report-settings-actions"><div class="report-cost-note">Закупки не списываются в прибыль второй раз: в прибыли участвует историческая себестоимость реально переданного товара, а поступления отдельно входят в движение денег и остаток склада.</div><button class="btn-primary" data-jf-onclick="saveReportCalculationSettings()">Сохранить методику</button></div>
+<div class="report-manager-grid">
+<div class="report-manager"><h4>Сотрудники и оклады</h4><div class="report-manager-sub">Оклад распределяется по календарным дням периода.</div><form class="report-entry-form" id="reportEmployeeForm" data-jf-onsubmit="saveReportEmployee(event)"><input id="reportEmployeeEditId" type="hidden"/><div class="field"><label>Сотрудник</label><input id="reportEmployeeName" placeholder="ФИО" required=""/></div><div class="field"><label>Должность</label><input id="reportEmployeePosition" placeholder="Менеджер, кладовщик..."/></div><div class="field"><label>Оклад в месяц, ₽</label><input id="reportEmployeeSalary" min="0" required="" step="0.01" type="number"/></div><div class="field"><label>Работает с</label><input id="reportEmployeeFrom" type="date"/></div><div class="field"><label>Работает по</label><input id="reportEmployeeTo" type="date"/></div><div class="inline-actions" style="align-items:end"><button class="btn-primary" type="submit">Сохранить</button><button class="btn-gray" data-jf-onclick="resetReportEmployeeForm()" type="button">Очистить</button></div></form><div class="report-entry-list" id="reportEmployeesList"></div></div>
+<div class="report-manager"><h4>Постоянные и разовые расходы</h4><div class="report-manager-sub">Аренда, склад, реклама, связь, ремонт и другие затраты.</div><form class="report-entry-form" id="reportExpenseForm" data-jf-onsubmit="saveReportExpense(event)"><input id="reportExpenseEditId" type="hidden"/><div class="field"><label>Название</label><input id="reportExpenseName" placeholder="Аренда склада..." required=""/></div><div class="field"><label>Категория</label><select id="reportExpenseCategory"><option>Склад</option><option>Аренда</option><option>Коммунальные расходы</option><option>Транспорт</option><option>Топливо</option><option>Реклама</option><option>Ремонт</option><option>Связь и сервисы</option><option>Налоги и комиссии</option><option>Прочее</option></select></div><div class="field"><label>Сумма, ₽</label><input id="reportExpenseAmount" min="0" required="" step="0.01" type="number"/></div><div class="field"><label>Периодичность</label><select id="reportExpenseMode" data-jf-onchange="syncReportExpenseMode()"><option value="one_time">Разово</option><option value="monthly">Каждый месяц</option></select></div><div class="field" id="reportExpenseDateField"><label>Дата расхода</label><input id="reportExpenseDate" type="date"/></div><div class="field" id="reportExpenseFromField" style="display:none"><label>Начислять с</label><input id="reportExpenseFrom" type="date"/></div><div class="field" id="reportExpenseToField" style="display:none"><label>Начислять по</label><input id="reportExpenseTo" type="date"/></div><div class="field"><label>Комментарий</label><input id="reportExpenseNote" placeholder="Контрагент, назначение..."/></div><div class="inline-actions span-2"><button class="btn-primary" type="submit">Сохранить</button><button class="btn-gray" data-jf-onclick="resetReportExpenseForm()" type="button">Очистить</button></div></form><div class="report-entry-list" id="reportExpensesList"></div></div>
+</div>
+</div>
+<div class="director-nav"><button data-jf-onclick="scrollReportTo('directorSummary')">Итог</button><button data-jf-onclick="scrollReportTo('directorActions')">Требует решения</button><button data-jf-onclick="scrollReportTo('directorFinance')">Деньги и прибыль</button><button data-jf-onclick="scrollReportTo('directorOrders')">Заказы</button><button data-jf-onclick="scrollReportTo('directorLogistics')">Логистика</button><button data-jf-onclick="scrollReportTo('directorWarehouse')">Склад и товары</button><button data-jf-onclick="scrollReportTo('directorCosts')">Расходы и штат</button><button data-jf-onclick="scrollReportTo('directorReliability')">Достоверность</button></div>
+<section class="director-section" id="directorSummary"><div id="directorVerdict"></div><div class="director-facts" id="directorFacts"></div><div id="directorQuestions" style="margin-top:12px"></div></section>
+<section class="director-section" id="directorActions"><div class="director-section-head"><div><h3>Что требует решения</h3><p>Проблема, подтверждающий факт, деньги под риском, ответственный и конкретное следующее действие.</p></div><div class="director-section-badge" id="directorActionsBadge"></div></div><div class="director-action-summary" id="directorActionSummary"></div><div id="directorActionsPanel"></div></section>
+<section class="director-section" id="directorFinance"><div class="director-section-head"><div><h3>Деньги, выручка и прибыль</h3><p>Разделяет выполненную работу, полученные деньги, дебиторку, авансы, закупки и прибыль.</p></div><div class="director-section-badge" id="directorFinanceBadge"></div></div><div class="director-reconcile" id="directorFinanceFacts"></div><div class="director-grid"><div class="director-subsection" id="directorProfitLedger"></div><div class="director-subsection" id="directorCashLedger"></div></div><div id="directorMoneyControl" style="margin-top:12px"></div></section>
+<section class="director-section" id="directorOrders"><div class="director-section-head"><div><h3>Заказы и выполнение обязательств</h3><p>Сколько создано, выполнено, оплачено, просрочено, отменено и что именно зависло.</p></div><div class="director-section-badge" id="directorOrdersBadge"></div></div><div class="director-reconcile" id="directorOrderSummary"></div><div id="directorStatusMatrix"></div><div id="directorBacklogPanel" style="margin-top:12px"></div><div id="directorExceptionsPanel" style="margin-top:12px"></div></section>
+<section class="director-section" id="directorLogistics"><div class="director-section-head"><div><h3>Маршруты, водители и экономика доставки</h3><p>Какие рейсы выгодны, какие убыточны, почему, кто назначен и где нарушен рабочий процесс.</p></div><div class="director-section-badge" id="directorLogisticsBadge"></div></div><div class="director-reconcile" id="directorLogisticsSummary"></div><div id="directorRouteRisks"></div><div id="directorTripsTable" style="margin-top:12px"></div><div id="directorDriversTable" style="margin-top:12px"></div></section>
+<section class="director-section" id="directorWarehouse"><div class="director-section-head"><div><h3>Склад, товары, цены, приход и расход</h3><p>Баланс склада на конец периода, стоимость запасов, дефицит, списания, закупочные цены и прибыльность товаров.</p></div><div class="director-section-badge" id="directorWarehouseBadge"></div></div><div class="director-reconcile" id="directorWarehouseSummary"></div><div id="directorStockReconcile"></div><div id="directorStockRisks" style="margin-top:12px"></div><div id="directorProductsTable" style="margin-top:12px"></div><div id="directorPurchasesTable" style="margin-top:12px"></div></section>
+<section class="director-section" id="directorCosts"><div class="director-section-head"><div><h3>Расходы, сотрудники и стоимость управления</h3><p>Полный состав затрат периода и фонд оплаты труда без скрытых свёрнутых сумм.</p></div><div class="director-section-badge" id="directorCostsBadge"></div></div><div class="director-reconcile" id="directorCostsSummary"></div><div class="director-grid"><div id="directorEmployeesTable"></div><div id="directorCostStructure"></div></div><div id="directorExpensesTable" style="margin-top:12px"></div></section>
+<section class="director-section" id="directorReliability"><div class="director-section-head"><div><h3>Достоверность и полнота данных</h3><p>Показывает, каким цифрам можно доверять и какие исходные данные сотрудники обязаны исправить.</p></div><div class="director-section-badge" id="directorReliabilityBadge"></div></div><div class="director-reconcile" id="directorReliabilitySummary"></div><div class="director-grid wide-left"><div id="directorDataChecks"></div><div class="director-subsection" id="directorCostSources"></div></div><div id="directorMethod" style="margin-top:12px"></div></section>
+</div>
+</div>
+<div id="settingsView" style="display:none">
+<div class="settings-hero"><div class="settings-hero-icon">↻</div><div><h2>Настройки маршрута</h2><p>Склад, ограничения рейса и автоматический график подачи автомобилей на погрузку.</p></div></div>
+<div class="settings-grid">
+<div class="settings-box">
+<h3>Склад и начало маршрута</h3>
+<div class="field"><label>Адрес склада</label><input id="warehouseAddress" placeholder="Павловск, Санкт-Петербург"/></div>
+<div class="inline-actions" style="margin-top:10px"><button class="btn-primary" data-jf-onclick="searchWarehouse()">Найти склад на карте</button><button class="btn-gray" data-jf-onclick="useCurrentLocationForWarehouse()">Моя геопозиция</button></div>
+<div class="notice notice-info" id="warehouseStatus" style="margin-top:10px"></div>
+<div class="map map-small" id="warehouseMap" style="margin-top:10px"></div><div class="jf-map-credit">Картографические данные: <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">© OpenStreetMap</a></div>
+</div>
+<div class="settings-box route-rules-box">
+<h3>Правила рейса и маршрута</h3>
+<div aria-label="Схема маршрута" class="route-mode-grid" role="radiogroup">
+<label class="route-mode-card" data-route-mode="round"><input id="routeModeRound" name="routeMode" data-jf-onchange="syncRouteModeUI()" type="radio" value="round"/><span class="route-mode-icon">↻</span><span><b>Склад → точки → склад</b><span>Полный круг с обязательным возвратом автомобиля на склад.</span></span></label>
+<label class="route-mode-card" data-route-mode="oneway"><input id="routeModeOneway" name="routeMode" data-jf-onchange="syncRouteModeUI()" type="radio" value="oneway"/><span class="route-mode-icon">→</span><span><b>Склад → точки доставки</b><span>Маршрут завершается на последней точке без возврата на склад.</span></span></label>
+</div>
+<div class="route-rule-banner">
+<div class="route-rule-banner-icon" id="routeModeBannerIcon">↻</div>
+<div><b id="routeModeBannerTitle">Склад → точки доставки → склад</b><span id="routeModeBannerText">Система учитывает полный круговой пробег, время движения и разгрузку на каждой точке.</span></div>
+</div>
+<div class="route-hints-setting">
+<div><b>Подсказки по ошибкам рейса</b><span>Показывает подробный блок проверок «Нужно исправить». Блок можно скрыть, не отключая обязательную защиту от ошибочного выезда.</span></div>
+<label class="toggle-control"><input id="routeHintsEnabled" type="checkbox"/><span class="toggle-track"></span><span class="toggle-label">Показывать</span></label>
+</div>
+<div class="route-rules-grid">
+<div class="field"><label>Резервное начало рейса</label><input id="routeStartTime" type="time" value="09:00"><div class="field-help">Используется как запасное время при отсутствии слота</div></div>
+<div class="field"><label>Минимум времени рейса, ч</label><input id="minRouteHours" max="24" min="1" step="0.5" type="number" value="8"><div class="field-help">Ниже — рейс считается коротким</div></div>
+<div class="field"><label>Максимум времени рейса, ч</label><input id="maxRouteHours" max="24" min="1" step="0.5" type="number" value="11"><div class="field-help">Включая движение и разгрузку</div></div>
+<div class="field"><label>Разгрузка — минимум, мин</label><input id="serviceMinMinutes" max="60" min="5" step="1" type="number" value="10"><div class="field-help">Для простой и быстрой выдачи</div></div>
+<div class="field"><label>Разгрузка — максимум, мин</label><input id="serviceMaxMinutes" max="60" min="5" step="1" type="number" value="20"><div class="field-help">Для объёмной или сложной точки</div></div>
+<div class="field"><label>Максимум точек в рейсе</label><input id="maxStops" max="30" min="2" type="number" value="12"><div class="field-help">Дополнительный ограничитель загрузки</div></div>
+<div class="field"><label id="maxRouteKmLabel">Максимальный пробег в круг, км</label><input id="maxRoundKm" max="2000" min="50" step="10" type="number" value="1000"><div class="field-help" id="maxRouteKmHelp">С учётом обязательного возврата на склад</div></div>
+<div class="field" style="grid-column:1/-1"><label>Профиль маршрута</label><select id="routeProfile"><option value="driving">Автомобиль / фургон</option></select></div>
+</div>
+<div class="route-rules-footer">
+<div class="route-rules-formula" id="routeRulesFormula"><b>Контроль:</b> до 1000 км в круг · 8–11 часов с разгрузкой</div>
+<button class="btn-primary" data-jf-onclick="saveSettingsFromForm()">Сохранить настройки маршрута</button>
+</div>
+</div>
+<div class="settings-box span-2 arrival-settings-box">
+<h3>Автоматическая подача машин на погрузку</h3>
+<div class="route-rule-banner">
+<div class="route-rule-banner-icon">⏱</div>
+<div><b>Водители приезжают к своему времени без очереди</b><span>Система распределяет рейсы по свободным погрузочным местам, формирует окно подачи, время погрузки и плановый выезд. Дальние рейсы можно поставить первыми.</span></div>
+</div>
+<div class="arrival-settings-grid">
+<div class="field"><label>Начало первой погрузки</label><input id="loadingStartTime" data-jf-oninput="previewArrivalSchedule()" type="time" value="08:00"><div class="field-help">Время начала работы первого слота</div></div>
+<div class="field"><label>Погрузочных мест</label><input id="loadingBayCount" max="20" min="1" data-jf-oninput="previewArrivalSchedule()" step="1" type="number" value="2"><div class="field-help">Сколько машин можно грузить одновременно</div></div>
+<div class="field"><label>Погрузка одной машины, мин</label><input id="loadingMinutes" max="240" min="10" data-jf-oninput="previewArrivalSchedule()" step="5" type="number" value="40"><div class="field-help">Плановая длительность одного слота</div></div>
+<div class="field"><label>Интервал между слотами, мин</label><input id="loadingIntervalMinutes" max="120" min="0" data-jf-oninput="previewArrivalSchedule()" step="5" type="number" value="10"><div class="field-help">Запас после окончания погрузки</div></div>
+<div class="field"><label>Прибытие до погрузки, мин</label><input id="driverArrivalLeadMinutes" max="180" min="0" data-jf-oninput="previewArrivalSchedule()" step="5" type="number" value="15"><div class="field-help">За сколько минут водитель должен быть на складе</div></div>
+<div class="field"><label>Окно прибытия, мин</label><input id="arrivalWindowMinutes" max="120" min="0" data-jf-oninput="previewArrivalSchedule()" step="5" type="number" value="10"><div class="field-help">Допустимый ранний приезд до времени подачи</div></div>
+<div class="field" style="grid-column:span 2"><label>Очередность подачи</label><select id="loadingPriority" data-jf-onchange="previewArrivalSchedule()"><option value="distance_desc">Сначала дальние рейсы</option><option value="name">По названию маршрута</option></select><div class="field-help">Внутри одной даты рейсы автоматически распределяются без пересечений</div></div>
+</div>
+<div class="route-rules-footer"><div class="route-rules-formula"><b>Результат:</b> подача машины · погрузочное место · интервал погрузки · плановый выезд</div><button class="btn-primary" data-jf-onclick="saveSettingsFromForm()">Сохранить и пересчитать график</button></div>
+</div>
+<div class="settings-box span-2 driver-payment-settings-box">
+<div class="driver-payment-head"><div><h3>Расчёт оплаты водителя</h3><p>Каждое правило включается независимо. Итог складывается из активных начислений и автоматически попадает в рейсы, карточки водителей и отчётность.</p></div><label class="toggle-control"><input id="driverPayEnabled" data-jf-onchange="syncDriverPaymentUI()" type="checkbox"/><span class="toggle-track"></span><span class="toggle-label">Расчёт включён</span></label></div>
+<div class="driver-payment-rules">
+<div class="driver-pay-rule" data-pay-rule="dispatch"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Подача машины</div><div class="driver-pay-rule-sub">Фиксированная сумма за приезд к складу</div></div><label class="toggle-control" title="Включить подачу машины"><input id="driverPayDispatchEnabled" data-jf-onchange="syncDriverPaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid one"><div class="field"><label>Сумма за подачу, ₽</label><input id="driverPayDispatchAmount" max="1000000" min="0" data-jf-oninput="previewDriverPaymentRules()" step="100" type="number" value="0"/></div></div></div>
+<div class="driver-pay-rule" data-pay-rule="fixed"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Фиксированно за рейс</div><div class="driver-pay-rule-sub">Базовая оплата за выполненный выезд</div></div><label class="toggle-control" title="Включить фиксированную оплату"><input id="driverPayFixedEnabled" data-jf-onchange="syncDriverPaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid one"><div class="field"><label>Ставка за рейс, ₽</label><input id="driverPayFixedAmount" max="1000000" min="0" data-jf-oninput="previewDriverPaymentRules()" step="100" type="number" value="0"/></div></div></div>
+<div class="driver-pay-rule" data-pay-rule="distance"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Оплата за километры</div><div class="driver-pay-rule-sub">По маршруту либо за полный круг</div></div><label class="toggle-control" title="Включить оплату за километры"><input id="driverPayDistanceEnabled" data-jf-onchange="syncDriverPaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid"><div class="field"><label>Тариф, ₽/км</label><input id="driverPayDistanceRate" max="10000" min="0" data-jf-oninput="previewDriverPaymentRules()" step="1" type="number" value="70"/></div><div class="field"><label>Как считать</label><select id="driverPayDistanceBasis" data-jf-onchange="previewDriverPaymentRules()"><option value="round">Оплата в круг</option><option value="route">Только маршрут</option></select></div></div></div>
+<div class="driver-pay-rule" data-pay-rule="stop"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Оплата за точки</div><div class="driver-pay-rule-sub">За каждую фактическую точку доставки</div></div><label class="toggle-control" title="Включить оплату за точки"><input id="driverPayStopEnabled" data-jf-onchange="syncDriverPaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid one"><div class="field"><label>Ставка за точку, ₽</label><input id="driverPayStopRate" max="100000" min="0" data-jf-oninput="previewDriverPaymentRules()" step="50" type="number" value="0"/></div></div></div>
+<div class="driver-pay-rule" data-pay-rule="hourly"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Оплата по часам</div><div class="driver-pay-rule-sub">Движение, разгрузка и при необходимости погрузка</div></div><label class="toggle-control" title="Включить почасовую оплату"><input id="driverPayHourlyEnabled" data-jf-onchange="syncDriverPaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid"><div class="field"><label>Ставка, ₽/ч</label><input id="driverPayHourlyRate" max="100000" min="0" data-jf-oninput="previewDriverPaymentRules()" step="50" type="number" value="0"/></div><div class="field"><label>Округление времени</label><select id="driverPayHourRounding" data-jf-onchange="previewDriverPaymentRules()"><option value="1">До минуты</option><option value="15">До 15 минут</option><option value="30">До 30 минут</option><option value="60">До полного часа</option></select></div></div><label class="driver-pay-check"><input id="driverPayIncludeLoading" data-jf-onchange="previewDriverPaymentRules()" type="checkbox"/> Включать плановое время погрузки в оплачиваемые часы</label></div>
+<div class="driver-pay-rule" data-pay-rule="overtime"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Переработка</div><div class="driver-pay-rule-sub">Повышенная ставка после заданного времени</div></div><label class="toggle-control" title="Включить оплату переработки"><input id="driverPayOvertimeEnabled" data-jf-onchange="syncDriverPaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid"><div class="field"><label>После, часов</label><input id="driverPayOvertimeAfter" max="24" min="1" data-jf-oninput="previewDriverPaymentRules()" step="0.5" type="number" value="8"/></div><div class="field"><label>Ставка, ₽/ч</label><input id="driverPayOvertimeRate" max="100000" min="0" data-jf-oninput="previewDriverPaymentRules()" step="50" type="number" value="0"/></div></div></div>
+<div class="driver-pay-rule" data-pay-rule="minimum"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Минимальная гарантия</div><div class="driver-pay-rule-sub">Итог не будет ниже установленной суммы</div></div><label class="toggle-control" title="Включить минимальную гарантию"><input id="driverPayMinimumEnabled" data-jf-onchange="syncDriverPaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid one"><div class="field"><label>Минимум за рейс, ₽</label><input id="driverPayMinimumAmount" max="1000000" min="0" data-jf-oninput="previewDriverPaymentRules()" step="100" type="number" value="0"/></div></div></div>
+</div>
+<div class="driver-payment-preview"><div><b>Формула расчёта</b><span id="driverPaymentFormula">Оплата за полный круговой пробег</span></div><strong id="driverPaymentRulesCount">1 правило активно</strong></div>
+<div class="route-rules-footer"><div class="route-rules-formula"><b>Важно:</b> правила суммируются. Минимальная гарантия применяется последней и только увеличивает рассчитанный итог.</div><button class="btn-primary" data-jf-onclick="saveDriverPaymentSettings()">Сохранить расчёт водителя</button></div>
+</div>
+<div class="settings-box span-2 driver-payment-moved-box">
+<div class="driver-payment-head"><div><h3>Индивидуальная оплата исполнителей</h3><p>Схема оплаты больше не задаётся одной ставкой для всего автопарка. Откройте карточку конкретного водителя или агрегатора: его собственные правила применятся при назначении на рейс и сохранятся в отчётности.</p></div><button class="btn-blue" data-jf-onclick="showView('drivers')">Открыть водителей</button></div>
+</div>
+<div class="settings-box span-2 delivery-pricing-settings-box">
+<div class="driver-payment-head"><div><h3>Стоимость доставки для клиента</h3><p>Настройте понятную цену отдельной доставки и при необходимости распределяйте общую дорогу готового рейса.</p></div><label class="toggle-control"><input id="deliveryPricingEnabled" data-jf-onchange="syncDeliveryPricingUI()" type="checkbox"/><span class="toggle-track"></span><span class="toggle-label" id="deliveryPricingEnabledLabel">Распределять по рейсу</span></label></div>
+<div class="delivery-pricing-steps"><div><b>1. Новый заказ</b><span>Считается подача + точка + километры.</span></div><div><b>2. Готовый рейс</b><span>Общие участки дороги делятся между клиентами.</span></div><div><b>3. Решение менеджера</b><span>Предложение проверяется и применяется вручную.</span></div></div>
+<div class="delivery-pricing-groups">
+<section class="delivery-pricing-group"><header><b>Цена отдельной доставки</b><span>Выберите один понятный способ. Радиус всегда считается от подтверждённой точки активного склада.</span></header><div class="delivery-mode-cards-v783"><label><input type="radio" name="deliveryBaseMode" value="per_km" data-jf-onchange="syncDeliveryPricingUI()"><span><b>По дороге, ₽/км</b><small>Адрес → дорожное расстояние → тариф.</small></span></label><label><input type="radio" name="deliveryBaseMode" value="fixed" data-jf-onchange="syncDeliveryPricingUI()"><span><b>Одна фиксированная цена</b><small>Одинаковая сумма для любого адреса.</small></span></label><label><input type="radio" name="deliveryBaseMode" value="radius" data-jf-onchange="syncDeliveryPricingUI()"><span><b>Фиксированные зоны</b><small>Ближайшая подходящая зона от склада.</small></span></label></div><div class="delivery-pricing-grid three"><div class="field" data-delivery-mode-field="per_km radius"><label for="deliverySalesRate">Тариф за дорогу, ₽/км</label><input id="deliverySalesRate" min="0" data-jf-oninput="syncDeliveryPricingUI()" step="1" type="number"/><div class="field-help">Для режима по километрам и адресов за пределами последней зоны.</div></div><div class="field" data-delivery-mode-field="fixed"><label for="deliveryFixedAmount">Фиксированная цена, ₽</label><input id="deliveryFixedAmount" min="0" data-jf-oninput="syncDeliveryPricingUI()" step="100" type="number"/></div><div class="field"><label for="deliveryDispatchAmount">Подача машины, ₽</label><input id="deliveryDispatchAmount" min="0" data-jf-oninput="syncDeliveryPricingUI()" step="100" type="number"/><div class="field-help">Добавляется один раз к расчёту по километрам; в фиксированную цену и зоны уже входит.</div></div><div class="field"><label for="deliveryStopFee">Обслуживание точки, ₽</label><input id="deliveryStopFee" min="0" data-jf-oninput="syncDeliveryPricingUI()" step="50" type="number"/><div class="field-help">Добавляется к расчёту по километрам; в фиксированную цену и зоны уже входит.</div></div></div><div class="delivery-radius-zones-v783" data-delivery-mode-field="radius"><div><b>Зона A</b><label>До, км<input id="deliveryZoneRadius1" type="number" min="0.1" step="0.1" data-jf-oninput="syncDeliveryPricingUI()"></label><label>Цена, ₽<input id="deliveryZonePrice1" type="number" min="0" step="100" data-jf-oninput="syncDeliveryPricingUI()"></label></div><div><b>Зона B</b><label>До, км<input id="deliveryZoneRadius2" type="number" min="0.1" step="0.1" data-jf-oninput="syncDeliveryPricingUI()"></label><label>Цена, ₽<input id="deliveryZonePrice2" type="number" min="0" step="100" data-jf-oninput="syncDeliveryPricingUI()"></label></div><div><b>Зона C</b><label>До, км<input id="deliveryZoneRadius3" type="number" min="0.1" step="0.1" data-jf-oninput="syncDeliveryPricingUI()"></label><label>Цена, ₽<input id="deliveryZonePrice3" type="number" min="0" step="100" data-jf-oninput="syncDeliveryPricingUI()"></label></div><p>Зоны автоматически сортируются по радиусу. Если адрес дальше последней зоны, применяется тариф за километр.</p></div></section>
+<section class="delivery-pricing-group"><header><b>Защита цены клиента</b><span>Ограничивает слишком сильное снижение после объединения заказов.</span></header><div class="delivery-pricing-grid three"><div class="field"><label for="deliveryMinimumOrder">Минимальная цена заказа, ₽</label><input id="deliveryMinimumOrder" min="0" data-jf-oninput="syncDeliveryPricingUI()" step="100" type="number"/></div><div class="field"><label for="deliveryMinimumSoloPct">Не ниже доли отдельной цены, %</label><input id="deliveryMinimumSoloPct" max="100" min="0" data-jf-oninput="syncDeliveryPricingUI()" step="5" type="number"/><div class="field-help">Например, 40% от первоначальной цены.</div></div><div class="field"><label for="deliveryRoundingStep">Округление суммы</label><select id="deliveryRoundingStep" data-jf-onchange="syncDeliveryPricingUI()"><option value="1">До 1 ₽</option><option value="100">До 100 ₽</option><option value="500">До 500 ₽</option></select></div></div></section>
+<section class="delivery-pricing-group"><header><b>Обратная дорога и прибыль</b><span>Используется при распределении стоимости готового рейса.</span></header><div class="delivery-pricing-grid two"><div class="field"><label for="deliveryReturnShare">Какую часть возврата включить</label><select id="deliveryReturnShare" data-jf-onchange="syncDeliveryPricingUI()"><option value="0">Не включать — расход компании</option><option value="50">Включить половину</option><option value="100">Включить полностью</option></select></div><div class="field"><label for="deliveryTargetMargin">Предупредить при марже ниже, %</label><input id="deliveryTargetMargin" max="100" min="-100" data-jf-oninput="syncDeliveryPricingUI()" step="1" type="number"/><div class="field-help">Система предупредит, но не изменит цену сама.</div></div></div></section>
+</div>
+<div class="delivery-pricing-preview" id="deliveryPricingPreview" aria-live="polite"></div>
+<div class="shared-pricing-explainer"><b>Безопасность:</b> оплаченные, зафиксированные и вручную изменённые цены не перезаписываются. Распределение применяется только после проверки менеджером.</div>
+<div class="route-rules-footer"><div class="route-rules-formula"><b>После сохранения:</b> новые заказы используют новую формулу; старые суммы остаются без изменений.</div><button class="btn-primary" data-jf-onclick="saveDeliveryPricingSettings()">Сохранить правила цены</button></div>
+</div>
+</div>
+</div>
+<div id="programSettingsView" style="display:none">
+<div class="settings-hero"><div class="settings-hero-icon">⚙</div><div><h2>Настройки программы</h2><p>Демонстрация, резервные копии, восстановление, диагностика базы и служебные адреса картографических сервисов.</p></div></div>
+<div class="settings-grid">
+<div class="settings-box span-2 demo-settings-box">
+<div class="demo-settings-head">
+<div class="demo-settings-title"><div class="demo-settings-icon">D</div><div><h3>Демонстрация программы</h3><p>Полноценная безопасная среда для показа заказчику и проверки рабочих сценариев. Все действия выполняются в отдельной учебной базе и не пересекаются с реальными данными.</p></div></div>
+<label class="toggle-control"><input id="demoModeToggle" data-jf-onchange="requestDemonstrationMode(this.checked)" type="checkbox"/><span class="toggle-track"></span><span class="toggle-label" id="demoModeToggleLabel">Выключена</span></label>
+</div>
+<div class="demo-feature-grid">
+<div class="demo-feature"><b>Заказы и статусы</b><span>Доставка, самовывоз, оплата, архив, отмена, частичная и повторная доставка.</span></div>
+<div class="demo-feature"><b>Склад и товары</b><span>Остатки, резерв, поступления, отгрузки, списания, комплектации и параметры перевозки.</span></div>
+<div class="demo-feature"><b>Рейсы и водители</b><span>Планирование, подбор автомобиля, оплата, рейс в пути, возврат и закрытие.</span></div>
+<div class="demo-feature"><b>Финансы и отчёты</b><span>Выручка, себестоимость, сотрудники, зарплаты, расходы и прибыль за период.</span></div>
+</div>
+<div class="demo-mode-status" id="demoModeStatus">Демонстрация выключена. Программа работает с основной базой.</div>
+<div class="demo-scenario-center" id="demoScenarioCenter">
+<div class="demo-scenario-head"><div><b>Умная экскурсия по программе</b><span>Шесть связанных рабочих сценариев — от заказа до закрывающих документов и отчёта руководителя.</span></div><div class="demo-audit-badge" id="demoAuditBadge">Ожидает запуска</div></div>
+<div class="demo-scenario-progress"><i id="demoScenarioProgress"></i></div>
+<div class="demo-scenario-steps" id="demoScenarioSteps">
+<button type="button" data-demo-step="orders"><i>1</i><b>Заказы</b><span>Создание, оплата и статусы</span></button>
+<button type="button" data-demo-step="products"><i>2</i><b>Склад</b><span>Товары, остатки и резерв</span></button>
+<button type="button" data-demo-step="trips"><i>3</i><b>Рейсы</b><span>План, машина и выезд</span></button>
+<button type="button" data-demo-step="drivers"><i>4</i><b>Водители</b><span>Транспорт и расчёт оплаты</span></button>
+<button type="button" data-demo-step="reports"><i>5</i><b>Отчётность</b><span>Выручка, затраты и прибыль</span></button>
+<button type="button" data-demo-step="documents"><i>6</i><b>Документы</b><span>Счёт, маршрутный лист и печать</span></button>
+</div>
+<div class="demo-scenario-actions"><button class="btn-primary" id="demoTourStart" type="button">Начать полную экскурсию</button><button class="btn-soft" id="demoTourContinue" type="button">Продолжить с текущего шага</button><button class="btn-gray" id="demoRunAudit" type="button">Проверить учебную базу</button></div>
+<div class="demo-guide-card" id="demoGuideCard" hidden></div>
+</div>
+<div class="demo-mode-actions"><div class="small muted">При выключении демонстрации учебные изменения скрываются, и программа сразу возвращается к основной базе. Никакого объединения данных не выполняется.</div><button class="btn-warn" id="restartDemoButton" data-jf-onclick="restartDemonstrationScenario()" style="display:none" type="button">Запустить демонстрацию заново</button></div>
+</div>
+<div class="settings-box span-2">
+<h3>Надёжность и обслуживание данных</h3>
+<div class="maintenance-grid">
+<div class="maintenance-card"><b>Резервная копия</b><span>Сохраните заказы, складские остатки, движения товаров, водителей, рейсы и настройки в один файл.</span><button class="btn-soft" data-jf-onclick="exportBackup()" style="margin-top:10px">Скачать копию</button></div>
+<div class="maintenance-card"><b>Восстановление</b><span>Загрузите ранее сохранённую копию. Перед импортом автоматически создаётся страховочная копия.</span><button class="btn-blue" data-jf-onclick="chooseBackupFile()" style="margin-top:10px">Загрузить копию</button><input accept="application/json,.json" id="backupFileInput" data-jf-onchange="importBackupFile(event)" style="display:none" type="file"/></div>
+<div class="maintenance-card"><b>Проверка базы</b><span>Исправляет повреждённые связи, дубли идентификаторов и устаревшие назначения рейсов.</span><button class="btn-primary" data-jf-onclick="runDataDiagnostics(true)" style="margin-top:10px">Проверить систему</button></div>
+<div class="maintenance-card"><b>Журналы запуска</b><span id="jfLogPath">%LOCALAPPDATA%\JustFun\OrdersLogistics\logs</span><button class="btn-gray" id="jfOpenLogs" type="button" style="margin-top:10px">Открыть папку logs</button></div>
+</div>
+<div class="notice notice-info" id="diagnosticStatus" style="margin-top:12px">Версия системы: 7.8.3 · автоматическая проверка изоляции склада, LIVE/DEMO, заказов, рейсов, оплат и архива выполняется при каждом запуске.</div>
+</div>
+<div class="settings-box span-2 jf-integrations-box" id="jfRegIntegrationsBox">
+<h3>Сервер и резервные копии REG.RU</h3>
+<p class="jf-integration-lead">Отдельный блок хранения рабочих данных. Недоступность REG.RU не блокирует запуск программы: локальная база открывается сразу, а связь восстанавливается в фоне.</p>
+<section class="jf-integration-card">
+<div class="jf-integration-head"><div><b>VPS REG.RU</b><span>PostgreSQL и защищённая копия активного склада</span></div><i id="jfRegBadge">Не настроен</i></div>
+<div class="grid-3 jf-reg-fields">
+<div class="field"><label for="jfRegAddress">IP-адрес VPS</label><input id="jfRegAddress" inputmode="decimal" placeholder="Например: 203.0.113.10" autocomplete="off"/></div>
+<div class="field"><label for="jfRegUser">SSH-пользователь</label><input id="jfRegUser" value="root" autocomplete="off"/></div>
+<div class="field"><label for="jfRegPort">SSH-порт</label><input id="jfRegPort" type="number" min="1" max="65535" value="22"/></div>
+</div>
+<div class="jf-integration-note">Домен не нужен. Пароль SSH вводится в отдельном защищённом окне JustFun, используется только в памяти и не сохраняется. Перед входом программа обязательно проверяет отпечаток SSH-ключа VPS. Порт PostgreSQL наружу не открывается.</div>
+<div class="inline-actions"><button class="btn-primary" id="jfRegConfigure" type="button">Установить или обновить VPS</button><button class="btn-gray" id="jfRegCheck" type="button">Проверить связь</button><button class="btn-blue" id="jfRegSync" type="button">Сохранить активный склад</button><button class="btn-soft" id="jfRegRestore" type="button">Восстановить активный склад</button></div>
+<div class="jf-integration-status" id="jfRegStatus">Введите IP своего VPS REG.RU.</div>
+</section>
+</div>
+<div class="settings-box span-2 jf-integrations-box" id="jfTelegramIntegrationsBox">
+<h3>Telegram-бот и Cloudflare</h3>
+<p class="jf-integration-lead">Отдельный канал уведомлений и связи со складами и водителями. Он работает независимо от VPS REG.RU и не использует пароль сервера.</p>
+<section class="jf-integration-card">
+<div class="jf-integration-head"><div><b>Telegram + Cloudflare</b><span>Временный API-токен → автоматические Worker, D1 и webhook</span></div><i id="jfTelegramBadge">Не настроен</i></div>
+<div class="jf-integration-note"><b>Отдельное подключение активного склада.</b> Для каждого склада владелец указывает своего Telegram-бота. Программа создаёт отдельные Worker, D1, webhook и защищённый ключ, поэтому бот и сообщения другого склада сюда попасть не могут. Собственный домен не требуется; временный Cloudflare API-токен после настройки рекомендуется удалить.</div>
+<div class="jf-integration-status" id="jfTelegramWarehouseContext">Активный склад: определяется…</div>
+<div class="inline-actions"><button class="btn-primary" id="jfTelegramConfigure" type="button">Настроить Telegram</button><button class="btn-gray" id="jfTelegramReconnect" type="button">Проверить и восстановить</button><button class="btn-gray" id="jfTelegramCheck" type="button">Проверить webhook</button><button class="btn-blue" id="jfTelegramWarehouse" type="button">Подключить группу склада</button></div>
+<div class="jf-telegram-progress" id="jfTelegramProgress" hidden>
+<div class="jf-telegram-progress-head"><span id="jfTelegramProgressText">Подготовка…</span><b id="jfTelegramProgressPercent">0%</b></div>
+<div class="jf-telegram-progress-track"><i id="jfTelegramProgressBar"></i></div>
+</div>
+<div class="jf-integration-status" id="jfTelegramStatus">Бот ещё не подключён.</div>
+<div class="jf-link-result" id="jfTelegramLinkResult" hidden></div>
+</section>
+</div>
+<div class="settings-box span-2">
+<h3>Сервисы OpenStreetMap</h3>
+<div class="grid-3">
+<div class="field"><label for="nominatimUrl">Nominatim — поиск адресов</label><input id="nominatimUrl"/></div>
+<div class="field"><label for="osrmUrl">OSRM — расчёт дорог</label><input id="osrmUrl"/></div>
+<div class="field"><label for="tileUrl">Тайлы карты</label><input id="tileUrl"/></div>
+</div>
+<div class="inline-actions" style="margin-top:11px"><button class="btn-primary" data-jf-onclick="saveServiceSettings()">Сохранить сервисы</button><button class="btn-gray" data-jf-onclick="resetServiceSettings()">Вернуть стандартные</button></div>
+</div>
+</div>
+</div>
+</section>
+</main>
+<datalist id="productCatalogList"></datalist>
+<div id="printArea" style="display:none"></div>
+<div aria-label="Заказ" aria-modal="true" class="modal" id="orderModal" role="dialog">
+<div class="modal-box">
+<div class="modal-head"><div><div class="modal-title" id="orderModalTitle">Новый заказ</div><div class="muted" id="orderModalHint">Номер формируется автоматически</div></div><button class="btn-gray" data-jf-onclick="closeOrderModal()">Закрыть</button></div>
+<form id="orderForm" data-jf-onsubmit="saveOrder(event)">
+<div class="modal-body">
+<input id="editingOrderId" type="hidden">
+<div class="grid-3">
+<div class="field"><label>Контактное лицо</label><input id="contactName" placeholder="Иван Петров" required=""/></div>
+<div class="field"><label>Телефон / способ связи</label><input id="contactMethod" placeholder="+7 900 000-00-00" required=""/></div>
+<div class="field"><label>Дата доставки</label><input id="deliveryDate" required="" type="date"/></div>
+</div>
+<div class="order-payment-box">
+<div><b>Оплата заказа</b><span>Способ оплаты и факт поступления денег хранятся отдельно от суммы заказа.</span></div>
+<div class="field"><label>Вид оплаты</label><select id="paymentMethod"><option value="cash">Наличные</option><option value="transfer">Перевод</option><option value="invoice">Безналичный счёт</option></select></div>
+<div class="field"><label>Статус оплаты</label><select id="paymentStatus"><option value="pending">Ожидает оплаты</option><option value="paid">Оплата произведена</option></select></div>
+</div>
+<div class="section-title"><h2>Адрес доставки</h2></div>
+<div class="field"><textarea id="deliveryAddress" placeholder="Область, район, населённый пункт, улица, дом; для СНТ — название, линия и участок" required="" data-jf-oninput="invalidateDeliveryAddressSearch()"></textarea></div>
+<div class="geo-panel">
+<div class="geo-controls">
+<button class="btn-primary" id="addressSearchBtn" data-jf-onclick="searchDeliveryAddress()" type="button">🔎 Найти адрес и район</button>
+<button class="btn-gray" data-jf-onclick="clearSelectedPoint()" type="button">Сбросить точку</button>
+</div>
+<div class="notice notice-info" id="geoStatus" style="margin-top:10px">Введите адрес и нажмите поиск. Также можно поставить точку непосредственно кликом по карте или перетащить маркер.</div>
+<div class="geo-results" id="geoResults"></div>
+<div class="selected-address" id="selectedAddress">
+<div class="notice notice-ok"><b id="selectedFullAddress">Адрес выбран</b></div>
+<div class="address-grid">
+<div class="address-cell"><span>Область / субъект</span><b id="selectedRegion">—</b></div>
+<div class="address-cell"><span>Административный район</span><b id="selectedDistrict">—</b></div>
+<div class="address-cell"><span>Населённый пункт</span><b id="selectedSettlement">—</b></div>
+<div class="address-cell"><span>Улица</span><b id="selectedRoad">—</b></div>
+<div class="address-cell"><span>Дом / участок</span><b id="selectedHouse">—</b></div>
+<div class="address-cell"><span>Координаты</span><b id="selectedCoords">—</b></div>
+</div>
+<div class="grid" style="margin-top:10px">
+<div class="field"><label>Область — можно исправить вручную</label><input id="manualRegion"/></div>
+<div class="field"><label>Район — можно исправить вручную</label><input id="manualDistrict"/></div>
+</div>
+</div>
+<div class="map" id="orderMap" style="margin-top:11px"></div><div class="jf-map-credit">Картографические данные: <a href="https://www.openstreetmap.org/copyright" rel="noopener" target="_blank">© OpenStreetMap</a></div>
+</div>
+<div class="delivery-calc" id="deliveryCalcBox">
+<div class="delivery-calc-head">
+<div><div class="delivery-calc-title" id="deliveryCalcTitle">🚚 Автоматический расчёт доставки</div><div class="delivery-calc-sub" id="deliveryCalcSub">Расстояние по автомобильным дорогам от склада до адреса доставки</div></div>
+<div class="inline-actions">
+<span class="badge badge-green" id="deliveryModeBadge">100 ₽ / км</span>
+</div>
+</div>
+<div class="delivery-calc-grid">
+<div class="delivery-calc-cell"><span>Расстояние по дороге</span><b id="deliveryDistance">—</b></div>
+<div class="delivery-calc-cell"><span>Тариф</span><b>100 ₽ / км</b></div>
+<div class="delivery-calc-cell"><span>Стоимость доставки</span><div class="delivery-cost-value-v783"><b id="deliveryCost">0 ₽</b><button id="manualDeliveryToggle" data-jf-onclick="toggleManualDeliveryMode()" type="button" aria-label="Изменить стоимость доставки" title="Изменить сумму вручную">✎</button></div></div>
+</div>
+<div class="delivery-calc-status" id="deliveryCalcStatus">Выберите точный адрес — доставка рассчитается автоматически.</div>
+<div class="manual-delivery-editor" id="manualDeliveryEditor">
+<div class="field">
+<label>Стоимость доставки для этого заказа, ₽</label>
+<input id="manualDeliveryCost" inputmode="decimal" min="0" data-jf-oninput="applyManualDeliveryCost()" placeholder="Например: 3500" step="1" type="number">
+</div>
+<button class="btn-soft" data-jf-onclick="restoreAutomaticDelivery()" type="button">↻ Вернуть автоматический расчёт</button>
+<div class="manual-delivery-note">Ручная сумма меняет только стоимость доставки. Расстояние и маршрут остаются рассчитанными по карте. При смене адреса ручная сумма сбрасывается.</div>
+</div>
+</div>
+<div class="field" style="margin-top:14px"><label>Комментарий водителю / особенности разгрузки</label><textarea id="driverNote" placeholder="Контакт на объекте, въезд, пропуск, этаж, разгрузка..."></textarea></div>
+<div class="section-title"><h2>Товары</h2><button class="btn-soft" data-jf-onclick="addItem()" type="button">+ Добавить товар</button></div>
+<div class="items" id="items"></div>
+<div class="cargo-summary" id="cargoSummary">
+<div class="cargo-summary-cell"><span>Общий объём груза</span><b id="cargoVolumeTotal">0 м³</b></div>
+<div class="cargo-summary-cell"><span>Общий вес груза</span><b id="cargoWeightTotal">0 кг</b></div>
+<div class="cargo-summary-cell"><span>Подбор автомобиля</span><b id="cargoVehicleHint">Укажите объём и вес</b></div>
+</div>
+<div class="cargo-help">Объём и вес указываются для одной единицы товара. Они не влияют на стоимость заказа, но позволяют правильно подобрать автомобиль для рейса.</div>
+<div class="sum-box"><span>Товары</span><span id="grandTotal">0 ₽</span></div>
+<div class="sum-box delivery-sum"><span>Доставка</span><span id="deliveryTotal">0 ₽</span></div>
+<div class="sum-box grand-sum"><span>Итого к оплате</span><span id="orderTotal">0 ₽</span></div>
+</div>
+<div class="modal-foot"><button class="btn-gray" data-jf-onclick="closeOrderModal()" type="button">Отмена</button><button class="btn-primary" type="submit">Сохранить заказ</button></div>
+</form>
+</div>
+</div>
+<div aria-label="Самовывоз" aria-modal="true" class="modal" id="pickupModal" role="dialog">
+<div class="modal-box pickup-modal-box">
+<div class="modal-head"><div><div class="modal-title" id="pickupModalTitle">Новый самовывоз</div><div class="muted" id="pickupModalHint">Только выбор товаров — без адреса и маршрута</div></div><button class="btn-gray" data-jf-onclick="closePickupModal()">Закрыть</button></div>
+<form id="pickupForm" data-jf-onsubmit="savePickup(event)">
+<div class="modal-body">
+<input id="editingPickupId" type="hidden">
+<div class="pickup-intro"><div class="pickup-icon">📦</div><div><b>Самовывоз со склада</b><span>Добавьте нужные товары и сохраните. Адрес, контакт и маршрут не требуются — запись появится в общем списке заказов и не попадёт в рейсы.</span></div></div>
+<div class="order-payment-box pickup-payment-box">
+<div><b>Оплата самовывоза</b><span>Отметьте способ и состояние оплаты.</span></div>
+<div class="field"><label>Вид оплаты</label><select id="pickupPaymentMethod"><option value="cash">Наличные</option><option value="transfer">Перевод</option><option value="invoice">Безналичный счёт</option></select></div>
+<div class="field"><label>Статус оплаты</label><select id="pickupPaymentStatus"><option value="pending">Ожидает оплаты</option><option value="paid">Оплата произведена</option></select></div>
+</div>
+<div class="section-title"><h2>Товары к выдаче</h2><button class="btn-soft" data-jf-onclick="addPickupItem()" type="button">+ Добавить товар</button></div>
+<div class="items" id="pickupItems"></div>
+<div class="sum-box"><span>Сумма самовывоза</span><span id="pickupGrandTotal">0 ₽</span></div>
+</div>
+<div class="modal-foot"><button class="btn-gray" data-jf-onclick="closePickupModal()" type="button">Отмена</button><button class="btn-blue" type="submit">Сохранить самовывоз</button></div>
+</form>
+</div>
+</div>
+<div aria-label="Карточка заказа" aria-modal="true" class="modal" id="detailModal" role="dialog">
+<div class="modal-box">
+<div class="modal-head"><div><div class="modal-title" id="detailTitle">Заказ</div><div class="muted" id="detailDate"></div></div><button class="btn-gray" data-jf-onclick="closeDetailModal()">Закрыть</button></div>
+<div class="modal-body" id="detailBody"></div>
+<div class="modal-foot"><button class="btn-primary" data-jf-onclick="printCurrentOrder()">Печать заказа</button><button class="btn-blue" id="toggleOrderPaymentBtn" data-jf-onclick="toggleCurrentOrderPayment()">Отметить оплату</button><button class="btn-soft" id="pickupReadyBtn" data-jf-onclick="markCurrentPickupReady()" style="display:none">Готов к выдаче</button><button class="btn-primary" id="pickupCollectedBtn" data-jf-onclick="markCurrentPickupCollected()" style="display:none">Заказ забран</button><button class="btn-blue" id="retryDeliveryBtn" data-jf-onclick="retryCurrentDelivery()" style="display:none">Повторить доставку</button><button class="btn-blue" id="partialRepeatBtn" data-jf-onclick="resolveCurrentPartial('delivery')" style="display:none">Повторная доставка остатка</button><button class="btn-soft" id="partialPickupBtn" data-jf-onclick="resolveCurrentPartial('pickup')" style="display:none">Остаток самовывозом</button><button class="btn-warn" id="partialCloseBtn" data-jf-onclick="resolveCurrentPartial('refused')" style="display:none">Закрыть остаток</button><button class="btn-warn" id="orderNotRelevantBtn" data-jf-onclick="openNotRelevantModal()">Не актуален</button><button class="btn-soft" id="editOrderBtn" data-jf-onclick="editCurrentOrder()">Редактировать</button><button class="btn-danger" id="deleteOrderBtn">Удалить</button><button class="btn-gray" data-jf-onclick="closeDetailModal()">Закрыть</button></div>
+</div>
+</div>
+<div aria-label="Карточка водителя" aria-modal="true" class="modal" id="driverDetailModal" role="dialog">
+<div class="modal-box">
+<div class="modal-head"><div><div class="modal-title" id="driverDetailTitle">Карточка водителя</div><div class="muted" id="driverDetailDate"></div></div><button class="btn-gray" data-jf-onclick="closeDriverDetailModal()">Закрыть</button></div>
+<div class="modal-body" id="driverDetailBody"></div>
+<div class="modal-foot"><button class="btn-soft" id="editDriverBtn" data-jf-onclick="editCurrentDriver()">Редактировать</button><button class="btn-danger" id="deleteDriverBtn" data-jf-onclick="deleteCurrentDriver()">Удалить</button><button class="btn-gray" data-jf-onclick="closeDriverDetailModal()">Закрыть</button></div>
+</div>
+</div>
+<div aria-label="Карточка товара" aria-modal="true" class="modal" id="productDetailModal" role="dialog">
+<div class="modal-box">
+<div class="modal-head"><div><div class="modal-title" id="productDetailTitle">Карточка товара</div><div class="muted" id="productDetailDate"></div></div><button class="btn-gray" data-jf-onclick="closeProductDetailModal()">Закрыть</button></div>
+<div class="modal-body" id="productDetailBody"></div>
+<div class="modal-foot"><button class="btn-primary" data-jf-onclick="openMovementForCurrentProduct('receipt')">+ Поступление</button><button class="btn-blue" data-jf-onclick="openMovementForCurrentProduct('expense')">− Расход</button><button class="btn-soft" id="editProductBtn" data-jf-onclick="editCurrentProduct()">Редактировать</button><button class="btn-danger" id="deleteProductBtn" data-jf-onclick="deleteCurrentProduct()">Удалить</button><button class="btn-gray" data-jf-onclick="closeProductDetailModal()">Закрыть</button></div>
+</div>
+</div>
+<div aria-label="Водитель" aria-modal="true" class="modal" id="driverModal" role="dialog">
+<div class="modal-box driver-modal-box">
+<div class="modal-head"><div><div class="modal-title" id="driverModalTitle">Новый водитель</div><div class="muted">Исполнитель, автомобиль, индивидуальный тариф и контроль оплаты</div></div><button class="btn-gray" data-jf-onclick="closeDriverModal()">Закрыть</button></div>
+<form id="driverForm" data-jf-onsubmit="saveDriver(event)">
+<div class="modal-body">
+<input id="editingDriverId" type="hidden">
+<div class="driver-profile-type">
+<div class="driver-profile-type-grid">
+<div class="field"><label>Тип исполнителя</label><select id="driverWorkerType" data-jf-onchange="syncDriverProfileType()"><option value="driver">Собственный / наёмный водитель</option><option value="aggregator">Агрегатор или служба доставки</option></select></div>
+<div class="field"><label>Доступность</label><select id="driverActive"><option value="yes">Активен — можно назначать</option><option value="no">Неактивен / временно недоступен</option></select></div>
+<div class="field"><label>Параллельные рейсы</label><select id="driverMultipleBookings"><option value="no">Нет — только один рейс в дату</option><option value="yes">Да — несколько заявок одновременно</option></select><div class="field-help">Для агрегатора обычно разрешено</div></div>
+</div>
+<div class="driver-profile-provider driver-profile-type-grid" id="driverProviderFields">
+<div class="field"><label>Сервис</label><select id="driverProviderCode" data-jf-onchange="syncDriverProviderName()"><option value="yandex">Яндекс Доставка</option><option value="dostavista">Dostavista</option><option value="cdek">СДЭК</option><option value="delovye_linii">Деловые Линии</option><option value="pec">ПЭК</option><option value="other">Другой сервис</option></select></div>
+<div class="field"><label>Название в учёте</label><input id="driverProviderName" placeholder="Например, Яндекс Доставка"/></div>
+<div class="field"><label>Договор / аккаунт</label><input id="driverProviderAccount" placeholder="Номер договора, кабинет или организация"/></div>
+<div class="field"><label>Контакт поддержки</label><input id="driverProviderContact" placeholder="Телефон, чат или e-mail"/></div>
+</div>
+</div>
+<div class="grid">
+<div class="field"><label id="driverNameLabel">ФИО водителя</label><input id="driverName" placeholder="Иванов Иван Иванович" required=""/></div>
+<div class="field"><label id="driverPhoneLabel">Телефон</label><input id="driverPhone" placeholder="+7 900 000-00-00" required=""/></div>
+<div class="field"><label>Дополнительный контакт / примечание</label><input id="driverContactNote" placeholder="Telegram, второй номер, комментарий"/></div>
+</div>
+<div class="section-title"><h2>Автомобиль</h2><span class="badge badge-blue">Габариты кузова — внутренние</span></div>
+<div class="grid-3">
+<div class="field"><label>Марка</label><input id="vehicleBrand" placeholder="ГАЗ, Ford, Hyundai..." required=""/></div>
+<div class="field"><label>Модель</label><input id="vehicleModel" placeholder="Газель NEXT, Transit..." required=""/></div>
+<div class="field"><label>Госномер</label><input id="vehiclePlate" placeholder="А123ВС 178"/></div>
+<div class="field"><label>Длина кузова, м</label><input id="bodyLength" min="0.1" data-jf-oninput="updateVehiclePreview()" required="" step="0.01" type="number" value="3"/></div>
+<div class="field"><label>Ширина кузова, м</label><input id="bodyWidth" min="0.1" data-jf-oninput="updateVehiclePreview()" required="" step="0.01" type="number" value="1.8"/></div>
+<div class="field"><label>Высота кузова, м</label><input id="bodyHeight" min="0.1" data-jf-oninput="updateVehiclePreview()" required="" step="0.01" type="number" value="1.8"/></div>
+<div class="field"><label>Грузоподъёмность, кг</label><input id="vehiclePayload" min="1" data-jf-oninput="updateVehiclePreview()" required="" step="1" type="number" value="1500"/></div>
+</div>
+<div class="vehicle-preview" id="vehiclePreview"></div>
+<div class="driver-profile-payment">
+<div class="driver-payment-head"><div><h3 id="driverProfilePaymentTitle">Индивидуальный расчёт оплаты</h3><p id="driverProfilePaymentHint">Эти правила принадлежат только этому водителю и не меняют ставки остальных.</p></div><label class="toggle-control" id="driverProfilePayMaster"><input id="driverProfilePayEnabled" data-jf-onchange="syncDriverProfilePaymentUI()" type="checkbox"/><span class="toggle-track"></span><span class="toggle-label">Расчёт включён</span></label></div>
+<div class="driver-payment-rules" id="driverOwnPaymentRules">
+<div class="driver-profile-pay-rule" data-profile-pay-rule="dispatch"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Подача машины</div><div class="driver-pay-rule-sub">Фиксированно за приезд к складу</div></div><label class="toggle-control"><input id="driverProfileDispatchEnabled" data-jf-onchange="syncDriverProfilePaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid one"><div class="field"><label>Сумма за подачу, ₽</label><input id="driverProfileDispatchAmount" min="0" step="100" type="number"/></div></div></div>
+<div class="driver-profile-pay-rule" data-profile-pay-rule="fixed"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Фиксированно за рейс</div><div class="driver-pay-rule-sub">Базовая сумма за выполненный выезд</div></div><label class="toggle-control"><input id="driverProfileFixedEnabled" data-jf-onchange="syncDriverProfilePaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid one"><div class="field"><label>Ставка за рейс, ₽</label><input id="driverProfileFixedAmount" min="0" step="100" type="number"/></div></div></div>
+<div class="driver-profile-pay-rule" data-profile-pay-rule="distance"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Оплата за километры</div><div class="driver-pay-rule-sub">Маршрут либо полный круг</div></div><label class="toggle-control"><input id="driverProfileDistanceEnabled" data-jf-onchange="syncDriverProfilePaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid"><div class="field"><label>Тариф, ₽/км</label><input id="driverProfileDistanceRate" min="0" step="1" type="number"/></div><div class="field"><label>Как считать</label><select id="driverProfileDistanceBasis"><option value="round">Оплата в круг</option><option value="route">Только маршрут</option></select></div></div></div>
+<div class="driver-profile-pay-rule" data-profile-pay-rule="stop"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Оплата за точки</div><div class="driver-pay-rule-sub">За фактическую точку доставки</div></div><label class="toggle-control"><input id="driverProfileStopEnabled" data-jf-onchange="syncDriverProfilePaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid one"><div class="field"><label>Ставка за точку, ₽</label><input id="driverProfileStopRate" min="0" step="50" type="number"/></div></div></div>
+<div class="driver-profile-pay-rule" data-profile-pay-rule="hourly"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Оплата по часам</div><div class="driver-pay-rule-sub">Движение, разгрузка и погрузка</div></div><label class="toggle-control"><input id="driverProfileHourlyEnabled" data-jf-onchange="syncDriverProfilePaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid"><div class="field"><label>Ставка, ₽/ч</label><input id="driverProfileHourlyRate" min="0" step="50" type="number"/></div><div class="field"><label>Округление</label><select id="driverProfileHourRounding"><option value="1">До минуты</option><option value="15">До 15 минут</option><option value="30">До 30 минут</option><option value="60">До полного часа</option></select></div></div><label class="driver-pay-check"><input id="driverProfileIncludeLoading" type="checkbox"/> Включать плановую погрузку</label></div>
+<div class="driver-profile-pay-rule" data-profile-pay-rule="overtime"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Переработка</div><div class="driver-pay-rule-sub">Повышенная ставка после лимита</div></div><label class="toggle-control"><input id="driverProfileOvertimeEnabled" data-jf-onchange="syncDriverProfilePaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid"><div class="field"><label>После, часов</label><input id="driverProfileOvertimeAfter" max="24" min="1" step="0.5" type="number"/></div><div class="field"><label>Ставка, ₽/ч</label><input id="driverProfileOvertimeRate" min="0" step="50" type="number"/></div></div></div>
+<div class="driver-profile-pay-rule" data-profile-pay-rule="minimum"><div class="driver-pay-rule-head"><div><div class="driver-pay-rule-title">Минимальная гарантия</div><div class="driver-pay-rule-sub">Итог не будет ниже суммы</div></div><label class="toggle-control"><input id="driverProfileMinimumEnabled" data-jf-onchange="syncDriverProfilePaymentUI()" type="checkbox"/><span class="toggle-track"></span></label></div><div class="driver-pay-rule-grid one"><div class="field"><label>Минимум за рейс, ₽</label><input id="driverProfileMinimumAmount" min="0" step="100" type="number"/></div></div></div>
+</div>
+<div class="driver-aggregator-pricing" id="driverAggregatorPricing">
+<div class="driver-profile-type-grid">
+<div class="field"><label>Как учитывать стоимость</label><select id="driverAggregatorPricingMode" data-jf-onchange="syncAggregatorPricingUI()"><option value="quote">Фактическая цена заявки</option><option value="tariff">Расчётный тариф сервиса</option></select></div>
+<div class="field"><label>Расстояние для тарифа</label><select id="driverAggregatorDistanceBasis"><option value="route">От склада до последней точки</option><option value="round">Полный круг со складом</option></select></div>
+</div>
+<div class="notice notice-info small" id="driverAggregatorQuoteHint" style="margin-top:10px">Точная сумма и номер заявки вносятся в карточке конкретного рейса. Без подтверждённой заявки система не разрешит выпуск машины.</div>
+<div class="driver-aggregator-tariff driver-profile-type-grid" id="driverAggregatorTariff" style="margin-top:10px">
+<div class="field"><label>Подача / базовая цена, ₽</label><input id="driverAggregatorBaseAmount" min="0" step="100" type="number"/></div>
+<div class="field"><label>Тариф, ₽/км</label><input id="driverAggregatorDistanceRate" min="0" step="1" type="number"/></div>
+<div class="field"><label>Доплата за точку, ₽</label><input id="driverAggregatorStopRate" min="0" step="50" type="number"/></div>
+<div class="field"><label>Комиссия / надбавка, %</label><input id="driverAggregatorServiceFeePct" max="300" min="0" step="0.1" type="number"/></div>
+<div class="field"><label>Минимальная цена заявки, ₽</label><input id="driverAggregatorMinimumAmount" min="0" step="100" type="number"/></div>
+</div>
+</div>
+<div class="driver-payment-preview"><div><b>Итоговая схема</b><span id="driverProfilePaymentFormula">Настройте правила этого исполнителя</span></div><strong id="driverProfilePaymentStatus">Индивидуально</strong></div>
+</div>
+</div>
+<div class="modal-foot"><button class="btn-gray" data-jf-onclick="closeDriverModal()" type="button">Отмена</button><button class="btn-primary" type="submit">Сохранить исполнителя</button></div>
+</form>
+</div>
+</div>
+<div aria-label="Товар" aria-modal="true" class="modal" id="productModal" role="dialog">
+<div class="modal-box product-modal-box">
+<div class="modal-head"><div><div class="modal-title" id="productModalTitle">Новый товар</div><div class="muted">Паспорт товара, складские нормативы и параметры безопасной погрузки</div></div><button class="btn-gray" data-jf-onclick="closeProductModal()">Закрыть</button></div>
+<form id="productForm" data-jf-onsubmit="saveProduct(event)">
+<div class="modal-body">
+<input id="editingProductId" type="hidden">
+<div class="product-form-section">
+<div class="product-form-section-head"><div><div class="product-form-section-title">Основная информация</div><div class="product-form-section-sub">Идентификация товара, классификация и цена</div></div><span class="badge badge-green">Карточка товара</span></div>
+<div class="inventory-settings-grid">
+<div class="field span-2"><label>Название товара</label><input id="productName" data-jf-oninput="updateProductPreview()" placeholder="Кабель ВВГнг(А)-LS 3×2,5" required=""/></div>
+<div class="field"><label>Артикул / код</label><input id="productArticle" data-jf-oninput="updateProductPreview()" placeholder="Артикул производителя или внутренний код"/></div>
+<div class="field"><label>Штрихкод</label><input id="productBarcode" placeholder="EAN / внутренний штрихкод"/></div>
+<div class="field"><label>Категория</label><select id="productCategory" data-jf-onchange="smartProductCategoryChanged(true);updateProductPreview()"><option value="">Сначала выберите категорию</option></select><div class="field-help">Категория определяет рекомендуемые правила хранения и перевозки</div></div>
+<div class="field"><label>Подкатегория</label><select id="productSubcategory" data-jf-onchange="updateProductPreview()"><option value="">Сначала выберите категорию</option></select></div>
+<div class="field"><label>Единица измерения</label><select id="productUnit" data-jf-onchange="updateProductPreview()"><option value="шт">шт</option><option value="лист">лист</option><option value="м">м</option><option value="м²">м²</option><option value="м.п.">м.п.</option><option value="упак.">упак.</option><option value="компл.">компл.</option><option value="бухта">бухта</option><option value="кг">кг</option><option value="л">л</option></select></div>
+<div class="field"><label>Цена закупки, ₽</label><input id="productPurchasePrice" min="0" data-jf-oninput="updateProductPreview()" step="0.01" type="number" value="0"><div class="field-help">Внутренняя учётная цена</div></div>
+<div class="field"><label>Цена продажи в каталоге, ₽</label><input id="productPrice" min="0" data-jf-oninput="updateProductPreview()" required="" step="0.01" type="number" value="0"><div class="field-help">Ручная цена в заказе её не изменяет</div></div>
+<div class="field"><label>Статус</label><select id="productActive" data-jf-onchange="updateProductPreview()"><option value="yes">Активен</option><option value="no">Неактивен / архив</option></select></div>
+</div>
+</div>
+<div class="product-form-section">
+<div class="product-form-section-head"><div><div class="product-form-section-title">Складской учёт и нормативы</div><div class="product-form-section-sub">Доступно = физический остаток − автоматический резерв рассчитанных рейсов</div></div><span class="badge badge-green">Остатки</span></div>
+<div class="inventory-settings-grid">
+<div class="field"><label>Контроль остатков</label><select id="productStockTracked" data-jf-onchange="updateProductPreview()"><option value="yes">Включён</option><option value="no">Не учитывать остатки</option></select></div>
+<div class="field"><label>Начальный остаток</label><input id="productOpeningStock" min="0" step="0.001" type="number" value="0"><div class="field-help" id="productOpeningStockHint">Указывается при создании товара</div></div>
+<div class="field"><label>Минимальный остаток</label><input id="productMinStock" min="0" step="0.001" type="number" value="0"><div class="field-help">Система предупредит о необходимости закупки</div></div>
+<div class="field"><label>Плановый запас</label><input id="productTargetStock" min="0" step="0.001" type="number" value="0"><div class="field-help">До этого уровня рассчитывается пополнение</div></div>
+<div class="field"><label>Ячейка / место хранения</label><input id="productBinLocation" placeholder="Стеллаж A · ячейка 03"/></div>
+<div class="field span-2"><label>Основной поставщик</label><input id="productSupplier" placeholder="Компания или контакт поставщика"/></div>
+<div class="field"><label>Срок поставки, дней</label><input id="productLeadTimeDays" min="0" step="1" type="number" value="0"/></div>
+</div>
+</div>
+<div class="product-form-section">
+<div class="product-form-section-head"><div><div class="product-form-section-title">Габариты, масса и занимаемый объём</div><div class="product-form-section-sub">Размеры указываются по максимальным внешним точкам одной складской единицы или её упаковки</div></div><span class="badge badge-blue">мм · кг · м³</span></div>
+<div class="product-dimension-grid">
+<div class="field"><label>Длина, мм</label><input id="productLength" min="0" data-jf-oninput="syncProductVolumeFromDimensions()" placeholder="0" step="0.1" type="number" value="0"><div class="field-help">Наибольшая сторона изделия</div></div>
+<div class="field"><label>Ширина, мм</label><input id="productWidth" min="0" data-jf-oninput="syncProductVolumeFromDimensions()" placeholder="0" step="0.1" type="number" value="0"/></div>
+<div class="field"><label>Высота, мм</label><input id="productHeight" min="0" data-jf-oninput="syncProductVolumeFromDimensions()" placeholder="0" step="0.1" type="number" value="0"/></div>
+</div>
+<div class="inventory-settings-grid product-logistics-fields">
+<div class="field"><label>Вес одной единицы, кг</label><input id="productWeight" min="0" data-jf-oninput="updateProductPreview()" step="0.001" type="number" value="0"><div class="field-help">Фактический вес товара без округления</div></div>
+<div class="field"><label>Коэффициент укладки</label><input id="productVolumeFactor" max="5" min="0.1" data-jf-oninput="syncProductVolumeFromDimensions();updateProductPreview()" step="0.01" type="number" value="1"><div class="field-help">1,00 — по габаритам; больше — запас на упаковку и пустоты</div></div>
+<div class="field"><label>Занимаемый объём 1 ед., м³</label><div class="volume-smart-row"><input id="productVolume" min="0" data-jf-oninput="markProductVolumeManual();updateProductPreview()" step="0.000001" type="number" value="0"><button class="btn-soft" data-jf-onclick="syncProductVolumeFromDimensions(true)" type="button">Рассчитать</button></div><div class="field-help" id="productVolumeHint">Используется для подбора автомобиля</div></div>
+<div class="field"><label>Тип упаковки</label><input id="productPackageType" placeholder="Коробка, бухта, палета..."/></div>
+<div class="field"><label>Единиц в упаковке</label><input id="productPackageQty" min="0" step="0.001" type="number" value="1"/></div>
+<div class="field"><label>Макс. ярусов</label><input id="productMaxStackLayers" max="99" min="1" step="1" type="number" value="1"><div class="field-help">Сколько упаковок можно ставить друг на друга</div></div>
+<div class="field span-2"><label>Допустимое положение</label><select id="productLoadOrientation"><option value="any">Можно поворачивать</option><option value="upright">Только вертикально</option><option value="flat">Только горизонтально</option></select></div>
+</div>
+<div class="handling-grid">
+<label class="handling-check"><input id="productFragile" type="checkbox"> Хрупкий груз</label>
+<label class="handling-check"><input id="productKeepDry" type="checkbox"> Беречь от влаги</label>
+<label class="handling-check"><input id="productTopLoadOnly" type="checkbox"> Не ставить груз сверху</label>
+<label class="handling-check"><input id="productLongLoad" type="checkbox"> Длинномер</label>
+</div>
+</div>
+<div class="product-form-section transport-core">
+<div class="product-form-section-head"><div><div class="product-form-section-title">Основные параметры для перевозки</div><div class="product-form-section-sub">Грузовая форма, транспортный габарит, размещение, крепление и совместимость</div></div><span class="badge badge-blue">Паспорт перевозки</span></div>
+<div class="transport-alert"><div class="transport-alert-icon">🚚</div><div><b>Плановые значения для комплектовщика и логиста</b>Средний вес и транспортный габарит используются для подбора автомобиля. Если стоит ручная проверка, комплектовщик обязан измерить фактическое грузовое место до назначения машины.</div></div>
+<div class="transport-fields">
+<div class="field"><label>Класс груза</label><input id="productHandlingClass" placeholder="RIGID_SHEET, PC_ROLL..."/></div>
+<div class="field"><label>Грузовая форма</label><input id="productCargoShape" placeholder="Лист, пачка, рулон, длинномер..."/></div>
+<div class="field span-2"><label>Профиль упаковки</label><input id="productPackProfile" placeholder="FLAT_SHEET_STACK, GH_UPRIGHT_STACK..."/></div>
+<div class="field"><label>Транспортная длина, мм</label><input id="productTransportLength" min="0" step="1" type="number" value="0"/></div>
+<div class="field"><label>Транспортная ширина, мм</label><input id="productTransportWidth" min="0" step="1" type="number" value="0"/></div>
+<div class="field"><label>Транспортная высота, мм</label><input id="productTransportHeight" min="0" step="1" type="number" value="0"/></div>
+<div class="field"><label>Достоверность</label><select id="productTransportConfidence"><option value="HIGH">Высокая</option><option value="MEDIUM">Средняя</option><option value="LOW">Низкая — перепроверить</option><option value="TEMPLATE">Шаблон — измерить</option></select></div>
+<div class="field"><label>Минимум в грузовом месте</label><input id="productBundleMin" min="1" step="1" type="number" value="1"/></div>
+<div class="field"><label>Максимум в грузовом месте</label><input id="productBundleMax" min="1" step="1" type="number" value="1"/></div>
+<div class="field span-2"><label>Положение при перевозке</label><input id="productOrientationNotes" placeholder="Плашмя / стоя вдоль борта / рулон вертикально..."/></div>
+<div class="field span-2"><label>Что разрешено ставить сверху</label><input id="productTopLoadRule" placeholder="Нет / только лёгкий равномерный груз..."/></div>
+<div class="field span-2"><label>Защита от влаги</label><input id="productMoistureRule" placeholder="Тент, подкладки, исключить мокрый пол..."/></div>
+<div class="field span-2"><label>Крепление</label><input id="productSecuringRule" placeholder="Ремни, уголки, упоры, число точек..."/></div>
+<div class="field span-2"><label>Можно совмещать / ставить на</label><input id="productCompatibleWith" placeholder="ОСБ, фанера, утеплитель..."/></div>
+<div class="field span-2"><label>Нельзя совмещать / ставить на</label><input id="productIncompatibleWith" placeholder="Острые кромки, точечная нагрузка..."/></div>
+<div class="field span-4"><label>Инструкция комплектовщику и логисту</label><textarea id="productTransportNotes" placeholder="Порядок погрузки, зона кузова, ограничения и обязательные проверки..."></textarea></div>
+<label class="handling-check span-4"><input id="productManualTransportCheck" type="checkbox"/> Обязательная ручная проверка размеров, массы или способа упаковки перед рейсом</label>
+</div>
+</div>
+<div class="product-preview" id="productPreview"></div>
+</div>
+<div class="modal-foot"><button class="btn-gray" data-jf-onclick="closeProductModal()" type="button">Отмена</button><button class="btn-primary" type="submit">Сохранить товар</button></div>
+</form>
+</div>
+</div>
+<div aria-label="Движение товара" aria-modal="true" class="modal" id="inventoryMovementModal" role="dialog">
+<div class="modal-box product-modal-box">
+<div class="modal-head"><div><div class="modal-title" id="inventoryMovementTitle">Движение товара</div><div class="muted">Поступление, расход, возврат, списание или корректировка с сохранением истории</div></div><button class="btn-gray" data-jf-onclick="closeInventoryMovementModal()">Закрыть</button></div>
+<form id="inventoryMovementForm" data-jf-onsubmit="saveInventoryMovement(event)">
+<div class="modal-body">
+<div class="movement-form-summary" id="movementProductSummary"></div>
+<div class="inventory-settings-grid">
+<div class="field span-2"><label>Товар</label><select id="movementProductId" data-jf-onchange="updateInventoryMovementPreview()" required=""></select></div>
+<div class="field"><label>Операция</label><select id="movementType" data-jf-onchange="updateInventoryMovementPreview()"><option value="receipt">Поступление</option><option value="expense">Расход со склада</option><option value="return">Возврат на склад</option><option value="writeoff">Списание / брак</option><option value="adjustment">Инвентаризация / корректировка</option></select></div>
+<div class="field"><label>Количество</label><input id="movementQty" data-jf-oninput="updateInventoryMovementPreview()" required="" step="0.001" type="number" value="1"/><div class="field-help" id="movementQtyHint">Введите положительное количество</div></div>
+<div class="field"><label>Дата операции</label><input id="movementDate" required="" type="date"/></div>
+<div class="field"><label>Документ</label><input id="movementDocument" placeholder="УПД, накладная, акт..."/></div>
+<div class="field"><label>Партия</label><input id="movementBatch" placeholder="Номер партии / поставки"/></div>
+<div class="field"><label>Цена прихода, ₽</label><input id="movementUnitCost" min="0" step="0.01" type="number" value="0"/></div>
+<div class="field span-2"><label>Поставщик / получатель</label><input id="movementCounterparty" placeholder="Контрагент или подразделение"/></div>
+<div class="field span-2"><label>Комментарий и основание</label><textarea id="movementNote" placeholder="Причина операции, ответственное лицо, состояние товара..."></textarea></div>
+</div>
+<div class="movement-preview" id="movementPreview"></div>
+</div>
+<div class="modal-foot"><button class="btn-gray" data-jf-onclick="closeInventoryMovementModal()" type="button">Отмена</button><button class="btn-primary" type="submit">Провести операцию</button></div>
+</form>
+</div>
+</div>
+<div aria-label="Выбор водителя" aria-modal="true" class="modal" id="routeDriverModal" role="dialog">
+<div class="modal-box driver-picker-box">
+<div class="modal-head"><div><div class="modal-title" id="routeDriverTitle">Добавить водителя в рейс</div><div class="muted" id="routeDriverHint"></div></div><button class="btn-gray" data-jf-onclick="closeRouteDriverPicker()">Закрыть</button></div>
+<div class="modal-body"><div id="routeDriverBody"></div></div>
+<div class="modal-foot"><button class="btn-warn" id="clearRouteDriverBtn" data-jf-onclick="clearRouteDriver()">Убрать назначение</button><button class="btn-gray" data-jf-onclick="closeRouteDriverPicker()">Закрыть</button></div>
+</div>
+</div>
+<div aria-label="Формирование рейса" aria-modal="true" class="modal" id="routeComposeModal" role="dialog">
+<div class="modal-box route-composer-box">
+<div class="modal-head"><div><div class="modal-title" id="routeComposeTitle">Состав рейса</div><div class="muted" id="routeComposeHint">Добавляйте, убирайте и переносите заказы</div></div><button class="btn-gray" data-jf-onclick="closeRouteComposer()">Закрыть</button></div>
+<div class="modal-body">
+<div class="route-name-row">
+<div class="field"><label>Название рейса</label><input id="routeCustomTitle" placeholder="Например: Восток — утренний рейс"/></div>
+<button class="btn-soft" data-jf-onclick="saveRouteTitle()">Сохранить название</button>
+</div>
+<div class="notice notice-info" id="routeComposeStatus" style="margin-top:11px"></div>
+<div class="field" style="margin-top:12px"><label>Поиск заказа для добавления</label><input id="routeOrderSearch" data-jf-oninput="scheduleRender('composer')" placeholder="Номер, адрес, контакт, район..."/></div>
+<div id="routeComposeBody" style="margin-top:12px"></div>
+</div>
+<div class="modal-foot"><button class="btn-primary" data-jf-onclick="recalculateComposedRoute()">Рассчитать маршрут</button><button class="btn-gray" data-jf-onclick="closeRouteComposer()">Готово</button></div>
+</div>
+</div>
+<div aria-label="Изменение рейса" aria-modal="true" class="modal" id="routeEditModal" role="dialog">
+<div class="modal-box route-edit-box">
+<div class="modal-head"><div><div class="modal-title" id="routeEditTitle">Изменить рейс</div><div class="muted" id="routeEditHint">Схема движения, зарплата водителю и стоимость доставки</div></div><button class="btn-gray" data-jf-onclick="closeRouteEditModal()">Закрыть</button></div>
+<div class="modal-body">
+<input id="routeEditId" type="hidden"/>
+<div class="route-edit-section"><h3>Схема рейса</h3><div class="route-edit-options"><label><input name="routeEditMode" type="radio" value="inherit"/> По общим настройкам</label><label><input name="routeEditMode" type="radio" value="round"/> Склад → точки → склад</label><label><input name="routeEditMode" type="radio" value="oneway"/> Склад → точки, без возврата</label></div></div>
+<div class="route-edit-section"><h3 id="routePaySectionTitle">Оплата исполнителя</h3><div class="route-edit-options"><label><input name="routeDriverPayMode" data-jf-onchange="syncRouteEditPayMode()" type="radio" value="auto"/> По индивидуальному профилю</label><label><input name="routeDriverPayMode" data-jf-onchange="syncRouteEditPayMode()" type="radio" value="manual"/> Установить фактически</label></div><div class="field route-manual-pay" id="routeManualPayField"><label id="routeManualPayLabel">Итоговая оплата за рейс, ₽</label><input id="routeManualDriverPay" min="0" step="100" type="number"/></div><div class="route-aggregator-fields" id="routeAggregatorFields"><div class="shared-pricing-explainer" id="routeAggregatorIdentity" style="margin-bottom:10px"></div><div class="route-aggregator-grid"><div class="field"><label>Номер заявки / заказа агрегатора</label><input id="routeExternalOrderNumber" placeholder="Обязательно перед выездом"/></div><div class="field"><label>Ссылка на заявку / отслеживание</label><input id="routeExternalTrackingUrl" placeholder="https://..." type="url"/></div><div class="field" style="grid-column:1/-1"><label>Комментарий по внешней доставке</label><input id="routeExternalNote" placeholder="Тариф, ожидание, контакт курьера, особые условия"/></div></div></div><div class="shared-pricing-explainer" id="routeAutoPayPreview"></div></div>
+<div class="route-edit-section" id="routeApprovalSection"></div>
+<div class="route-edit-section"><div class="route-edit-section-head"><div><h3>Распределение стоимости доставки</h3><p>Предложение не меняет заказы, пока вы не нажмёте «Применить».</p></div><button class="btn-blue" data-jf-onclick="renderRoutePricingProposal()">Пересчитать предложение</button></div><div id="routePricingSummary"></div><div id="routePricingTable"></div><div class="inline-actions route-pricing-actions"><button class="btn-primary" id="applyRoutePricingBtn" data-jf-onclick="applyRoutePricingProposal()">Применить к заказам</button><button class="btn-gray" data-jf-onclick="restoreRouteStandalonePricing()">Вернуть отдельные цены</button></div></div>
+</div>
+<div class="modal-foot"><button class="btn-gray" data-jf-onclick="closeRouteEditModal()">Отмена</button><button class="btn-primary" data-jf-onclick="saveRouteEditSettings()">Сохранить параметры рейса</button></div>
+</div>
+</div>
+<div aria-label="Закрытие рейса" aria-modal="true" class="modal" id="routeCloseModal" role="dialog">
+<div class="modal-box route-close-box">
+<div class="modal-head"><div><div class="modal-title" id="routeCloseTitle">Закрытие рейса</div><div class="muted" id="routeCloseHint">Укажите фактический результат по каждой точке</div></div><button class="btn-gray" data-jf-onclick="closeRouteCloseModal()">Закрыть</button></div>
+<div class="modal-body"><input id="routeCloseId" type="hidden"/><div class="route-close-summary" id="routeCloseSummary"></div><div class="route-close-list" id="routeCloseOrders"></div><div class="route-close-footer-grid"><div class="field"><label>Фактический пробег, км</label><input id="routeActualKm" min="0" placeholder="По одометру" step="0.1" type="number"/></div><div class="field"><label>Комментарий по рейсу</label><textarea id="routeCloseNote" placeholder="Возвраты, документы, происшествия, замечания водителя..."></textarea></div></div></div>
+<div class="modal-foot"><button class="btn-gray" data-jf-onclick="closeRouteCloseModal()">Продолжить позже</button><button class="btn-primary" data-jf-onclick="commitRouteClosure()">Закрыть рейс и обработать товар</button></div>
+</div>
+</div>
+<div aria-label="Неактуальный заказ" aria-modal="true" class="modal" id="notRelevantModal" role="dialog">
+<div class="modal-box" style="width:min(680px,100%)">
+<div class="modal-head"><div><div class="modal-title">Сделать заказ неактуальным</div><div class="muted">Заказ сохранится в истории, резерв будет снят</div></div><button class="btn-gray" data-jf-onclick="closeNotRelevantModal()">Закрыть</button></div>
+<div class="modal-body"><input id="notRelevantOrderId" type="hidden"/><div class="field"><label>Причина</label><select id="notRelevantReason"><option>Клиент отменил заказ</option><option>Дубль заказа</option><option>Ошибка оформления</option><option>Изменились условия</option><option>Нет товара</option><option>Не удалось связаться</option><option>Другая причина</option></select></div><div class="field" style="margin-top:10px"><label>Комментарий</label><textarea id="notRelevantNote" placeholder="Подробности решения"></textarea></div><div class="notice notice-warn" id="notRelevantWarning" style="margin-top:11px"></div></div>
+<div class="modal-foot"><button class="btn-gray" data-jf-onclick="closeNotRelevantModal()">Отмена</button><button class="btn-danger" data-jf-onclick="confirmNotRelevant()">Подтвердить и обработать заказ</button></div>
+</div>
+</div>
+<script id="leaflet-local-v595" src="assets/vendor/leaflet/leaflet.js"></script>
+<script id="warehouse-bootstrap-v600" src="assets/js/00-warehouse-bootstrap-v600.js"></script>
+<script id="action-dispatch-v783" src="assets/js/01-action-dispatch-v783.js"></script>
+<script id="icon-system-v783" src="assets/js/03-icon-system-v783.js"></script>
+<script id="app-bundle-v595" src="assets/js/00-app-bundle-v595.js"></script>
+<script id="runtime-overrides-v783" src="assets/js/02-runtime-overrides-v783.js"></script>
+<link href="assets/css/105-map-reliability-v772.css" id="map-reliability-style-v772" rel="stylesheet"/>
+<script id="map-reliability-script-v772" src="assets/js/105-map-reliability-v772.js"></script>
+<link href="assets/css/50-route-engine.css" id="perfect-route-engine-style-v570" rel="stylesheet"/>
+<script id="perfect-route-engine-script-v570" src="assets/js/90-route-engine.js"></script>
+<link href="assets/css/60-system-stability.css" id="full-system-stability-style-v590" rel="stylesheet"/>
+<script id="full-system-stability-script-v590" src="assets/js/91-system-stability.js"></script>
+<link href="assets/css/70-route-cleanup.css" id="route-cleanup-style-v591" rel="stylesheet"/>
+<script id="route-cleanup-script-v591" src="assets/js/92-route-cleanup.js"></script>
+<link href="assets/css/80-route-composer-map.css" id="route-composer-map-fix-style-v592" rel="stylesheet"/>
+<script id="route-composer-map-fix-script-v592" src="assets/js/93-route-composer-map.js"></script>
+<link href="assets/css/90-route-workspace.css" id="route-workspace-final-style-v593" rel="stylesheet"/>
+<script id="route-workspace-final-script-v593" src="assets/js/94-route-workspace-final.js"></script>
+<link href="assets/css/95-route-map-loading.css" id="route-map-loading-fix-style-v594" rel="stylesheet"/>
+<script id="route-map-loading-fix-script-v594" src="assets/js/95-route-map-loading.js"></script><script id="stability-v595" src="assets/js/99-stability-v595.js"></script><link href="assets/css/97-route-stop-interactions.css" id="route-stop-interactions-style-v597" rel="stylesheet"/><script id="route-stop-interactions-script-v597" src="assets/js/97-route-stop-interactions.js"></script>
+<link href="assets/css/98-smart-automation-v598.css" id="smart-automation-style-v598" rel="stylesheet"/><script id="smart-automation-script-v598" src="assets/js/98-smart-automation-v598.js"></script>
+<script id="multi-warehouse-v600" src="assets/js/100-multi-warehouse-v600.js"></script>
+<script id="release-hardening-script-v601" src="assets/js/101-release-hardening-v601.js"></script>
+<link href="assets/css/102-professional-workspace-v610.css" id="professional-workspace-style-v610" rel="stylesheet"/>
+<script id="professional-workspace-script-v610" src="assets/js/102-professional-workspace-v610.js"></script>
+<link href="assets/css/103-regression-recovery-v611.css" id="regression-recovery-style-v611" rel="stylesheet"/>
+<script id="regression-recovery-script-v611" src="assets/js/103-regression-recovery-v611.js"></script>
+<link href="assets/css/120-premium-release-v783.css" id="premium-release-style-v783" rel="stylesheet"/>
+<link href="assets/css/130-experience-refresh-v783.css" id="experience-refresh-style-v783" rel="stylesheet"/>
+<link href="assets/css/140-clarity-redesign-v783.css" id="clarity-redesign-style-v783" rel="stylesheet"/>
+<link href="assets/css/03-icon-system-v783.css" id="icon-system-style-v783" rel="stylesheet"/>
+<script id="desktop-platform-script-v750" src="assets/js/110-desktop-platform-v750.js"></script>
+<script id="experience-refresh-script-v783" src="assets/js/130-experience-refresh-v783.js"></script>
+<script id="clarity-redesign-script-v783" src="assets/js/140-clarity-redesign-v783.js"></script></body>
+</html>

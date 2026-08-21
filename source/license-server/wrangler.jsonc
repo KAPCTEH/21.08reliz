@@ -1,0 +1,20 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "justfun-license-api",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-07-23",
+  "workers_dev": true,
+  "keep_vars": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "justfun-license-db-v3",
+      "database_id": "368e24b8-3fce-4560-a358-0ecb949f19a5",
+      "migrations_dir": "./migrations"
+    }
+  ]
+}

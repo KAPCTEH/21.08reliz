@@ -1,0 +1,16 @@
+{
+  "name": "justfun-orders-logistics-runtime-build",
+  "version": "7.8.3",
+  "private": true,
+  "scripts": {
+    "postinstall": "node node_modules/electron/install.js",
+    "build-payload": "python build_payload.py"
+  },
+  "devDependencies": {
+    "@electron/asar": "4.2.1",
+    "@electron/fuses": "2.1.2",
+    "electron": "^43.3.0",
+    "resedit": "2.0.3",
+    "terser": "5.49.0"
+  }
+}

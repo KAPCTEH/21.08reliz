@@ -1,0 +1,8 @@
+
+/* 5.9.4 — карта создаётся только в видимом контейнере и не остаётся в состоянии 1 тайла. */
+#tripsView .route-map-head{justify-content:flex-start!important}
+#tripsView .route-map-heading{min-width:0!important;max-width:100%!important}
+#tripsView .route-map-wrap,#tripsView #routesMap{isolation:isolate}
+#tripsView #routesMap.leaflet-container{background:#e8eef1!important}
+#tripsView .route-map-loading-v594::after{display:none}
+#tripsView .route-map-loading-v594 .leaflet-pane,#tripsView .route-map-loading-v594 .leaflet-control-container{opacity:1}

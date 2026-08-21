@@ -1,0 +1,44 @@
+
+/* District trips overhaul v5.6.1 */
+.route-stage-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 14px;padding:8px;background:var(--panel,#fff);border:1px solid var(--border,#dfe5ed);border-radius:14px;position:sticky;top:8px;z-index:12;box-shadow:0 6px 18px rgba(15,23,42,.06)}
+.route-stage-tabs button{min-height:42px;border:0;border-radius:10px;background:transparent;padding:8px 12px;display:flex;align-items:center;gap:8px;cursor:pointer;font:inherit;color:inherit}
+.route-stage-tabs button:hover{background:#f1f5f9}.route-stage-tabs button.active{background:#e8f0ff;color:#174ea6}.route-stage-tabs button b{min-width:24px;height:24px;border-radius:999px;background:rgba(15,23,42,.08);display:grid;place-items:center;font-size:12px}.route-stage-tabs button.active b{background:#fff}
+.route-kpi-grid-v560{grid-template-columns:repeat(4,minmax(0,1fr))}.route-kpi-grid-v560 .route-kpi{border:0;text-align:left;width:100%;cursor:pointer;font:inherit;color:inherit}.route-kpi-grid-v560 button.route-kpi:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(15,23,42,.08)}
+.route-readiness-panel,.route-lock-banner{margin:0 0 12px;border-radius:12px;padding:12px;border:1px solid}.route-readiness-panel.is-ready{background:#f0fdf4;border-color:#bbf7d0}.route-readiness-panel.has-errors{background:#fff7ed;border-color:#fed7aa}.route-readiness-title{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:9px}.route-readiness-title span{font-size:12px;color:#64748b}.route-readiness-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 10px}.route-check{display:flex;align-items:flex-start;gap:8px;min-width:0;padding:6px 8px;border-radius:9px;background:rgba(255,255,255,.68)}.route-check i{font-style:normal;width:20px;height:20px;border-radius:999px;display:grid;place-items:center;flex:0 0 auto;font-weight:800}.route-check.ok i{background:#dcfce7;color:#166534}.route-check.bad i{background:#fee2e2;color:#991b1b}.route-check span{min-width:0}.route-check b{display:block;font-size:12px}.route-check small{display:block;color:#9a3412;margin-top:2px;line-height:1.35}.route-readiness-warning{margin-top:8px;font-size:12px;color:#92400e}.route-lock-banner{background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a}.route-lock-banner.awaiting_close{background:#fffbeb;border-color:#fde68a;color:#78350f}
+.route-operational-links,.route-execution-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.route-operational-links a{display:inline-flex;align-items:center;justify-content:center;text-decoration:none;min-height:40px}.route-execution-actions button{min-height:44px}.route-stop-locked button{display:none!important}
+.route-stage-active{border-color:#93c5fd!important}.route-stage-closing{border-color:#fcd34d!important}.route-stage-ready{border-color:#86efac!important}.route-stage-loading{border-color:#67d3a0!important;background:#f6fcf9!important}.route-stage-problem{border-color:#fca5a5!important}
+.route-map-unavailable{height:100%;min-height:300px;display:grid;place-items:center;padding:24px;text-align:center;background:linear-gradient(135deg,#f8fafc,#eef2ff)}.route-map-unavailable p{max-width:520px;color:#64748b;line-height:1.5}.route-map-unavailable .inline-actions{justify-content:center}
+.route-service-status{display:flex;gap:8px;flex-wrap:wrap;width:100%;margin-top:8px;font-size:11px;color:#64748b}.route-service-status span{padding:4px 7px;border-radius:999px;background:#f1f5f9}.route-service-status .ok{background:#dcfce7;color:#166534}.route-service-status .warn{background:#fef3c7;color:#92400e}.route-service-status .bad{background:#fee2e2;color:#991b1b}
+#tripsView button,#tripsView .btn-soft,#tripsView .btn-primary,#tripsView .btn-blue,#tripsView .btn-gray,#tripsView .btn-danger{min-height:40px}.stop-side .mini-btn,.unassigned-row .mini-btn,.route-map-head .mini-btn{min-height:38px;padding:7px 10px}.route-card[hidden],.unassigned-card[hidden]{display:none!important}
+@media(max-width:1100px){.route-kpi-grid-v560{grid-template-columns:repeat(2,minmax(0,1fr))}.route-readiness-list{grid-template-columns:1fr}}
+@media(max-width:640px){#tripsView{max-width:100%;overflow-x:hidden}.route-stage-tabs{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));padding:6px}.route-stage-tabs button{justify-content:space-between;width:100%;min-width:0}.route-kpi-grid-v560{grid-template-columns:1fr}.route-readiness-title{align-items:flex-start;flex-direction:column}.route-readiness-list{grid-template-columns:1fr}.route-operational-links,.route-execution-actions{display:grid;grid-template-columns:1fr}.route-operational-links a,.route-execution-actions button{width:100%}.route-action-dock{display:grid!important;grid-template-columns:1fr!important}.route-action-dock button{width:100%}.stop{grid-template-columns:32px minmax(0,1fr)!important}.stop-side{grid-column:2;display:flex!important;align-items:center!important;justify-content:space-between!important;gap:8px;min-width:0}.route-loading-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}.route-map-wrap{min-width:0!important}.route-map-head{align-items:flex-start!important;gap:8px;flex-direction:column}.route-map-head button{width:100%}.route-summary-health{align-items:flex-start!important}.route-summary-health-meta{width:100%;display:flex!important;gap:8px;flex-wrap:wrap}.route-card,.unassigned-card{max-width:100%;overflow:hidden}.route-title,.stop-title,.route-meta{overflow-wrap:anywhere;word-break:break-word}}
+
+#tripsView button[hidden]{display:none!important}.route-execution-strip{min-width:0;max-width:100%;flex-wrap:wrap;overflow:hidden}.route-execution-strip>div{min-width:0;overflow-wrap:anywhere}.route-card-details{min-width:0;max-width:100%;overflow:hidden}.route-execution-strip.blocked{background:#fff1f2!important;border-color:#fecdd3!important;color:#9f1239!important}
+@media(max-width:640px){.route-stage-tabs button{overflow:hidden;font-size:12px;padding:6px 8px}.route-stage-tabs button span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.route-execution-strip button{width:100%;white-space:normal}.route-card-details>*{max-width:100%}.route-execution-actions button{white-space:normal;overflow-wrap:anywhere}}
+
+.route-execution-timing{display:inline-flex;align-items:center;min-height:30px;padding:5px 9px;border-radius:999px;margin:0 0 8px;font-size:12px;font-weight:700}.route-execution-timing.ok{background:#dcfce7;color:#166534}.route-execution-timing.late{background:#fee2e2;color:#991b1b}.route-execution-timing.early{background:#dbeafe;color:#1e40af}
+
+
+/* v5.6.1 — карта в едином рабочем пространстве выбранного рейса */
+#tripsView .route-map-wrap{transition:box-shadow .18s ease,border-color .18s ease}
+#tripsView .route-map-wrap.route-map-docked{border-color:#8bcfac;box-shadow:0 14px 34px rgba(18,90,54,.12)}
+.route-inline-map-slot{margin:11px 0 10px;min-width:0}
+.route-inline-map-slot:empty{display:none}
+.route-inline-map-slot .route-map-wrap{width:100%;margin:0;position:relative!important;top:0!important}
+.route-inline-map-slot #routesMap{height:400px!important;min-height:320px!important}
+.route-map-context-note{display:none;margin:0 2px 8px;padding:7px 9px;border-radius:10px;background:#edf8f2;color:#35604b;font-size:10px;font-weight:800}
+.route-inline-map-slot .route-map-context-note{display:block}
+@media(min-width:821px) and (max-width:980px){
+  #tripsView .route-layout{grid-template-columns:minmax(0,1fr) minmax(330px,.88fr)!important;gap:12px!important}
+  #tripsView .route-map-wrap{position:sticky!important;top:12px!important}
+  #tripsView #routesMap{height:min(520px,calc(100vh - 120px))!important;min-height:360px!important}
+}
+@media(max-width:820px){
+  #tripsView .route-layout{grid-template-columns:1fr!important}
+  #tripsView>.route-layout>.route-map-wrap{display:none}
+  .route-inline-map-slot .route-map-wrap{display:block}
+  .route-inline-map-slot #routesMap{height:360px!important;min-height:300px!important}
+}
+@media(max-width:520px){
+  .route-inline-map-slot #routesMap{height:300px!important;min-height:260px!important}
+}

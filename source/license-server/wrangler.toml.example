@@ -1,0 +1,13 @@
+name = "justfun-license-api"
+main = "worker.mjs"
+compatibility_date = "2026-07-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "justfun-license"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# Secrets are added outside source control:
+# wrangler secret put JWT_SECRET
+# wrangler secret put INTEGRATION_SECRET
+# wrangler secret put ADMIN_TOKEN

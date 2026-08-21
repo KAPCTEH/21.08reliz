@@ -1,0 +1,58 @@
+
+/* Full audit 5.9.0 — deterministic UI, stable route workspace and responsive hardening. */
+html.route-ui-transaction-v590,html.route-ui-transaction-v590 body{scroll-behavior:auto!important}
+#tripsView,#tripsView *{box-sizing:border-box}
+#tripsView #tripsArea,#tripsView .route-card,#tripsView .route-map-wrap{overflow-anchor:none!important}
+#tripsView #tripsArea.route-list{display:grid!important;gap:12px!important;max-height:none!important;overflow:visible!important;padding:0!important;min-width:0!important}
+#tripsView .route-layout{display:block!important;min-width:0!important}
+#tripsView .route-card{position:relative!important;width:100%!important;max-width:100%!important;min-width:0!important;overflow:hidden!important;cursor:default!important;transition:none!important;animation:none!important;contain:layout style}
+#tripsView .route-card::before,#tripsView .route-card::after,#tripsView .route-card *{animation:none!important}
+#tripsView .route-card>.route-head{cursor:pointer!important;user-select:none;outline:none;min-width:0}
+#tripsView .route-card>.route-head:focus-visible{box-shadow:0 0 0 3px rgba(22,138,85,.2);border-radius:12px}
+#tripsView .route-card:not(.active)>.route-card-details{display:none!important}
+#tripsView .route-card.active>.route-card-details{display:block!important;min-width:0!important;max-width:100%!important;overflow:visible!important}
+#tripsView .route-card.active{border-color:#65bd8d!important;box-shadow:0 0 0 3px rgba(22,138,85,.08),0 14px 32px rgba(18,48,32,.08)!important}
+#tripsView .route-card-toggle{display:inline-flex!important;align-items:center;justify-content:center;min-width:92px;height:30px;padding:0 10px;border-radius:9px;border:1px solid #cfe0d7;background:#f4faf7;color:#1d6f48;font-size:11px;font-weight:900;white-space:nowrap}
+#tripsView .route-card-toggle::before{content:'Открыть ↓'!important}
+#tripsView .route-card.active .route-card-toggle::before{content:'Свернуть ↑'!important}
+#tripsView .route-details-grid-v590{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);gap:14px;align-items:start;min-width:0;margin-top:10px}
+#tripsView .route-details-main-v590,#tripsView .route-map-slot-v590{min-width:0;max-width:100%}
+#tripsView .route-map-slot-v590{position:sticky;top:12px;align-self:start}
+#tripsView .route-map-home-v590{display:block;min-width:0}
+#tripsView .route-map-home-v590.route-map-home-empty-v590{display:none!important}
+#tripsView .route-map-wrap{position:relative!important;top:0!important;width:100%!important;max-width:100%!important;margin:0!important;transition:none!important;animation:none!important;contain:layout paint;background:#fff}
+#tripsView .route-map-wrap.route-map-moving-v590{visibility:hidden!important}
+#tripsView #routesMap{width:100%!important;height:390px!important;min-height:390px!important;max-height:390px!important;transition:none!important;animation:none!important}
+#tripsView .leaflet-container,#tripsView .leaflet-pane,#tripsView .leaflet-tile{transition:none!important;animation:none!important}
+#tripsView .route-card .route-stats,#tripsView .route-card .route-value-line,#tripsView .route-card .route-driver-payment-summary,#tripsView .route-card .route-execution-strip{transition:none!important;animation:none!important}
+#tripsView .route-card.route-switch-target-v590{contain:none}
+#reportsView{width:100%!important;max-width:100%!important;min-width:0!important;overflow:hidden!important}
+#reportsView .director-shell{grid-template-columns:minmax(0,1fr)!important;width:100%!important;max-width:100%!important;min-width:0!important;overflow:hidden!important}
+#reportsView .director-shell>*{min-width:0!important;max-width:100%!important}
+#reportsView .director-hero,#reportsView .director-toolbar,#reportsView .director-period,#reportsView .director-filter-box{width:100%!important;min-width:0!important;max-width:100%!important}
+#reportsView .director-hero>*,#reportsView .director-toolbar>*,#reportsView .director-date-grid>*,#reportsView .director-filter-grid>*{min-width:0!important}
+#reportsView .director-table-wrap{width:100%!important;max-width:100%!important;overflow:auto!important;overscroll-behavior-inline:contain}
+#reportsView .director-nav{max-width:100%!important;overscroll-behavior-inline:contain}
+#ordersView,#productsView,#tripsView,#driversView,#reportsView,#settingsView,#programSettingsView{min-width:0!important;max-width:100%!important}
+.modal{overscroll-behavior:contain}
+.modal-box{max-width:min(1180px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;overscroll-behavior:contain}
+#productModal.open,#inventoryMovementModal.open{align-items:center!important;overflow:hidden!important;padding:7px!important}
+#productModal .product-modal-box,#inventoryMovementModal .product-modal-box{max-height:calc(100vh - 14px)!important;overflow:auto!important;margin:0 auto!important}
+#productModal .modal-head,#inventoryMovementModal .modal-head{position:sticky!important;top:0!important}
+#productModal .modal-foot,#inventoryMovementModal .modal-foot{position:sticky!important;bottom:0!important;z-index:5!important}
+button,input,select,textarea{max-width:100%}
+.table-wrap{max-width:100%;overflow:auto}
+@media(max-width:1180px){
+  #tripsView .route-details-grid-v590{grid-template-columns:1fr}
+  #tripsView .route-map-slot-v590{position:relative;top:0;order:-1}
+  #tripsView #routesMap{height:360px!important;min-height:360px!important;max-height:360px!important}
+}
+@media(max-width:640px){
+  #tripsView .route-card{padding:10px!important;border-radius:14px!important}
+  #tripsView .route-card>.route-head{gap:8px;align-items:flex-start}
+  #tripsView .route-head-status{max-width:45%;justify-content:flex-end;flex-wrap:wrap}
+  #tripsView .route-card-toggle{min-width:76px;padding:0 7px}
+  #tripsView #routesMap{height:300px!important;min-height:300px!important;max-height:300px!important}
+  .modal-box{max-width:calc(100vw - 12px);max-height:calc(100vh - 12px);border-radius:14px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}}

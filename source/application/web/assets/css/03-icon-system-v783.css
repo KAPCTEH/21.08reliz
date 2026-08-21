@@ -1,0 +1,40 @@
+.jf-ui-icon{
+  display:inline-block;
+  width:1em;
+  height:1em;
+  flex:0 0 auto;
+  vertical-align:-0.14em;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:1.9;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+button>.jf-ui-icon,
+a>.jf-ui-icon{
+  margin-right:.38em;
+}
+
+.searchbox>.jf-ui-icon,
+.details-arrow>.jf-ui-icon,
+.calendar-clear>.jf-ui-icon,
+.order-lock-icon>.jf-ui-icon,
+.warehouse-kpi-icon>.jf-ui-icon,
+.warehouse-health-icon>.jf-ui-icon,
+.route-summary-health-icon>.jf-ui-icon,
+.route-kpi-icon>.jf-ui-icon,
+.settings-hero-icon>.jf-ui-icon,
+.route-hero-icon>.jf-ui-icon,
+.pickup-icon>.jf-ui-icon,
+.transport-alert-icon>.jf-ui-icon{
+  margin-right:0;
+}
+
+.settings-hero-icon>.jf-ui-icon,
+.route-hero-icon>.jf-ui-icon,
+.pickup-icon>.jf-ui-icon,
+.transport-alert-icon>.jf-ui-icon{
+  width:1.4em;
+  height:1.4em;
+}

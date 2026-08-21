@@ -1,0 +1,50 @@
+/* Teplitsa78 5.9.8 — interactive route stops */
+#tripsView .route-section:has(> .route-section-head > b:first-child){min-width:0}
+#tripsView .route-section-head{gap:10px;flex-wrap:wrap}
+.route-sequence-tools-v597{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;margin-left:auto}
+.route-manual-badge-v597{display:inline-flex;align-items:center;min-height:28px;padding:5px 9px;border-radius:999px;background:#fff4dd;border:1px solid #f3cf8c;color:#885000;font-size:11px;font-weight:900}
+.route-auto-order-v597{min-height:30px!important;padding:5px 9px!important;border:1px solid #cbdde9;border-radius:9px;background:#f7fbfd;color:#28536d;font-size:11px;font-weight:850;cursor:pointer}
+.route-auto-order-v597:hover{border-color:#78a9c5;background:#edf7fc}
+.route-reorder-note-v597{margin:0 0 7px;padding:7px 9px;border:1px dashed #c8dce7;border-radius:10px;background:#f8fbfd;color:#607683;font-size:10px;line-height:1.4}
+.route-stops .stop[data-route-stop-v597]{position:relative;grid-template-columns:32px minmax(0,1fr) auto;cursor:pointer;padding:9px 27px 0 0;border-top:1px dashed var(--line);border-radius:11px;transition:background .16s ease,box-shadow .16s ease,transform .16s ease,border-color .16s ease;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.route-stops .stop[data-route-stop-v597]:hover{background:#f8fbfa}
+.route-stops .stop[data-route-stop-v597]:focus-visible{outline:3px solid rgba(23,105,170,.25);outline-offset:2px}
+.route-stop-drag-handle-v597{position:absolute;right:3px;top:7px;width:27px;height:32px;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:#7f96a2;font-size:20px;font-weight:900;cursor:grab;line-height:1;touch-action:none;user-select:none;-webkit-user-select:none}
+.route-stop-drag-handle-v597:hover,.route-stop-drag-handle-v597:focus-visible{background:#eaf7f0;color:#168a55;outline:none}
+.route-stop-order-actions-v597{display:flex;gap:7px;justify-content:flex-end;margin-top:2px;padding-top:7px;border-top:1px solid #e4ece7}
+.route-stop-order-actions-v597 button{min-height:30px;padding:5px 9px;border:1px solid #cbdde9;border-radius:8px;background:#f7fbfd;color:#28536d;font-size:10px;font-weight:850;cursor:pointer}
+.route-stop-order-actions-v597 button:hover{border-color:#78a9c5;background:#edf7fc}
+.route-stop-expanded-v597{background:#f6fbf8!important;box-shadow:inset 0 0 0 1px #c9e9d7}
+.route-stop-expanded-v597 .route-stop-drag-handle-v597{color:#168a55}
+.route-stop-compact-v597{grid-column:2 / -1;display:grid;gap:6px;margin:8px 0 9px;padding:9px;border:1px solid #d8e7df;border-radius:11px;background:#fff;user-select:text;-webkit-user-select:text}
+.route-stop-compact-v597[hidden]{display:none!important}
+.route-stop-simple-v597{display:grid;grid-template-columns:58px minmax(0,1fr);gap:9px;align-items:start;font-size:11px;line-height:1.4}
+.route-stop-simple-v597>span{color:#71828c;font-weight:750}
+.route-stop-simple-v597>b,.route-stop-simple-v597>div{min-width:0;overflow-wrap:anywhere}
+.route-stop-goods-v597>div{display:grid;gap:4px}
+.route-stop-product-v597{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;padding-bottom:4px;border-bottom:1px dotted #e4ece7}
+.route-stop-product-v597:last-of-type{padding-bottom:0;border-bottom:0}
+.route-stop-product-v597 b{font-size:11px;font-weight:850;min-width:0;overflow-wrap:anywhere}
+.route-stop-product-v597 span{white-space:nowrap;color:#315f49;font-weight:850}
+.route-stop-goods-v597 small{color:#71828c}
+.route-stop-dragging-v597{z-index:8;background:#fff!important;border:1px solid #50ae7d!important;box-shadow:0 14px 34px rgba(22,90,56,.22)!important;transform:scale(1.01);cursor:grabbing!important;touch-action:none!important}
+.route-stop-dragging-v597 .route-stop-drag-handle-v597{cursor:grabbing;color:#168a55;background:#eaf7f0}
+.route-reordering-v597 .stop:not(.route-stop-dragging-v597){transition:transform .12s ease,background .12s ease}
+.route-stop-drag-active-v597{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important}
+.route-stop-reorder-locked-v597 .route-stop-drag-handle-v597{display:none}
+.route-stop-reorder-locked-v597{cursor:pointer!important}
+.route-sequence-busy-v597 .route-stops{opacity:.55;pointer-events:none}
+.route-reorder-status-v597{margin-top:8px;padding:8px 10px;border-radius:10px;background:#edf6ff;border:1px solid #c9e2f5;color:#245775;font-size:11px;font-weight:800}
+@media(max-width:640px){
+  .route-sequence-tools-v597{width:100%;justify-content:flex-start;margin-left:0}
+  .route-stops .stop[data-route-stop-v597]{grid-template-columns:32px minmax(0,1fr)!important;padding-right:25px}
+  .route-stops .stop[data-route-stop-v597] .stop-side{grid-column:2!important}
+  .route-stop-compact-v597{grid-column:1 / -1;margin-left:0}
+  .route-stop-simple-v597{grid-template-columns:52px minmax(0,1fr)}
+  .route-stop-product-v597{display:grid;grid-template-columns:minmax(0,1fr) auto}
+}
+@media(prefers-reduced-motion:reduce){.route-stops .stop[data-route-stop-v597]{transition:none}.route-stop-dragging-v597{transform:none}}
+
+.route-stop-dragging-v597{pointer-events:none}
+.route-stop-drag-active-v597 *{cursor:grabbing!important}
+@media(max-width:640px){.route-stop-drag-handle-v597{right:0;top:5px;width:30px;height:36px}.route-stop-order-actions-v597{justify-content:stretch}.route-stop-order-actions-v597 button{flex:1}}

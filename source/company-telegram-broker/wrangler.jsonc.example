@@ -1,0 +1,28 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "justfun-company-telegram",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-07-30",
+  "compatibility_flags": ["global_fetch_strictly_public"],
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "LICENSE_API_ORIGIN": "https://justfun-license-api.l2maloy47rus.workers.dev"
+  },
+  "services": [
+    {
+      "binding": "AUTH_SERVICE",
+      "service": "justfun-license-api"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "justfun-company-telegram",
+      "database_id": "PASTE_EXISTING_DATABASE_ID_HERE"
+    }
+  ]
+}

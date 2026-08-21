@@ -1,0 +1,18 @@
+
+/* 5.9.2: the selected route owns one map; the parked duplicate remains hidden. */
+#tripsView .route-details-grid-v590{grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr)!important;align-items:start!important}
+#tripsView .route-map-slot-v590{display:block!important;min-width:0!important;max-width:100%!important}
+#tripsView .route-map-slot-v590:empty{display:none!important}
+#tripsView .route-map-home-v590{display:none!important}
+.route-compose-summary-v592{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.route-compose-metric-v592{border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px 10px;min-width:0}
+.route-compose-metric-v592 span{display:block;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
+.route-compose-metric-v592 b{display:block;margin-top:4px;font-size:15px}
+.compose-order.compose-order-incompatible-v592{border-color:#ffd4a2;background:#fffaf1}
+.compose-order-reasons-v592{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}
+.compose-order-reason-v592{display:inline-flex;align-items:center;border:1px solid #f0c98f;border-radius:999px;background:#fff3dc;color:#8a5200;padding:3px 7px;font-size:9px;font-weight:900}
+.compose-order-action-v592{display:grid;justify-items:end;gap:5px}
+.compose-order-action-v592 .mini-btn[disabled]{opacity:.55;cursor:not-allowed;filter:grayscale(.25)}
+.compose-section-note-v592{font-size:10px;color:var(--muted);line-height:1.4;margin-top:5px}
+@media(max-width:1180px){#tripsView .route-details-grid-v590{grid-template-columns:1fr!important}#tripsView .route-map-slot-v590{position:relative!important;top:0!important;order:-1!important}}
+@media(max-width:760px){.route-compose-summary-v592{grid-template-columns:repeat(2,minmax(0,1fr))}.compose-columns{grid-template-columns:1fr!important}}

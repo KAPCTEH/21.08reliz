@@ -1,0 +1,7 @@
+{
+  "name": "justfun-telegram-cloudflare-native",
+  "version": "7.8.3",
+  "private": true,
+  "description": "Нативное развёртывание Telegram Worker и D1 через Cloudflare API без PowerShell, Wrangler, CMD и собственного домена",
+  "type": "module"
+}

@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>JustFunPremiumSetup</AssemblyName>
+    <RootNamespace>JustFun.PremiumSetup</RootNamespace>
+    <Product>JustFun Логистика</Product>
+    <Company>JustFun</Company>
+    <Description>Премиальный установщик JustFun Логистика</Description>
+    <Copyright>JustFun</Copyright>
+    <Version>7.8.3</Version>
+    <AssemblyVersion>7.8.3.0</AssemblyVersion>
+    <FileVersion>7.8.3.0</FileVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
+    <ApplicationIcon Condition="'$(PremiumIconPath)' != ''">$(PremiumIconPath)</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="..\..\application\assets\JustFun-official-transparent.png">
+      <Link>Assets\JustFun-official-transparent.png</Link>
+    </Resource>
+    <EmbeddedResource Include="$(PremiumEnginePath)"
+                      LogicalName="JustFun.Setup.Engine"
+                      Condition="'$(PremiumEnginePath)' != '' AND Exists('$(PremiumEnginePath)')" />
+  </ItemGroup>
+
+  <Target Name="RequirePremiumEngine" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(PremiumEnginePath)' == ''"
+           Text="PremiumEnginePath must point to the verified native NSIS engine." />
+    <Error Condition="!Exists('$(PremiumEnginePath)')"
+           Text="PremiumEnginePath does not exist: $(PremiumEnginePath)" />
+  </Target>
+</Project>
