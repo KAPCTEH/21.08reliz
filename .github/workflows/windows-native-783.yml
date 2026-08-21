@@ -160,14 +160,14 @@ jobs:
         shell: pwsh
         run: |
           & tests/installer-crash-recovery-test.ps1 -Makensis $env:NSIS_MAKENSIS -AssetsDir (Join-Path $PWD '.release\assets')
-          if ($LASTEXITCODE -ne 0) { throw 'Installer crash recovery test failed.' }
+          if (-not $?) { throw 'Installer crash recovery test failed.' }
 
       - name: Run isolated full installer acceptance
         shell: pwsh
         run: |
           $setup = Join-Path $PWD '.release\installer\Orders-Logistics-Setup-7.8.3-Premium.exe'
           & tests/installer-full-acceptance-test.ps1 -Setup $setup -EvidenceDirectory (Join-Path $PWD '.release\full-acceptance')
-          if ($LASTEXITCODE -ne 0) { throw 'Full installer acceptance failed.' }
+          if (-not $?) { throw 'Full installer acceptance failed.' }
 
       - name: Verify shortcut, icon and destructive-operation refusals
         shell: pwsh

@@ -219,6 +219,16 @@ class NativeInstallerSourceTests(unittest.TestCase):
         ):
             self.assertIn(marker, setup)
         self.assertIn("installer-crash-recovery-test.ps1", workflow)
+        self.assertIn("if (-not $?) { throw 'Installer crash recovery test failed.' }", workflow)
+
+    def test_full_installer_acceptance_uses_powershell_invocation_status(self):
+        workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("installer-full-acceptance-test.ps1", workflow)
+        self.assertIn("if (-not $?) { throw 'Full installer acceptance failed.' }", workflow)
+        self.assertNotIn(
+            "if ($LASTEXITCODE -ne 0) { throw 'Full installer acceptance failed.' }",
+            workflow,
+        )
 
     def test_program_and_data_are_separate_and_data_is_preserved_by_default(self):
         source = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")
