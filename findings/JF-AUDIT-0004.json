@@ -1,6 +1,6 @@
 {
   "id": "JF-AUDIT-0004",
-  "issue": null,
+  "issue": "https://github.com/KAPCTEH/21.08reliz/issues/5",
   "title": "Production Cloudflare Workers не соответствуют текущему исходнику",
   "severity": "P1",
   "confidence": "high",

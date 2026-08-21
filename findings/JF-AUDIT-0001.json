@@ -1,6 +1,6 @@
 {
   "id": "JF-AUDIT-0001",
-  "issue": null,
+  "issue": "https://github.com/KAPCTEH/21.08reliz/issues/2",
   "title": "Фоновый повтор VPS-синхронизации использует отсутствующий обработчик ошибки",
   "severity": "P1",
   "confidence": "high",

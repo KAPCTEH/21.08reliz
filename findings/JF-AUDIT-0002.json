@@ -1,6 +1,6 @@
 {
   "id": "JF-AUDIT-0002",
-  "issue": null,
+  "issue": "https://github.com/KAPCTEH/21.08reliz/issues/1",
   "title": "Unit-тест bootstrap merge выполняет браузерный фрагмент без window",
   "severity": "P2",
   "confidence": "high",

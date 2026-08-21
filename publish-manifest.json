@@ -3,13 +3,13 @@
   "branch": "audit-ledger",
   "orphan_history_required": true,
   "baseline_id": "baseline-20260821-f8e12ec",
-  "generated_at_utc": "2026-08-21T18:24:42.052Z",
+  "generated_at_utc": "2026-08-21T18:27:08.807Z",
   "raw_sensitive_evidence_published": false,
   "exclusions": [
     "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
   ],
   "file_count": 141,
-  "total_bytes": 5177048,
+  "total_bytes": 5177268,
   "files": [
     {
       "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
@@ -628,28 +628,28 @@
     },
     {
       "path": "findings/JF-AUDIT-0001.json",
-      "bytes": 2369,
-      "sha256": "f4553b6776e94910b8a14995899ae2ad578ed01105631a11ef81733a1299a33c"
+      "bytes": 2413,
+      "sha256": "0ae3246a8b06682894b6af36fc81e006cbf959aa816d43ed08398861f07eba75"
     },
     {
       "path": "findings/JF-AUDIT-0002.json",
-      "bytes": 1898,
-      "sha256": "379775c394ffc18faa55fa090527dbbe26178e43acb4d65ab7a5910dc4d21bde"
+      "bytes": 1942,
+      "sha256": "45611b65b08021c875fdb57bf7effb907619b3b018e896eaa4684827a2f2493f"
     },
     {
       "path": "findings/JF-AUDIT-0003.json",
-      "bytes": 2137,
-      "sha256": "c6905b61dcf3d95ace6806f0fb41cd17bff78c0f223f45e9826a1c4f3f31013b"
+      "bytes": 2181,
+      "sha256": "ea247aa0dc666b95e986033f93f6aa3ccf54ed59b67855a73aeabd4ba4c8831f"
     },
     {
       "path": "findings/JF-AUDIT-0004.json",
-      "bytes": 2264,
-      "sha256": "76e24c8d638e53c2a00e421a4eca95b1eed822d66ae7329fcebfd821aab19906"
+      "bytes": 2308,
+      "sha256": "8bb7a77c8fc8f224c6ba31cfb634d12fc4f4cad3fe6686b7cf5e777aba46baba"
     },
     {
       "path": "findings/JF-AUDIT-0005.json",
-      "bytes": 1903,
-      "sha256": "761f58baa48a664201dea033c083944fd6f4b064a4e83024369ea5031c461f01"
+      "bytes": 1947,
+      "sha256": "f2a0d0ababd2caa70e9bf1c9b098a2d6852a652c31b7ebfa3c2582c3c8e77ac0"
     },
     {
       "path": "index.json",

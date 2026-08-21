@@ -1,6 +1,6 @@
 {
   "id": "JF-AUDIT-0003",
-  "issue": null,
+  "issue": "https://github.com/KAPCTEH/21.08reliz/issues/3",
   "title": "Revision-тесты остались на удалённом snapshot API после перехода на storage v3",
   "severity": "P2",
   "confidence": "high",
