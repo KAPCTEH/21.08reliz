@@ -1,0 +1,8 @@
+[stderr] test_36_parallel_users_commit_distinct_orders (__main__.ServerAuthoritativeStorageTests.test_36_parallel_users_commit_distinct_orders) ... skipped 'JF_TEST_POSTGRES_DSN is not configured'
+test_idempotency_and_optimistic_version_are_enforced (__main__.ServerAuthoritativeStorageTests.test_idempotency_and_optimistic_version_are_enforced) ... skipped 'JF_TEST_POSTGRES_DSN is not configured'
+test_rls_hides_other_company_and_warehouse (__main__.ServerAuthoritativeStorageTests.test_rls_hides_other_company_and_warehouse) ... skipped 'JF_TEST_POSTGRES_DSN is not configured'
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.000s
+
+OK (skipped=3)

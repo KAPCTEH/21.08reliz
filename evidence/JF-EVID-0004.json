@@ -1,0 +1,27 @@
+{
+  "id": "JF-EVID-0004",
+  "type": "live-source-parity",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "Cloudflare deployed Worker source parity",
+  "input_digests": {
+    "justfun-company-telegram": "sha256:dd50bffaff3127af4fa6eb082689bde34b22d8e3a89c3c0410082a07a1f7bac9",
+    "justfun-license-api": "sha256:4b755643f1f0d8e702bc3a150faa4d79dda95f7b911c1f37ad924780f67600de"
+  },
+  "tool": "Cloudflare API read-only source endpoint",
+  "tool_version": "2026-08-21",
+  "command": "node tests/live-cloudflare-worker-source-readonly.cjs",
+  "cwd": "verification workspace extracted from exact clean commit",
+  "timestamp_utc": "2026-08-21T17:58:42.083Z",
+  "exit_code": 0,
+  "normalized_result": "[{\"worker\":\"justfun-company-telegram\",\"exactLocalMatch\":false,\"features\":[{\"name\":\"configure_retry\",\"local\":true,\"deployed\":false},{\"name\":\"warehouse_scoped_rate_limit\",\"local\":true,\"deployed\":false},{\"name\":\"warehouse_access_guard_before_save\",\"local\":true,\"deployed\":false}]},{\"worker\":\"justfun-license-api\",\"exactLocalMatch\":false,\"features\":[{\"name\":\"company_telegram_service\",\"local\":true,\"deployed\":true},{\"name\":\"warehouse_access_guard\",\"local\":true,\"deployed\":true}]}]",
+  "artifact_sha256": "sha256:8b3c343e06b30bea676952930b5cc6cfb2b12de2940ca13893a2d6629ff6647d",
+  "location": "baselines/baseline-20260821-f8e12ec/live/cloudflare-worker-source-readonly.json",
+  "retention": "baseline",
+  "status": "LIVE_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0004"
+  ],
+  "tests": [
+    "JF-TEST-LIVE-CLOUDFLARE-WORKER-SOURCE-READONLY"
+  ]
+}

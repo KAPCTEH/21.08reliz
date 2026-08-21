@@ -1,0 +1,37 @@
+{
+  "id": "JF-AUDIT-0001",
+  "issue": null,
+  "title": "Фоновый повтор VPS-синхронизации использует отсутствующий обработчик ошибки",
+  "severity": "P1",
+  "confidence": "high",
+  "verification_status": "TEST_CONFIRMED",
+  "module": "data-contracts",
+  "location": {
+    "path": "source/application/web/assets/js/110-desktop-platform-v750.js",
+    "symbol": "backgroundCloudUpload",
+    "line": 611
+  },
+  "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "fact": "Единственное вхождение reportCloudSyncFailure находится в .catch(reportCloudSyncFailure); объявление функции или переменной отсутствует. Контрактный тест завершился AssertionError.",
+  "evidence": [
+    "JF-EVID-0001"
+  ],
+  "impact": "При изменении serial во время загрузки отложенный повтор начинает отправку, но привязка отсутствующего callback выбрасывает ReferenceError. Ошибка повтора не доводится до пользователя, а промис остаётся без штатной обработки.",
+  "reproduction": [
+    "Выполнить node tests/reg-entity-source-contract.cjs из чистого коммита.",
+    "Проверить единственное вхождение reportCloudSyncFailure в renderer source."
+  ],
+  "minimal_fix": "Добавить единый безопасный обработчик фонового отказа с badge/status/toast и аудит-событием либо заменить ссылку существующим обработчиком; не скрывать dirty/conflict state.",
+  "verification_contract": [
+    "reg-entity-source-contract проходит",
+    "отказ фонового sync показывает Не сохранено на VPS без unhandled rejection",
+    "dirty state сохраняется до подтверждения сервера"
+  ],
+  "fingerprint": "sha256:21e16b38155865dbd7d40b8b6be2c5d7b827bdf1edb01ce84741d2cbf8e28e31",
+  "related": [
+    "legacy:JF-DATA-001"
+  ],
+  "owner": "@KAPCTEH",
+  "status": "OPEN"
+}

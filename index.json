@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "project": "JustFun",
+  "active_baseline_id": null,
+  "baseline_commit": null,
+  "last_audited_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "audit_rules_digest": "sha256:6b18a28f3aa6435af9efdfec798705be3b64655fa5eb17da8309f1df183b6d1a",
+  "module_map_digest": "sha256:900c66a1af672818d8de18f8ad8ab4c63573e2109fb79a8fddcccd79454635a3",
+  "toolchain_digest": "sha256:88b1502b3069b96c3ff86109549ca6672b94a944c59ce1fa36ac085f02a4f794",
+  "open_findings_by_severity": {
+    "P0": 0,
+    "P1": 2,
+    "P2": 3,
+    "P3": 0
+  },
+  "governance_status": "NO_GO",
+  "last_run_id": "JF-RUN-20260821-BASELINE-F8E12EC",
+  "known_limitations": [
+    "Baseline is not accepted and active_baseline_id remains null",
+    "Clean tree is derived from a dirty legacy worktree and is NON_RELEASE_SNAPSHOT",
+    "GitHub repository creation is blocked by an unauthenticated browser session",
+    "UI full button matrix retry, installer executable acceptance, two-account live verification, VPS live diagnostics, deploy, and release proof are not complete",
+    "Raw Cloudflare inventory contains operational identifiers and must remain local; only sanitized evidence is publishable"
+  ]
+}

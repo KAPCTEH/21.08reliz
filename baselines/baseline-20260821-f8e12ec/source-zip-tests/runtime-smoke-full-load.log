@@ -1,0 +1,149 @@
+[stdout] {
+  "generatedAt": "2026-08-21T18:21:56.479Z",
+  "scriptResults": [
+    {
+      "src": "assets/js/00-warehouse-bootstrap-v600.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/01-action-dispatch-v783.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/03-icon-system-v783.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/00-app-bundle-v595.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/02-runtime-overrides-v783.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/105-map-reliability-v772.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/90-route-engine.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/91-system-stability.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/92-route-cleanup.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/93-route-composer-map.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/94-route-workspace-final.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/95-route-map-loading.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/99-stability-v595.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/97-route-stop-interactions.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/98-smart-automation-v598.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/100-multi-warehouse-v600.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/101-release-hardening-v601.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/102-professional-workspace-v610.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/103-regression-recovery-v611.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/110-desktop-platform-v750.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/130-experience-refresh-v783.js",
+      "ok": true,
+      "errors": []
+    },
+    {
+      "src": "assets/js/140-clarity-redesign-v783.js",
+      "ok": true,
+      "errors": []
+    }
+  ],
+  "summary": {
+    "scripts": 22,
+    "scriptsFailed": 0,
+    "buttons": 294,
+    "buttonCandidates": 0,
+    "buttonBatchOffset": 0,
+    "buttonBatchLimit": 1,
+    "buttonsClicked": 0,
+    "buttonClickFailures": 0,
+    "alerts": 0,
+    "confirms": 0,
+    "uniqueRuntimeErrors": 0,
+    "cloudSyncUploads": 1,
+    "atomicMutation": null,
+    "activeWarehouse": "Склад Санкт-Петербург",
+    "demoMode": false
+  },
+  "errors": [],
+  "buttonFailures": [],
+  "buttonCandidates": [],
+  "buttons": [],
+  "stress5000": null,
+  "deepBusiness": null,
+  "orderPrint": null,
+  "orderSaveIntegrity": null,
+  "roleMatrix": null,
+  "securityFuzz": null,
+  "accessibility": null,
+  "bridgeCalls": [
+    "telegram.status",
+    "reg.entityBootstrap:8cc8192c-42c7-494d-963c-f381ea50a4b7:live",
+    "reg.entitySync:8cc8192c-42c7-494d-963c-f381ea50a4b7:live:background",
+    "reg.entityBootstrap:8cc8192c-42c7-494d-963c-f381ea50a4b7:live"
+  ]
+}

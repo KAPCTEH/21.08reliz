@@ -1,0 +1,14 @@
+[stderr] test_company_data_service_is_shared_with_all_accounts (__main__.LicenseSchemaTests.test_company_data_service_is_shared_with_all_accounts) ... [stderr] ok
+[stderr] test_company_telegram_service_is_shared_without_exposing_plain_key (__main__.LicenseSchemaTests.test_company_telegram_service_is_shared_without_exposing_plain_key) ... [stderr] ok
+test_custom_role_name_is_persisted_without_fixed_role_catalog (__main__.LicenseSchemaTests.test_custom_role_name_is_persisted_without_fixed_role_catalog) ... [stderr] ok
+test_device_limit_is_enforced_in_database (__main__.LicenseSchemaTests.test_device_limit_is_enforced_in_database) ... [stderr] ok
+[stderr] test_employee_limit_is_enforced_in_database (__main__.LicenseSchemaTests.test_employee_limit_is_enforced_in_database) ... [stderr] ok
+test_license_can_be_claimed_only_once (__main__.LicenseSchemaTests.test_license_can_be_claimed_only_once) ... [stderr] ok
+[stderr] test_owner_role_is_forbidden_in_employee_invitation (__main__.LicenseSchemaTests.test_owner_role_is_forbidden_in_employee_invitation) ... [stderr] ok
+test_refresh_rotation_allows_only_one_child_session (__main__.LicenseSchemaTests.test_refresh_rotation_allows_only_one_child_session) ... [stderr] ok
+[stderr] test_schema_baseline_marks_migrations_as_applied (__main__.LicenseSchemaTests.test_schema_baseline_marks_migrations_as_applied) ... [stderr] ok
+[stderr] 
+----------------------------------------------------------------------
+Ran 9 tests in 0.068s
+
+OK

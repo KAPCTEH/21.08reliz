@@ -1,0 +1,37 @@
+{
+  "id": "JF-AUDIT-0003",
+  "issue": null,
+  "title": "Revision-тесты остались на удалённом snapshot API после перехода на storage v3",
+  "severity": "P2",
+  "confidence": "high",
+  "verification_status": "TEST_CONFIRMED",
+  "module": "tests",
+  "location": {
+    "path": "tests/reg-revision-test.py",
+    "symbol": "RevisionTests",
+    "line": 86
+  },
+  "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "fact": "9 из 12 тестов вызывают отсутствующие save_snapshot, snapshot_digest, require_snapshot_access и require_changed_sections_allowed. Текущий сервер реализует row-level business_records_v3/save_entity_batch; отдельный reg-storage-v3-integration проходит.",
+  "evidence": [
+    "JF-EVID-0003"
+  ],
+  "impact": "Старый release gate красный по удалённому контракту и не даёт достоверного покрытия актуальных revision/conflict/permission гарантий storage v3.",
+  "reproduction": [
+    "Выполнить python tests/reg-revision-test.py.",
+    "Сопоставить вызовы теста с public functions server.py и результатом reg-storage-v3-integration.py."
+  ],
+  "minimal_fix": "Удалить snapshot-ожидания и перенести применимые проверки revision/idempotency/access на row-level API v3; не добавлять обратно устаревшие production-функции ради теста.",
+  "verification_contract": [
+    "обновлённый revision suite тестирует save_entity_batch",
+    "конфликт версий, idempotency и права проверяются на business_records_v3",
+    "reg-storage-v3-integration и revision suite проходят вместе"
+  ],
+  "fingerprint": "sha256:1608a870a8cb324077b6efd9d8c6d43063f089091e1281cc6805e5fb2e3cdfc4",
+  "related": [
+    "legacy:JF-DATA-001"
+  ],
+  "owner": "@KAPCTEH",
+  "status": "OPEN"
+}

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "verified_at_utc": "2026-08-21T17:14:56.248Z",
+  "repo": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\clean-tree-final",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "tree": "369334d79e317825362bca0ba9ecc7200205a153",
+  "branch": "main",
+  "commit_count": 1,
+  "parent_count": 0,
+  "remote_count": 0,
+  "worktree_clean": true,
+  "expected_file_count": 202,
+  "actual_file_count": 202,
+  "missing": [],
+  "unexpected": [],
+  "hash_mismatches": [],
+  "passed": true
+}

@@ -1,0 +1,7 @@
+[stderr] test_encrypted_service_can_be_scoped_per_warehouse (__main__.CompanyTelegramBrokerSchemaTests.test_encrypted_service_can_be_scoped_per_warehouse) ... [stderr] ok
+[stderr] test_schema_has_no_plaintext_client_key_column (__main__.CompanyTelegramBrokerSchemaTests.test_schema_has_no_plaintext_client_key_column) ... [stderr] ok
+[stderr] 
+----------------------------------------------------------------------
+Ran 2 tests in 0.019s
+
+OK

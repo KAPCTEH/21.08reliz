@@ -1,0 +1,17 @@
+[stderr] evalmachine.<anonymous>:81
+window.JustFunServerStorageV3=Object.freeze({writeWarehouse:writeAuthoritativeWarehouse,deleteWarehouse:(record,options={})=>writeAuthoritativeWarehouse(record,{...options,deleted:true})});
+^
+
+ReferenceError: window is not defined
+    at evalmachine.<anonymous>:81:1
+    at Script.runInContext (node:vm:149:12)
+    at Object.runInContext (node:vm:301:6)
+    at Object.<anonymous> (C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-workspace\tests\entity-bootstrap-merge-unit.cjs:30:4)
+    at Module._compile (node:internal/modules/cjs/loader:1872:14)
+    at Object..js (node:internal/modules/cjs/loader:2003:10)
+    at Module.load (node:internal/modules/cjs/loader:1594:32)
+    at Module._load (node:internal/modules/cjs/loader:1396:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+[stderr] 
+Node.js v24.19.0

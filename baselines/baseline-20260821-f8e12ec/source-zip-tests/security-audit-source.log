@@ -1,0 +1,11 @@
+[stdout] {
+  "generatedAt": "2026-08-21T18:21:05.195Z",
+  "summary": {
+    "roots": 1,
+    "filesScanned": 108,
+    "findings": 0,
+    "forbiddenArtifacts": 0
+  },
+  "findings": [],
+  "forbiddenArtifacts": []
+}

@@ -1,0 +1,26 @@
+{
+  "id": "JF-EVID-0003",
+  "type": "test-failure",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "reg-revision-test",
+  "input_digests": {
+    "test_log": "sha256:141cf957cd959344b38a3785d8ae8b3c7bd9a0a2ddaf9116958847feceeb94ce"
+  },
+  "tool": "python",
+  "tool_version": "recorded in baseline toolchain",
+  "command": "python tests/reg-revision-test.py",
+  "cwd": "verification workspace extracted from exact clean commit",
+  "timestamp_utc": "2026-08-21T17:22:10.176Z",
+  "exit_code": 1,
+  "normalized_result": "s\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-workspace\\tests\\reg-revision-test.py\", line 95, in test_same_digest_is_idempotent\r\n    cursor = self.connect((7, self.digest(), FakeUpdatedAt(), self.snapshot))\r\n                              ~~~~~~~~~~~^^\r\n  File \"C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-workspace\\tests\\reg-revision-test.py\", line 86, in digest\r\n    return SERVER.snapshot_digest(self.snapshot)\r\n           ^^^^^^^^^^^^^^^^^^^^^^\r\nAttributeError: module 'justfun_reg_server' has no attribute 'snapshot_digest'\r\n\r\n======================================================================\r\nERROR: test_stale_revision_is_rejected (__main__.RevisionTests.test_stale_revision_is_rejected)\r\n[stderr] ----------------------------------------------------------------------\r\nTraceback (most recent call last):\r\n  File \"C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-workspace\\tests\\reg-revision-test.py\", line 104, in test_stale_revision_is_rejected\r\n    SERVER.save_snapshot(\"workspace-123456\", \"warehouse-1\", \"live\", self.snapshot, 6, self.owner)\r\n    ^^^^^^^^^^^^^^^^^^^^\r\nAttributeError: module 'justfun_reg_server' has no attribute 'save_snapshot'\r\n\r\n======================================================================\r\nERROR: test_viewer_cannot_write_snapshot (__main__.RevisionTests.test_viewer_cannot_write_snapshot)\r\n----------------------------------------------------------------------\r\n[stderr] Traceback (most recent call last):\r\n  File \"C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-workspace\\tests\\reg-revision-test.py\", line 178, in test_viewer_cannot_write_snapshot\r\n    SERVER.require_snapshot_access(auth, \"warehouse-1\", self.snapshot, write=True)\r\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\r\nAttributeError: module 'justfun_reg_server' has no attribute 'require_snapshot_access'\r\n\r\n----------------------------------------------------------------------\r\n[stderr] Ran 12 tests in 0.042s\r\n\r\n[stderr] FAILED (errors=9)\r\n",
+  "artifact_sha256": "sha256:141cf957cd959344b38a3785d8ae8b3c7bd9a0a2ddaf9116958847feceeb94ce",
+  "location": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-revision-test.log",
+  "retention": "baseline",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0003"
+  ],
+  "tests": [
+    "JF-TEST-REG-REVISION-TEST"
+  ]
+}

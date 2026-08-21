@@ -1,0 +1,41 @@
+{
+  "id": "JF-AUDIT-0004",
+  "issue": null,
+  "title": "Production Cloudflare Workers не соответствуют текущему исходнику",
+  "severity": "P1",
+  "confidence": "high",
+  "verification_status": "LIVE_CONFIRMED",
+  "module": "company-telegram-broker",
+  "location": {
+    "path": "deployment/cloudflare/justfun-company-telegram",
+    "symbol": null,
+    "line": null
+  },
+  "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "fact": "Read-only Cloudflare API 2026-08-21 подтвердил exactLocalMatch=false для justfun-company-telegram и justfun-license-api. В deployed broker отсутствуют configure retry, warehouse-scoped rate limit и access guard before save, присутствующие в clean commit.",
+  "evidence": [
+    "JF-EVID-0004"
+  ],
+  "impact": "Подтверждённые source-исправления не действуют в production; поведение установленного приложения и восстановление нельзя приравнивать к протестированному исходнику.",
+  "reproduction": [
+    "Выполнить live-cloudflare-worker-source-readonly.cjs с read-only Cloudflare token.",
+    "Сравнить routes, feature markers и package hashes с clean commit."
+  ],
+  "minimal_fix": "Перед раздельным canary deploy сохранить deployed bundles/hashes и rollback, применить только требуемые миграции, затем проверить auth и Telegram для старых и новых warehouse scopes.",
+  "verification_contract": [
+    "после deploy exact/semantic source parity подтверждён read-only повтором",
+    "auth login/refresh/introspect проходят",
+    "старые Telegram bindings и новое подключение проходят",
+    "rollback проверен"
+  ],
+  "fingerprint": "sha256:f3555ca5b847c70cf8b54e9fcc3731da8d8c18d3c2ce0983c41ec1d55bdbbf56",
+  "related": [
+    "legacy:JF-SRC-002",
+    "legacy:JF-CF-001",
+    "legacy:JF-CF-002",
+    "legacy:JF-CF-003"
+  ],
+  "owner": "@KAPCTEH",
+  "status": "OPEN"
+}

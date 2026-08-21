@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "modules": [
+    {
+      "id": "application",
+      "globs": [
+        "source/application/**"
+      ],
+      "entrypoints": [
+        "source/application/main.js",
+        "source/application/web/index.html"
+      ],
+      "owned_contracts": [
+        "UI",
+        "IPC",
+        "business entities",
+        "VPS client",
+        "local persistence"
+      ],
+      "upstream": [
+        "license-server",
+        "company-telegram-broker",
+        "VPS"
+      ],
+      "downstream": [
+        "desktop-runtime",
+        "users"
+      ],
+      "criticality": "critical",
+      "required_checks": [
+        "main-unit",
+        "runtime-smoke",
+        "business regressions",
+        "security"
+      ],
+      "impact_expansion": [
+        "IPC",
+        "entity schema",
+        "storage revision",
+        "shared web override"
+      ],
+      "owner": "project-owner"
+    },
+    {
+      "id": "desktop-runtime",
+      "globs": [
+        "source/desktop-runtime/**"
+      ],
+      "entrypoints": [
+        "source/desktop-runtime/harden_payload.mjs",
+        "source/desktop-runtime/build_payload.py"
+      ],
+      "owned_contracts": [
+        "Electron payload",
+        "fuses",
+        "ASAR integrity"
+      ],
+      "upstream": [
+        "application"
+      ],
+      "downstream": [
+        "installer"
+      ],
+      "criticality": "critical",
+      "required_checks": [
+        "release-regression",
+        "security",
+        "payload-build-contract"
+      ],
+      "impact_expansion": [
+        "Electron version",
+        "fuse policy",
+        "payload layout"
+      ],
+      "owner": "project-owner"
+    },
+    {
+      "id": "installer",
+      "globs": [
+        "source/installer/**"
+      ],
+      "entrypoints": [
+        "source/installer/build_windows.py",
+        "source/installer/Setup.nsi",
+        "source/installer/Recovery.nsi"
+      ],
+      "owned_contracts": [
+        "setup",
+        "recovery",
+        "upgrade",
+        "uninstall",
+        "assets"
+      ],
+      "upstream": [
+        "desktop-runtime"
+      ],
+      "downstream": [
+        "Windows installation"
+      ],
+      "criticality": "critical",
+      "required_checks": [
+        "installer-source",
+        "installer-acceptance",
+        "recovery"
+      ],
+      "impact_expansion": [
+        "payload",
+        "signing",
+        "NSIS",
+        "WPF"
+      ],
+      "owner": "project-owner"
+    },
+    {
+      "id": "license-server",
+      "globs": [
+        "source/license-server/**"
+      ],
+      "entrypoints": [
+        "source/license-server/worker.mjs"
+      ],
+      "owned_contracts": [
+        "license session",
+        "roles",
+        "permissions",
+        "D1 migrations"
+      ],
+      "upstream": [
+        "Cloudflare"
+      ],
+      "downstream": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "criticality": "critical",
+      "required_checks": [
+        "license-unit",
+        "license-schema",
+        "permission-migrations"
+      ],
+      "impact_expansion": [
+        "auth",
+        "roles",
+        "permissions",
+        "migration"
+      ],
+      "owner": "project-owner"
+    },
+    {
+      "id": "company-telegram-broker",
+      "globs": [
+        "source/company-telegram-broker/**"
+      ],
+      "entrypoints": [
+        "source/company-telegram-broker/worker.mjs"
+      ],
+      "owned_contracts": [
+        "company/environment/warehouse scope",
+        "Telegram configuration",
+        "D1 schema"
+      ],
+      "upstream": [
+        "license-server",
+        "Telegram",
+        "Cloudflare"
+      ],
+      "downstream": [
+        "application",
+        "Telegram Worker"
+      ],
+      "criticality": "critical",
+      "required_checks": [
+        "broker-unit",
+        "broker-schema",
+        "telegram-scope"
+      ],
+      "impact_expansion": [
+        "warehouse scope",
+        "auth",
+        "bindings",
+        "schema"
+      ],
+      "owner": "project-owner"
+    },
+    {
+      "id": "data-contracts",
+      "globs": [
+        "source/application/web/assets/js/**",
+        "source/license-server/migrations/**",
+        "source/company-telegram-broker/migrations/**"
+      ],
+      "entrypoints": [],
+      "owned_contracts": [
+        "entities",
+        "revisions",
+        "multi-user synchronization",
+        "immutable fields"
+      ],
+      "upstream": [
+        "application",
+        "VPS"
+      ],
+      "downstream": [
+        "all users"
+      ],
+      "criticality": "critical",
+      "required_checks": [
+        "atomic-mutation",
+        "entity-protocol",
+        "revision",
+        "multi-user"
+      ],
+      "impact_expansion": [
+        "schema",
+        "entity",
+        "revision",
+        "permissions"
+      ],
+      "owner": "project-owner"
+    },
+    {
+      "id": "ci",
+      "globs": [
+        ".github/**"
+      ],
+      "entrypoints": [
+        ".github/workflows/windows-native-783.yml"
+      ],
+      "owned_contracts": [
+        "Windows build",
+        "evidence retention",
+        "release provenance"
+      ],
+      "upstream": [
+        "repository"
+      ],
+      "downstream": [
+        "release artifacts"
+      ],
+      "criticality": "high",
+      "required_checks": [
+        "workflow-security",
+        "clean-runner-build"
+      ],
+      "impact_expansion": [
+        "permissions",
+        "actions",
+        "secrets",
+        "artifact flow"
+      ],
+      "owner": "project-owner"
+    },
+    {
+      "id": "audit-registry",
+      "globs": [
+        "audit-ledger/**"
+      ],
+      "entrypoints": [
+        "audit-ledger/index.json"
+      ],
+      "owned_contracts": [
+        "evidence",
+        "findings",
+        "impact",
+        "test selection"
+      ],
+      "upstream": [
+        "Git",
+        "CI"
+      ],
+      "downstream": [
+        "release gates"
+      ],
+      "criticality": "high",
+      "required_checks": [
+        "schema-validation",
+        "hash-validation",
+        "completeness"
+      ],
+      "impact_expansion": [
+        "rule meaning",
+        "schema",
+        "module map",
+        "test map"
+      ],
+      "owner": "project-owner"
+    }
+  ]
+}

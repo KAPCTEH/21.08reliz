@@ -1,0 +1,5734 @@
+[stdout] {
+  "generatedAt": "2026-08-21T17:22:30.815Z",
+  "root": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-workspace\\source\\application",
+  "summary": {
+    "htmlFiles": 4,
+    "javascriptFiles": 40,
+    "inlineScripts": 0,
+    "buttons": 150,
+    "htmlIds": 558,
+    "parseErrors": 0,
+    "invalidVoidClosingTags": 0,
+    "missingScriptSources": 0,
+    "duplicateHtmlIds": 0,
+    "duplicateGlobals": 0,
+    "implementationBindings": 56,
+    "implementationOverrides": 23,
+    "possibleDeadGlobals": 90,
+    "missingLiteralIds": 171,
+    "missingInlineHandlers": 0,
+    "duplicateButtonActions": 15,
+    "unhandledButtons": 0,
+    "missingIpcMain": 0,
+    "unusedIpcMain": 0
+  },
+  "parseErrors": [],
+  "scriptSources": [
+    {
+      "html": "reg-vps-setup.html",
+      "src": "reg-vps-setup-renderer.js",
+      "resolved": "reg-vps-setup-renderer.js",
+      "exists": true
+    },
+    {
+      "html": "splash.html",
+      "src": "splash-renderer.js",
+      "resolved": "splash-renderer.js",
+      "exists": true
+    },
+    {
+      "html": "telegram-setup.html",
+      "src": "telegram-setup-renderer.js",
+      "resolved": "telegram-setup-renderer.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/vendor/leaflet/leaflet.js",
+      "resolved": "web/assets/vendor/leaflet/leaflet.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/00-warehouse-bootstrap-v600.js",
+      "resolved": "web/assets/js/00-warehouse-bootstrap-v600.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/01-action-dispatch-v783.js",
+      "resolved": "web/assets/js/01-action-dispatch-v783.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/03-icon-system-v783.js",
+      "resolved": "web/assets/js/03-icon-system-v783.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/00-app-bundle-v595.js",
+      "resolved": "web/assets/js/00-app-bundle-v595.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/02-runtime-overrides-v783.js",
+      "resolved": "web/assets/js/02-runtime-overrides-v783.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/105-map-reliability-v772.js",
+      "resolved": "web/assets/js/105-map-reliability-v772.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/90-route-engine.js",
+      "resolved": "web/assets/js/90-route-engine.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/91-system-stability.js",
+      "resolved": "web/assets/js/91-system-stability.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/92-route-cleanup.js",
+      "resolved": "web/assets/js/92-route-cleanup.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/93-route-composer-map.js",
+      "resolved": "web/assets/js/93-route-composer-map.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/94-route-workspace-final.js",
+      "resolved": "web/assets/js/94-route-workspace-final.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/95-route-map-loading.js",
+      "resolved": "web/assets/js/95-route-map-loading.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/99-stability-v595.js",
+      "resolved": "web/assets/js/99-stability-v595.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/97-route-stop-interactions.js",
+      "resolved": "web/assets/js/97-route-stop-interactions.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/98-smart-automation-v598.js",
+      "resolved": "web/assets/js/98-smart-automation-v598.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/100-multi-warehouse-v600.js",
+      "resolved": "web/assets/js/100-multi-warehouse-v600.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/101-release-hardening-v601.js",
+      "resolved": "web/assets/js/101-release-hardening-v601.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/102-professional-workspace-v610.js",
+      "resolved": "web/assets/js/102-professional-workspace-v610.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/103-regression-recovery-v611.js",
+      "resolved": "web/assets/js/103-regression-recovery-v611.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/110-desktop-platform-v750.js",
+      "resolved": "web/assets/js/110-desktop-platform-v750.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/130-experience-refresh-v783.js",
+      "resolved": "web/assets/js/130-experience-refresh-v783.js",
+      "exists": true
+    },
+    {
+      "html": "web/index.html",
+      "src": "assets/js/140-clarity-redesign-v783.js",
+      "resolved": "web/assets/js/140-clarity-redesign-v783.js",
+      "exists": true
+    }
+  ],
+  "invalidVoidClosingTags": [],
+  "missingScriptSources": [],
+  "duplicateHtmlIds": [],
+  "duplicateGlobals": [],
+  "implementationBindings": [
+    {
+      "name": "approveRouteManually__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 9,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1870,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "assignedDriverForRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 11,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2414,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "buildAllRoutes__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 13,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2563,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "buildOrderWorkflowContext__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 15,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1829,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "cachedSplitCompact__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 17,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2389,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "calculateFinalizeRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 19,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1868,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "calculateRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 20,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1728,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "clearAll__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 21,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2024,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "createDemonstrationScenario__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 24,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2342,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "driverConflictForRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 26,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2309,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "editCurrentOrder__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 28,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1940,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "exportBackup__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 29,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2229,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "exportCSV__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 30,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1968,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "getOrderWorkflowStatus__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 31,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1836,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "invalidatePlans__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 33,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1771,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "inventoryShortagesForOrders__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 34,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1825,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "materializeRouteChunks__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 35,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1778,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "normalizeDriver__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 36,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2245,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "normalizeOrder__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 37,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1800,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "normalizeReportingData__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 38,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1523,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "openDetails__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 39,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1937,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "openDriverDetails__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 40,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2306,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "openDriverModal__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 41,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2289,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "openOrderModal__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 42,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1754,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "openProductDetails__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 44,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1303,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "openProductModal__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 45,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1297,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "orderStockDemandLines__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 48,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1859,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "printCurrentOrder__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 49,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1758,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "productQtyInOrders__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 51,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1824,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "recommendedDrivers__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 52,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2394,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "releaseRouteLocks__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 53,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1957,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "renderDrivers__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 56,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2298,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "renderOrders__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 59,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1943,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "renderOrderWorkflowPanel__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 57,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1854,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "renderOrderWorkflowStatus__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 58,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1853,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "renderProducts__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 60,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1306,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "renderRouteComposer__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 62,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1951,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "renderRouteDriverPicker__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 63,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2321,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "renderSettings__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 64,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1767,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "resetAllFilters__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 67,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1945,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "restoreAllUnassigned__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 69,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1776,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "restoreAutoAssignment__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 70,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1775,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "routeModeText__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 71,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1719,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "routeOverride__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 72,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2324,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "routeReturnsToWarehouse__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 73,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1718,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "routeSignature__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 74,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1721,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "routeState__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 75,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2397,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "runDataDiagnostics__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 76,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1971,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "saveProduct__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 80,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1300,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "saveRouteEditSettings__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 81,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2328,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "saveSettingsFromForm__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 82,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1773,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "showMapUnavailable__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 83,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2604,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "showRouteOnMap__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 84,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1732,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "syncRouteEditPayMode__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 86,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2327,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "toggleCurrentOrderPayment__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 87,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1932,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    },
+    {
+      "name": "updateProductPreview__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 88,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1294,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ]
+    }
+  ],
+  "implementationOverrides": [
+    {
+      "name": "assignDriverToRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 10,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1739,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1954,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2313,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2583,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 4
+    },
+    {
+      "name": "buildSingleRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 16,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1740,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1952,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2575,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 3
+    },
+    {
+      "name": "clearRoutePlans__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 23,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1774,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1955,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2588,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 3
+    },
+    {
+      "name": "openRouteEditModal__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 47,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1953,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2326,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2579,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 3
+    },
+    {
+      "name": "renderRouteCard__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 61,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1730,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1916,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2335,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 3
+    },
+    {
+      "name": "renderTripsPreview__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 65,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1919,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2337,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2548,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 3
+    },
+    {
+      "name": "resetRouteAssignments__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 68,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1780,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1956,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2591,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 3
+    },
+    {
+      "name": "addOrderToRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 7,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1779,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1949,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "allRouteGroups__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 8,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1827,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2392,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "autoAssignBestDrivers__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 12,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2319,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2553,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "buildBackupPayload__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 14,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1783,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1965,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "clearRouteDriver__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 22,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2315,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2585,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "deleteDriver__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 25,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2317,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2597,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "driverPaymentForPlan__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 27,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1725,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2272,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "importBackupFile__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 32,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1966,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2345,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "openPickupModal__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 43,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1756,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1959,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "openRouteComposer__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 46,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1950,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2577,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "printRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 50,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1734,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2339,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "removeOrderFromRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 54,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1948,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2581,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "repairDriverDateConflicts__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 66,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2310,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2559,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "saveDriver__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 77,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2292,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2599,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "startRoute__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 85,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2333,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2594,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    },
+    {
+      "name": "validRoutePlan__implV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 89,
+          "kind": "variable",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1722,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        },
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2420,
+          "kind": "function-assignment",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "assignments": 2
+    }
+  ],
+  "possibleDeadGlobals": [
+    {
+      "name": "__applyDriversPaginationV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/99-stability-v595.js",
+          "line": 133,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "__applyProductsPaginationV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/99-stability-v595.js",
+          "line": 132,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "__applyReportVirtualizationV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/99-stability-v595.js",
+          "line": 134,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "__teplitsaSaveHookV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/99-stability-v595.js",
+          "line": 91,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "applyCatalogToItem",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1377,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "applyManualDeliveryCost",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 678,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "applySmartRoutePreset",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/98-smart-automation-v598.js",
+          "line": 204,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "approveRouteManually",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 9,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "assignDriverToRoute",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 10,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "cancelRouteBeforeStart",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1884,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "changeOrderLineQuantityV783",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1332,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "chooseCompanyLogoV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 128,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "clearRoutePlans",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 23,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "commitRouteClosure",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/99-stability-v595.js",
+          "line": 116,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "deleteReportEmployee",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1667,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "deleteReportExpense",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1673,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "deleteWarehouseV760",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 202,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "directorMoney",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1529,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "directorSectionHead",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1527,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "driverFitInfo",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1398,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "driverPlannedTotals",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 407,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "editReportEmployee",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1666,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "editReportExpense",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1672,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "exportCSV",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 30,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "formatHoursFromMinutes",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 288,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "importBackupFile",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 32,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "invalidateWarehouseAddressSearchV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 136,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "loadCompanyLogoV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 129,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "markCurrentPickupCollected",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/99-stability-v595.js",
+          "line": 117,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "markOrderLinePrice",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1318,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "markProductVolumeManual",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 855,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "openOrderFromDriverDetail",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 813,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "openOrderFromProductDetail",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 814,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "openProgramSettingsSectionV611",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/103-regression-recovery-v611.js",
+          "line": 62,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "openRouteClosure",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1912,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "openRouteDriverPicker",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 896,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "openWarehouseCreatorV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 143,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "openWarehouseEditorV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 144,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "orderSourceLabel",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1187,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "previewInvoiceV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 122,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "productCharacteristicTags",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 809,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "refreshWarehouseTelegramV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 142,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "removeCompanyLogoV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 130,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "removeOrderFromRoute",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 54,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "resetAllFilters",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 67,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+       [stdout]  }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "resetOrderLinePrice",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1319,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "resetRouteAssignments",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 68,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "restoreAllUnassigned",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 69,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "restoreAutoAssignment",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 70,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "retryRoutesMapV560",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2603,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "reverseInventoryMovement",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 878,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "revokeRouteManualApproval",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1738,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "routeExecution",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1872,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "routeYandexUrlV560",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2504,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "runRouteSystemAuditV570",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/90-route-engine.js",
+          "line": 193,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "runStableRouteMapUpdateV594",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/95-route-map-loading.js",
+          "line": 79,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "saveCompanySettingsV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 123,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "saveDriver",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 77,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "saveInventoryMovement",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 875,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "saveOrder",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 78,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "savePickup",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 79,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "saveProduct",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 80,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "saveReportEmployee",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1665,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "saveReportExpense",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1671,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "saveSmartRouteSettings",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/98-smart-automation-v598.js",
+          "line": 206,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "saveWarehouseEditorV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 166,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "scheduleRender",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 471,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "searchWarehouseAddressV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 137,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "selectSearchResult",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 773,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "selectWarehouseAddressV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 138,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "setDriversPageV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/99-stability-v595.js",
+          "line": 131,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "setOrdersPage",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 538,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "setOrderStatusFilter",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 539,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "setProductPageV610",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/102-professional-workspace-v610.js",
+          "line": 27,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "setProductsPageV595",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/99-stability-v595.js",
+          "line": 130,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "setProductStockFilter",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 822,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "setProductViewModeV610",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/102-professional-workspace-v610.js",
+          "line": 26,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "setRouteOrderOutcome",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1907,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "setRoutePageV593",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/94-route-workspace-final.js",
+          "line": 43,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "setRouteStageFilterV560",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 2497,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "smartProductCategoryChanged",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/98-smart-automation-v598.js",
+          "line": 147,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "startRoutePicking",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1876,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "switchWarehouseV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 179,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "syncAllItemConfigurations",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1373,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "toggleRouteRowV590",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/91-system-stability.js",
+          "line": 120,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "toggleWarehouseArchiveV600",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/100-multi-warehouse-v600.js",
+          "line": 201,
+          "kind": "window-function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 0
+    },
+    {
+      "name": "updateItemConfiguration",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1372,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "updateRouteOutcomePaid",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1910,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "updateRouteOutcomeQty",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1908,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    },
+    {
+      "name": "updateRouteOutcomeReason",
+      "scope": "browser:web/index.html",
+      "declarations": [
+        {
+          "file": "web/assets/js/00-app-bundle-v595.js",
+          "line": 1909,
+          "kind": "function",
+          "scope": "browser:web/index.html"
+        }
+      ],
+      "referenceCount": 1
+    }
+  ],
+  "missingLiteralIds": [
+    {
+      "id": "activeWarehouseChip",
+      "file": "web/assets/js/103-regression-recovery-v611.js",
+      "line": 63,
+      "kind": "byId"
+    },
+    {
+      "id": "clarityReportGuide",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 36,
+      "kind": "byId"
+    },
+    {
+      "id": "driverAllowedOverhang",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 170,
+      "kind": "$"
+    },
+    {
+      "id": "driverBodyType",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 163,
+      "kind": "$"
+    },
+    {
+      "id": "driverBodyType",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 170,
+      "kind": "$"
+    },
+    {
+      "id": "driverCrewCount",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 170,
+      "kind": "$"
+    },
+    {
+      "id": "driverFloorProtected",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 170,
+      "kind": "$"
+    },
+    {
+      "id": "driverOpenTop",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 170,
+      "kind": "$"
+    },
+    {
+      "id": "driverSideAccess",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 170,
+      "kind": "$"
+    },
+    {
+      "id": "driverStatusFilter",
+      "file": "web/assets/js/99-stability-v595.js",
+      "line": 133,
+      "kind": "byId"
+    },
+    {
+      "id": "driverTailLift",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 170,
+      "kind": "$"
+    },
+    {
+      "id": "dynamicPrintPageStyle",
+      "file": "web/assets/js/00-app-bundle-v595.js",
+      "line": 1224,
+      "kind": "getElementById"
+    },
+    {
+      "id": "dynamicPrintPageStyle",
+      "file": "web/assets/js/92-route-cleanup.js",
+      "line": 20,
+      "kind": "getElementById"
+    },
+    {
+      "id": "h3",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 1046,
+      "kind": "q"
+    },
+    {
+      "id": "h3",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 1054,
+      "kind": "q"
+    },
+    {
+      "id": "input",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 322,
+      "kind": "q"
+    },
+    {
+      "id": "jfAccessAll",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 370,
+      "kind": "q"
+    },
+    {
+      "id": "jfAccessCancel",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 370,
+      "kind": "q"
+    },
+    {
+      "id": "jfAccessRole",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 371,
+      "kind": "q"
+    },
+    {
+      "id": "jfAccessStatus",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 371,
+      "kind": "q"
+    },
+    {
+      "id": "jfAccessSubmit",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 371,
+      "kind": "q"
+    },
+    {
+      "id": "jfAddUser",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 350,
+      "kind": "q"
+    },
+    {
+      "id": "jfAuthRoot",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 172,
+      "kind": "q"
+    },
+    {
+      "id": "jfAuthStatus",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 173,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudActivate",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 165,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudBack",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 168,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudBack",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 169,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudBack",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 170,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudBack",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 171,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudInvite",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 165,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudLicenseForm",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 168,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudLicenseKey",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 168,
+      "kind": "q"
+    },
+    {
+      "id": "jfCloudLogin",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 165,
+      "kind": "q"
+    },
+    {
+      "id": "jfCompanyCode",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 170,
+      "kind": "q"
+    },
+    {
+      "id": "jfCopyInvitation",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 364,
+      "kind": "q"
+    },
+    {
+      "id": "jfDemoTime",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 191,
+      "kind": "q"
+    },
+    {
+      "id": "jfDesktopStrip",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 190,
+      "kind": "q"
+    },
+    {
+      "id": "jfHelpClose",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 1064,
+      "kind": "q"
+    },
+    {
+      "id": "jfHelpModal",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 1059,
+      "kind": "q"
+    },
+    {
+      "id": "jfHelpModal",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 1062,
+      "kind": "q"
+    },
+    {
+      "id": "jfHelpX",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 1064,
+      "kind": "q"
+    },
+    {
+      "id": "jfHelpX",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 1064,
+      "kind": "q"
+    },
+    {
+      "id": "jfInvitationCode",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 171,
+      "kind": "q"
+    },
+    {
+      "id": "jfInvitationDone",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 364,
+      "kind": "q"
+    },
+    {
+      "id": "jfInvitationForm",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 171,
+      "kind": "q"
+    },
+    {
+      "id": "jfInvitationPassword",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 171,
+      "kind": "q"
+    },
+    {
+      "id": "jfInvitationPassword2",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 171,
+      "kind": "q"
+    },
+    {
+      "id": "jfLogin",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 170,
+      "kind": "q"
+    },
+    {
+      "id": "jfLoginForm",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 170,
+      "kind": "q"
+    },
+    {
+      "id": "jfLogout",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 175,
+      "kind": "q"
+    },
+    {
+      "id": "jfLogoutBtn",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 190,
+      "kind": "q"
+    },
+    {
+      "id": "jfNoWarehouseMessage",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 187,
+      "kind": "q"
+    },
+    {
+      "id": "jfOwnerForm",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 169,
+      "kind": "q"
+    },
+    {
+      "id": "jfOwnerLogin",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 169,
+      "kind": "q"
+    },
+    {
+      "id": "jfOwnerName",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 169,
+      "kind": "q"
+    },
+    {
+      "id": "jfOwnerPassword",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 169,
+      "kind": "q"
+    },
+    {
+      "id": "jfOwnerPassword2",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 169,
+      "kind": "q"
+    },
+    {
+      "id": "jfPassword",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 170,
+      "kind": "q"
+    },
+    {
+      "id": "jfProfileBtn",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 190,
+      "kind": "q"
+    },
+    {
+      "id": "jfProfileClose",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 339,
+      "kind": "q"
+    },
+    {
+      "id": "jfProfileModal",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 339,
+      "kind": "q"
+    },
+    {
+      "id": "jfProfileTelegram",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 339,
+      "kind": "q"
+    },
+    {
+      "id": "jfProfileTelegram",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 339,
+      "kind": "q"
+    },
+    {
+      "id": "jfRetry",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 175,
+      "kind": "q"
+    },
+    {
+      "id": "jfRetry",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 187,
+      "kind": "q"
+    },
+    {
+      "id": "jfToastStack",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 315,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserAccessForm",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 371,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserAll",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 363,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserCancel",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 363,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserCreator",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 360,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserCreator",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 367,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserForm",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 364,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserLogin",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 364,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserName",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 364,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserRole",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 364,
+      "kind": "q"
+    },
+    {
+      "id": "jfUsersBox",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 340,
+      "kind": "q"
+    },
+    {
+      "id": "jfUsersBox",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 342,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserStatus",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 364,
+      "kind": "q"
+    },
+    {
+      "id": "jfUserSubmit",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 364,
+      "kind": "q"
+    },
+    {
+      "id": "jfWarehouseTelegramOpen",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 709,
+      "kind": "q"
+    },
+    {
+      "id": "jfWarehouseTelegramRequired",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 700,
+      "kind": "q"
+    },
+    {
+      "id": "jfWarehouseTelegramRequired",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 702,
+      "kind": "q"
+    },
+    {
+      "id": "jfWarehouseTelegramRequired",
+      "file": "web/assets/js/110-desktop-platform-v750.js",
+      "line": 709,
+      "kind": "q"
+    },
+    {
+      "id": "moscowClock",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 100,
+      "kind": "getElementById"
+    },
+    {
+      "id": "orderProductDrawerV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 84,
+      "kind": "byId"
+    },
+    {
+      "id": "orderProductDrawerV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 98,
+      "kind": "byId"
+    },
+    {
+      "id": "orderProductDrawerV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 147,
+      "kind": "byId"
+    },
+    {
+      "id": "productCrewRequired",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productDrawerTitleV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 97,
+      "kind": "querySelector"
+    },
+    {
+      "id": "productFloorProtection",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productIncompatibleGroups",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productIntelligencePanel",
+      "file": "web/assets/js/102-professional-workspace-v610.js",
+      "line": 20,
+      "kind": "byId"
+    },
+    {
+      "id": "productIntelligencePanel",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 234,
+      "kind": "$"
+    },
+    {
+      "id": "productIntelligencePanel",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 235,
+      "kind": "$"
+    },
+    {
+      "id": "productLoadingSequence",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productLoadZone",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 138,
+      "kind": "$"
+    },
+    {
+      "id": "productLoadZone",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productMaxTilt",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productRequiresOpenBody",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productRequiresSideAccess",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productRequiresTailLift",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productRequiresTwoPeople",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productSegregationGroup",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productStackWeightLimit",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productStrapCount",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productTransportGuideV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 59,
+      "kind": "byId"
+    },
+    {
+      "id": "productTransportGuideV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 60,
+      "kind": "byId"
+    },
+    {
+      "id": "productTransportGuideV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 66,
+      "kind": "byId"
+    },
+    {
+      "id": "productUnloadingPriority",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 143,
+      "kind": "$"
+    },
+    {
+      "id": "productViewSwitchV610",
+      "file": "web/assets/js/102-professional-workspace-v610.js",
+      "line": 25,
+      "kind": "byId"
+    },
+    {
+      "id": "programAutomationLevel",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 227,
+      "kind": "$"
+    },
+    {
+      "id": "programAutomationLevel",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 338,
+      "kind": "$"
+    },
+    {
+      "id": "programAutoOpenIssues",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 227,
+      "kind": "$"
+    },
+    {
+      "id": "programAutoOpenIssues",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 338,
+      "kind": "$"
+    },
+    {
+      "id": "programAutosaveIndicator",
+      "file": "web/assets/js/102-professional-workspace-v610.js",
+      "line": 15,
+      "kind": "byId"
+    },
+    {
+      "id": "programAutosaveIndicator",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 227,
+      "kind": "$"
+    },
+    {
+      "id": "programAutosaveIndicator",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 338,
+      "kind": "$"
+    },
+    {
+      "id": "programBackupDays",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 227,
+      "kind": "$"
+    },
+    {
+      "id": "programBackupDays",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 338,
+      "kind": "$"
+    },
+    {
+      "id": "programCompactLargeLists",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 227,
+      "kind": "$"
+    },
+    {
+      "id": "programCompactLargeLists",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 338,
+      "kind": "$"
+    },
+    {
+      "id": "programDecisionExplanations",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 227,
+      "kind": "$"
+    },
+    {
+      "id": "programDecisionExplanations",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 338,
+      "kind": "$"
+    },
+    {
+      "id": "programDefaultView",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 227,
+      "kind": "$"
+    },
+    {
+      "id": "programDefaultView",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 338,
+      "kind": "$"
+    },
+    {
+      "id": "programInterfaceDensity",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 227,
+      "kind": "$"
+    },
+    {
+      "id": "programInterfaceDensity",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 338,
+      "kind": "$"
+    },
+    {
+      "id": "routeAdaptiveLearning",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeAdaptiveLoading",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeAutomationMode",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeAutoSplitOverload",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeBlockCompatibility",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeDecisionModalV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 116,
+      "kind": "byId"
+    },
+    {
+      "id": "routeDecisionModalV783",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 129,
+      "kind": "byId"
+    },
+    {
+      "id": "routeDefaultCrew",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeManualReviewThreshold",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeMapHomeV590",
+      "file": "web/assets/js/94-route-workspace-final.js",
+      "line": 10,
+      "kind": "byId"
+    },
+    {
+      "id": "routeMaxDetour",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeOptimizationGoal",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routePaginationV593",
+      "file": "web/assets/js/94-route-workspace-final.js",
+      "line": 28,
+      "kind": "byId"
+    },
+    {
+      "id": "routePayloadReserve",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeRequirePassport",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeServiceStatusV560",
+      "file": "web/assets/js/00-app-bundle-v595.js",
+      "line": 2605,
+      "kind": "$"
+    },
+    {
+      "id": "routeServiceStatusV560",
+      "file": "web/assets/js/92-route-cleanup.js",
+      "line": 13,
+      "kind": "$"
+    },
+    {
+      "id": "routeShowReasons",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeStageTabsV560",
+      "file": "web/assets/js/00-app-bundle-v595.js",
+      "line": 2529,
+      "kind": "$"
+    },
+    {
+      "id": "routeStageTabsV560",
+      "file": "web/assets/js/00-app-bundle-v595.js",
+      "line": 2536,
+      "kind": "$"
+    },
+    {
+      "id": "routeTrafficBuffer",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "routeVolumeReserve",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 202,
+      "kind": "$"
+    },
+    {
+      "id": "smartAutosaveState",
+      "file": "web/assets/js/102-professional-workspace-v610.js",
+      "line": 14,
+      "kind": "byId"
+    },
+    {
+      "id": "smartAutosaveState",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 320,
+      "kind": "$"
+    },
+    {
+      "id": "smartAutosaveState",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 321,
+      "kind": "$"
+    },
+    {
+      "id": "smartAutosaveState",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 322,
+      "kind": "$"
+    },
+    {
+      "id": "smartProductRulePreview",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 146,
+      "kind": "$"
+    },
+    {
+      "id": "smartProgramHealth",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 226,
+      "kind": "$"
+    },
+    {
+      "id": "smartProgramHealth",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 335,
+      "kind": "$"
+    },
+    {
+      "id": "smartProgramSettings",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 22,
+      "kind": "byId"
+    },
+    {
+      "id": "smartProgramSettings",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 223,
+      "kind": "$"
+    },
+    {
+      "id": "smartReportInsights",
+      "file": "web/assets/js/102-professional-workspace-v610.js",
+      "line": 59,
+      "kind": "byId"
+    },
+    {
+      "id": "smartReportInsights",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 218,
+      "kind": "$"
+    },
+    {
+      "id": "smartReportInsights",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 333,
+      "kind": "$"
+    },
+    {
+      "id": "smartRoutePreview",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 203,
+      "kind": "$"
+    },
+    {
+      "id": "smartRoutePreview",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 331,
+      "kind": "$"
+    },
+    {
+      "id": "smartRouteSettings",
+      "file": "web/assets/js/140-clarity-redesign-v783.js",
+      "line": 10,
+      "kind": "byId"
+    },
+    {
+      "id": "smartRouteSettings",
+      "file": "web/assets/js/98-smart-automation-v598.js",
+      "line": 201,
+      "kind": "$"
+    },
+    {
+      "id": "v595LiveRegion",
+      "file": "web/assets/js/99-stability-v595.js",
+      "line": 18,
+      "kind": "byId"
+    },
+    {
+      "id": "v595QaExport",
+      "file": "web/assets/js/99-stability-v595.js",
+      "line": 213,
+      "kind": "byId"
+    },
+    {
+      "id": "v595QaFirstRun",
+      "file": "web/assets/js/99-stability-v595.js",
+      "line": 218,
+      "kind": "byId"
+    },
+    {
+      "id": "v595QaPanel",
+      "file": "web/assets/js/99-stability-v595.js",
+      "line": 213,
+      "kind": "byId"
+    },
+    {
+      "id": "v595QaPanel",
+      "file": "web/assets/js/99-stability-v595.js",
+      "line": 218,
+      "kind": "byId"
+    },
+    {
+      "id": "v595QaRunAgain",
+      "file": "web/assets/js/99-stability-v595.js",
+      "line": 213,
+      "kind": "byId"
+    }
+  ],
+  "missingInlineHandlers": [],
+  "duplicateButtonActions": [
+    {
+      "onclick": "showView('drivers')",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 43,
+          "id": "tabDrivers",
+          "text": "Водители",
+          "onclick": "showView('drivers')"
+        },
+        {
+          "file": "web/index.html",
+          "line": 276,
+          "id": null,
+          "text": "Открыть водителей",
+          "onclick": "showView('drivers')"
+        }
+      ]
+    },
+    {
+      "onclick": "saveSettingsFromForm()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 241,
+          "id": null,
+          "text": "Сохранить настройки маршрута",
+          "onclick": "saveSettingsFromForm()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 259,
+          "id": null,
+          "text": "Сохранить и пересчитать график",
+          "onclick": "saveSettingsFromForm()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeOrderModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 381,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeOrderModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 456,
+          "id": null,
+          "text": "Отмена",
+          "onclick": "closeOrderModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closePickupModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 462,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closePickupModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 476,
+          "id": null,
+          "text": "Отмена",
+          "onclick": "closePickupModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeDetailModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 482,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeDetailModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 484,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeDetailModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeDriverDetailModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 489,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeDriverDetailModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 491,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeDriverDetailModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeProductDetailModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 496,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeProductDetailModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 498,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeProductDetailModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeDriverModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 503,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeDriverModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 564,
+          "id": null,
+          "text": "Отмена",
+          "onclick": "closeDriverModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeProductModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 570,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeProductModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 648,
+          "id": null,
+          "text": "Отмена",
+          "onclick": "closeProductModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeInventoryMovementModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 654,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeInventoryMovementModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 671,
+          "id": null,
+          "text": "Отмена",
+          "onclick": "closeInventoryMovementModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeRouteDriverPicker()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 677,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeRouteDriverPicker()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 679,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeRouteDriverPicker()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeRouteComposer()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 684,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeRouteComposer()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 694,
+          "id": null,
+          "text": "Готово",
+          "onclick": "closeRouteComposer()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeRouteEditModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 699,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeRouteEditModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 707,
+          "id": null,
+          "text": "Отмена",
+          "onclick": "closeRouteEditModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeRouteCloseModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 712,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeRouteCloseModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 714,
+          "id": null,
+          "text": "Продолжить позже",
+          "onclick": "closeRouteCloseModal()"
+        }
+      ]
+    },
+    {
+      "onclick": "closeNotRelevantModal()",
+      "buttons": [
+        {
+          "file": "web/index.html",
+          "line": 719,
+          "id": null,
+          "text": "Закрыть",
+          "onclick": "closeNotRelevantModal()"
+        },
+        {
+          "file": "web/index.html",
+          "line": 721,
+          "id": null,
+          "text": "Отмена",
+          "onclick": "closeNotRelevantModal()"
+        }
+      ]
+    }
+  ],
+  "unhandledButtons": [],
+  "ipc": {
+    "missingIpcMain": [],
+    "unusedIpcMain": [],
+    "main": {
+      "desktop:startup-stage": [
+        {
+          "file": "main.js",
+          "line": 2264,
+          "method": "on"
+        }
+      ]
+    },
+    "renderer": {
+      "desktop:startup-stage": [
+        {
+          "file": "preload.js",
+          "line": 7,
+          "method": "send"
+        },
+        {
+          "file": "preload.js",
+          "line": 13,
+          "method": "send"
+        }
+      ],
+      "desktop:renderer-ready": [
+        {
+          "file": "preload.js",
+          "line": 14,
+          "method": "invoke"
+        }
+      ],
+      "desktop:set-active-warehouse": [
+        {
+          "file": "preload.js",
+          "line": 15,
+          "method": "invoke"
+        }
+      ],
+      "desktop:get-session": [
+        {
+          "file": "preload.js",
+          "line": 16,
+          "method": "invoke"
+        }
+      ],
+      "desktop:get-app-info": [
+        {
+          "file": "preload.js",
+          "line": 17,
+          "method": "invoke"
+        }
+      ],
+      "desktop:open-log-folder": [
+        {
+          "file": "preload.js",
+          "line": 18,
+          "method": "invoke"
+        }
+      ],
+      "desktop:copy-text": [
+        {
+          "file": "preload.js",
+          "line": 19,
+          "method": "invoke"
+        }
+      ],
+      "desktop:open-support": [
+        {
+          "file": "preload.js",
+          "line": 20,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-license-check": [
+        {
+          "file": "preload.js",
+          "line": 22,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-register-owner": [
+        {
+          "file": "preload.js",
+          "line": 23,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-login": [
+        {
+          "file": "preload.js",
+          "line": 24,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-accept-invitation": [
+        {
+          "file": "preload.js",
+          "line": 25,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-logout": [
+        {
+          "file": "preload.js",
+          "line": 26,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-users": [
+        {
+          "file": "preload.js",
+          "line": 27,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-invite": [
+        {
+          "file": "preload.js",
+          "line": 28,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-user-status": [
+        {
+          "file": "preload.js",
+          "line": 29,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-user-access": [
+        {
+          "file": "preload.js",
+          "line": 30,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-devices": [
+        {
+          "file": "preload.js",
+          "line": 31,
+          "method": "invoke"
+        }
+      ],
+      "desktop:auth-device-status": [
+        {
+          "file": "preload.js",
+          "line": 32,
+          "method": "invoke"
+        }
+      ],
+      "desktop:reg-status": [
+        {
+          "file": "preload.js",
+          "line": 35,
+          "method": "invoke"
+        }
+      ],
+      "desktop:reg-warehouses": [
+        {
+          "file": "preload.js",
+          "line": 36,
+          "method": "invoke"
+        }
+      ],
+      "desktop:reg-configure": [
+        {
+          "file": "preload.js",
+          "line": 37,
+          "method": "invoke"
+        }
+      ],
+      "desktop:reg-entity-bootstrap": [
+        {
+          "file": "preload.js",
+          "line": 38,
+          "method": "invoke"
+        }
+      ],
+      "desktop:reg-entity-sync": [
+        {
+          "file": "preload.js",
+          "line": 39,
+          "method": "invoke"
+        }
+      ],
+      "desktop:reg-entity-changes": [
+        {
+          "file": "preload.js",
+          "line": 40,
+          "method": "invoke"
+        }
+      ],
+      "desktop:reg-warehouse-write": [
+        {
+          "file": "preload.js",
+          "line": 41,
+          "method": "invoke"
+        }
+      ],
+      "desktop:maps-geocode": [
+        {
+          "file": "preload.js",
+          "line": 44,
+          "method": "invoke"
+        }
+      ],
+      "desktop:maps-route": [
+        {
+          "file": "preload.js",
+          "line": 45,
+          "method": "invoke"
+        }
+      ],
+      "desktop:maps-diagnostic": [
+        {
+          "file": "preload.js",
+          "line": 46,
+          "method": "invoke"
+        }
+      ],
+      "desktop:telegram-status": [
+        {
+          "file": "preload.js",
+          "line": 49,
+          "method": "invoke"
+        }
+      ],
+      "desktop:telegram-configure": [
+        {
+          "file": "preload.js",
+          "line": 50,
+          "method": "invoke"
+        }
+      ],
+      "desktop:telegram-create-link": [
+        {
+          "file": "preload.js",
+          "line": 51,
+          "method": "invoke"
+        }
+      ],
+      "desktop:telegram-send": [
+        {
+          "file": "preload.js",
+          "line": 52,
+          "method": "invoke"
+        }
+      ],
+      "desktop:telegram-poll-events": [
+        {
+          "file": "preload.js",
+          "line": 53,
+          "method": "invoke"
+        }
+      ],
+      "desktop:telegram-bindings": [
+        {
+          "file": "preload.js",
+          "line": 54,
+          "method": "invoke"
+        }
+      ],
+      "desktop:telegram-progress": [
+        {
+          "file": "preload.js",
+          "line": 58,
+          "method": "on"
+        }
+      ],
+      "desktop:telegram-company-published": [
+        {
+          "file": "preload.js",
+          "line": 64,
+          "method": "on"
+        }
+      ],
+      "desktop:save-text-file": [
+        {
+          "file": "preload.js",
+          "line": 68,
+          "method": "invoke"
+        }
+      ],
+      "desktop:select-file": [
+        {
+          "file": "preload.js",
+          "line": 69,
+          "method": "invoke"
+        }
+      ],
+      "desktop:select-folder": [
+        {
+          "file": "preload.js",
+          "line": 70,
+          "method": "invoke"
+        }
+      ],
+      "desktop:restart": [
+        {
+          "file": "preload.js",
+          "line": 71,
+          "method": "invoke"
+        }
+      ],
+      "desktop:quit": [
+        {
+          "file": "preload.js",
+          "line": 72,
+          "method": "invoke"
+        }
+      ],
+      "desktop:demo-tick": [
+        {
+          "file": "preload.js",
+          "line": 76,
+          "method": "on"
+        }
+      ],
+      "desktop:app-event": [
+        {
+          "file": "preload.js",
+          "line": 82,
+          "method": "on"
+        }
+      ],
+      "reg-vps-setup:submit": [
+        {
+          "file": "reg-vps-setup-preload.js",
+          "line": 6,
+          "method": "invoke"
+        }
+      ],
+      "reg-vps-setup:cancel": [
+        {
+          "file": "reg-vps-setup-preload.js",
+          "line": 7,
+          "method": "send"
+        }
+      ],
+      "splash-status": [
+        {
+          "file": "splash-preload.js",
+          "line": 6,
+          "method": "on"
+        }
+      ],
+      "telegram-setup:submit": [
+        {
+          "file": "telegram-setup-preload.js",
+          "line": 7,
+          "method": "invoke"
+        }
+      ],
+      "telegram-setup:cancel": [
+        {
+          "file": "telegram-setup-preload.js",
+          "line": 11,
+          "method": "send"
+        }
+      ],
+      "telegram-setup:open-official": [
+        {
+          "file": "telegram-setup-preload.js",
+          "line": 12,
+          "method": "invoke"
+        }
+      ]
+    }
+  },
+  "buttons": [
+    {
+      "file": "reg-vps-setup.html",
+      "line": 34,
+      "id": "toggle",
+      "text": "◉",
+      "onclick": null
+    },
+    {
+      "file": "reg-vps-setup.html",
+      "line": 37,
+      "id": "cancel",
+      "text": "Отмена",
+      "onclick": null
+    },
+    {
+      "file": "reg-vps-setup.html",
+      "line": 37,
+      "id": "submit",
+      "text": "Продолжить",
+      "onclick": null
+    },
+    {
+      "file": "telegram-setup.html",
+      "line": 19,
+      "id": "openCloudflare",
+      "text": "Открыть Cloudflare",
+      "onclick": null
+    },
+    {
+      "file": "telegram-setup.html",
+      "line": 20,
+      "id": "openBotFather",
+      "text": "Открыть @BotFather",
+      "onclick": null
+    },
+    {
+      "file": "telegram-setup.html",
+      "line": 27,
+      "id": "cancel",
+      "text": "Отмена",
+      "onclick": null
+    },
+    {
+      "file": "telegram-setup.html",
+      "line": 27,
+      "id": "submit",
+      "text": "Продолжить",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 27,
+      "id": null,
+      "text": "📦 Оформить самовывоз",
+      "onclick": "openPickupModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 28,
+      "id": null,
+      "text": "+ Создать заказ",
+      "onclick": "openOrderModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 34,
+      "id": null,
+      "text": "Выйти из демонстрации",
+      "onclick": "requestDemonstrationMode(false)"
+    },
+    {
+      "file": "web/index.html",
+      "line": 36,
+      "id": null,
+      "text": "Скрыть",
+      "onclick": "hideAppHealth()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 40,
+      "id": "tabOrders",
+      "text": "Заказы",
+      "onclick": "showView('orders')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 41,
+      "id": "tabTrips",
+      "text": "Рейсы по районам",
+      "onclick": "showView('trips')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 42,
+      "id": "tabProducts",
+      "text": "Товары",
+      "onclick": "showView('products')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 43,
+      "id": "tabDrivers",
+      "text": "Водители",
+      "onclick": "showView('drivers')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 44,
+      "id": "tabReports",
+      "text": "Отчётность",
+      "onclick": "showView('reports')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 45,
+      "id": "tabSettings",
+      "text": "Настройки маршрута",
+      "onclick": "showView('settings')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 46,
+      "id": "tabProgramSettings",
+      "text": "Настройки программы",
+      "onclick": "showView('programSettings')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 61,
+      "id": null,
+      "text": "🗑 Удалить все заказы",
+      "onclick": "clearAll()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 69,
+      "id": null,
+      "text": "×",
+      "onclick": "document.getElementById('orderDateFilter').value='';renderOrders()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 82,
+      "id": null,
+      "text": "↺ Сбросить",
+      "onclick": "resetOrderFilters()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 92,
+      "id": null,
+      "text": "Импорт из заказов",
+      "onclick": "importProductsFromOrders()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 92,
+      "id": null,
+      "text": "+ Движение товара",
+      "onclick": "openInventoryMovementModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 92,
+      "id": null,
+      "text": "+ Новый товар",
+      "onclick": "openProductModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 112,
+      "id": null,
+      "text": "×",
+      "onclick": "document.getElementById('tripDateFilter').value='';renderTripsPreview()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 115,
+      "id": "buildRoutesBtn",
+      "text": "✦ Построить оптимальный план",
+      "onclick": "buildAllRoutes()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 115,
+      "id": null,
+      "text": "+ Новый рейс",
+      "onclick": "createManualRoute()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 116,
+      "id": null,
+      "text": "Сбросить дорожные расчёты",
+      "onclick": "this.closest('details').removeAttribute('open');clearRoutePlans()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 116,
+      "id": null,
+      "text": "Сбросить все рейсы и назначения",
+      "onclick": "this.closest('details').removeAttribute('open');resetRouteAssignments()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 131,
+      "id": null,
+      "text": "+ Добавить водителя / агрегатор",
+      "onclick": "openDriverModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 145,
+      "id": null,
+      "text": "Выгрузить полный отчёт",
+      "onclick": "exportReportCSV()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 145,
+      "id": null,
+      "text": "Печатная сводка",
+      "onclick": "printReport()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 145,
+      "id": "reportSettingsToggle",
+      "text": "Методика расчёта",
+      "onclick": "toggleReportSettings()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 150,
+      "id": null,
+      "text": "Сегодня",
+      "onclick": "setReportPreset('today')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 151,
+      "id": null,
+      "text": "Неделя",
+      "onclick": "setReportPreset('week')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 152,
+      "id": null,
+      "text": "Месяц",
+      "onclick": "setReportPreset('month')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 153,
+      "id": null,
+      "text": "Квартал",
+      "onclick": "setReportPreset('quarter')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 154,
+      "id": null,
+      "text": "Полугодие",
+      "onclick": "setReportPreset('halfyear')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 155,
+      "id": null,
+      "text": "Год",
+      "onclick": "setReportPreset('year')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 156,
+      "id": null,
+      "text": "Всё время",
+      "onclick": "setReportPreset('all')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 161,
+      "id": null,
+      "text": "Обновить факты",
+      "onclick": "applyReportPeriod()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 175,
+      "id": null,
+      "text": "Свернуть",
+      "onclick": "toggleReportSettings(false)"
+    },
+    {
+      "file": "web/index.html",
+      "line": 188,
+      "id": null,
+      "text": "Сохранить методику",
+      "onclick": "saveReportCalculationSettings()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 190,
+      "id": null,
+      "text": "Сохранить",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 190,
+      "id": null,
+      "text": "Очистить",
+      "onclick": "resetReportEmployeeForm()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 191,
+      "id": null,
+      "text": "Сохранить",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 191,
+      "id": null,
+      "text": "Очистить",
+      "onclick": "resetReportExpenseForm()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 194,
+      "id": null,
+      "text": "Итог",
+      "onclick": "scrollReportTo('directorSummary')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 194,
+      "id": null,
+      "text": "Требует решения",
+      "onclick": "scrollReportTo('directorActions')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 194,
+      "id": null,
+      "text": "Деньги и прибыль",
+      "onclick": "scrollReportTo('directorFinance')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 194,
+      "id": null,
+      "text": "Заказы",
+      "onclick": "scrollReportTo('directorOrders')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 194,
+      "id": null,
+      "text": "Логистика",
+      "onclick": "scrollReportTo('directorLogistics')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 194,
+      "id": null,
+      "text": "Склад и товары",
+      "onclick": "scrollReportTo('directorWarehouse')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 194,
+      "id": null,
+      "text": "Расходы и штат",
+      "onclick": "scrollReportTo('directorCosts')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 194,
+      "id": null,
+      "text": "Достоверность",
+      "onclick": "scrollReportTo('directorReliability')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 211,
+      "id": null,
+      "text": "Найти склад на карте",
+      "onclick": "searchWarehouse()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 211,
+      "id": null,
+      "text": "Моя геопозиция",
+      "onclick": "useCurrentLocationForWarehouse()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 241,
+      "id": null,
+      "text": "Сохранить настройки маршрута",
+      "onclick": "saveSettingsFromForm()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 259,
+      "id": null,
+      "text": "Сохранить и пересчитать график",
+      "onclick": "saveSettingsFromForm()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 273,
+      "id": null,
+      "text": "Сохранить расчёт водителя",
+      "onclick": "saveDriverPaymentSettings()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 276,
+      "id": null,
+      "text": "Открыть водителей",
+      "onclick": "showView('drivers')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 288,
+      "id": null,
+      "text": "Сохранить правила цены",
+      "onclick": "saveDeliveryPricingSettings()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 311,
+      "id": null,
+      "text": "1ЗаказыСоздание, оплата и статусы",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 312,
+      "id": null,
+      "text": "2СкладТовары, остатки и резерв",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 313,
+      "id": null,
+      "text": "3РейсыПлан, машина и выезд",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 314,
+      "id": null,
+      "text": "4ВодителиТранспорт и расчёт оплаты",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 315,
+      "id": null,
+      "text": "5ОтчётностьВыручка, затраты и прибыль",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 316,
+      "id[stdout] ": null,
+      "text": "6ДокументыСчёт, маршрутный лист и печать",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 318,
+      "id": "demoTourStart",
+      "text": "Начать полную экскурсию",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 318,
+      "id": "demoTourContinue",
+      "text": "Продолжить с текущего шага",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 318,
+      "id": "demoRunAudit",
+      "text": "Проверить учебную базу",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 321,
+      "id": "restartDemoButton",
+      "text": "Запустить демонстрацию заново",
+      "onclick": "restartDemonstrationScenario()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 326,
+      "id": null,
+      "text": "Скачать копию",
+      "onclick": "exportBackup()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 327,
+      "id": null,
+      "text": "Загрузить копию",
+      "onclick": "chooseBackupFile()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 328,
+      "id": null,
+      "text": "Проверить систему",
+      "onclick": "runDataDiagnostics(true)"
+    },
+    {
+      "file": "web/index.html",
+      "line": 329,
+      "id": "jfOpenLogs",
+      "text": "Открыть папку logs",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 344,
+      "id": "jfRegConfigure",
+      "text": "Установить или обновить VPS",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 344,
+      "id": "jfRegCheck",
+      "text": "Проверить связь",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 344,
+      "id": "jfRegSync",
+      "text": "Сохранить активный склад",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 344,
+      "id": "jfRegRestore",
+      "text": "Восстановить активный склад",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 355,
+      "id": "jfTelegramConfigure",
+      "text": "Настроить Telegram",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 355,
+      "id": "jfTelegramReconnect",
+      "text": "Проверить и восстановить",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 355,
+      "id": "jfTelegramCheck",
+      "text": "Проверить webhook",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 355,
+      "id": "jfTelegramWarehouse",
+      "text": "Подключить группу склада",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 371,
+      "id": null,
+      "text": "Сохранить сервисы",
+      "onclick": "saveServiceSettings()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 371,
+      "id": null,
+      "text": "Вернуть стандартные",
+      "onclick": "resetServiceSettings()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 381,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeOrderModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 399,
+      "id": "addressSearchBtn",
+      "text": "🔎 Найти адрес и район",
+      "onclick": "searchDeliveryAddress()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 400,
+      "id": null,
+      "text": "Сбросить точку",
+      "onclick": "clearSelectedPoint()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 431,
+      "id": "manualDeliveryToggle",
+      "text": "✎",
+      "onclick": "toggleManualDeliveryMode()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 439,
+      "id": null,
+      "text": "↻ Вернуть автоматический расчёт",
+      "onclick": "restoreAutomaticDelivery()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 444,
+      "id": null,
+      "text": "+ Добавить товар",
+      "onclick": "addItem()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 456,
+      "id": null,
+      "text": "Отмена",
+      "onclick": "closeOrderModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 456,
+      "id": null,
+      "text": "Сохранить заказ",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 462,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closePickupModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 472,
+      "id": null,
+      "text": "+ Добавить товар",
+      "onclick": "addPickupItem()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 476,
+      "id": null,
+      "text": "Отмена",
+      "onclick": "closePickupModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 476,
+      "id": null,
+      "text": "Сохранить самовывоз",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 482,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeDetailModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": null,
+      "text": "Печать заказа",
+      "onclick": "printCurrentOrder()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "toggleOrderPaymentBtn",
+      "text": "Отметить оплату",
+      "onclick": "toggleCurrentOrderPayment()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "pickupReadyBtn",
+      "text": "Готов к выдаче",
+      "onclick": "markCurrentPickupReady()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "pickupCollectedBtn",
+      "text": "Заказ забран",
+      "onclick": "markCurrentPickupCollected()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "retryDeliveryBtn",
+      "text": "Повторить доставку",
+      "onclick": "retryCurrentDelivery()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "partialRepeatBtn",
+      "text": "Повторная доставка остатка",
+      "onclick": "resolveCurrentPartial('delivery')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "partialPickupBtn",
+      "text": "Остаток самовывозом",
+      "onclick": "resolveCurrentPartial('pickup')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "partialCloseBtn",
+      "text": "Закрыть остаток",
+      "onclick": "resolveCurrentPartial('refused')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "orderNotRelevantBtn",
+      "text": "Не актуален",
+      "onclick": "openNotRelevantModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "editOrderBtn",
+      "text": "Редактировать",
+      "onclick": "editCurrentOrder()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": "deleteOrderBtn",
+      "text": "Удалить",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 484,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeDetailModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 489,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeDriverDetailModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 491,
+      "id": "editDriverBtn",
+      "text": "Редактировать",
+      "onclick": "editCurrentDriver()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 491,
+      "id": "deleteDriverBtn",
+      "text": "Удалить",
+      "onclick": "deleteCurrentDriver()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 491,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeDriverDetailModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 496,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeProductDetailModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 498,
+      "id": null,
+      "text": "+ Поступление",
+      "onclick": "openMovementForCurrentProduct('receipt')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 498,
+      "id": null,
+      "text": "− Расход",
+      "onclick": "openMovementForCurrentProduct('expense')"
+    },
+    {
+      "file": "web/index.html",
+      "line": 498,
+      "id": "editProductBtn",
+      "text": "Редактировать",
+      "onclick": "editCurrentProduct()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 498,
+      "id": "deleteProductBtn",
+      "text": "Удалить",
+      "onclick": "deleteCurrentProduct()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 498,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeProductDetailModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 503,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeDriverModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 564,
+      "id": null,
+      "text": "Отмена",
+      "onclick": "closeDriverModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 564,
+      "id": null,
+      "text": "Сохранить исполнителя",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 570,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeProductModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 610,
+      "id": null,
+      "text": "Рассчитать",
+      "onclick": "syncProductVolumeFromDimensions(true)"
+    },
+    {
+      "file": "web/index.html",
+      "line": 648,
+      "id": null,
+      "text": "Отмена",
+      "onclick": "closeProductModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 648,
+      "id": null,
+      "text": "Сохранить товар",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 654,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeInventoryMovementModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 671,
+      "id": null,
+      "text": "Отмена",
+      "onclick": "closeInventoryMovementModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 671,
+      "id": null,
+      "text": "Провести операцию",
+      "onclick": null
+    },
+    {
+      "file": "web/index.html",
+      "line": 677,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeRouteDriverPicker()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 679,
+      "id": "clearRouteDriverBtn",
+      "text": "Убрать назначение",
+      "onclick": "clearRouteDriver()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 679,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeRouteDriverPicker()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 684,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeRouteComposer()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 688,
+      "id": null,
+      "text": "Сохранить название",
+      "onclick": "saveRouteTitle()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 694,
+      "id": null,
+      "text": "Рассчитать маршрут",
+      "onclick": "recalculateComposedRoute()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 694,
+      "id": null,
+      "text": "Готово",
+      "onclick": "closeRouteComposer()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 699,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeRouteEditModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 705,
+      "id": null,
+      "text": "Пересчитать предложение",
+      "onclick": "renderRoutePricingProposal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 705,
+      "id": "applyRoutePricingBtn",
+      "text": "Применить к заказам",
+      "onclick": "applyRoutePricingProposal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 705,
+      "id": null,
+      "text": "Вернуть отдельные цены",
+      "onclick": "restoreRouteStandalonePricing()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 707,
+      "id": null,
+      "text": "Отмена",
+      "onclick": "closeRouteEditModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 707,
+      "id": null,
+      "text": "Сохранить параметры рейса",
+      "onclick": "saveRouteEditSettings()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 712,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeRouteCloseModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 714,
+      "id": null,
+      "text": "Продолжить позже",
+      "onclick": "closeRouteCloseModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 714,
+      "id": null,
+      "text": "Закрыть рейс и обработать товар",
+      "onclick": "commitRouteClosure()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 719,
+      "id": null,
+      "text": "Закрыть",
+      "onclick": "closeNotRelevantModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 721,
+      "id": null,
+      "text": "Отмена",
+      "onclick": "closeNotRelevantModal()"
+    },
+    {
+      "file": "web/index.html",
+      "line": 721,
+      "id": null,
+      "text": "Подтвердить и обработать заказ",
+      "onclick": "confirmNotRelevant()"
+    }
+  ]
+}

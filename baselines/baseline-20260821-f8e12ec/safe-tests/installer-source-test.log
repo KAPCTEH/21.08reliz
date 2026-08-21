@@ -1,0 +1,21 @@
+[stderr] test_application_reads_native_installer_utf16_config (__main__.NativeInstallerSourceTests.test_application_reads_native_installer_utf16_config) ... [stderr] ok
+[stderr] test_build_verifies_pe_and_forbidden_runtime_dependencies (__main__.NativeInstallerSourceTests.test_build_verifies_pe_and_forbidden_runtime_dependencies) ... [stderr] ok
+[stderr] test_interrupted_update_recovery_is_exercised_on_windows (__main__.NativeInstallerSourceTests.test_interrupted_update_recovery_is_exercised_on_windows) ... [stderr] ok
+[stderr] test_native_config_json_uses_valid_nsis_quoted_strings (__main__.NativeInstallerSourceTests.test_native_config_json_uses_valid_nsis_quoted_strings) ... [stderr] ok
+[stderr] test_official_logo_hash_is_pinned (__main__.NativeInstallerSourceTests.test_official_logo_hash_is_pinned) ... [stderr] ok
+[stderr] test_old_script_runtime_is_removed (__main__.NativeInstallerSourceTests.test_old_script_runtime_is_removed) ... [stderr] ok
+[stderr] test_payload_builder_handles_precreated_empty_output_directory (__main__.NativeInstallerSourceTests.test_payload_builder_handles_precreated_empty_output_directory) ... [stderr] ok
+test_payload_contains_third_party_notices (__main__.NativeInstallerSourceTests.test_payload_contains_third_party_notices) ... [stderr] ok
+test_premium_installer_has_one_unicode_ui_for_all_states (__main__.NativeInstallerSourceTests.test_premium_installer_has_one_unicode_ui_for_all_states) ... [stderr] ok
+[stderr] test_program_and_data_are_separate_and_data_is_preserved_by_default (__main__.NativeInstallerSourceTests.test_program_and_data_are_separate_and_data_is_preserved_by_default) ... [stderr] ok
+[stderr] test_recovery_checks_real_installed_files (__main__.NativeInstallerSourceTests.test_recovery_checks_real_installed_files) ... [stderr] ok
+[stderr] test_setup_and_recovery_do_not_launch_script_hosts (__main__.NativeInstallerSourceTests.test_setup_and_recovery_do_not_launch_script_hosts) ... [stderr] ok
+test_setup_is_transactional_and_runs_installed_smoke_test (__main__.NativeInstallerSourceTests.test_setup_is_transactional_and_runs_installed_smoke_test) ... [stderr] ok
+[stderr] test_uninstall_is_transactional_and_refuses_unsafe_data_purge (__main__.NativeInstallerSourceTests.test_uninstall_is_transactional_and_refuses_unsafe_data_purge) ... [stderr] ok
+[stderr] test_visual_qa_uses_controlled_hidden_surface_and_dpi_normalization (__main__.NativeInstallerSourceTests.test_visual_qa_uses_controlled_hidden_surface_and_dpi_normalization) ... [stderr] ok
+[stderr] test_windows_acceptance_uses_native_nsis_directory_switch_last (__main__.NativeInstallerSourceTests.test_windows_acceptance_uses_native_nsis_directory_switch_last) ... [stderr] ok
+[stderr] 
+----------------------------------------------------------------------
+Ran 16 tests in 2.038s
+
+OK

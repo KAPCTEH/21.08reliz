@@ -1,0 +1,101 @@
+[stderr] test_account_is_restricted_to_its_company (__main__.RevisionTests.test_account_is_restricted_to_its_company) ... [stderr] ok
+[stderr] test_current_revision_updates_once (__main__.RevisionTests.test_current_revision_updates_once) ... [stderr] ERROR
+[stderr] test_employee_can_access_only_assigned_warehouse (__main__.RevisionTests.test_employee_can_access_only_assigned_warehouse) ... ok
+test_export_timestamp_does_not_create_revision (__main__.RevisionTests.test_export_timestamp_does_not_create_revision) ... [stderr] ERROR
+[stderr] test_first_snapshot_requires_zero_revision (__main__.RevisionTests.test_first_snapshot_requires_zero_revision) ... [stderr] ERROR
+[stderr] test_introspection_context_keeps_company_role_and_warehouse_permissions (__main__.RevisionTests.test_introspection_context_keeps_company_role_and_warehouse_permissions) ... [stderr] ok
+test_owner_has_all_company_warehouses (__main__.RevisionTests.test_owner_has_all_company_warehouses) ... [stderr] ERROR
+[stderr] test_role_can_change_permitted_section (__main__.RevisionTests.test_role_can_change_permitted_section) ... [stderr] ERROR
+[stderr] test_role_cannot_change_section_without_permission (__main__.RevisionTests.test_role_cannot_change_section_without_permission) ... [stderr] ERROR
+[stderr] test_same_digest_is_idempotent (__main__.RevisionTests.test_same_digest_is_idempotent) ... [stderr] ERROR
+[stderr] test_stale_revision_is_rejected (__main__.RevisionTests.test_stale_revision_is_rejected) ... [stderr] ERROR
+[stderr] test_viewer_cannot_write_snapshot (__main__.RevisionTests.test_viewer_cannot_write_snapshot) ... [stderr] ERROR
+[stderr] 
+======================================================================
+ERROR: test_current_revision_updates_once (__main__.RevisionTests.test_current_revision_updates_once)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 111, in test_current_revision_updates_once
+    result = SERVER.save_snapshot("workspace-123456", "warehouse-1", "live", self.snapshot, 7, self.owner)
+             ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'save_snapshot'
+
+======================================================================
+[stderr] ERROR: test_export_timestamp_does_not_create_revision (__main__.RevisionTests.test_export_timestamp_does_not_create_revision)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 118, in test_export_timestamp_does_not_create_revision
+    self.assertEqual(SERVER.snapshot_digest(first), SERVER.snapshot_digest(second))
+                     ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'snapshot_digest'
+
+======================================================================
+[stderr] ERROR: test_first_snapshot_requires_zero_revision (__main__.RevisionTests.test_first_snapshot_requires_zero_revision)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 90, in test_first_snapshot_requires_zero_revision
+    result = SERVER.save_snapshot("workspace-123456", "warehouse-1", "live", self.snapshot, 0, self.owner)
+             ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'save_snapshot'
+
+======================================================================
+[stderr] ERROR: test_owner_has_all_company_warehouses (__main__.RevisionTests.test_owner_has_all_company_warehouses)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 183, in test_owner_has_all_company_warehouses
+    SERVER.require_snapshot_access(auth, "warehouse-1", self.snapshot, write=True)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'require_snapshot_access'
+
+======================================================================
+[stderr] ERROR: test_role_can_change_permitted_section (__main__.RevisionTests.test_role_can_change_permitted_section)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 151, in test_role_can_change_permitted_section
+    SERVER.require_changed_sections_allowed(warehouse_user, current, incoming)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'require_changed_sections_allowed'
+
+======================================================================
+ERROR: test_role_cannot_change_section_without_permission (__main__.RevisionTests.test_role_cannot_change_section_without_permission)
+[stderr] ----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 134, in test_role_cannot_change_section_without_permission
+    SERVER.require_changed_sections_allowed(warehouse_user, current, incoming)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'require_changed_sections_allowed'
+
+======================================================================
+[stderr] ERROR: test_same_digest_is_idempotent (__main__.RevisionTests.test_same_digest_is_idempotent)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 95, in test_same_digest_is_idempotent
+    cursor = self.connect((7, self.digest(), FakeUpdatedAt(), self.snapshot))
+                              ~~~~~~~~~~~^^
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 86, in digest
+    return SERVER.snapshot_digest(self.snapshot)
+           ^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'snapshot_digest'
+
+======================================================================
+ERROR: test_stale_revision_is_rejected (__main__.RevisionTests.test_stale_revision_is_rejected)
+----------------------------------------------------------------------
+[stderr] Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 104, in test_stale_revision_is_rejected
+    SERVER.save_snapshot("workspace-123456", "warehouse-1", "live", self.snapshot, 6, self.owner)
+    ^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'save_snapshot'
+
+======================================================================
+ERROR: test_viewer_cannot_write_snapshot (__main__.RevisionTests.test_viewer_cannot_write_snapshot)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\tests\reg-revision-test.py", line 178, in test_viewer_cannot_write_snapshot
+    SERVER.require_snapshot_access(auth, "warehouse-1", self.snapshot, write=True)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: module 'justfun_reg_server' has no attribute 'require_snapshot_access'
+
+[stderr] ----------------------------------------------------------------------
+[stderr] Ran 12 tests in 0.018s
+
+FAILED (errors=9)

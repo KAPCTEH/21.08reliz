@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://justfun.invalid/audit/run.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "audit_type",
+    "budget_mode",
+    "base_commit",
+    "target_commit",
+    "state",
+    "started_at_utc",
+    "completed_at_utc",
+    "changed_files",
+    "impact_set",
+    "tests_selected",
+    "tests_skipped",
+    "evidence_reused",
+    "finding_delta",
+    "verdict",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "audit_type": {
+      "enum": [
+        "baseline",
+        "incremental",
+        "verify",
+        "rebaseline"
+      ]
+    },
+    "budget_mode": {
+      "enum": [
+        "ECONOMY",
+        "STANDARD",
+        "FULL"
+      ]
+    },
+    "base_commit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "target_commit": {
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "QUEUED",
+        "INVENTORY",
+        "ANALYSIS",
+        "TESTING",
+        "TRIAGE",
+        "REPORTING",
+        "COMPLETE",
+        "BLOCKED_PERMISSION",
+        "BLOCKED_SECRET",
+        "BLOCKED_DEPENDENCY",
+        "BLOCKED_ENVIRONMENT",
+        "PARTIAL",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "started_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "completed_at_utc": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "impact_set": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tests_selected": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tests_skipped": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "evidence_reused": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "finding_delta": {
+      "type": "object"
+    },
+    "verdict": {
+      "enum": [
+        "GO",
+        "CONDITIONAL_GO",
+        "NO_GO",
+        "NOT_VERIFIED"
+      ]
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

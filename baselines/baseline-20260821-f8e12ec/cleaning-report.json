@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "input_file_count": 5446,
+  "input_total_bytes": 848316591,
+  "clean_file_count": 202,
+  "clean_total_bytes": 8720050,
+  "excluded_file_count": 5244,
+  "excluded_total_bytes": 839596541,
+  "counts_by_category": {
+    "EXCLUDE_AUDIT_EVIDENCE": 68,
+    "EXCLUDE_DEPENDENCY": 3890,
+    "EXCLUDE_GENERATED": 1273,
+    "EXCLUDE_SECRET": 1,
+    "EXCLUDE_TEMP": 9,
+    "EXCLUDE_UNRELATED": 3,
+    "INCLUDE_BUILD": 21,
+    "INCLUDE_REQUIRED_DOC": 6,
+    "INCLUDE_SOURCE": 107,
+    "INCLUDE_TEST": 66,
+    "INCLUDE_TOOL": 2
+  },
+  "manual_review_count": 0,
+  "rejected_count": 0,
+  "staging_matches_allowlist": true,
+  "source_inventory_sha256": "82b299d99e1aa30bf98ca00de61314f566ffdab936ecaf4dca263fc58c53cc9e",
+  "generated_at_utc": "2026-08-21T17:02:48.672Z"
+}

@@ -1,0 +1,18 @@
+[stderr] node:fs:484
+    return binding.readFileUtf8(path, stringToFlags(options.flag));
+                   ^
+
+Error: ENOENT: no such file or directory, open 'C:\Users\zvd1\Desktop\JUSTFUN-AUDIT-WORK-20260821\verification-source-zip\.github\workflows\windows-native-783.yml'
+    at Object.readFileSync (node:fs:484:20)
+    at read (file:///C:/Users/zvd1/Desktop/JUSTFUN-AUDIT-WORK-20260821/verification-source-zip/tests/release-regression-v783.mjs:6:25)
+    at file:///C:/Users/zvd1/Desktop/JUSTFUN-AUDIT-WORK-20260821/verification-source-zip/tests/release-regression-v783.mjs:23:23
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-source-zip\\.github\\workflows\\windows-native-783.yml'
+}
+[stderr] 
+Node.js v24.19.0

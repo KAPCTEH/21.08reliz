@@ -1,0 +1,26 @@
+{
+  "id": "JF-EVID-0005",
+  "type": "test-metric",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "UI design-token ratchet",
+  "input_digests": {
+    "test_log": "sha256:9edcbc06cf5b75bf75766264b38805eba2ae56205605a84ef0e44863b20c1156"
+  },
+  "tool": "node",
+  "tool_version": "recorded in baseline toolchain",
+  "command": "node tests/design-token-regression-v783.cjs",
+  "cwd": "verification workspace extracted from exact clean commit",
+  "timestamp_utc": "2026-08-21T17:21:54.362Z",
+  "exit_code": 0,
+  "normalized_result": "[stdout] {\"ok\":true,\"canonicalTokens\":true,\"legacyAliases\":true,\"coreComponentsMigrated\":true,\"ratchet\":{\"files\":24,\"important\":885,\"hexOccurrences\":2038,\"uniqueHex\":1192,\"uniqueRgb\":171,\"uniqueFontSize\":62,\"uniqueRadius\":52,\"uniqueShadow\":130}}\n",
+  "artifact_sha256": "sha256:9edcbc06cf5b75bf75766264b38805eba2ae56205605a84ef0e44863b20c1156",
+  "location": "baselines/baseline-20260821-f8e12ec/safe-tests/design-token-regression-v783.log",
+  "retention": "baseline",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0005"
+  ],
+  "tests": [
+    "JF-TEST-DESIGN-TOKEN-REGRESSION-V783"
+  ]
+}

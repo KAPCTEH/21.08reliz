@@ -1,0 +1,22 @@
+{
+  "id": "JF-EVID-0006",
+  "type": "source-archive-verification",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "Deterministic source-only ZIP",
+  "input_digests": {
+    "inventory": "sha256:82b299d99e1aa30bf98ca00de61314f566ffdab936ecaf4dca263fc58c53cc9e"
+  },
+  "tool": "build-source-zip.py",
+  "tool_version": "1",
+  "command": "python build-source-zip.py --commit f8e12ecee3e9371dea23c76913302db24050160d",
+  "cwd": "external audit work root",
+  "timestamp_utc": "2026-08-21T17:48:55.605411Z",
+  "exit_code": 0,
+  "normalized_result": "{\"exact_commit\":true,\"commit_matches_allowlist\":true,\"zip_matches_eligible_allowlist\":true,\"all_blob_hashes_match\":true,\"safe_paths\":true,\"duplicate_members\":false}",
+  "artifact_sha256": "sha256:fcbb464b86e029d688f303d535e1a387d65342f084261d429e0d8f43cdd866f6",
+  "location": "baselines/baseline-20260821-f8e12ec/source-zip-verification.json",
+  "retention": "baseline",
+  "status": "TEST_CONFIRMED",
+  "findings": [],
+  "tests": []
+}

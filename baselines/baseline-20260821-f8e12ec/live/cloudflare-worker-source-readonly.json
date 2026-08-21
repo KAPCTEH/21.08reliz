@@ -1,0 +1,185 @@
+{
+  "ok": true,
+  "checkedAt": "2026-08-21T17:58:42.083Z",
+  "targets": [
+    {
+      "worker": "justfun-company-telegram",
+      "local": "source/company-telegram-broker/worker.mjs",
+      "response": {
+        "contentType": "multipart/form-data; boundary=2783db070190d0aa2fd49a75699dc0cf8b30a20e00359395d2a41907da3a",
+        "bytes": 23065,
+        "sha256": "dd50bffaff3127af4fa6eb082689bde34b22d8e3a89c3c0410082a07a1f7bac9"
+      },
+      "localSha256": "01382fb18e77f4f11f4de7137ce46c09d460ae8906792f96a9acfdc91d1afdef",
+      "exactLocalMatch": false,
+      "localApiRoutes": [
+        "/v1/auth/introspect",
+        "/v1/bindings?warehouse_id=",
+        "/v1/company/telegram-service",
+        "/v1/company/telegram/bindings",
+        "/v1/company/telegram/events",
+        "/v1/company/telegram/link-code",
+        "/v1/company/telegram/send",
+        "/v1/company/telegram/status",
+        "/v1/events?warehouse_id=",
+        "/v1/link-code",
+        "/v1/send",
+        "/v1/status"
+      ],
+      "deployedApiRoutes": [
+        "/v1/auth/introspect",
+        "/v1/bindings?warehouse_id=",
+        "/v1/company/telegram-service",
+        "/v1/company/telegram/bindings",
+        "/v1/company/telegram/events",
+        "/v1/company/telegram/link-code",
+        "/v1/company/telegram/send",
+        "/v1/company/telegram/status",
+        "/v1/events?warehouse_id=",
+        "/v1/link-code",
+        "/v1/send",
+        "/v1/status"
+      ],
+      "features": [
+        {
+          "name": "configure_retry",
+          "local": true,
+          "deployed": false
+        },
+        {
+          "name": "warehouse_scoped_rate_limit",
+          "local": true,
+          "deployed": false
+        },
+        {
+          "name": "warehouse_access_guard_before_save",
+          "local": true,
+          "deployed": false
+        }
+      ],
+      "parts": [
+        {
+          "name": "worker.js",
+          "bytes": 22880,
+          "sha256": "f5854458516c479c016e7b55221e4c99e8b2e1e7781dac0a7da78d40651bde45"
+        }
+      ],
+      "markers": [
+        {
+          "marker": "7785705ef525",
+          "local": true,
+          "deployed": true
+        },
+        {
+          "marker": "9f9bafbf843d",
+          "local": true,
+          "deployed": false
+        },
+        {
+          "marker": "c08e332e23c8",
+          "local": true,
+          "deployed": false
+        }
+      ]
+    },
+    {
+      "worker": "justfun-license-api",
+      "local": "source/license-server/worker.mjs",
+      "response": {
+        "contentType": "multipart/form-data; boundary=6307c7accb8c8aef52e1dd555bd3d64e38eeba5e357c37fd46fc6b248da2",
+        "bytes": 57384,
+        "sha256": "4b755643f1f0d8e702bc3a150faa4d79dda95f7b911c1f37ad924780f67600de"
+      },
+      "localSha256": "92a011ba538835e2a9175ceac1a9bf1f7f7703eb7016b3b68b4bc19f6a016ffa",
+      "exactLocalMatch": false,
+      "localApiRoutes": [
+        "/v1/admin/licenses",
+        "/v1/auth/introspect",
+        "/v1/auth/login",
+        "/v1/auth/refresh",
+        "/v1/bindings?warehouse_id=",
+        "/v1/company/data-service",
+        "/v1/company/telegram-service",
+        "/v1/company/telegram/bindings",
+        "/v1/company/telegram/events",
+        "/v1/company/telegram/link-code",
+        "/v1/company/telegram/send",
+        "/v1/company/telegram/status",
+        "/v1/demo/start",
+        "/v1/devices",
+        "/v1/events?warehouse_id=",
+        "/v1/health",
+        "/v1/invitations/accept",
+        "/v1/license/check",
+        "/v1/link-code",
+        "/v1/owner/register",
+        "/v1/send",
+        "/v1/status",
+        "/v1/users",
+        "/v1/users/invite"
+      ],
+      "deployedApiRoutes": [
+        "/v1/admin/licenses",
+        "/v1/auth/introspect",
+        "/v1/auth/login",
+        "/v1/auth/refresh",
+        "/v1/bindings?warehouse_id=",
+        "/v1/company/data-service",
+        "/v1/company/telegram-service",
+        "/v1/company/telegram/bindings",
+        "/v1/company/telegram/events",
+        "/v1/company/telegram/link-code",
+        "/v1/company/telegram/send",
+        "/v1/company/telegram/status",
+        "/v1/demo/start",
+        "/v1/devices",
+        "/v1/events?warehouse_id=",
+        "/v1/health",
+        "/v1/invitations/accept",
+        "/v1/license/check",
+        "/v1/link-code",
+        "/v1/owner/register",
+        "/v1/send",
+        "/v1/status",
+        "/v1/users",
+        "/v1/users/invite"
+      ],
+      "features": [
+        {
+          "name": "company_telegram_service",
+          "local": true,
+          "deployed": true
+        },
+        {
+          "name": "warehouse_access_guard",
+          "local": true,
+          "deployed": true
+        }
+      ],
+      "parts": [
+        {
+          "name": "worker.js",
+          "bytes": 57199,
+          "sha256": "036ba644d22c49f697871f6f1d18b9e8fc4a1c2aa56239357d12596cc65dea90"
+        }
+      ],
+      "markers": [
+        {
+          "marker": "9f9bafbf843d",
+          "local": true,
+          "deployed": false
+        },
+        {
+          "marker": "c08e332e23c8",
+          "local": true,
+          "deployed": false
+        },
+        {
+          "marker": "e6c789d4c3c5",
+          "local": true,
+          "deployed": true
+        }
+      ]
+    }
+  ]
+}

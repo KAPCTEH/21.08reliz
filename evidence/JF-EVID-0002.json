@@ -1,0 +1,26 @@
+{
+  "id": "JF-EVID-0002",
+  "type": "test-failure",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "entity-bootstrap-merge-unit",
+  "input_digests": {
+    "test_log": "sha256:088a32f889416ae500d9c27eb6e2f1533460d1589bb2134f8005f74ddb909533"
+  },
+  "tool": "node",
+  "tool_version": "recorded in baseline toolchain",
+  "command": "node tests/entity-bootstrap-merge-unit.cjs",
+  "cwd": "verification workspace extracted from exact clean commit",
+  "timestamp_utc": "2026-08-21T17:21:54.114Z",
+  "exit_code": 1,
+  "normalized_result": "[stderr] evalmachine.<anonymous>:81\r\nwindow.JustFunServerStorageV3=Object.freeze({writeWarehouse:writeAuthoritativeWarehouse,deleteWarehouse:(record,options={})=>writeAuthoritativeWarehouse(record,{...options,deleted:true})});\r\n^\r\n\r\nReferenceError: window is not defined\r\n    at evalmachine.<anonymous>:81:1\r\n    at Script.runInContext (node:vm:149:12)\r\n    at Object.runInContext (node:vm:301:6)\r\n    at Object.<anonymous> (C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-workspace\\tests\\entity-bootstrap-merge-unit.cjs:30:4)\r\n    at Module._compile (node:internal/modules/cjs/loader:1872:14)\r\n    at Object..js (node:internal/modules/cjs/loader:2003:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\r\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n[stderr] \r\nNode.js v24.19.0\r\n",
+  "artifact_sha256": "sha256:088a32f889416ae500d9c27eb6e2f1533460d1589bb2134f8005f74ddb909533",
+  "location": "baselines/baseline-20260821-f8e12ec/safe-tests/entity-bootstrap-merge-unit.log",
+  "retention": "baseline",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0002"
+  ],
+  "tests": [
+    "JF-TEST-ENTITY-BOOTSTRAP-MERGE-UNIT"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "id": "JF-EVID-0001",
+  "type": "test-failure",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "reg-entity-source-contract",
+  "input_digests": {
+    "test_log": "sha256:173687f30a23f3130eb4eaf5f0c143e4cdd2d093036217f1a3bff7734d6231b1"
+  },
+  "tool": "node",
+  "tool_version": "recorded in baseline toolchain",
+  "command": "node tests/reg-entity-source-contract.cjs",
+  "cwd": "verification workspace extracted from exact clean commit",
+  "timestamp_utc": "2026-08-21T17:22:05.132Z",
+  "exit_code": 1,
+  "normalized_result": "[stderr] node:internal/assert/utils:77\r\n    throw err;\r\n    ^\r\n\r\nAssertionError [ERR_ASSERTION]: background write failures must be visible to the user\r\n    at Object.<anonymous> (C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-workspace\\tests\\reg-entity-source-contract.cjs:51:8)\r\n    at Module._compile (node:internal/modules/cjs/loader:1872:14)\r\n    at Object..js (node:internal/modules/cjs/loader:2003:10)\r\n    at Module.load (node:internal/modules/cjs/loader:1594:32)\r\n    at Module._load (node:internal/modules/cjs/loader:1396:12)\r\n    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)\r\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)\r\n    at node:internal/main/run_main_module:33:47 {\r\n  generatedMessage: false,\r\n  code: 'ERR_ASSERTION',\r\n  actual: false,\r\n  expected: true,\r\n  operator: '==',\r\n  diff: 'simple'\r\n}\r\n\r\nNode.js v24.19.0\r\n",
+  "artifact_sha256": "sha256:173687f30a23f3130eb4eaf5f0c143e4cdd2d093036217f1a3bff7734d6231b1",
+  "location": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-entity-source-contract.log",
+  "retention": "baseline",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0001"
+  ],
+  "tests": [
+    "JF-TEST-REG-ENTITY-SOURCE-CONTRACT"
+  ]
+}

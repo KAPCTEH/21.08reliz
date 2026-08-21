@@ -1,0 +1,2 @@
+[stderr] {"request_id":"3e232334-04a6-4a16-9f56-1941b4e719e7","status":403,"code":"WAREHOUSE_ACCESS_DENIED"}
+[stdout] Company Telegram broker unit tests: PASS

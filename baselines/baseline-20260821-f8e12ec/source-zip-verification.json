@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-08-21T17:48:55.605411Z",
+  "source_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "source_state": "NON_RELEASE_SNAPSHOT",
+  "archive": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\artifacts\\JUSTFUN-SOURCE-CLEAN-7.8.3-f8e12ec.zip",
+  "archive_sha256": "fcbb464b86e029d688f303d535e1a387d65342f084261d429e0d8f43cdd866f6",
+  "archive_bytes": 6123159,
+  "file_count": 201,
+  "excluded_from_zip": [
+    ".github/workflows/windows-native-783.yml"
+  ],
+  "forbidden_members": [],
+  "allowlist_inventory_sha256": "82b299d99e1aa30bf98ca00de61314f566ffdab936ecaf4dca263fc58c53cc9e",
+  "extracted_root": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\verification-source-zip",
+  "verification": {
+    "exact_commit": true,
+    "commit_matches_allowlist": true,
+    "zip_matches_eligible_allowlist": true,
+    "all_blob_hashes_match": true,
+    "safe_paths": true,
+    "duplicate_members": false
+  }
+}

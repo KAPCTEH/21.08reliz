@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://justfun.invalid/audit/audit-index.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "project",
+    "active_baseline_id",
+    "baseline_commit",
+    "last_audited_commit",
+    "audit_rules_digest",
+    "module_map_digest",
+    "toolchain_digest",
+    "open_findings_by_severity",
+    "governance_status",
+    "last_run_id",
+    "known_limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "project": {
+      "const": "JustFun"
+    },
+    "active_baseline_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "baseline_commit": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "last_audited_commit": {
+      "anyOf": [
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "audit_rules_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "module_map_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "toolchain_digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "open_findings_by_severity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ],
+      "properties": {
+        "P0": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "P1": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "P2": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "P3": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "governance_status": {
+      "enum": [
+        "GO",
+        "CONDITIONAL_GO",
+        "NO_GO"
+      ]
+    },
+    "last_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "known_limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

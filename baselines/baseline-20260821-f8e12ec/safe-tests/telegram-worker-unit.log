@@ -1,0 +1,1 @@
+[stdout] {"ok":true,"authenticatedBindings":true,"chatIdNotExposed":true,"warehouseScopeProtected":true,"duplicateUpdateIdsIsolated":true,"driverDeepLinkCommand":true,"driverAndWarehouseTransitions":true,"unboundSendRejected":true,"telegramDeliveryConfirmed":true}

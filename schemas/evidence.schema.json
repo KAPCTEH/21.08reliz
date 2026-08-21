@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://justfun.invalid/audit/evidence.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "type",
+    "commit",
+    "subject",
+    "input_digests",
+    "tool",
+    "tool_version",
+    "command",
+    "cwd",
+    "timestamp_utc",
+    "exit_code",
+    "normalized_result",
+    "artifact_sha256",
+    "location",
+    "retention",
+    "status",
+    "findings",
+    "tests"
+  ],
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string"
+    },
+    "commit": {
+      "type": "string"
+    },
+    "subject": {
+      "type": "string"
+    },
+    "input_digests": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "tool": {
+      "type": "string"
+    },
+    "tool_version": {
+      "type": "string"
+    },
+    "command": {
+      "type": "string"
+    },
+    "cwd": {
+      "type": "string"
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "normalized_result": {
+      "type": "string"
+    },
+    "artifact_sha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "location": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "retention": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "SOURCE_CONFIRMED",
+        "TEST_CONFIRMED",
+        "LIVE_CONFIRMED",
+        "REPORTED_NOT_REPRODUCED",
+        "NOT_VERIFIED",
+        "BLOCKED",
+        "STALE",
+        "FALSE_POSITIVE"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

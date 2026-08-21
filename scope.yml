@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "project": "JustFun",
+  "audit_type": "baseline",
+  "budget_mode": "FULL",
+  "input_snapshot": "C:/Users/zvd1/Desktop/исходники",
+  "clean_tree_state": "CLEAN_ROOT_COMMIT_PENDING_AUDIT",
+  "legacy_input_commit": "5f9e48e4a458d2e25e35b3b051c2dcad0442601b",
+  "target_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "include": [
+    "source/**",
+    "tests/**",
+    "tools/**",
+    ".github/**",
+    ".gitignore"
+  ],
+  "exclude_from_main": [
+    "legacy .git/**",
+    "legacy audit evidence",
+    "node_modules",
+    "bin",
+    "obj",
+    "tmp",
+    "archives",
+    "secrets"
+  ],
+  "exclude_from_source_zip": [
+    ".git/**",
+    ".github/**",
+    "audit-ledger/**",
+    "build/**",
+    "dist/**",
+    "node_modules/**",
+    "binaries",
+    "secrets"
+  ],
+  "authorization": {
+    "filesystem": true,
+    "network": true,
+    "browser": true,
+    "live": true,
+    "executable": true,
+    "deployment": true
+  },
+  "audit_constraints": [
+    "do not modify legacy input",
+    "do not publish secrets",
+    "separate source, live, deployment, and release proof",
+    "audit findings are not application fixes"
+  ]
+}

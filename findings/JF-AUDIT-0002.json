@@ -1,0 +1,34 @@
+{
+  "id": "JF-AUDIT-0002",
+  "issue": null,
+  "title": "Unit-тест bootstrap merge выполняет браузерный фрагмент без window",
+  "severity": "P2",
+  "confidence": "high",
+  "verification_status": "TEST_CONFIRMED",
+  "module": "tests",
+  "location": {
+    "path": "tests/entity-bootstrap-merge-unit.cjs",
+    "symbol": "vm.runInContext",
+    "line": 30
+  },
+  "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "fact": "Тест извлекает фрагмент до initialServerSeedChanges, куда теперь входит экспорт window.JustFunServerStorageV3, но VM-контекст не определяет window. Выполнение падает с ReferenceError до проверяемых assertions.",
+  "evidence": [
+    "JF-EVID-0002"
+  ],
+  "impact": "Регрессия merge/bootstrap фактически не проверяется и даёт ложный красный результат, скрывая возможные реальные дефекты за ошибкой harness.",
+  "reproduction": [
+    "Выполнить node tests/entity-bootstrap-merge-unit.cjs."
+  ],
+  "minimal_fix": "Ограничить извлекаемый source-фрагмент проверяемыми функциями либо предоставить минимальный window stub и отдельную проверку export-контракта.",
+  "verification_contract": [
+    "entity-bootstrap-merge-unit проходит",
+    "assertions merge/bootstrap реально выполняются",
+    "изменение соседнего browser export не ломает harness"
+  ],
+  "fingerprint": "sha256:bfaf9fc200a64df72cc311072db147803d2c0a8cd4598a30e1c80a4f214ccfd9",
+  "related": [],
+  "owner": "@KAPCTEH",
+  "status": "OPEN"
+}

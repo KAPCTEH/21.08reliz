@@ -1,0 +1,37 @@
+{
+  "id": "JF-AUDIT-0005",
+  "issue": null,
+  "title": "UI-каскад остаётся чрезмерно фрагментированным",
+  "severity": "P2",
+  "confidence": "high",
+  "verification_status": "TEST_CONFIRMED",
+  "module": "ux",
+  "location": {
+    "path": "source/application/web/assets/css",
+    "symbol": null,
+    "line": null
+  },
+  "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "fact": "Design-token regression проходит ratchet, но фиксирует 24 CSS-файла, 885 !important, 2038 hex-вхождений, 1192 уникальных hex, 62 размера шрифта, 52 радиуса и 130 теней.",
+  "evidence": [
+    "JF-EVID-0005"
+  ],
+  "impact": "Изменение темы и компонентов остаётся дорогим и рискованным; локальные исправления легко конфликтуют и дают визуальный дрейф между экранами.",
+  "reproduction": [
+    "Выполнить node tests/design-token-regression-v783.cjs и проверить ratchet metrics."
+  ],
+  "minimal_fix": "Снижать ratchet по модулям: вынести семантические токены, убрать дублирующие literal values и !important без одновременной переписки бизнес-логики.",
+  "verification_contract": [
+    "ratchet metrics не растут",
+    "каждый UI PR снижает согласованный показатель",
+    "runtime-button-matrix и accessibility regressions проходят"
+  ],
+  "fingerprint": "sha256:bf5109ba3d4b988e5a332306007fdb7ce6e91e136b654e2c7cc79332fc10bf37",
+  "related": [
+    "legacy:JF-ARCH-002",
+    "legacy:JF-UI-003"
+  ],
+  "owner": "@KAPCTEH",
+  "status": "OPEN"
+}

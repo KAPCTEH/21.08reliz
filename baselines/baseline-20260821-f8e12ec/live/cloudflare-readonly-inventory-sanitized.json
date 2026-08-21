@@ -1,0 +1,309 @@
+{
+  "schema_version": 1,
+  "type": "cloudflare-readonly-inventory-sanitized",
+  "checked_at_utc": "2026-08-21T17:58:30.545Z",
+  "ok": true,
+  "token_status": "active",
+  "workers_subdomain_present": true,
+  "workers": [
+    {
+      "name": "justfun-admin-bot",
+      "modified_on": "2026-07-29T06:26:19.511118Z"
+    },
+    {
+      "name": "justfun-company-telegram",
+      "modified_on": "2026-08-09T02:16:01.952306Z"
+    },
+    {
+      "name": "justfun-license-api",
+      "modified_on": "2026-08-09T07:33:32.752741Z"
+    },
+    {
+      "name": "justfun-logistics-bot",
+      "modified_on": "2026-08-08T18:13:44.417627Z"
+    },
+    {
+      "name": "justfun-logistics-bot-9a714a31bb5e",
+      "modified_on": "2026-08-13T18:27:52.445568Z"
+    }
+  ],
+  "databases": [
+    {
+      "name": "justfun-logistics-bot-db-9a714a31bb5e",
+      "table_names": [
+        "_cf_KV",
+        "chat_bindings",
+        "events",
+        "justfun_schema",
+        "link_codes",
+        "notifications",
+        "telegram_updates"
+      ],
+      "company_count": 0,
+      "company_status_counts": {},
+      "company_scope_hashes": [],
+      "binding_count": 1,
+      "binding_scope_hashes": [
+        "cd18c3fb4a230f02"
+      ],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    },
+    {
+      "name": "justfun-logistics-bot-db-c2d3612b9d7d",
+      "table_names": [
+        "_cf_KV",
+        "chat_bindings",
+        "events",
+        "justfun_schema",
+        "link_codes",
+        "notifications",
+        "telegram_updates"
+      ],
+      "company_count": 0,
+      "company_status_counts": {},
+      "company_scope_hashes": [],
+      "binding_count": 1,
+      "binding_scope_hashes": [
+        "22859fe245496d2f"
+      ],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    },
+    {
+      "name": "justfun-logistics-bot-db-9ff5bb960db5",
+      "table_names": [
+        "_cf_KV",
+        "chat_bindings",
+        "events",
+        "justfun_schema",
+        "link_codes",
+        "notifications",
+        "telegram_updates"
+      ],
+      "company_count": 0,
+      "company_status_counts": {},
+      "company_scope_hashes": [],
+      "binding_count": 1,
+      "binding_scope_hashes": [
+        "b111c8b2bd3578ed"
+      ],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    },
+    {
+      "name": "justfun-logistics-bot-db-e1f1d3b8f847",
+      "table_names": [
+        "_cf_KV",
+        "chat_bindings",
+        "events",
+        "justfun_schema",
+        "link_codes",
+        "notifications",
+        "telegram_updates"
+      ],
+      "company_count": 0,
+      "company_status_counts": {},
+      "company_scope_hashes": [],
+      "binding_count": 1,
+      "binding_scope_hashes": [
+        "17f8f78a1418f8d3"
+      ],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    },
+    {
+      "name": "justfun-logistics-bot-db-d741480ed663",
+      "table_names": [
+        "_cf_KV",
+        "chat_bindings",
+        "events",
+        "justfun_schema",
+        "link_codes",
+        "notifications",
+        "telegram_updates"
+      ],
+      "company_count": 0,
+      "company_status_counts": {},
+      "company_scope_hashes": [],
+      "binding_count": 3,
+      "binding_scope_hashes": [
+        "0a4f7ea926d50414",
+        "c461ae7c4bee2c29",
+        "f5c56afde8a079d5"
+      ],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    },
+    {
+      "name": "justfun-company-telegram",
+      "table_names": [
+        "_cf_KV",
+        "broker_audit_log",
+        "broker_rate_limits",
+        "company_telegram_services"
+      ],
+      "company_count": 0,
+      "company_status_counts": {},
+      "company_scope_hashes": [],
+      "binding_count": 0,
+      "binding_scope_hashes": [],
+      "telegram_service_count": 8,
+      "telegram_service_scope_hashes": [
+        "10bcd49c8a83efdf",
+        "1ae17dfd27390311",
+        "1c2c004c295b3328",
+        "2ecf1cffe7982f8c",
+        "31f518a338646eea",
+        "8a5d07a7d7e0ce9f",
+        "c701f2622c03b6ab",
+        "ea1e3eefac257f89"
+      ]
+    },
+    {
+      "name": "justfun-admin-bot-db",
+      "table_names": [
+        "_cf_KV",
+        "telegram_bot_updates"
+      ],
+      "company_count": 0,
+      "company_status_counts": {},
+      "company_scope_hashes": [],
+      "binding_count": 0,
+      "binding_scope_hashes": [],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    },
+    {
+      "name": "justfun-license-db-v3",
+      "table_names": [
+        "_cf_KV",
+        "audit_log",
+        "companies",
+        "d1_migrations",
+        "demo_devices",
+        "devices",
+        "invitation_claims",
+        "invitations",
+        "license_claims",
+        "licenses",
+        "rate_limits",
+        "schema_migrations",
+        "sessions",
+        "users"
+      ],
+      "company_count": 13,
+      "company_status_counts": {
+        "active": 13
+      },
+      "company_scope_hashes": [
+        "06807500e5d0c936",
+        "12bf22da27ac6684",
+        "8024a39939aeafe2",
+        "8cba5bcd7d4b9e49",
+        "9d49bafe42a79e8f",
+        "ab86723350650aeb",
+        "bd6a1440bcabf650",
+        "c6b5e706eefc84ae",
+        "d28aabf64fb0a697",
+        "d428e8dd171f23c6",
+        "dfb5fd1e9e4aada9",
+        "edb7ce39bdc38beb",
+        "ee2fb03183b1c758"
+      ],
+      "binding_count": 0,
+      "binding_scope_hashes": [],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    },
+    {
+      "name": "justfun-logistics-bot-db",
+      "table_names": [
+        "_cf_KV",
+        "chat_bindings",
+        "events",
+        "justfun_schema",
+        "link_codes",
+        "notifications",
+        "telegram_updates"
+      ],
+      "company_count": 0,
+      "company_status_counts": {},
+      "company_scope_hashes": [],
+      "binding_count": 13,
+      "binding_scope_hashes": [
+        "0a4f7ea926d50414",
+        "16a5b561767d14eb",
+        "17f8f78a1418f8d3",
+        "2323b62bc085f11b",
+        "60481cd70b518c62",
+        "70eaa53b934fb959",
+        "c461ae7c4bee2c29",
+        "cae3db3d47fc366a",
+        "de4e7e3a7ca4c625",
+        "e57e001a5d27297b",
+        "e6c0c415b7283275",
+        "f5c56afde8a079d5",
+        "fdbcb97a7fac1370"
+      ],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    },
+    {
+      "name": "justfun-license-db",
+      "table_names": [
+        "_cf_KV",
+        "audit_log",
+        "auth_failures",
+        "companies",
+        "d1_migrations",
+        "demo_activations",
+        "devices",
+        "invitations",
+        "licenses",
+        "schema_meta",
+        "sessions",
+        "telegram_bot_updates",
+        "users"
+      ],
+      "company_count": 14,
+      "company_status_counts": {
+        "blocked": 10,
+        "active": 4
+      },
+      "company_scope_hashes": [
+        "1a06b40d52e39c7d",
+        "1b342084d9cb56c4",
+        "21abc6f0fad46db8",
+        "23867eb8598ef515",
+        "314dc070f25e1dec",
+        "41f37677280e1208",
+        "630a304cddc48e18",
+        "6f538360c4d5ae31",
+        "734bf436035a7f47",
+        "a4e85d6dc84e3249",
+        "b572a1f5532508e2",
+        "d0bdc93c30059970",
+        "eb307221e1b5f212",
+        "f1693dc640ebe8e2"
+      ],
+      "binding_count": 0,
+      "binding_scope_hashes": [],
+      "telegram_service_count": 0,
+      "telegram_service_scope_hashes": []
+    }
+  ],
+  "privacy": {
+    "raw_report_sha256": "45d8db21f8a7c897f8b48850ab9d7d92d19ae5915bda012d3e3f0558c3b49370",
+    "excluded_fields": [
+      "company ids",
+      "company codes",
+      "warehouse ids",
+      "entity ids",
+      "Telegram usernames",
+      "display titles"
+    ],
+    "identifiers_in_summary": "truncated sha256 scope fingerprints only",
+    "raw_report_publishable": false
+  }
+}

@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://justfun.invalid/audit/finding.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "issue",
+    "title",
+    "severity",
+    "confidence",
+    "verification_status",
+    "module",
+    "location",
+    "first_seen_commit",
+    "last_verified_commit",
+    "fact",
+    "evidence",
+    "impact",
+    "reproduction",
+    "minimal_fix",
+    "verification_contract",
+    "fingerprint",
+    "related",
+    "owner",
+    "status"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^JF-AUDIT-[0-9]{4}$"
+    },
+    "issue": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "severity": {
+      "enum": [
+        "P0",
+        "P1",
+        "P2",
+        "P3"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "verification_status": {
+      "enum": [
+        "SOURCE_CONFIRMED",
+        "TEST_CONFIRMED",
+        "LIVE_CONFIRMED",
+        "REPORTED_NOT_REPRODUCED",
+        "NOT_VERIFIED",
+        "BLOCKED",
+        "STALE",
+        "FALSE_POSITIVE"
+      ]
+    },
+    "module": {
+      "type": "string"
+    },
+    "location": {
+      "type": "object",
+      "required": [
+        "path"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "line": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "first_seen_commit": {
+      "type": "string"
+    },
+    "last_verified_commit": {
+      "type": "string"
+    },
+    "fact": {
+      "type": "string"
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "impact": {
+      "type": "string"
+    },
+    "reproduction": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "minimal_fix": {
+      "type": "string"
+    },
+    "verification_contract": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "related": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owner": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "OPEN",
+        "IN_PROGRESS",
+        "FIXED_PENDING_VERIFY",
+        "CLOSED",
+        "ACCEPTED_RISK",
+        "FALSE_POSITIVE",
+        "STALE"
+      ]
+    }
+  }
+}

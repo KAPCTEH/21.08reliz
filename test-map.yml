@@ -1,0 +1,1937 @@
+{
+  "schema_version": 1,
+  "tests": [
+    {
+      "id": "JF-TEST-ACTION-DISPATCH-UNIT",
+      "path": "tests/action-dispatch-unit.cjs",
+      "command": "node tests/action-dispatch-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "application",
+        "desktop-runtime"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ASAR-FILE-HASH",
+      "path": "tests/asar-file-hash.mjs",
+      "command": "node tests/asar-file-hash.mjs <app.asar> <internal/path>",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-ATOMIC-MUTATION-ASYNC-REGRESSION-V783",
+      "path": "tests/atomic-mutation-async-regression-v783.cjs",
+      "command": "node tests/atomic-mutation-async-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-AUTH-REG-SOURCE-CONTRACT",
+      "path": "tests/auth-reg-source-contract.cjs",
+      "command": "node tests/auth-reg-source-contract.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-COMPANY-SCOPE-TEST",
+      "path": "tests/company-scope-test.mjs",
+      "command": "node tests/company-scope-test.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-COMPANY-TELEGRAM-BROKER-SCHEMA-TEST",
+      "path": "tests/company-telegram-broker-schema-test.py",
+      "command": "python tests/company-telegram-broker-schema-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "contracts": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-COMPANY-TELEGRAM-BROKER-UNIT",
+      "path": "tests/company-telegram-broker-unit.mjs",
+      "command": "node tests/company-telegram-broker-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "contracts": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-CURRENT-CYCLE-REGRESSION-V783",
+      "path": "tests/current-cycle-regression-v783.mjs",
+      "command": "node tests/current-cycle-regression-v783.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide"
+      ],
+      "contracts": [
+        "repository-wide"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-DEAD-OVERRIDE-REGRESSION-V783",
+      "path": "tests/dead-override-regression-v783.cjs",
+      "command": "node tests/dead-override-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide"
+      ],
+      "contracts": [
+        "repository-wide"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-DEEP-BUSINESS-FIXTURE-REGRESSION-V783",
+      "path": "tests/deep-business-fixture-regression-v783.cjs",
+      "command": "node tests/deep-business-fixture-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-DEPLOY-REG-VPS-SERVER",
+      "path": "tests/deploy-reg-vps-server.cjs",
+      "command": "node tests/deploy-reg-vps-server.cjs source/application/integrations/reg-vps/server/server.py",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_DEPLOY_HOST",
+        "JF_DEPLOY_PORT",
+        "JF_DEPLOY_USER",
+        "JF_DEPLOY_PASSWORD",
+        "JF_DEPLOY_KNOWN_HOSTS"
+      ],
+      "network_allowed": true,
+      "executable_allowed": true,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit deployment authorization, pinned host key, configured credentials, rollback plan, and dedicated evidence capture only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "deployment"
+    },
+    {
+      "id": "JF-TEST-DESIGN-TOKEN-REGRESSION-V783",
+      "path": "tests/design-token-regression-v783.cjs",
+      "command": "node tests/design-token-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-DESKTOP-DIALOG-REGRESSION-V783",
+      "path": "tests/desktop-dialog-regression-v783.cjs",
+      "command": "node tests/desktop-dialog-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "application",
+        "desktop-runtime"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-ENTITY-BOOTSTRAP-MERGE-UNIT",
+      "path": "tests/entity-bootstrap-merge-unit.cjs",
+      "command": "node tests/entity-bootstrap-merge-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ERROR-BOUNDARY-REGRESSION-V783",
+      "path": "tests/error-boundary-regression-v783.cjs",
+      "command": "node tests/error-boundary-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application"
+      ],
+      "contracts": [
+        "application"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-EXPERIENCE-REGRESSION-V783",
+      "path": "tests/experience-regression-v783.mjs",
+      "command": "node tests/experience-regression-v783.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-ICON-SYSTEM-REGRESSION-V783",
+      "path": "tests/icon-system-regression-v783.cjs",
+      "command": "node tests/icon-system-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-INSTALLER-CRASH-RECOVERY-TEST",
+      "path": "tests/installer-crash-recovery-test.ps1",
+      "command": "pwsh -NoProfile -File tests/installer-crash-recovery-test.ps1 -Makensis <makensis.exe> -AssetsDir source/installer/assets",
+      "cwd": ".",
+      "prerequisites": [
+        "pwsh",
+        "windows"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": true,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 900000,
+      "artifact_paths": [
+        "<evidence-directory>"
+      ],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "installer"
+    },
+    {
+      "id": "JF-TEST-INSTALLER-FULL-ACCEPTANCE-TEST",
+      "path": "tests/installer-full-acceptance-test.ps1",
+      "command": "pwsh -NoProfile -File tests/installer-full-acceptance-test.ps1 -Setup <JustFun-Setup.exe> -EvidenceDirectory <evidence-directory>",
+      "cwd": ".",
+      "prerequisites": [
+        "pwsh",
+        "windows"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": true,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 900000,
+      "artifact_paths": [
+        "<evidence-directory>"
+      ],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "installer"
+    },
+    {
+      "id": "JF-TEST-INSTALLER-SOURCE-TEST",
+      "path": "tests/installer-source-test.py",
+      "command": "python tests/installer-source-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-LICENSE-CUSTOM-ROLE-MIGRATION-TEST",
+      "path": "tests/license-custom-role-migration-test.py",
+      "command": "python tests/license-custom-role-migration-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-LICENSE-EXACT-PERMISSION-MIGRATION-TEST",
+      "path": "tests/license-exact-permission-migration-test.py",
+      "command": "python tests/license-exact-permission-migration-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-LICENSE-GRANULAR-PERMISSION-MIGRATION-TEST",
+      "path": "tests/license-granular-permission-migration-test.py",
+      "command": "python tests/license-granular-permission-migration-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-LICENSE-SCHEMA-TEST",
+      "path": "tests/license-schema-test.py",
+      "command": "python tests/license-schema-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-LICENSE-SERVER-UNIT",
+      "path": "tests/license-server-unit.mjs",
+      "command": "node tests/license-server-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-LIVE-CLOUD-SESSION-CHECK",
+      "path": "tests/live-cloud-session-check.cjs",
+      "command": "node tests/live-cloud-session-check.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_NATIVE_SECRETS_PATH",
+        "JF_APP_USER_DATA_PATH",
+        "JF_LIVE_SESSION_REPORT"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application"
+      ],
+      "contracts": [
+        "application"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-LIVE-CLOUDFLARE-READONLY-INVENTORY",
+      "path": "tests/live-cloudflare-readonly-inventory.cjs",
+      "command": "node tests/live-cloudflare-readonly-inventory.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_SECRETS_PATH",
+        "JF_CF_INVENTORY_REPORT"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application"
+      ],
+      "contracts": [
+        "application"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-LIVE-CLOUDFLARE-WORKER-SOURCE-READONLY",
+      "path": "tests/live-cloudflare-worker-source-readonly.cjs",
+      "command": "node tests/live-cloudflare-worker-source-readonly.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_SECRETS_PATH",
+        "JF_CF_SOURCE_REPORT",
+        "JF_CF_SOURCE_DUMP_DIR"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application"
+      ],
+      "contracts": [
+        "application"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-LIVE-MULTI-USER-ISOLATION",
+      "path": "tests/live-multi-user-isolation.cjs",
+      "command": "node tests/live-multi-user-isolation.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_SECRETS_PATH",
+        "JF_QA_LICENSE1_KEY",
+        "JF_QA_LICENSE1_OWNER_NAME",
+        "JF_QA_LICENSE1_OWNER_LOGIN",
+        "JF_QA_LICENSE1_OWNER_PASSWORD",
+        "JF_QA_LICENSE2_KEY",
+        "JF_QA_LICENSE2_OWNER_NAME",
+        "JF_QA_LICENSE2_OWNER_LOGIN",
+        "JF_QA_LICENSE2_OWNER_PASSWORD"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application"
+      ],
+      "contracts": [
+        "application"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-LIVE-TELEGRAM-SCOPE-MIGRATION",
+      "path": "tests/live-telegram-scope-migration.cjs",
+      "command": "node tests/live-telegram-scope-migration.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TELEGRAM_MIGRATION_APPLY",
+        "JF_TEST_SECRETS_PATH",
+        "JF_NATIVE_SECRETS_PATH",
+        "JF_APP_USER_DATA_PATH",
+        "JF_TELEGRAM_MIGRATION_REPORT"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "contracts": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-LIVE-TELEGRAM-TWO-ACCOUNT-AUDIT",
+      "path": "tests/live-telegram-two-account-audit.cjs",
+      "command": "node tests/live-telegram-two-account-audit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_SECRETS_PATH",
+        "JF_TELEGRAM_AUDIT_REPORT"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "contracts": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-LOGO-TRANSPARENCY-TEST",
+      "path": "tests/logo-transparency-test.py",
+      "command": "python tests/logo-transparency-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "desktop-runtime",
+        "installer"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "visual"
+    },
+    {
+      "id": "JF-TEST-MAIN-UNIT",
+      "path": "tests/main-unit.cjs",
+      "command": "node tests/main-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "application",
+        "desktop-runtime"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-MAP-DIAGNOSTIC-REGRESSION-V783",
+      "path": "tests/map-diagnostic-regression-v783.cjs",
+      "command": "node tests/map-diagnostic-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-PERMISSION-COMPAT-REGRESSION-V783",
+      "path": "tests/permission-compat-regression-v783.cjs",
+      "command": "node tests/permission-compat-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-PRODUCT-DRAWER-ACCESSIBILITY-V783",
+      "path": "tests/product-drawer-accessibility-v783.cjs",
+      "command": "node tests/product-drawer-accessibility-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-REG-API-CONTRACT-TEST",
+      "path": "tests/reg-api-contract-test.py",
+      "command": "python tests/reg-api-contract-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-REG-ENTITY-PROTOCOL-TEST",
+      "path": "tests/reg-entity-protocol-test.py",
+      "command": "python tests/reg-entity-protocol-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-REG-ENTITY-SOURCE-CONTRACT",
+      "path": "tests/reg-entity-source-contract.cjs",
+      "command": "node tests/reg-entity-source-contract.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-REG-MAP-PROXY-TEST",
+      "path": "tests/reg-map-proxy-test.py",
+      "command": "python tests/reg-map-proxy-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-REG-NATIVE-SSH-UNIT",
+      "path": "tests/reg-native-ssh-unit.cjs",
+      "command": "node tests/reg-native-ssh-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-REG-REVISION-TEST",
+      "path": "tests/reg-revision-test.py",
+      "command": "python tests/reg-revision-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-REG-STORAGE-V3-INTEGRATION",
+      "path": "tests/reg-storage-v3-integration.py",
+      "command": "python tests/reg-storage-v3-integration.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-REG-TLS-SOURCE-TEST",
+      "path": "tests/reg-tls-source-test.cjs",
+      "command": "node tests/reg-tls-source-test.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-RELEASE-REGRESSION-V783",
+      "path": "tests/release-regression-v783.mjs",
+      "command": "node tests/release-regression-v783.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide"
+      ],
+      "contracts": [
+        "repository-wide"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-RUNTIME-BUTTON-MATRIX",
+      "path": "tests/runtime-button-matrix.py",
+      "command": "python tests/runtime-button-matrix.py source/application/web --edition full --report <evidence-report.json>",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [
+        "JF_TEST_EDITION",
+        "JF_CLICK_OFFSET",
+        "JF_CLICK_LIMIT"
+      ],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "application",
+        "desktop-runtime"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 900000,
+      "artifact_paths": [
+        "<evidence-report.json>"
+      ],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "visual"
+    },
+    {
+      "id": "JF-TEST-RUNTIME-OVERRIDES-REGRESSION-V783",
+      "path": "tests/runtime-overrides-regression-v783.cjs",
+      "command": "node tests/runtime-overrides-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "application",
+        "desktop-runtime"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-RUNTIME-SMOKE",
+      "path": "tests/runtime-smoke.mjs",
+      "command": "node tests/runtime-smoke.mjs source/application/web load",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_EDITION",
+        "JF_RUNTIME_TRACE",
+        "JF_RUNTIME_TRACE_PATH",
+        "JF_TEST_ROLE",
+        "JF_SKIP_SCRIPT_PATTERN",
+        "JF_TEST_DATA_SERVICE_DISABLED",
+        "JF_CLICK_OFFSET",
+        "JF_CLICK_LIMIT"
+      ],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "application",
+        "desktop-runtime"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-SECURITY-AUDIT",
+      "path": "tests/security-audit.mjs",
+      "command": "node tests/security-audit.mjs source",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide",
+        "security"
+      ],
+      "contracts": [
+        "repository-wide",
+        "security"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-SECURITY-MANIFEST-UNIT",
+      "path": "tests/security-manifest-unit.cjs",
+      "command": "node tests/security-manifest-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide",
+        "security"
+      ],
+      "contracts": [
+        "repository-wide",
+        "security"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-SECURITY-REGRESSION-V783",
+      "path": "tests/security-regression-v783.mjs",
+      "command": "node tests/security-regression-v783.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide",
+        "security"
+      ],
+      "contracts": [
+        "repository-wide",
+        "security"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-SOURCE-HYGIENE-REGRESSION-V783",
+      "path": "tests/source-hygiene-regression-v783.cjs",
+      "command": "node tests/source-hygiene-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide"
+      ],
+      "contracts": [
+        "repository-wide"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-STARTUP-AUTH-REGRESSION",
+      "path": "tests/startup-auth-regression.cjs",
+      "command": "node tests/startup-auth-regression.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "application",
+        "desktop-runtime"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-STATIC-AUDIT-REGRESSION-V783",
+      "path": "tests/static-audit-regression-v783.cjs",
+      "command": "node tests/static-audit-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide"
+      ],
+      "contracts": [
+        "repository-wide"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-STATIC-AUDIT",
+      "path": "tests/static-audit.mjs",
+      "command": "node tests/static-audit.mjs source/application",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "repository-wide"
+      ],
+      "contracts": [
+        "repository-wide"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-TELEGRAM-SCOPE-REGRESSION-V783",
+      "path": "tests/telegram-scope-regression-v783.cjs",
+      "command": "node tests/telegram-scope-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "contracts": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-TELEGRAM-SHARED-D1-SCHEMA",
+      "path": "tests/telegram-shared-d1-schema.cjs",
+      "command": "node tests/telegram-shared-d1-schema.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "contracts": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "schema"
+    },
+    {
+      "id": "JF-TEST-TELEGRAM-WIZARD-OPEN-REGRESSION-V783",
+      "path": "tests/telegram-wizard-open-regression-v783.cjs",
+      "command": "node tests/telegram-wizard-open-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "contracts": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-TELEGRAM-WORKER-UNIT",
+      "path": "tests/telegram-worker-unit.mjs",
+      "command": "node tests/telegram-worker-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "contracts": [
+        "application",
+        "company-telegram-broker"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-VISUAL-QA-CONTRACT-REGRESSION-V783",
+      "path": "tests/visual-qa-contract-regression-v783.cjs",
+      "command": "node tests/visual-qa-contract-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "visual"
+    },
+    {
+      "id": "JF-TEST-VPS-CLEANUP-QA-WORKSPACES",
+      "path": "tests/vps-cleanup-qa-workspaces.cjs",
+      "command": "node tests/vps-cleanup-qa-workspaces.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_SECRETS_PATH",
+        "JF_VPS_USERNAME",
+        "JF_QA_WORKSPACE_IDS"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-VPS-DEPLOY-ROW-PROTOCOL",
+      "path": "tests/vps-deploy-row-protocol.cjs",
+      "command": "node tests/vps-deploy-row-protocol.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_SECRETS_PATH",
+        "JF_VPS_USERNAME"
+      ],
+      "network_allowed": true,
+      "executable_allowed": true,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit deployment authorization, pinned host key, configured credentials, rollback plan, and dedicated evidence capture only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "deployment"
+    },
+    {
+      "id": "JF-TEST-VPS-ENTITY-CREATED-AT-DIAGNOSTIC",
+      "path": "tests/vps-entity-created-at-diagnostic.cjs",
+      "command": "node tests/vps-entity-created-at-diagnostic.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_SECRETS_PATH"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-VPS-LIVE-DIAGNOSTIC",
+      "path": "tests/vps-live-diagnostic.cjs",
+      "command": "node tests/vps-live-diagnostic.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [
+        "JF_TEST_SECRETS_PATH",
+        "JF_VPS_USERNAME",
+        "JF_VPS_DIAGNOSTIC_REPORT"
+      ],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization and configured environment only",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "live"
+    }
+  ]
+}

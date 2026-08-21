@@ -1,0 +1,720 @@
+{
+  "schema_version": 1,
+  "branch": "audit-ledger",
+  "orphan_history_required": true,
+  "baseline_id": "baseline-20260821-f8e12ec",
+  "generated_at_utc": "2026-08-21T18:24:42.052Z",
+  "raw_sensitive_evidence_published": false,
+  "exclusions": [
+    "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
+  ],
+  "file_count": 141,
+  "total_bytes": 5177048,
+  "files": [
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
+      "bytes": 52865,
+      "sha256": "c324d3b972f02c2380af0986e99b5c78e36723afa11e3a5b6bbd1942a4ff1939"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/clean-commit-verification.json",
+      "bytes": 517,
+      "sha256": "6cc344edfbe47d34d80f82ed70c592c754baadaf076d7f10554cd7a4e734451b"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/cleaning-report.json",
+      "bytes": 783,
+      "sha256": "c25d1df9876087282064e6923e245bc61162c1a8a0ba82644e417d18fea06496"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/input-file-inventory.jsonl",
+      "bytes": 4299934,
+      "sha256": "82b299d99e1aa30bf98ca00de61314f566ffdab936ecaf4dca263fc58c53cc9e"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/input-snapshot.json",
+      "bytes": 3279,
+      "sha256": "d80f8bdbdbcc22a555f1541a310ea1946e333c6f29c576bdb9b80bb69fcd859f"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/inventory-summary.json",
+      "bytes": 1720,
+      "sha256": "3e413e094ff3ee2e43998a628bd254f67ce7ac581fbe61d2b501dbef03665d14"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/live/cloudflare-readonly-inventory-sanitized.json",
+      "bytes": 7813,
+      "sha256": "18318a39001907aa4032871eec807775615837a7a49352a6794aecff5b7a451c"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/live/cloudflare-worker-source-readonly.json",
+      "bytes": 5245,
+      "sha256": "8b3c343e06b30bea676952930b5cc6cfb2b12de2940ca13893a2d6629ff6647d"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/manifest.json",
+      "bytes": 64762,
+      "sha256": "d954033b200ac53d48452b80a560a3640d477dfbd6cf8a398c46ce0af28cb5e8"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/runtime-button-matrix-full-retry.json",
+      "bytes": 47837,
+      "sha256": "d541a5f2956ded9610fb4162d68656f2d5e0e37a46de3f8e82a7431e81552128"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/runtime-button-matrix-full-retry.stderr.log",
+      "bytes": 3588,
+      "sha256": "1dfed78827773f756b5b9b827cc2e724edeb7067328d257c6bf36e7886bd3ba8"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/runtime-button-matrix-full-retry.stdout.log",
+      "bytes": 47818,
+      "sha256": "68ac85802e9f3da50d0e2f1a998f2050c90349fedab876d46fdfd71580a3ef92"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/runtime-button-matrix-full.json",
+      "bytes": 36173,
+      "sha256": "e427f0baa851b7a64a2e5993154ce33bd5b723a327ace924ceb549a96c1fdca2"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/action-dispatch-unit.log",
+      "bytes": 32,
+      "sha256": "71f0c4ea3aa6c12d442a400afc8be2a13dff81a2c40310b3485ca8d161e9e5f7"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/atomic-mutation-async-regression-v783.log",
+      "bytes": 81,
+      "sha256": "cec4822a725db161ae23c91b2f43bcae905a15c4d21bc45ea0a195e2545ff1f9"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/auth-reg-source-contract.log",
+      "bytes": 187,
+      "sha256": "7ff22046e6ceacda3e5e9c31ddaf0b0fa346c24731284f4157af80f8adb54025"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/company-scope-test.log",
+      "bytes": 147,
+      "sha256": "6ca9e9bad2e0ba36ae11e4f469af2e6305972307673546e00d92ede2df23ac1c"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/company-telegram-broker-schema-test.log",
+      "bytes": 457,
+      "sha256": "047279a8ce6a48ab5c3ff4b8c91032d040189157d9f19c233aa4c1d293863470"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/company-telegram-broker-unit.log",
+      "bytes": 159,
+      "sha256": "611e29c4aa972f29e0a541478be8a2b7ba9712990dc693a4b564195310effc07"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/current-cycle-regression-v783.log",
+      "bytes": 287,
+      "sha256": "31fe836361b83d12d28c2d99d02dad932365f0a4453c7d8d13acb5e2c4dca4e4"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/dead-override-regression-v783.log",
+      "bytes": 390,
+      "sha256": "0e790d9e7f0ecbb399efd81832fa3adbfe5035ffc01f220f1b8aabddbf6c7b01"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/deep-business-fixture-regression-v783.log",
+      "bytes": 72,
+      "sha256": "310881551216f15274ef089f2ec15d400636ae5f163c831e8bc53a08e9ecc8ec"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/design-token-regression-v783.log",
+      "bytes": 246,
+      "sha256": "9edcbc06cf5b75bf75766264b38805eba2ae56205605a84ef0e44863b20c1156"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/desktop-dialog-regression-v783.log",
+      "bytes": 172,
+      "sha256": "92961ddec7c7ed0abebc88e96e011a83333491bf638c83f081116fc8b389ce0d"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/entity-bootstrap-merge-unit.log",
+      "bytes": 982,
+      "sha256": "088a32f889416ae500d9c27eb6e2f1533460d1589bb2134f8005f74ddb909533"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/error-boundary-regression-v783.log",
+      "bytes": 141,
+      "sha256": "3f5d7b77b635d7cd3bdf70982d539ca9439ee7804b43ac3a4a966cb151429b8f"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/experience-regression-v783.log",
+      "bytes": 304,
+      "sha256": "f3dcbd75c8ae9d85e30cdf3aafa4c055fff64e149a338c332e808c0a27e8083a"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/icon-system-regression-v783.log",
+      "bytes": 96,
+      "sha256": "9ea9558e69b24016c23dc64aceb09bb1270c2454d3053ac1d11545459b5e54f2"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/installer-source-test.log",
+      "bytes": 2842,
+      "sha256": "6bc7b11a7a88687260bf90738d64a40803698f375063f617cfcdc81df35e14dc"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/license-custom-role-migration-test.log",
+      "bytes": 92,
+      "sha256": "df4e1ab900e3688fee48e4f91b5218cbf81d6a4762d804a7e108c65eb771a073"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/license-exact-permission-migration-test.log",
+      "bytes": 84,
+      "sha256": "5338bbf1f38a75028ad26fd111a2fee1b456c21da67108321366585cc7724771"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/license-granular-permission-migration-test.log",
+      "bytes": 89,
+      "sha256": "17541851f7138c0dcac809fa1d3649b808d25a258c5e99c83da99bfd65cd47dc"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/license-schema-test.log",
+      "bytes": 1527,
+      "sha256": "b1ba2dbe42470e5266a730884872dc70295ee2ab99ff6cfa0625f611236e77c8"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/license-server-unit.log",
+      "bytes": 359,
+      "sha256": "864060bd4887aa49da4c750a32ec9308963557e2e1cfadfa41fe5c499bd5ff16"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/logo-transparency-test.log",
+      "bytes": 37,
+      "sha256": "22607995b5280b27f7b11c581726e45719f33953d61fe8c0b1db591e87b32577"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/main-unit.log",
+      "bytes": 442,
+      "sha256": "4b3f92480085089eb7656164d9815be5e13ebace431a24f0e3ad7a5579c454fe"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/map-diagnostic-regression-v783.log",
+      "bytes": 88,
+      "sha256": "cafb0c1907d1876bb37f3a7d495c1339b9646d41390a4df8ce8115f41f70295b"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/permission-compat-regression-v783.log",
+      "bytes": 83,
+      "sha256": "aa5259baaded08c3924c97ac96d681a40e8eed8d243965ece7466d9ded7186cd"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/product-drawer-accessibility-v783.log",
+      "bytes": 80,
+      "sha256": "15e9ae52a90a725757fbbc03e070afb1556013cf265742da451e9044dd13d2eb"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-api-contract-test.log",
+      "bytes": 161,
+      "sha256": "07ad05099eaded16120b6300a7c5c4dd940b66e92e8fbc4b2b18cd0e9a15187c"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-entity-protocol-test.log",
+      "bytes": 5917,
+      "sha256": "99cc3d34ab7dee34dc3ef5bee093aaaff260076cddcce2b141a306f2e230c9c8"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-entity-source-contract.log",
+      "bytes": 908,
+      "sha256": "173687f30a23f3130eb4eaf5f0c143e4cdd2d093036217f1a3bff7734d6231b1"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-map-proxy-test.log",
+      "bytes": 171,
+      "sha256": "1f2071b6ba3c3dc35babacb1e2d7b10b0349df4ac537d470b8ede6de2839ed95"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-native-ssh-unit.log",
+      "bytes": 44,
+      "sha256": "c97590374a5df979a464bf8767618a035024a43e78104077bf83b4ee10190b96"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-revision-test.log",
+      "bytes": 8350,
+      "sha256": "141cf957cd959344b38a3785d8ae8b3c7bd9a0a2ddaf9116958847feceeb94ce"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-storage-v3-integration.log",
+      "bytes": 726,
+      "sha256": "4b996791ff6328974eea5ca1031745e7f65127f506d9332040dac27c04020ef2"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/reg-tls-source-test.log",
+      "bytes": 144,
+      "sha256": "66077bd598667d26c32b0cc94e80a3821426be1eacaf09b6e1f42a87467a1576"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/release-regression-v783.log",
+      "bytes": 223,
+      "sha256": "8d08c1c89906bf851ac3efa1360106fbf66b6380084440d9a90d65ea0d319b52"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/run.json",
+      "bytes": 59491,
+      "sha256": "6c5aa5c513dcdc442e92dffbd7bf1b536f3f6d2811c714ad47a0ad4185a8cf1d"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/runtime-overrides-regression-v783.log",
+      "bytes": 99,
+      "sha256": "92f1f399ef56af6701647ca28a89ebf81d49d88b182fb807d46e79774d5edd52"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/runtime-smoke-demo-load.log",
+      "bytes": 3072,
+      "sha256": "6f713959ac171540fc472219d89b01e673057d9757639c2c49cdad721c4e5d8a"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/runtime-smoke-full-load.log",
+      "bytes": 3286,
+      "sha256": "d2d0381f25ec612a0d9163faf0934aea337c248d1b2aeb94e58545c9711e3e0e"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/security-audit-source.log",
+      "bytes": 211,
+      "sha256": "a029c0f703fe3074e40da1ddb0c3111a0b1b8f8724824c6b53d50198f2359d88"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/security-manifest-unit.log",
+      "bytes": 32,
+      "sha256": "eb5201bac4b2d00a0b45ae76d2ffdcaed463af666d8573b27ac3809959ce0094"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/security-regression-v783.log",
+      "bytes": 158,
+      "sha256": "a05a844e5b6d2f59cd5d582bc71cb3631f2f870bb9c7881286972f5a60fd466a"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/source-hygiene-regression-v783.log",
+      "bytes": 1521,
+      "sha256": "491553c803b6df92744e7f0940b257a82d9cf7d2956ac90981ad91165b1ba509"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/startup-auth-regression.log",
+      "bytes": 130,
+      "sha256": "116aec12d42282c14d650810f8084ad1387fb8f044512606727ee15902a2cca9"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/static-audit-application.log",
+      "bytes": 145258,
+      "sha256": "72f9e4c6a01a78339e2dfb96c3abdf92b71a48a3596dc432e7a4cb505e3eda85"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/static-audit-regression-v783.log",
+      "bytes": 78,
+      "sha256": "dc6df6675ade0dfaa03bf4d929b7f491a9fa6942eba857b67dc4c97fae70e0d8"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/telegram-scope-regression-v783.log",
+      "bytes": 190,
+      "sha256": "ba1207e65ea6132959f8c59c8d98bf776482c84a03831d1b86720e77b06d3c67"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/telegram-shared-d1-schema.log",
+      "bytes": 138,
+      "sha256": "da8bd55f69b153b6571db2a6a4b405af0eb61133dc6ef909a3c310e901fe0424"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/telegram-wizard-open-regression-v783.log",
+      "bytes": 168,
+      "sha256": "5cc24150c951553d493310cc1040d6a01656524e7373a4b638583302c2c8fef7"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/telegram-worker-unit.log",
+      "bytes": 265,
+      "sha256": "c2a9a7ecb2bd593fe2f6ea9791f8024c01f8b75b41e77eb51d18c93e20d38bdf"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/safe-tests/visual-qa-contract-regression-v783.log",
+      "bytes": 110,
+      "sha256": "692fef361ba96aa0bb33a9aaa6e791ad23f19a39904694a16a4ae11823da46e4"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/action-dispatch-unit.log",
+      "bytes": 32,
+      "sha256": "71f0c4ea3aa6c12d442a400afc8be2a13dff81a2c40310b3485ca8d161e9e5f7"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/atomic-mutation-async-regression-v783.log",
+      "bytes": 81,
+      "sha256": "cec4822a725db161ae23c91b2f43bcae905a15c4d21bc45ea0a195e2545ff1f9"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/auth-reg-source-contract.log",
+      "bytes": 187,
+      "sha256": "7ff22046e6ceacda3e5e9c31ddaf0b0fa346c24731284f4157af80f8adb54025"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/company-scope-test.log",
+      "bytes": 147,
+      "sha256": "6ca9e9bad2e0ba36ae11e4f469af2e6305972307673546e00d92ede2df23ac1c"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/company-telegram-broker-schema-test.log",
+      "bytes": 448,
+      "sha256": "a64475f2ec72ba6338d6cf34883c0cf0f7aff75675619210d8a6098d299641d1"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/company-telegram-broker-unit.log",
+      "bytes": 159,
+      "sha256": "1be407ba4a06f2fcd6445eaefa745800b83d22344afecaec1ea0e09f8b23b68b"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/current-cycle-regression-v783.log",
+      "bytes": 287,
+      "sha256": "31fe836361b83d12d28c2d99d02dad932365f0a4453c7d8d13acb5e2c4dca4e4"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/dead-override-regression-v783.log",
+      "bytes": 390,
+      "sha256": "0e790d9e7f0ecbb399efd81832fa3adbfe5035ffc01f220f1b8aabddbf6c7b01"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/deep-business-fixture-regression-v783.log",
+      "bytes": 72,
+      "sha256": "310881551216f15274ef089f2ec15d400636ae5f163c831e8bc53a08e9ecc8ec"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/design-token-regression-v783.log",
+      "bytes": 246,
+      "sha256": "9edcbc06cf5b75bf75766264b38805eba2ae56205605a84ef0e44863b20c1156"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/desktop-dialog-regression-v783.log",
+      "bytes": 172,
+      "sha256": "92961ddec7c7ed0abebc88e96e011a83333491bf638c83f081116fc8b389ce0d"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/entity-bootstrap-merge-unit.log",
+      "bytes": 983,
+      "sha256": "fd55c0864b7f8c2d63e17c1f67d9ebeb2f212efbcd4224c3431873f3e7f3fc5a"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/error-boundary-regression-v783.log",
+      "bytes": 141,
+      "sha256": "3f5d7b77b635d7cd3bdf70982d539ca9439ee7804b43ac3a4a966cb151429b8f"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/experience-regression-v783.log",
+      "bytes": 304,
+      "sha256": "f3dcbd75c8ae9d85e30cdf3aafa4c055fff64e149a338c332e808c0a27e8083a"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/icon-system-regression-v783.log",
+      "bytes": 96,
+      "sha256": "9ea9558e69b24016c23dc64aceb09bb1270c2454d3053ac1d11545459b5e54f2"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/installer-source-test.log",
+      "bytes": 5921,
+      "sha256": "4019c42f8254ee797bafcc4d4993fbffcb7a087bf00915e1ec1d3890b05d5b80"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/license-custom-role-migration-test.log",
+      "bytes": 92,
+      "sha256": "df4e1ab900e3688fee48e4f91b5218cbf81d6a4762d804a7e108c65eb771a073"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/license-exact-permission-migration-test.log",
+      "bytes": 84,
+      "sha256": "5338bbf1f38a75028ad26fd111a2fee1b456c21da67108321366585cc7724771"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/license-granular-permission-migration-test.log",
+      "bytes": 89,
+      "sha256": "17541851f7138c0dcac809fa1d3649b808d25a258c5e99c83da99bfd65cd47dc"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/license-schema-test.log",
+      "bytes": 1500,
+      "sha256": "05356fc05c87193f20f501991661c050881d81c251162e409ef6796f75ad3abe"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/license-server-unit.log",
+      "bytes": 359,
+      "sha256": "864060bd4887aa49da4c750a32ec9308963557e2e1cfadfa41fe5c499bd5ff16"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/logo-transparency-test.log",
+      "bytes": 37,
+      "sha256": "22607995b5280b27f7b11c581726e45719f33953d61fe8c0b1db591e87b32577"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/main-unit.log",
+      "bytes": 442,
+      "sha256": "4b3f92480085089eb7656164d9815be5e13ebace431a24f0e3ad7a5579c454fe"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/map-diagnostic-regression-v783.log",
+      "bytes": 88,
+      "sha256": "cafb0c1907d1876bb37f3a7d495c1339b9646d41390a4df8ce8115f41f70295b"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/permission-compat-regression-v783.log",
+      "bytes": 83,
+      "sha256": "aa5259baaded08c3924c97ac96d681a40e8eed8d243965ece7466d9ded7186cd"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/product-drawer-accessibility-v783.log",
+      "bytes": 80,
+      "sha256": "15e9ae52a90a725757fbbc03e070afb1556013cf265742da451e9044dd13d2eb"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/reg-api-contract-test.log",
+      "bytes": 170,
+      "sha256": "672bf17751273b02a2da183ab2e97686ee5b291568f8610cedcd70a4a65b987d"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/reg-entity-protocol-test.log",
+      "bytes": 5782,
+      "sha256": "298e3e2b8e345da3ab2f4967df915113c21dd40b89979988ea62ba1ae1f469bc"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/reg-entity-source-contract.log",
+      "bytes": 918,
+      "sha256": "6c62fee02b7284315fe83d25dd4afdacb7f6efec8747ee3061cff75a8b03c592"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/reg-map-proxy-test.log",
+      "bytes": 162,
+      "sha256": "27634e8117113de4659a201349f9adeb82fae99893dee1ca913b9d99ef7453dc"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/reg-native-ssh-unit.log",
+      "bytes": 44,
+      "sha256": "c97590374a5df979a464bf8767618a035024a43e78104077bf83b4ee10190b96"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/reg-revision-test.log",
+      "bytes": 8090,
+      "sha256": "7a7d0a8eabd23ef053186a17cacd3c09df0639e46661776b66f6ede4b5a9c185"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/reg-storage-v3-integration.log",
+      "bytes": 699,
+      "sha256": "353f1d3e062ce13f1a6dea83577f3363ee084342e1ac7f47f689019f8de1b6d4"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/reg-tls-source-test.log",
+      "bytes": 144,
+      "sha256": "66077bd598667d26c32b0cc94e80a3821426be1eacaf09b6e1f42a87467a1576"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/release-regression-v783.log",
+      "bytes": 1022,
+      "sha256": "c583457eb445d8a9be04fd8e678f01885e2903bd0dc0bc9de99d4917b4793f55"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/run.json",
+      "bytes": 60391,
+      "sha256": "20e7648f96b1a4ba0c40c0abf55768cf0561a86afce9b8e42991c7f255d37f13"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/runtime-overrides-regression-v783.log",
+      "bytes": 99,
+      "sha256": "92f1f399ef56af6701647ca28a89ebf81d49d88b182fb807d46e79774d5edd52"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/runtime-smoke-demo-load.log",
+      "bytes": 3072,
+      "sha256": "36ab8337267a5e900dc84feff31e4374ac18c7496b25447aa8ddd41d0cc806c9"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/runtime-smoke-full-load.log",
+      "bytes": 3286,
+      "sha256": "97f8174d7bef0abe6724bf70b1cb71ee621c71228b0d1cd8ffffdca1e3192376"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/security-audit-source.log",
+      "bytes": 211,
+      "sha256": "82fbd8c1d8a8299258d73cb350ec025e05452c2572f32d5afb13397611ee11b3"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/security-manifest-unit.log",
+      "bytes": 32,
+      "sha256": "eb5201bac4b2d00a0b45ae76d2ffdcaed463af666d8573b27ac3809959ce0094"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/security-regression-v783.log",
+      "bytes": 158,
+      "sha256": "a05a844e5b6d2f59cd5d582bc71cb3631f2f870bb9c7881286972f5a60fd466a"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/source-hygiene-regression-v783.log",
+      "bytes": 1522,
+      "sha256": "f4db73adaf2cd4e5a5d5581b0c6d9c86400fd2ac374e1630ae3c8eda8562c089"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/startup-auth-regression.log",
+      "bytes": 130,
+      "sha256": "116aec12d42282c14d650810f8084ad1387fb8f044512606727ee15902a2cca9"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/static-audit-application.log",
+      "bytes": 145259,
+      "sha256": "c027136f4eafd6374ae5e591d2f5aee55df0baaefba62b5dcdcd01f4ae683e2d"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/static-audit-regression-v783.log",
+      "bytes": 78,
+      "sha256": "dc6df6675ade0dfaa03bf4d929b7f491a9fa6942eba857b67dc4c97fae70e0d8"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/telegram-scope-regression-v783.log",
+      "bytes": 190,
+      "sha256": "ba1207e65ea6132959f8c59c8d98bf776482c84a03831d1b86720e77b06d3c67"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/telegram-shared-d1-schema.log",
+      "bytes": 138,
+      "sha256": "da8bd55f69b153b6571db2a6a4b405af0eb61133dc6ef909a3c310e901fe0424"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/telegram-wizard-open-regression-v783.log",
+      "bytes": 168,
+      "sha256": "5cc24150c951553d493310cc1040d6a01656524e7373a4b638583302c2c8fef7"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/telegram-worker-unit.log",
+      "bytes": 265,
+      "sha256": "c2a9a7ecb2bd593fe2f6ea9791f8024c01f8b75b41e77eb51d18c93e20d38bdf"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-tests/visual-qa-contract-regression-v783.log",
+      "bytes": 110,
+      "sha256": "692fef361ba96aa0bb33a9aaa6e791ad23f19a39904694a16a4ae11823da46e4"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/source-zip-verification.json",
+      "bytes": 995,
+      "sha256": "a79c8059aaac1a2e810da6b67f5a158683e6cee1b7d30f6e8de72d8e03574e9a"
+    },
+    {
+      "path": "baselines/baseline-20260821-f8e12ec/toolchain.json",
+      "bytes": 65,
+      "sha256": "b7e49a217deb2049018fa25f853d8230bf70c05149d0e0cfe4bab670cea1e2ce"
+    },
+    {
+      "path": "evidence/JF-EVID-0001.json",
+      "bytes": 1864,
+      "sha256": "1cd572ddaf9bb7b7875727d1efb0951762db9750646c17e344897914704de9ef"
+    },
+    {
+      "path": "evidence/JF-EVID-0002.json",
+      "bytes": 1932,
+      "sha256": "8ef7f2c5dcdb67245d6c326e57717cdd7323630e4a942f0948166cba000fc0a6"
+    },
+    {
+      "path": "evidence/JF-EVID-0003.json",
+      "bytes": 2974,
+      "sha256": "1a60584f071a339302f0d6d3bd6b0d73720cd1768d42168ffbfceb77e6f7cc36"
+    },
+    {
+      "path": "evidence/JF-EVID-0004.json",
+      "bytes": 1617,
+      "sha256": "1ef8b07fc62f4ad38533267833961fca53ecf9a8ba3e9485cddb698701b10edc"
+    },
+    {
+      "path": "evidence/JF-EVID-0005.json",
+      "bytes": 1180,
+      "sha256": "d73bf1f5b2fb06744f029ad8dd06d672fb640667194d44db93a41ae0bd39f7dd"
+    },
+    {
+      "path": "evidence/JF-EVID-0006.json",
+      "bytes": 1012,
+      "sha256": "895d7f9c64399d7585a0bddaf7c24eb62c5b2dce23dca139e343e8f361e9f15b"
+    },
+    {
+      "path": "findings/JF-AUDIT-0001.json",
+      "bytes": 2369,
+      "sha256": "f4553b6776e94910b8a14995899ae2ad578ed01105631a11ef81733a1299a33c"
+    },
+    {
+      "path": "findings/JF-AUDIT-0002.json",
+      "bytes": 1898,
+      "sha256": "379775c394ffc18faa55fa090527dbbe26178e43acb4d65ab7a5910dc4d21bde"
+    },
+    {
+      "path": "findings/JF-AUDIT-0003.json",
+      "bytes": 2137,
+      "sha256": "c6905b61dcf3d95ace6806f0fb41cd17bff78c0f223f45e9826a1c4f3f31013b"
+    },
+    {
+      "path": "findings/JF-AUDIT-0004.json",
+      "bytes": 2264,
+      "sha256": "76e24c8d638e53c2a00e421a4eca95b1eed822d66ae7329fcebfd821aab19906"
+    },
+    {
+      "path": "findings/JF-AUDIT-0005.json",
+      "bytes": 1903,
+      "sha256": "761f58baa48a664201dea033c083944fd6f4b064a4e83024369ea5031c461f01"
+    },
+    {
+      "path": "index.json",
+      "bytes": 1202,
+      "sha256": "c0e6cc0d2da04185fb373870efcaf4cb73a8c4da94e497b0b1e4ef7133da1ac4"
+    },
+    {
+      "path": "module-map.yml",
+      "bytes": 6149,
+      "sha256": "bac2dee9afb4dbc498e5ff1b9830a1fd6834a20720dcb1faf82347b8765973ab"
+    },
+    {
+      "path": "publish-secret-scan.json",
+      "bytes": 176,
+      "sha256": "11bcc4fa232ff2c73761e0fe375ae578a5ac2a5931cafd845e8fdfac4c938231"
+    },
+    {
+      "path": "README.md",
+      "bytes": 379,
+      "sha256": "b77d4373757739a18580f8d93f9900a4c4afd3fda9cfe34ca7e7897a27ee9c2f"
+    },
+    {
+      "path": "reports/FULL-AUDIT-INTERIM-RU.md",
+      "bytes": 2615,
+      "sha256": "0085e5a6531616e08d325e41ec7e1396cd678fdc068f2dc67635e14f455950b8"
+    },
+    {
+      "path": "reports/LEGACY-DEDUPLICATION-RU.md",
+      "bytes": 1407,
+      "sha256": "81e84de4e316d660187d4a7a0d2cd932965bc3607b832ce733cb0336e9820c2a"
+    },
+    {
+      "path": "runs/JF-RUN-20260821-BASELINE-F8E12EC/run.json",
+      "bytes": 14765,
+      "sha256": "ea324c753cddd36b6a6a84d88b4e9d7387aaea895af3ee13c2ed52111c054f02"
+    },
+    {
+      "path": "schemas/audit-index.schema.json",
+      "bytes": 2221,
+      "sha256": "f6b84d46a88d7278ae28f76eac011b3f0b9a46429fe68a2a4877e6b0ca96e503"
+    },
+    {
+      "path": "schemas/evidence.schema.json",
+      "bytes": 1881,
+      "sha256": "4048e655bf4f34ceea974732acc6a4d4ddbe535b9e36b7e21a7ec294659b96f6"
+    },
+    {
+      "path": "schemas/finding.schema.json",
+      "bytes": 2783,
+      "sha256": "a9cdd9ab4bd11633b6b1171eabbaeac79947c1df64dbf85999e7c186662c7a67"
+    },
+    {
+      "path": "schemas/run.schema.json",
+      "bytes": 2376,
+      "sha256": "c931160a09875ff22555e0d2ed03100bd37258e3a5ba1f88c84b446454b0ce31"
+    },
+    {
+      "path": "scope.yml",
+      "bytes": 1158,
+      "sha256": "7a40de7e70135568e2e96721e5e25f17b1df8126f4bf864a1c04498b27f0b061"
+    },
+    {
+      "path": "test-map.yml",
+      "bytes": 60405,
+      "sha256": "afe33d389b6f7880190274200d6163a7b385eb2d38b6a8a9b4098e2a75400c26"
+    }
+  ]
+}

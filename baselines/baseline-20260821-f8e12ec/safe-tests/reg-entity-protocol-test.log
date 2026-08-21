@@ -1,0 +1,40 @@
+[stderr] test_catalog_permission_cannot_change_product_price (__main__.EntityProtocolTests.test_catalog_permission_cannot_change_product_price) ... [stderr] ok
+[stderr] test_cross_warehouse_entity_is_rejected (__main__.EntityProtocolTests.test_cross_warehouse_entity_is_rejected) ... [stderr] ok
+[stderr] test_custom_role_can_only_write_granted_section (__main__.EntityProtocolTests.test_custom_role_can_only_write_granted_section) ... [stderr] ok
+[stderr] test_delete_payload_has_stable_digest (__main__.EntityProtocolTests.test_delete_payload_has_stable_digest) ... [stderr] ok
+[stderr] test_entity_change_canonicalizes_missing_record_identity (__main__.EntityProtocolTests.test_entity_change_canonicalizes_missing_record_identity) ... [stderr] ok
+[stderr] test_entity_change_requires_row_version (__main__.EntityProtocolTests.test_entity_change_requires_row_version) ... [stderr] ok
+[stderr] test_entity_paths_are_company_and_warehouse_scoped (__main__.EntityProtocolTests.test_entity_paths_are_company_and_warehouse_scoped) ... [stderr] ok
+test_granular_route_permissions_stay_independent (__main__.EntityProtocolTests.test_granular_route_permissions_stay_independent) ... [stderr] ok
+test_immutable_protection_still_rejects_real_identity_change (__main__.EntityProtocolTests.test_immutable_protection_still_rejects_real_identity_change) ... [stderr] ok
+test_independent_entities_are_validated_without_a_snapshot (__main__.EntityProtocolTests.test_independent_entities_are_validated_without_a_snapshot) ... [stderr] ok
+[stderr] test_inventory_conflict_includes_route_and_pickup_reservations (__main__.EntityProtocolTests.test_inventory_conflict_includes_route_and_pickup_reservations) ... [stderr] ok
+[stderr] test_inventory_expense_and_reservation_release_are_balanced_together (__main__.EntityProtocolTests.test_inventory_expense_and_reservation_release_are_balanced_together) ... [stderr] ok
+[stderr] test_legacy_coarse_permission_is_not_expanded_at_runtime (__main__.EntityProtocolTests.test_legacy_coarse_permission_is_not_expanded_at_runtime) ... ok
+[stderr] test_legacy_created_at_uses_stable_entity_row_timestamp (__main__.EntityProtocolTests.test_legacy_created_at_uses_stable_entity_row_timestamp) ... [stderr] ok
+[stderr] test_omitted_created_at_is_restored_before_update_validation (__main__.EntityProtocolTests.test_omitted_created_at_is_restored_before_update_validation) ... [stderr] ok
+[stderr] test_pickup_collected_intent_requires_reservation_release (__main__.EntityProtocolTests.test_pickup_collected_intent_requires_reservation_release) ... [stderr] ok
+[stderr] test_pricing_permission_cannot_change_product_passport (__main__.EntityProtocolTests.test_pricing_permission_cannot_change_product_passport) ... [stderr] ok
+[stderr] test_read_permission_does_not_grant_write (__main__.EntityProtocolTests.test_read_permission_does_not_grant_write) ... [stderr] ok
+[stderr] test_readable_types_change_with_custom_permissions (__main__.EntityProtocolTests.test_readable_types_change_with_custom_permissions) ... [stderr] ok
+[stderr] test_report_settings_permission_cannot_change_expenses (__main__.EntityProtocolTests.test_report_settings_permission_cannot_change_expenses) ... [stderr] ok
+[stderr] test_route_close_intent_rejects_missing_archive (__main__.EntityProtocolTests.test_route_close_intent_rejects_missing_archive) ... [stderr] ok
+[stderr] test_route_start_intent_cannot_change_order_price (__main__.EntityProtocolTests.test_route_start_intent_cannot_change_order_price) ... [stderr] ok
+[stderr] test_route_start_intent_requires_execution_and_orders_in_transit (__main__.EntityProtocolTests.test_route_start_intent_requires_execution_and_orders_in_transit) ... [stderr] ok
+[stderr] test_scalar_map_value_is_wrapped_without_data_loss (__main__.EntityProtocolTests.test_scalar_map_value_is_wrapped_without_data_loss) ... [stderr] ok
+[stderr] test_server_pickup_collected_rejects_missing_stock_expense (__main__.EntityProtocolTests.test_server_pickup_collected_rejects_missing_stock_expense) ... [stderr] ok
+[stderr] test_server_route_approval_records_matching_actor_and_version (__main__.EntityProtocolTests.test_server_route_approval_records_matching_actor_and_version) ... [stderr] ok
+[stderr] test_server_route_approval_rejects_actor_substitution (__main__.EntityProtocolTests.test_server_route_approval_rejects_actor_substitution) ... [stderr] ok
+[stderr] test_server_route_cancel_rejects_departed_route (__main__.EntityProtocolTests.test_server_route_cancel_rejects_departed_route) ... [stderr] ok
+[stderr] test_server_route_cancel_releases_orders_and_reservations (__main__.EntityProtocolTests.test_server_route_cancel_releases_orders_and_reservations) ... [stderr] ok
+[stderr] test_server_route_close_rejects_missing_stock_expense (__main__.EntityProtocolTests.test_server_route_close_rejects_missing_stock_expense) ... [stderr] ok
+[stderr] test_server_route_picking_accepts_complete_transition (__main__.EntityProtocolTests.test_server_route_picking_accepts_complete_transition) ... [stderr] ok
+[stderr] test_server_route_picking_rejects_stale_manual_approval (__main__.EntityProtocolTests.test_server_route_picking_rejects_stale_manual_approval) ... [stderr] ok
+[stderr] test_server_route_start_accepts_complete_state_machine_transition (__main__.EntityProtocolTests.test_server_route_start_accepts_complete_state_machine_transition) ... [stderr] ok
+[stderr] test_server_route_start_rejects_missing_route_reservation (__main__.EntityProtocolTests.test_server_route_start_rejects_missing_route_reservation) ... [stderr] ok
+test_stale_client_created_at_is_replaced_by_authoritative_value (__main__.EntityProtocolTests.test_stale_client_created_at_is_replaced_by_authoritative_value) ... [stderr] ok
+[stderr] 
+[stderr] ----------------------------------------------------------------------
+[stderr] Ran 35 tests in 0.087s
+[stderr] 
+[stderr] OK

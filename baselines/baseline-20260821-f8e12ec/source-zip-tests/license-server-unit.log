@@ -1,0 +1,5 @@
+[stderr] Invalid permissions_json rejected {
+  userId: '',
+  error: `Unexpected token 'o', "not-json" is not valid JSON`
+}
+[stdout] {"ok":true,"passwordHash":"PBKDF2-SHA256","jwt":"HS256","generatedUniqueKeys":100,"warehousePermissions":true,"companyDataService":true,"companyTelegramBroker":true,"employeeWarehouseBrokerAccess":true,"authContextContract":2}
