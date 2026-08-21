@@ -30,4 +30,4 @@
 
 ## Не завершено
 
-GitHub-репозиторий и draft PR #7 созданы, но оба workflow job завершились до записи первого шага; причина ещё не подтверждена. Branch protection/tag, исправление контракта source-only ZIP, installer executable acceptance, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.
+GitHub-репозиторий и draft PR #7 созданы, но оба workflow job завершились до записи первого шага; точное UI-сообщение GitHub ещё не получено (Issue #10). Branch protection для private-репозитория недоступна на текущем тарифе: API возвращает HTTP 403 с требованием GitHub Pro либо public visibility (Issue #9). Tag, исправление контракта source-only ZIP, installer executable acceptance, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.

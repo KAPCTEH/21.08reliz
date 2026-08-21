@@ -3,13 +3,13 @@
   "branch": "audit-ledger",
   "orphan_history_required": true,
   "baseline_id": "baseline-20260821-f8e12ec",
-  "generated_at_utc": "2026-08-21T18:59:12.151Z",
+  "generated_at_utc": "2026-08-21T19:07:00.784Z",
   "raw_sensitive_evidence_published": false,
   "exclusions": [
     "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
   ],
   "file_count": 153,
-  "total_bytes": 5219918,
+  "total_bytes": 5220422,
   "files": [
     {
       "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
@@ -713,8 +713,8 @@
     },
     {
       "path": "index.json",
-      "bytes": 1342,
-      "sha256": "dc51eced785bf4bdcc6c80cf1a98aaaae830a848fcb44faa00b67035d95d248b"
+      "bytes": 1477,
+      "sha256": "00ab6eadc9b1732c014fbe939611f6c872a4d8e3816998fb7f9787c55149beb1"
     },
     {
       "path": "module-map.yml",
@@ -724,7 +724,7 @@
     {
       "path": "publish-secret-scan.json",
       "bytes": 234,
-      "sha256": "a3fe9cac0e87468a660eac6ea4aac6917897f116295d80dfb2b30879ce181637"
+      "sha256": "87d61ed64175143fe2a9a30dbf12c9f2e29923bda76ff655bbf0454685336468"
     },
     {
       "path": "README.md",
@@ -733,8 +733,8 @@
     },
     {
       "path": "reports/FULL-AUDIT-INTERIM-RU.md",
-      "bytes": 3463,
-      "sha256": "669c29a309880f853fa40d7416ece595db872aed913101070c1ffa30373027c3"
+      "bytes": 3697,
+      "sha256": "5f6d1bb8c96f6f467fec90e48e075d4223263ad5fd01781f0f7f8b54ac44f2be"
     },
     {
       "path": "reports/LEGACY-DEDUPLICATION-RU.md",
@@ -743,8 +743,8 @@
     },
     {
       "path": "runs/JF-RUN-20260821-BASELINE-F8E12EC/run.json",
-      "bytes": 14928,
-      "sha256": "95699926d99e1bd92e1a7aed1741a62d799d0a535319a973a13e70d25eb298f6"
+      "bytes": 15063,
+      "sha256": "4d31bd7e99c5840e65564607ee895123c318aee73573e022fc1bcd23810fbe18"
     },
     {
       "path": "schemas/audit-index.schema.json",
