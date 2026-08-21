@@ -1,0 +1,280 @@
+name: Windows native 7.8.3
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, "agent/**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-accept:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    env:
+      ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
+      ELECTRON_BUILDER_CACHE: ${{ github.workspace }}\.cache\electron-builder
+
+    steps:
+      - name: Checkout exact source revision
+        uses: actions/checkout@v4
+
+      - name: Configure Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            source/application/package-lock.json
+            source/desktop-runtime/package-lock.json
+            source/installer/package-lock.json
+            tests/package-lock.json
+
+      - name: Configure Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Install pinned Node dependencies
+        shell: pwsh
+        run: |
+          foreach ($directory in @('source/application','source/desktop-runtime','source/installer','tests')) {
+            Push-Location $directory
+            npm ci
+            if ($LASTEXITCODE -ne 0) { throw "npm ci failed in $directory" }
+            Pop-Location
+          }
+
+      - name: Download and verify NSIS 3.11
+        shell: pwsh
+        run: |
+          $url = 'https://github.com/tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip'
+          $expected = 'c7d27f780ddb6cffb4730138cd1591e841f4b7edb155856901cdf5f214394fa1'
+          $zip = Join-Path $env:RUNNER_TEMP 'nsis-3.11.zip'
+          $directory = Join-Path $env:RUNNER_TEMP 'nsis-3.11'
+          Invoke-WebRequest -Uri $url -OutFile $zip
+          $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw "NSIS archive hash mismatch: $actual" }
+          Expand-Archive -LiteralPath $zip -DestinationPath $directory -Force
+          $makensis = (Get-ChildItem -LiteralPath $directory -Filter makensis.exe -Recurse -File | Select-Object -First 1).FullName
+          if (-not $makensis) { throw 'makensis.exe is missing from the verified NSIS archive.' }
+          "NSIS_MAKENSIS=$makensis" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Run source, security and release contracts
+        shell: pwsh
+        run: |
+          node tests/security-audit.mjs source tools .github
+          if ($LASTEXITCODE -ne 0) { throw 'Security audit failed.' }
+          node tests/source-hygiene-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Source hygiene regression failed.' }
+          node tests/static-audit-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Static audit regression failed.' }
+          node tests/main-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Main unit tests failed.' }
+          node tests/current-cycle-regression-v783.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Current-cycle regression failed.' }
+          $env:JF_TEST_EDITION = 'full'
+          node tests/runtime-smoke.mjs source/application/web order-print
+          if ($LASTEXITCODE -ne 0) { throw 'Order print regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web order-save-integrity
+          if ($LASTEXITCODE -ne 0) { throw 'Order save integrity regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web atomic-mutation
+          if ($LASTEXITCODE -ne 0) { throw 'Atomic VPS mutation regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web deep-business
+          if ($LASTEXITCODE -ne 0) { throw 'Deep business regression failed.' }
+          node tests/experience-regression-v783.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Experience regression failed.' }
+          node tests/visual-qa-contract-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Visual QA contracts failed.' }
+          node tests/release-regression-v783.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Release regression failed.' }
+          python tests/installer-source-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Installer source tests failed.' }
+
+      - name: Build protected Electron payload
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path .release -Force | Out-Null
+          python source/desktop-runtime/build_payload.py `
+            --app-dir source/application `
+            --electron-dist source/desktop-runtime/node_modules/electron/dist `
+            --output-dir .release/payload
+          if ($LASTEXITCODE -ne 0) { throw 'Payload build failed.' }
+
+      - name: Build native Recovery and premium Setup
+        shell: pwsh
+        run: |
+          python source/installer/build_windows.py `
+            --payload-dir .release/payload `
+            --logo source/application/assets/JustFun-official.png `
+            --output-dir .release/installer `
+            --node-modules source/installer/node_modules `
+            --makensis $env:NSIS_MAKENSIS
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows installer build failed.' }
+
+      - name: Render and validate every premium installer screen
+        shell: pwsh
+        run: |
+          $preview = Join-Path $PWD '.release\premium-previews'
+          $setup = Join-Path $PWD '.release\installer\Orders-Logistics-Setup-7.8.3-Premium.exe'
+          New-Item -ItemType Directory -Path $preview -Force | Out-Null
+          $process = Start-Process -FilePath $setup -ArgumentList "--render-previews=$preview" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Premium preview renderer returned $($process.ExitCode)." }
+          foreach ($name in @('01-welcome.png','02-options.png','03-progress.png','04-finish.png','05-error.png')) {
+            $path = Join-Path $preview $name
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -lt 10000) {
+              throw "Premium installer preview is missing or empty: $name"
+            }
+          }
+          python source/installer/build_assets.py --logo source/application/assets/JustFun-official.png --output-dir .release/assets
+          if ($LASTEXITCODE -ne 0) { throw 'Installer asset build failed.' }
+
+      - name: Run hidden application visual acceptance
+        shell: pwsh
+        run: |
+          $qa = Join-Path $PWD '.release\visual-qa'
+          New-Item -ItemType Directory -Path $qa -Force | Out-Null
+          $app = Join-Path $PWD '.release\payload\OrdersLogistics.exe'
+          $process = Start-Process -FilePath $app -ArgumentList "--visual-qa-output=$qa" -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Visual QA returned $($process.ExitCode)." }
+          foreach ($name in @('07-route-telegram-actions.png','08-driver-telegram.png','VISUAL-QA.json')) {
+            if (-not (Test-Path -LiteralPath (Join-Path $qa $name) -PathType Leaf)) {
+              throw "Visual QA artifact is missing: $name"
+            }
+          }
+          $result = Get-Content -LiteralPath (Join-Path $qa 'VISUAL-QA.json') -Raw | ConvertFrom-Json
+          if (@($result.errors).Count -ne 0) { throw "Visual QA errors: $($result.errors -join '; ')" }
+
+      - name: Exercise interrupted update recovery
+        shell: pwsh
+        run: |
+          & tests/installer-crash-recovery-test.ps1 -Makensis $env:NSIS_MAKENSIS -AssetsDir (Join-Path $PWD '.release\assets')
+          if ($LASTEXITCODE -ne 0) { throw 'Installer crash recovery test failed.' }
+
+      - name: Run isolated full installer acceptance
+        shell: pwsh
+        run: |
+          $setup = Join-Path $PWD '.release\installer\Orders-Logistics-Setup-7.8.3-Premium.exe'
+          & tests/installer-full-acceptance-test.ps1 -Setup $setup -EvidenceDirectory (Join-Path $PWD '.release\full-acceptance')
+          if ($LASTEXITCODE -ne 0) { throw 'Full installer acceptance failed.' }
+
+      - name: Verify shortcut, icon and destructive-operation refusals
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.Drawing
+          function Invoke-Native([string]$File, [string[]]$Arguments) {
+            $start = [Diagnostics.ProcessStartInfo]::new()
+            $start.FileName = $File
+            $start.UseShellExecute = $false
+            $start.CreateNoWindow = $true
+            foreach ($argument in $Arguments) { $start.ArgumentList.Add($argument) }
+            $process = [Diagnostics.Process]::Start($start)
+            if (-not $process) { throw "Could not start $File" }
+            $process.WaitForExit()
+            return $process.ExitCode
+          }
+          function Get-IconDigest([System.Drawing.Icon]$Icon) {
+            $stream = [IO.MemoryStream]::new()
+            try {
+              $bitmap = $Icon.ToBitmap()
+              try { $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png) } finally { $bitmap.Dispose() }
+              $sha = [Security.Cryptography.SHA256]::Create()
+              try { return ([BitConverter]::ToString($sha.ComputeHash($stream.ToArray())) -replace '-', '').ToLowerInvariant() }
+              finally { $sha.Dispose() }
+            } finally { $stream.Dispose() }
+          }
+
+          $root = Join-Path $env:RUNNER_TEMP ('jf-native-' + [Guid]::NewGuid().ToString('N'))
+          $install = Join-Path $root 'Program'
+          $data = Join-Path $root 'Data'
+          $evidence = Join-Path $PWD '.release\native-safety'
+          $setup = Join-Path $PWD '.release\installer\Orders-Logistics-Setup-7.8.3-Premium.exe'
+          $desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
+          $shortcutPath = Join-Path $desktop 'JustFun Логистика.lnk'
+          New-Item -ItemType Directory -Path $root, $evidence -Force | Out-Null
+          $app = $null
+          try {
+            $installArgs = @('/S', "/DATADIR=$data", '/MODE=demo', '/NOSTART', "/D=$install")
+            $installExit = Invoke-Native $setup $installArgs
+            if ($installExit -ne 0) { throw "Shortcut acceptance install returned $installExit." }
+
+            $exe = Join-Path $install 'OrdersLogistics.exe'
+            $uninstaller = Join-Path $install 'Orders-Logistics-Uninstall.exe'
+            if (-not (Test-Path -LiteralPath $shortcutPath -PathType Leaf)) { throw 'Desktop shortcut is missing.' }
+            $shell = New-Object -ComObject Shell.Application
+            $folder = $shell.Namespace($desktop)
+            $item = $folder.ParseName('JustFun Логистика.lnk')
+            $link = $item.GetLink
+            if ([IO.Path]::GetFullPath($link.Path) -ne [IO.Path]::GetFullPath($exe)) { throw 'Desktop shortcut target is invalid' }
+            $iconSource = ($link.GetIconLocation() -split ',')[0].Trim('"')
+            if ([IO.Path]::GetFullPath($iconSource) -ne [IO.Path]::GetFullPath($exe)) { throw 'Desktop shortcut icon source is invalid' }
+
+            $installedIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
+            $officialIcon = [System.Drawing.Icon]::new((Join-Path $PWD '.release\assets\JustFun.ico'), 32, 32)
+            try {
+              if ((Get-IconDigest $installedIcon) -ne (Get-IconDigest $officialIcon)) {
+                throw 'Installed executable icon differs from the official icon'
+              }
+            } finally {
+              $installedIcon.Dispose()
+              $officialIcon.Dispose()
+            }
+
+            $app = Start-Process -FilePath $exe -PassThru
+            $deadline = (Get-Date).AddSeconds(45)
+            do {
+              Start-Sleep -Milliseconds 250
+              $app.Refresh()
+            } while (-not $app.HasExited -and $app.MainWindowHandle -eq 0 -and (Get-Date) -lt $deadline)
+            if ($app.HasExited -or $app.MainWindowHandle -eq 0) { throw 'Installed application did not open a main window.' }
+
+            $lockedLog = Join-Path $evidence 'uninstall-locked.log'
+            $lockedExit = Invoke-Native $uninstaller @('/S', "/LOG=$lockedLog")
+            if ($lockedExit -ne 30) { throw "Running-application uninstall returned $lockedExit instead of 30." }
+            if (-not (Test-Path -LiteralPath $exe -PathType Leaf) -or -not (Test-Path -LiteralPath $data -PathType Container)) {
+              throw 'Running-application uninstall changed protected state.'
+            }
+            Write-Output 'Running-application uninstall refusal and state preservation: PASS'
+
+            Stop-Process -Id $app.Id -Force
+            $app.WaitForExit()
+            $app = $null
+            'tampered-marker' | Set-Content -LiteralPath (Join-Path $data '.justfun\product-root.txt') -Encoding ascii
+            $invalidLog = Join-Path $evidence 'uninstall-invalid-marker.log'
+            $invalidExit = Invoke-Native $uninstaller @('/S', '/PURGEDATA', "/LOG=$invalidLog")
+            if ($invalidExit -ne 0) { throw "Invalid-marker uninstall returned $invalidExit." }
+            $deadline = (Get-Date).AddSeconds(120)
+            while ((Test-Path -LiteralPath $exe) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 500 }
+            if (Test-Path -LiteralPath $exe) { throw 'Program files remain after invalid-marker uninstall.' }
+            if (-not (Test-Path -LiteralPath $data -PathType Container)) { throw 'Invalid data marker allowed user-data deletion.' }
+            if (-not (Test-Path -LiteralPath $invalidLog -PathType Leaf) -or
+                -not (Get-Content -LiteralPath $invalidLog -Raw).Contains('DATA preserved: marker validation failed')) {
+              throw 'Invalid-marker refusal was not recorded.'
+            }
+            Write-Output 'Invalid data-marker purge refusal: PASS'
+          } finally {
+            if ($app -and -not $app.HasExited) { Stop-Process -Id $app.Id -Force -ErrorAction SilentlyContinue }
+            if (Test-Path -LiteralPath $shortcutPath) { Remove-Item -LiteralPath $shortcutPath -Force }
+            if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue }
+          }
+
+      - name: Upload verified Windows evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: justfun-7.8.3-windows-${{ github.sha }}
+          path: |
+            .release/installer/
+            .release/premium-previews/
+            .release/visual-qa/
+            .release/full-acceptance/
+            .release/native-safety/
+          if-no-files-found: error
+          retention-days: 14
+

@@ -1,0 +1,29 @@
+{
+  "id": "JF-EVID-0007",
+  "type": "source-archive-test-run",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "Release tests executed from isolated source-only ZIP extraction",
+  "input_digests": {
+    "source_zip": "sha256:fcbb464b86e029d688f303d535e1a387d65342f084261d429e0d8f43cdd866f6",
+    "installer_log": "sha256:4019c42f8254ee797bafcc4d4993fbffcb7a087bf00915e1ec1d3890b05d5b80",
+    "release_log": "sha256:c583457eb445d8a9be04fd8e678f01885e2903bd0dc0bc9de99d4917b4793f55"
+  },
+  "tool": "run-safe-baseline-tests.mjs",
+  "tool_version": "1",
+  "command": "node run-safe-baseline-tests.mjs --workspace verification-source-zip",
+  "cwd": "external audit work root",
+  "timestamp_utc": "2026-08-21T18:20:54.53Z",
+  "exit_code": 1,
+  "normalized_result": "{\"installer_source_test\":{\"passed\":14,\"errors\":2,\"cause\":\"missing .github/workflows/windows-native-783.yml\"},\"release_regression_v783\":{\"status\":\"FAIL\",\"cause\":\"ENOENT .github/workflows/windows-native-783.yml\"},\"classification\":\"archive-test-contract-gap\"}",
+  "artifact_sha256": "sha256:20e7648f96b1a4ba0c40c0abf55768cf0561a86afce9b8e42991c7f255d37f13",
+  "location": "baselines/baseline-20260821-f8e12ec/source-zip-tests/run.json",
+  "retention": "baseline",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0006"
+  ],
+  "tests": [
+    "JF-TEST-INSTALLER-SOURCE-TEST",
+    "JF-TEST-RELEASE-REGRESSION-V783"
+  ]
+}

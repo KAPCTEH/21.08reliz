@@ -1,0 +1,48 @@
+name: Запрос аудита
+description: Запустить baseline, incremental или verify-аудит конкретного commit.
+title: "[AUDIT] "
+body:
+  - type: dropdown
+    id: audit_type
+    attributes:
+      label: Тип аудита
+      options:
+        - baseline
+        - incremental
+        - verify
+        - rebaseline
+    validations:
+      required: true
+  - type: input
+    id: target_commit
+    attributes:
+      label: Target commit
+      description: Полный 40-символьный SHA.
+      placeholder: 0123456789abcdef0123456789abcdef01234567
+    validations:
+      required: true
+  - type: dropdown
+    id: budget_mode
+    attributes:
+      label: Режим
+      options:
+        - STANDARD
+        - FULL
+        - ECONOMY
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope и ограничения
+      description: Модули, live/deployment разрешения и обязательные доказательства.
+    validations:
+      required: true
+  - type: checkboxes
+    id: truth
+    attributes:
+      label: Правило достоверности
+      options:
+        - label: Пропущенные проверки будут отмечены BLOCKED или NOT_VERIFIED, а не PASS.
+          required: true
+

@@ -303,7 +303,8 @@
       "JF-AUDIT-0002",
       "JF-AUDIT-0003",
       "JF-AUDIT-0004",
-      "JF-AUDIT-0005"
+      "JF-AUDIT-0005",
+      "JF-AUDIT-0006"
     ],
     "closed": [],
     "unchanged": [],
@@ -318,8 +319,9 @@
   "limitations": [
     "Baseline is not accepted and active_baseline_id remains null",
     "Clean tree is derived from a dirty legacy worktree and is NON_RELEASE_SNAPSHOT",
-    "GitHub repository creation is blocked by an unauthenticated browser session",
-    "UI full button matrix retry, installer executable acceptance, two-account live verification, VPS live diagnostics, deploy, and release proof are not complete",
+    "GitHub governance PR #7 is open; both workflow jobs failed before any recorded step and the root cause is not yet confirmed",
+    "Installer executable acceptance, two-account live verification, VPS live diagnostics, deploy, and release proof are not complete",
+    "Source-only ZIP contract does not include the workflow file required by two bundled release tests (JF-AUDIT-0006)",
     "Raw Cloudflare inventory contains operational identifiers and must remain local; only sanitized evidence is publishable"
   ]
 }

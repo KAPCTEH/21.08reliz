@@ -1,0 +1,24 @@
+{
+  "id": "JF-EVID-0008",
+  "type": "runtime-ui-retry",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "Focused retry of 16 runtime button scenarios that previously timed out under contention",
+  "input_digests": {
+    "initial_retry": "sha256:d541a5f2956ded9610fb4162d68656f2d5e0e37a46de3f8e82a7431e81552128"
+  },
+  "tool": "runtime-button-matrix.py",
+  "tool_version": "1",
+  "command": "python tests/runtime-button-matrix.py source/application/web --edition full --workers 2 --timeout 300 --indices 18,19,41,42,44-55",
+  "cwd": "isolated verification workspace",
+  "timestamp_utc": "2026-08-21T18:51:03Z",
+  "exit_code": 0,
+  "normalized_result": "{\"candidates\":16,\"passed\":16,\"skipped\":0,\"failed\":0,\"timeouts\":0,\"classification\":\"initial timeouts caused by concurrent audit load\"}",
+  "artifact_sha256": "sha256:fbd29743cdbaf769f8d7c5eef191ee8dc7e15fdce34a58904b00de171c7ad027",
+  "location": "baselines/baseline-20260821-f8e12ec/runtime-button-matrix-final-retry.json",
+  "retention": "baseline",
+  "status": "TEST_CONFIRMED",
+  "findings": [],
+  "tests": [
+    "JF-TEST-RUNTIME-BUTTON-MATRIX"
+  ]
+}
