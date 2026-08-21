@@ -320,8 +320,7 @@
   "limitations": [
     "Baseline is not accepted and active_baseline_id remains null",
     "Clean tree is derived from a dirty legacy worktree and is NON_RELEASE_SNAPSHOT",
-    "GitHub runner startup blocker is resolved after changing repository visibility to public; incremental workflow passed, Windows workflow exposed JF-AUDIT-0007 (Issue #10 closed)",
-    "Repository is public and branch protection is available but not yet configured (Issue #9)",
+    "Repository is public and main is protected; incremental required check passed while Windows required check fails JF-AUDIT-0007 and blocks merge by policy (Issues #9 and #10 closed)",
     "Installer executable acceptance, two-account live verification, VPS live diagnostics, deploy, and release proof are not complete",
     "Source-only ZIP contract does not include the workflow file required by two bundled release tests (JF-AUDIT-0006)",
     "Raw Cloudflare inventory contains operational identifiers and must remain local; only sanitized evidence is publishable"

@@ -1,0 +1,22 @@
+{
+  "id": "JF-EVID-0010",
+  "type": "github-branch-protection",
+  "commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "subject": "Protected public main branch and required CI checks",
+  "input_digests": {
+    "main_tip": "git:f8e12ecee3e9371dea23c76913302db24050160d"
+  },
+  "tool": "GitHub REST API",
+  "tool_version": "2022-11-28",
+  "command": "GET /repos/KAPCTEH/21.08reliz/branches/main/protection",
+  "cwd": "GitHub repository settings",
+  "timestamp_utc": "2026-08-21T19:25:19.8339243Z",
+  "exit_code": 0,
+  "normalized_result": "{\"visibility\":\"public\",\"required_pull_request\":true,\"strict_checks\":[\"build-and-accept\",\"impact-and-tests\"],\"enforce_admins\":true,\"required_approvals\":0,\"linear_history\":true,\"conversation_resolution\":true,\"force_pushes\":false,\"deletions\":false}",
+  "artifact_sha256": null,
+  "location": "https://github.com/KAPCTEH/21.08reliz/settings/branches",
+  "retention": "permanent metadata",
+  "status": "LIVE_CONFIRMED",
+  "findings": [],
+  "tests": []
+}

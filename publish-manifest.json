@@ -3,13 +3,13 @@
   "branch": "audit-ledger",
   "orphan_history_required": true,
   "baseline_id": "baseline-20260821-f8e12ec",
-  "generated_at_utc": "2026-08-21T19:19:40.800Z",
+  "generated_at_utc": "2026-08-21T19:26:05.219Z",
   "raw_sensitive_evidence_published": false,
   "exclusions": [
     "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
   ],
-  "file_count": 155,
-  "total_bytes": 5224656,
+  "file_count": 156,
+  "total_bytes": 5225682,
   "files": [
     {
       "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
@@ -647,6 +647,11 @@
       "sha256": "d54bc2458d45c201d39f5f6b92eee21d1b4771ee15946eaf59aac96f4bf1f482"
     },
     {
+      "path": "evidence/JF-EVID-0010.json",
+      "bytes": 1014,
+      "sha256": "87efab746a72fd9146506803a53b693ce49d410f903f8b4cec1749a9780084cc"
+    },
+    {
       "path": "findings/JF-AUDIT-0001.json",
       "bytes": 2413,
       "sha256": "0ae3246a8b06682894b6af36fc81e006cbf959aa816d43ed08398861f07eba75"
@@ -723,8 +728,8 @@
     },
     {
       "path": "index.json",
-      "bytes": 1492,
-      "sha256": "10833566f6d9f3af9f24b7e13f75d89b9b75711439f6b93ff9e8c10a085cc6b7"
+      "bytes": 1399,
+      "sha256": "5b5165d9fc329da69dd47335afd3a3ca122d8dfe7efb5560b9499d1530268dbe"
     },
     {
       "path": "module-map.yml",
@@ -734,7 +739,7 @@
     {
       "path": "publish-secret-scan.json",
       "bytes": 234,
-      "sha256": "94bff802efab96f7c3db5bbfec634337d1b1425f653c8b15c12e5de648299231"
+      "sha256": "2b5f880c5fc918ecbf461b8b882771474a8b92d487604b994c59e571f469b917"
     },
     {
       "path": "README.md",
@@ -743,8 +748,8 @@
     },
     {
       "path": "reports/FULL-AUDIT-INTERIM-RU.md",
-      "bytes": 3926,
-      "sha256": "baf50de17b13c1f0ff47fa140bdcbee33e2019bafea91ecd91ffe6b3f73913f9"
+      "bytes": 4124,
+      "sha256": "df2fbb8aa37a7c0430ec09cfa3b7e6f864b7e5931ef968657f3b36bebbac38be"
     },
     {
       "path": "reports/LEGACY-DEDUPLICATION-RU.md",
@@ -753,8 +758,8 @@
     },
     {
       "path": "runs/JF-RUN-20260821-BASELINE-F8E12EC/run.json",
-      "bytes": 15101,
-      "sha256": "56130dfc69b64ba68a08be3946daedbcb351ec2479caa741ad20d5b44a58fa09"
+      "bytes": 15008,
+      "sha256": "cb604b95f204435b588af7e39916113eb54403c24ae0f37442173858bb71e26a"
     },
     {
       "path": "schemas/audit-index.schema.json",

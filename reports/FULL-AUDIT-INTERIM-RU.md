@@ -19,6 +19,7 @@
 - Повтор 16 UI-сценариев, ранее завершившихся тайм-аутом при высокой параллельной нагрузке: 16/16 PASS, 0 timeout.
 - Cloudflare read-only: оба deployed Worker не совпадают с clean source; Telegram broker не содержит трёх локальных защит.
 - После перевода GitHub-репозитория в public incremental workflow прошёл полностью; Windows workflow дошёл до release contracts и воспроизвёл JF-AUDIT-0007 до начала installer build.
+- Ветка `main` защищена: обязательный PR, strict checks `impact-and-tests` и `build-and-accept`, правила применяются к владельцу, force-push и удаление запрещены.
 
 ## Открытые findings
 
@@ -32,4 +33,4 @@
 
 ## Не завершено
 
-Репозиторий публичный; GitHub runner startup blocker устранён и Issue #10 закрыт. Incremental workflow прошёл, Windows workflow остановлен подтверждённым JF-AUDIT-0007. Branch protection доступна, но ещё не настроена (Issue #9). Tag, исправление order-save/source-only ZIP контрактов, installer executable acceptance, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.
+Репозиторий публичный, `main` защищена, Issues #9/#10 закрыты. Incremental workflow прошёл, Windows required check остановлен подтверждённым JF-AUDIT-0007 и теперь формально блокирует merge. Tag, исправление order-save/source-only ZIP контрактов, installer executable acceptance, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.
