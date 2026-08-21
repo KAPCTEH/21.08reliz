@@ -10,8 +10,10 @@ INSTALLER = ROOT / "source" / "installer"
 PREMIUM_UI = INSTALLER / "premium-ui"
 APP_MAIN = ROOT / "source" / "application" / "main.js"
 PAYLOAD_BUILDER = ROOT / "source" / "desktop-runtime" / "build_payload.py"
+PAYLOAD_HARDENER = ROOT / "source" / "desktop-runtime" / "harden_payload.mjs"
 WINDOWS_WORKFLOW = ROOT / ".github" / "workflows" / "windows-native-783.yml"
 CRASH_RECOVERY_TEST = ROOT / "tests" / "installer-crash-recovery-test.ps1"
+PE_ICON_TEST = ROOT / "tests" / "verify-pe-icon.mjs"
 
 
 class NativeInstallerSourceTests(unittest.TestCase):
@@ -232,9 +234,12 @@ class NativeInstallerSourceTests(unittest.TestCase):
 
     def test_shortcut_icon_location_uses_required_com_output_parameter(self):
         workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        verifier = PE_ICON_TEST.read_text(encoding="utf-8")
         self.assertIn("$iconIndex = $link.GetIconLocation([ref]$iconSource)", workflow)
         self.assertIn("if ($iconIndex -ne 0)", workflow)
         self.assertNotIn("$link.GetIconLocation()", workflow)
+        self.assertIn("node tests/verify-pe-icon.mjs $exe", workflow)
+        self.assertIn("Buffer.from(entry.bin).equals", verifier)
 
     def test_program_and_data_are_separate_and_data_is_preserved_by_default(self):
         source = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")
@@ -265,10 +270,16 @@ class NativeInstallerSourceTests(unittest.TestCase):
 
     def test_official_logo_hash_is_pinned(self):
         source = (INSTALLER / "build_assets.py").read_text(encoding="utf-8")
+        hardener = PAYLOAD_HARDENER.read_text(encoding="utf-8")
         expected = "4faffc5cd41e8e26f44df14c879f340d5451ae058a7b5e90ca485ea442258813"
         transparent_expected = "464d69baa9d275324532b8a55527d72452021cace7da04d88ec7d213b83a0359"
+        icon_expected = "a5c189b91d71d7a4bac6297f2b04218104c41f6464d2d347d34014ea2a9fd140"
         self.assertIn(expected, source)
         self.assertIn(transparent_expected, source)
+        self.assertIn(icon_expected, source)
+        self.assertIn(icon_expected.upper(), hardener)
+        icon = ROOT / "source" / "application" / "assets" / "JustFun.ico"
+        self.assertEqual(hashlib.sha256(icon.read_bytes()).hexdigest(), icon_expected)
         logo = ROOT / "source" / "application" / "assets" / "JustFun-official.png"
         transparent_logo = ROOT / "source" / "application" / "assets" / "JustFun-official-transparent.png"
         self.assertEqual(hashlib.sha256(logo.read_bytes()).hexdigest(), expected)
@@ -331,7 +342,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
         self.assertIn("08-driver-telegram.png", source)
         self.assertIn("$shortcutPath = Join-Path $desktop 'JustFun Логистика.lnk'", source)
         self.assertIn("New-Object -ComObject Shell.Application", source)
-        self.assertIn("[System.Drawing.Icon]::ExtractAssociatedIcon", source)
+        self.assertIn("node tests/verify-pe-icon.mjs", source)
         self.assertIn("Installed executable icon differs from the official icon", source)
         self.assertIn("Desktop shortcut target is invalid", source)
         self.assertIn("Desktop shortcut icon source is invalid", source)

@@ -172,7 +172,6 @@ jobs:
       - name: Verify shortcut, icon and destructive-operation refusals
         shell: pwsh
         run: |
-          Add-Type -AssemblyName System.Drawing
           function Invoke-Native([string]$File, [string[]]$Arguments) {
             $start = [Diagnostics.ProcessStartInfo]::new()
             $start.FileName = $File
@@ -184,17 +183,6 @@ jobs:
             $process.WaitForExit()
             return $process.ExitCode
           }
-          function Get-IconDigest([System.Drawing.Icon]$Icon) {
-            $stream = [IO.MemoryStream]::new()
-            try {
-              $bitmap = $Icon.ToBitmap()
-              try { $bitmap.Save($stream, [Drawing.Imaging.ImageFormat]::Png) } finally { $bitmap.Dispose() }
-              $sha = [Security.Cryptography.SHA256]::Create()
-              try { return ([BitConverter]::ToString($sha.ComputeHash($stream.ToArray())) -replace '-', '').ToLowerInvariant() }
-              finally { $sha.Dispose() }
-            } finally { $stream.Dispose() }
-          }
-
           $root = Join-Path $env:RUNNER_TEMP ('jf-native-' + [Guid]::NewGuid().ToString('N'))
           $install = Join-Path $root 'Program'
           $data = Join-Path $root 'Data'
@@ -221,17 +209,8 @@ jobs:
             $iconIndex = $link.GetIconLocation([ref]$iconSource)
             if ([IO.Path]::GetFullPath($iconSource) -ne [IO.Path]::GetFullPath($exe)) { throw 'Desktop shortcut icon source is invalid' }
             if ($iconIndex -ne 0) { throw "Desktop shortcut icon index is invalid: $iconIndex" }
-
-            $installedIcon = [System.Drawing.Icon]::ExtractAssociatedIcon($exe)
-            $officialIcon = [System.Drawing.Icon]::new((Join-Path $PWD '.release\assets\JustFun.ico'), 32, 32)
-            try {
-              if ((Get-IconDigest $installedIcon) -ne (Get-IconDigest $officialIcon)) {
-                throw 'Installed executable icon differs from the official icon'
-              }
-            } finally {
-              $installedIcon.Dispose()
-              $officialIcon.Dispose()
-            }
+            node tests/verify-pe-icon.mjs $exe (Join-Path $PWD '.release\assets\JustFun.ico')
+            if ($LASTEXITCODE -ne 0) { throw 'Installed executable icon differs from the official icon' }
 
             $app = Start-Process -FilePath $exe -PassThru
             $deadline = (Get-Date).AddSeconds(45)

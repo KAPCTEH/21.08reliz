@@ -13,6 +13,7 @@ from PIL import Image, ImageDraw
 
 OFFICIAL_LOGO_SHA256 = "4faffc5cd41e8e26f44df14c879f340d5451ae058a7b5e90ca485ea442258813"
 TRANSPARENT_LOGO_SHA256 = "464d69baa9d275324532b8a55527d72452021cace7da04d88ec7d213b83a0359"
+APPLICATION_ICON_SHA256 = "a5c189b91d71d7a4bac6297f2b04218104c41f6464d2d347d34014ea2a9fd140"
 BACKGROUND = (6, 24, 20)
 GOLD = (216, 173, 80)
 
@@ -82,6 +83,15 @@ def main() -> int:
             "The supplied transparent logo is not the approved JustFun logo. "
             f"Expected {TRANSPARENT_LOGO_SHA256}, actual {transparent_actual}."
         )
+    application_icon_path = logo_path.with_name("JustFun.ico")
+    if not application_icon_path.is_file():
+        raise RuntimeError(f"The approved application icon is missing: {application_icon_path}")
+    application_icon_actual = sha256(application_icon_path)
+    if application_icon_actual != APPLICATION_ICON_SHA256:
+        raise RuntimeError(
+            "The application and installer icons are not synchronized. "
+            f"Expected {APPLICATION_ICON_SHA256}, actual {application_icon_actual}."
+        )
 
     output.mkdir(parents=True, exist_ok=True)
     source = Image.open(logo_path).convert("RGB")
@@ -91,11 +101,18 @@ def main() -> int:
 
     icon = circular_logo(source)
     icon.save(output / "JustFun-mark.png", format="PNG", optimize=True)
+    generated_icon_path = output / "JustFun.ico"
     icon.save(
-        output / "JustFun.ico",
+        generated_icon_path,
         format="ICO",
         sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
     )
+    generated_icon_actual = sha256(generated_icon_path)
+    if generated_icon_actual != APPLICATION_ICON_SHA256:
+        raise RuntimeError(
+            "The generated installer icon differs from the approved application icon. "
+            f"Expected {APPLICATION_ICON_SHA256}, actual {generated_icon_actual}."
+        )
 
     welcome = fit_logo(source, (164, 314), 10)
     draw = ImageDraw.Draw(welcome)
