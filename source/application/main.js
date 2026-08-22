@@ -2919,6 +2919,12 @@ async function runVisualQa() {
     result.layoutChecks.push(orderPaymentLayout);
     if(!orderPaymentLayout.ok)result.errors.push('workspace-orders: payment badge leaves its order cell');
 
+    await win.webContents.executeJavaScript("(()=>{showView('programSettings');const box=document.querySelector('#jfUpdateCenter');const toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610');if(box&&!box.classList.contains('open'))toggle?.click();box?.scrollIntoView({block:'start'});})()");
+    await waitForRenderer(win,"document.querySelector('#jfUpdateCenter[data-update-ready=\"1\"]')?.classList.contains('open')&&!document.querySelector('#jfUpdateCenter > .settings-accordion-body-v610')?.hidden");
+    await new Promise(resolve=>setTimeout(resolve,500));
+    result.screens.push(await captureVisualQa(win,output,'04-update-center'));
+    result.contracts.push({screen:'update-center',...(await collectVisualContract(win,['#jfUpdateTitle','#jfUpdateBadge','#jfUpdateStatus','#jfUpdateCheck','#jfUpdateDownload','#jfUpdateApply']))});
+
     await win.webContents.executeJavaScript("showView('programSettings');const box=document.querySelector('#jfRegIntegrationsBox');const toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610');if(box&&!box.classList.contains('open'))toggle?.click();box?.scrollIntoView({block:'start'});");
     await waitForRenderer(win,"document.querySelector('#jfRegIntegrationsBox')?.classList.contains('open')&&!document.querySelector('#jfRegIntegrationsBox > .settings-accordion-body-v610')?.hidden");
     await new Promise(resolve=>setTimeout(resolve,900));

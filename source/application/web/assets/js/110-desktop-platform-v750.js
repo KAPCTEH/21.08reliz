@@ -971,6 +971,15 @@ const HELP={
     check:['Запомните число реальных заказов до входа в DEMO; после выхода оно должно остаться тем же.','Переустановка в другую папку должна продолжить прежний обратный отсчёт, а не выдать новые 72 часа.'],
     important:['Не вводите в DEMO настоящие персональные данные клиентов.','Истечение срока открывает экран покупки или входа; перевод часов назад не добавляет время.']
   },
+  updates:{
+    title:'Безопасное обновление программы',
+    summary:'Программа проверяет цифровую подпись и целостность новой версии до установки, а при неудачном запуске автоматически возвращает предыдущую.',
+    purpose:['Обновление заменяет только файлы программы и не переносит рабочую базу складов.','Постепенный выпуск позволяет сначала проверить новую версию на ограниченной группе компьютеров.'],
+    steps:['Нажмите «Проверить обновление».','Если новая версия доступна, нажмите «Скачать обновление» и дождитесь окончания проверки.','Сохраните незавершённую работу.','Нажмите «Установить и перезапустить» и подтвердите действие.','После повторного запуска убедитесь, что блок показывает новую установленную версию.'],
+    result:['Проверенная версия устанавливается без повторного запуска установщика вручную.','Если новая версия не подтвердит успешный запуск, предыдущая версия восстановится автоматически.'],
+    check:['Сверьте номер установленной версии после перезапуска.','При сообщении о восстановлении откройте журналы запуска и передайте их поддержке.'],
+    important:['Не выключайте компьютер во время установки.','Обновление без подтверждённой подписи или с повреждённым файлом автоматически блокируется.']
+  },
   reliability:{
     title:'Резервные копии, восстановление и диагностика',
     summary:'Этот блок помогает пережить ошибку пользователя, повреждение диска, неудачный импорт или перенос на другой компьютер.',
@@ -1052,7 +1061,7 @@ function installDesktopDialogAccessibility(){
   document.addEventListener('keydown',event=>{const open=qa(desktopDialogOpenSelector).pop();if(!open)return;if(event.key==='Escape'){event.preventDefault();closeTopDesktopDialog(open);return}if(event.key!=='Tab')return;const list=desktopDialogFocusables(open);if(!list.length){event.preventDefault();q('.jf-dialog',open)?.focus();return}const first=list[0],last=list[list.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus()}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus()}else if(!open.contains(document.activeElement)){event.preventDefault();first.focus()}})
 }
 function helpKeyForBox(box){
-  if(box.id==='jfUsersBox')return'users';if(box.id==='jfRegIntegrationsBox')return'regIntegration';if(box.id==='jfTelegramIntegrationsBox')return'telegramIntegration';if(box.id==='jfIntegrationsBox')return'integrations';if(box.id==='warehouseManagerV600')return'warehouses';if(box.id==='companySettingsV600')return'company';
+  if(box.id==='jfUsersBox')return'users';if(box.id==='jfUpdateCenter')return'updates';if(box.id==='jfRegIntegrationsBox')return'regIntegration';if(box.id==='jfTelegramIntegrationsBox')return'telegramIntegration';if(box.id==='jfIntegrationsBox')return'integrations';if(box.id==='warehouseManagerV600')return'warehouses';if(box.id==='companySettingsV600')return'company';
   if(box.classList.contains('demo-settings-box'))return'demo';if(box.classList.contains('warehouse-manager-box'))return'warehouses';if(box.classList.contains('company-settings-box'))return'company';if(box.classList.contains('route-rules-box'))return'routeRules';if(box.classList.contains('arrival-settings-box'))return'loading';if(box.classList.contains('driver-payment-settings-box'))return'driverPayments';if(box.classList.contains('driver-payment-moved-box'))return'individualPayments';if(box.classList.contains('delivery-pricing-settings-box'))return'deliveryPricing';
   const title=String(q('h3',box)?.textContent||'').toLowerCase().replaceAll('ё','е');if(title.includes('склад и начало'))return'warehousePoint';if(title.includes('надежност'))return'reliability';if(title.includes('openstreetmap'))return'maps';if(title.includes('пользовател'))return'users';if(title.includes('компания')&&title.includes('документ'))return'company';return'general'
 }
