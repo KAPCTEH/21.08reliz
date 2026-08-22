@@ -8,14 +8,15 @@
   "module": "ci",
   "location": {
     "path": "tests/installer-source-test.py",
-    "symbol": "WINDOWS_WORKFLOW",
-    "line": 198
+    "symbol": "read_windows_workflow",
+    "line": 20
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "fact": "Детерминированный source-only ZIP исключает .github, но installer-source-test.py и release-regression-v783.mjs напрямую читают .github/workflows/windows-native-783.yml. В изолированной распаковке installer suite завершился 14/16 PASS и двумя FileNotFoundError, а release regression — ENOENT.",
+  "last_verified_commit": "1c52dc625e5a9945e1cb78443cfcb08c3879ce82",
+  "fact": "На baseline детерминированный source-only ZIP исключал .github, а два release-теста напрямую читали workflow и падали в изолированной распаковке. В Draft PR 16 добавлен зафиксированный workflow-контракт: полный checkout требует его точного совпадения с реальным workflow, а source-only профиль использует fixture без внешних файлов. Новый ZIP из exact commit содержит 204 файла, прошёл allowlist/blob-hash проверку; installer suite 19/19, release regression и полный Windows gate 22/22 прошли. Исправление ещё не слито в protected main.",
   "evidence": [
-    "JF-EVID-0007"
+    "JF-EVID-0007",
+    "JF-EVID-0016"
   ],
   "impact": "Получатель опубликованного source-only ZIP не может воспроизвести заявленные release-проверки только из содержимого архива; зелёный результат полного checkout не переносится на поставляемый артефакт.",
   "reproduction": [
@@ -24,7 +25,7 @@
     "Выполнить python tests/installer-source-test.py и node tests/release-regression-v783.mjs.",
     "Проверить ошибки отсутствия .github/workflows/windows-native-783.yml."
   ],
-  "minimal_fix": "Согласовать контракт архива и тестов: либо включить требуемый workflow в верификационный ZIP, либо параметризовать/явно пропускать workflow-зависимые проверки для source-only профиля.",
+  "minimal_fix": "Хранить проверяемую копию workflow-контракта внутри source-only области, требовать точного совпадения в полном checkout и использовать её как самостоятельный источник только при отсутствии .github.",
   "verification_contract": [
     "новый ZIP распаковывается в пустой каталог",
     "оба release-теста запускаются без внешних файлов",
@@ -33,8 +34,9 @@
   ],
   "fingerprint": "sha256:f98003c7a2ea9de83208041a34446d441d4ddb2ead6204f3b18ec5b9a573891a",
   "related": [
-    "JF-EVID-0006"
+    "JF-EVID-0006",
+    "https://github.com/KAPCTEH/21.08reliz/pull/16"
   ],
   "owner": "@KAPCTEH",
-  "status": "OPEN"
+  "status": "FIXED_PENDING_VERIFY"
 }

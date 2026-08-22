@@ -1,0 +1,32 @@
+{
+  "id": "JF-EVID-0016",
+  "type": "source-only-zip-and-github-windows-verification",
+  "commit": "1c52dc625e5a9945e1cb78443cfcb08c3879ce82",
+  "subject": "PR 16 self-contained source-only release checks, exact-commit ZIP verification, and complete Windows release gate",
+  "input_digests": {
+    "base_commit": "git:dce5f976b701722d3ef6770a7c93d7e4075a4175",
+    "target_commit": "git:1c52dc625e5a9945e1cb78443cfcb08c3879ce82",
+    "source_zip": "sha256:d62417833944671cf80a4c912b78391b3fd060c320becb56195ab4ca3283bc5e",
+    "allowlist_inventory": "sha256:e64b18daf26667fa8d1d7dccb4241bd9d72c152d0e612bf660877b9ad90f0b94",
+    "windows_artifact": "sha256:b9416c53677723b14e6ab5a14676f00bfd99ccea3db0b314c85be02e747c9c32"
+  },
+  "tool": "Deterministic source ZIP builder, Python unittest, Node.js, and GitHub Actions windows-native-783",
+  "tool_version": "build-source-zip.py plus workflow run 32569839675",
+  "command": "build-source-zip.py --commit 1c52dc625e5a9945e1cb78443cfcb08c3879ce82; python tests/installer-source-test.py; node tests/release-regression-v783.mjs; pull_request event for PR 16",
+  "cwd": "fresh exact-commit worktree, isolated extracted source-only ZIP, and GitHub-hosted Windows runner",
+  "timestamp_utc": "2026-08-22T11:26:53Z",
+  "exit_code": 0,
+  "normalized_result": "{\"pull_request\":16,\"commit\":\"1c52dc625e5a9945e1cb78443cfcb08c3879ce82\",\"source_zip\":{\"files\":204,\"bytes\":6141561,\"sha256\":\"d62417833944671cf80a4c912b78391b3fd060c320becb56195ab4ca3283bc5e\",\"github_directory_absent\":true,\"workflow_contract_fixture_present\":true,\"commit_matches_allowlist\":true,\"all_blob_hashes_match\":true},\"source_only_tests\":{\"installer_source\":{\"passed\":19,\"failed\":0},\"release_regression\":\"PASS\"},\"workflow_run_id\":32569839675,\"job_id\":97023642785,\"conclusion\":\"success\",\"successful_steps\":22,\"failed_steps\":0,\"artifact\":{\"id\":9475138937,\"name\":\"justfun-7.8.3-windows-7aa48d1fd6cc6c1b61d924f1b3fedff1cf8d6543\",\"bytes\":184491552,\"expires_at\":\"2026-09-05T11:26:40Z\"}}",
+  "artifact_sha256": "d62417833944671cf80a4c912b78391b3fd060c320becb56195ab4ca3283bc5e",
+  "location": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32569839675",
+  "retention": "permanent normalized metadata and local exact-commit source ZIP evidence; GitHub artifact retained until 2026-09-05T11:26:40Z",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0006"
+  ],
+  "tests": [
+    "JF-TEST-INSTALLER-SOURCE-TEST",
+    "JF-TEST-RELEASE-REGRESSION-V783",
+    "JF-TEST-WINDOWS-NATIVE-783"
+  ]
+}

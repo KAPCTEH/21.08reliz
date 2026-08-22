@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "run_id": "JF-RUN-20260822-PR16-1C52DC6",
+  "audit_type": "verify",
+  "budget_mode": "STANDARD",
+  "base_commit": "dce5f976b701722d3ef6770a7c93d7e4075a4175",
+  "target_commit": "1c52dc625e5a9945e1cb78443cfcb08c3879ce82",
+  "state": "COMPLETE",
+  "started_at_utc": "2026-08-22T11:16:30Z",
+  "completed_at_utc": "2026-08-22T11:26:53Z",
+  "changed_files": [
+    "tests/fixtures/windows-native-783.yml",
+    "tests/installer-source-test.py",
+    "tests/release-regression-v783.mjs"
+  ],
+  "impact_set": [
+    "tests",
+    "ci",
+    "release",
+    "source-distribution"
+  ],
+  "tests_selected": [
+    "exact-commit source ZIP allowlist and blob verification for 204 files",
+    "installer-source-test 19 tests from extracted source-only ZIP without .github",
+    "release-regression-v783 from extracted source-only ZIP without .github",
+    "source-hygiene-regression-v783",
+    "static-audit-regression-v783",
+    "security-regression-v783",
+    "security-audit with 0 findings",
+    "windows-native-783 complete build-and-accept"
+  ],
+  "tests_skipped": [
+    {
+      "id": "protected-main-post-merge-verification",
+      "reason": "PR 16 remains Draft and was not merged without separate owner confirmation"
+    }
+  ],
+  "evidence_reused": [
+    "JF-EVID-0006",
+    "JF-EVID-0007"
+  ],
+  "finding_delta": {
+    "opened": [],
+    "closed": [],
+    "updated": [
+      "JF-AUDIT-0006"
+    ],
+    "status_changes": {
+      "JF-AUDIT-0006": "OPEN -> FIXED_PENDING_VERIFY"
+    }
+  },
+  "verdict": "NO_GO",
+  "limitations": [
+    "PR 16 is a stacked Draft based on PR 15 and is not merged into protected main",
+    "JF-AUDIT-0006 cannot be closed until dependent commits are merged and the source-only contract is rechecked on main",
+    "The active baseline remains null and the baseline tag has not been created",
+    "Authenticated Cloudflare and Telegram acceptance remains incomplete",
+    "One P2 finding remains open"
+  ]
+}
