@@ -1,0 +1,132 @@
+{
+  "schema_version": 1,
+  "tz_version": "3/2.1",
+  "cycle_id": "JF3-20260823-001",
+  "started_at": "2026-08-23T02:10:42+03:00",
+  "status": "in_progress",
+  "workspace": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821",
+  "repository": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\release-main",
+  "github_repository": "KAPCTEH/21.08reliz",
+  "execution_branch": "codex/tz3-execution-baseline",
+  "baseline": {
+    "branch": "main",
+    "commit": "b3a9e7c0f2892b4e3276b51ca5c0ee1760e88568",
+    "product_version": "7.8.3",
+    "working_tree_clean": true,
+    "remote_main_matches": true,
+    "repository_public": true
+  },
+  "github_evidence": {
+    "audit_run": {
+      "id": 32600392032,
+      "conclusion": "success",
+      "url": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32600392032"
+    },
+    "windows_run": {
+      "id": 32600392031,
+      "conclusion": "success",
+      "url": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32600392031"
+    },
+    "artifact": {
+      "id": 9482860446,
+      "name": "justfun-windows-b3a9e7c0f2892b4e3276b51ca5c0ee1760e88568",
+      "size_bytes": 1325925788,
+      "expired": false,
+      "expires_at": "2026-09-05T21:54:11Z",
+      "digest": "sha256:c1c3ef9ca65fbaf05b687ee46bc5f1215025f4683f385ac1a485538900cc8973"
+    }
+  },
+  "steps": [
+    {
+      "step_id": "JF3-S0001",
+      "stage": 0,
+      "action": "verify canonical workspace",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0002",
+      "stage": 0,
+      "action": "record local git baseline",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0003",
+      "stage": 0,
+      "action": "compare local and remote main",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0004",
+      "stage": 0,
+      "action": "verify GitHub actions and artifact",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0005",
+      "stage": 0,
+      "action": "inspect release and update configuration",
+      "result": "PASS",
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-001"
+    },
+    {
+      "step_id": "JF3-S0006",
+      "stage": 0,
+      "action": "create execution branch",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0007",
+      "stage": 0,
+      "action": "probe selected-test runner help interface",
+      "result": "NOT APPLICABLE",
+      "note": "runner expects a plan path and has no --help command"
+    },
+    {
+      "step_id": "JF3-S0008",
+      "stage": 0,
+      "action": "inventory local runtimes",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0009",
+      "stage": 0,
+      "action": "run release, security, hygiene and static source checks",
+      "result": "PASS",
+      "checks": 78,
+      "security_files_scanned": 172,
+      "security_findings": 0
+    },
+    {
+      "step_id": "JF3-S0010",
+      "stage": 0,
+      "action": "run updater source tests",
+      "result": "PASS",
+      "checks": 180
+    },
+    {
+      "step_id": "JF3-S0011",
+      "stage": 0,
+      "action": "run release, visual and business regressions",
+      "result": "PASS",
+      "deep_business_checks": 69,
+      "deep_business_failures": 0
+    },
+    {
+      "step_id": "JF3-S0012",
+      "stage": 0,
+      "action": "map current address search implementation",
+      "result": "PASS",
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-002"
+    },
+    {
+      "step_id": "JF3-S0013",
+      "stage": 0,
+      "action": "complete baseline stage",
+      "result": "PASS"
+    }
+  ],
+  "current_gate": "stage-1/gate-a",
+  "release_status": "NO-GO"
+}
