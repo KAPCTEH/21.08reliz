@@ -339,7 +339,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
         self.assertIn("raw[:2] != b\"MZ\"", source)
         self.assertIn('b"powershell.exe"', source)
         self.assertIn("official_logo_sha256", source)
-        self.assertIn('"schema_version": 2', source)
+        self.assertIn('"schema_version": 3', source)
         self.assertIn('"runtime": "electron-protected-asar"', source)
         self.assertIn('parser.add_argument("--build-identity", type=Path, required=True)', source)
         self.assertIn('parser.add_argument("--source-archive", type=Path, required=True)', source)
@@ -355,6 +355,11 @@ class NativeInstallerSourceTests(unittest.TestCase):
         self.assertIn("--setup-engine and --recovery must be supplied together.", source)
         self.assertIn("if reusable_setup_engine:", source)
         self.assertIn("engine_manifest = verify_pe(setup_engine, (b\"Nullsoft\",))", source)
+        self.assertIn('payload / "JustFun-UpdateHelper.exe"', source)
+        self.assertIn("write_update_file_manifest", source)
+        self.assertIn("write_deterministic_update_zip", source)
+        self.assertIn('"update_helper": file_record(update_helper)', source)
+        self.assertIn('"update_payload": update_payload_record', source)
 
     def test_native_config_json_uses_valid_nsis_quoted_strings(self):
         source = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")

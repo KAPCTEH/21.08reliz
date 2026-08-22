@@ -37,6 +37,10 @@ $gatePath = Join-Path $output 'RELEASE-GATE.json'
 $buildIdentityPath = Join-Path $output 'BUILD-IDENTITY.json'
 $sourceArchivePath = Join-Path $output 'SOURCE.zip'
 $testEvidencePath = Join-Path $output 'PREBUILD-TEST-RESULTS.json'
+$updateHelperDirectory = Join-Path $output 'update-helper'
+$updateHelperPath = Join-Path $updateHelperDirectory 'JustFunUpdateHelper.exe'
+$updateHelperSelfTest = Join-Path $evidence 'UPDATE-HELPER-SELF-TEST.json'
+$fileVersion = (($version -split '[-+]')[0]) + '.0'
 $gate = [ordered]@{
   schema = 1
   product = 'JustFun Логистика'
@@ -74,11 +78,25 @@ try {
       Invoke-Checked 'npm.cmd' @('ci') (Join-Path $repo $directory)
     }
   }
+  Invoke-Checked 'dotnet' @(
+    'restore', 'source/update-helper/JustFunUpdateHelper.csproj', '--locked-mode',
+    "/p:JustFunProductVersion=$version", "/p:JustFunProductFileVersion=$fileVersion"
+  )
+  Invoke-Checked 'dotnet' @(
+    'publish', 'source/update-helper/JustFunUpdateHelper.csproj', '-c', 'Release', '-r', 'win-x64',
+    '--self-contained', 'true', '--no-restore', '-o', $updateHelperDirectory,
+    "/p:JustFunProductVersion=$version", "/p:JustFunProductFileVersion=$fileVersion"
+  )
+  Invoke-Checked $updateHelperPath @("--self-test-report=$updateHelperSelfTest")
 
   Invoke-Checked 'node' @('tests/security-audit.mjs', 'source', 'tools', '.github')
   Invoke-Checked 'node' @('tests/source-hygiene-regression-v783.cjs')
   Invoke-Checked 'node' @('tests/static-audit-regression-v783.cjs')
   Invoke-Checked 'node' @('tests/main-unit.cjs')
+  Invoke-Checked 'node' @('tests/update-core-unit.cjs')
+  Invoke-Checked 'node' @('tests/update-downloader-unit.cjs')
+  Invoke-Checked 'node' @('tests/update-controller-unit.cjs')
+  Invoke-Checked 'node' @('tests/update-helper-runner-unit.cjs')
   Invoke-Checked 'node' @('tests/current-cycle-regression-v783.mjs')
   $env:JF_TEST_EDITION = 'full'
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'order-print')
@@ -98,7 +116,8 @@ try {
       [ordered]@{ id = 'source-contracts'; status = 'passed' },
       [ordered]@{ id = 'security'; status = 'passed' },
       [ordered]@{ id = 'business-regression'; status = 'passed' },
-      [ordered]@{ id = 'installer-source'; status = 'passed' }
+      [ordered]@{ id = 'installer-source'; status = 'passed' },
+      [ordered]@{ id = 'updater-core'; status = 'passed' }
     )
   } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $testEvidencePath -Encoding utf8
 
@@ -106,8 +125,10 @@ try {
     'source/desktop-runtime/build_payload.py',
     '--app-dir', 'source/application',
     '--electron-dist', 'source/desktop-runtime/node_modules/electron/dist',
+    '--update-helper', $updateHelperPath,
     '--output-dir', $payload
   )
+  Invoke-Checked 'node' @('tests/update-payload-identity-test.mjs', $payload)
 
   $installerArguments = @(
     'source/installer/build_windows.py',

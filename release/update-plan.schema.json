@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://justfun.invalid/release/update-plan.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "product_id", "operation_id", "created_at", "expires_at", "source_pid", "install_root", "staging_root", "previous_root", "archive_path", "health_confirmation_path", "health_timeout_seconds", "preserve_files", "signed_catalog"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "product_id": { "const": "justfun-logistics" },
+    "operation_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{16,128}$" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "expires_at": { "type": "string", "format": "date-time" },
+    "source_pid": { "type": "integer", "minimum": 0 },
+    "install_root": { "type": "string", "minLength": 3 },
+    "staging_root": { "type": "string", "minLength": 3 },
+    "previous_root": { "type": "string", "minLength": 3 },
+    "archive_path": { "type": "string", "minLength": 3 },
+    "health_confirmation_path": { "type": "string", "minLength": 3 },
+    "health_timeout_seconds": { "type": "integer", "minimum": 30, "maximum": 600 },
+    "preserve_files": { "type": "array", "maxItems": 1, "uniqueItems": true, "items": { "const": "Orders-Logistics-Uninstall.exe" } },
+    "signed_catalog": { "$ref": "update-catalog.schema.json" }
+  }
+}

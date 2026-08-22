@@ -10,6 +10,10 @@ const https = require('https');
 const tls = require('tls');
 const nodeNet = require('net');
 const { verifyPackagedApplicationIntegrity } = require('./security-manifest.cjs');
+const { UpdateController } = require('./update/controller.cjs');
+const UPDATE_POLICY = Object.freeze(require('./update/policy.json'));
+const UPDATE_TRUST_STORE = Object.freeze(require('./update/trusted-keys.json'));
+const UPDATE_HELPER_IDENTITY = Object.freeze(require('./update/helper-identity.json'));
 const telegramProvisioner = require('./integrations/telegram-cloudflare-native/provisioner.cjs');
 const regVpsNativeSsh = require('./integrations/reg-vps/native-ssh.cjs');
 const RELEASE = Object.freeze(require('./release.json'));
@@ -74,6 +78,10 @@ let telegramCompanyPublishRetryTimer = null;
 let telegramCompanyPublishRetryAt = 0;
 let telegramCompanyPublishRetryFailures = 0;
 let telegramCompanyPublishRetryInFlight = false;
+let updateController = null;
+let updateCheckTimer = null;
+let updateCheckInterval = null;
+let updateHelperPollTimer = null;
 const DESKTOP_UNIT_TEST_MODE = process.env.JF_DESKTOP_UNIT_TEST === '1' && !process.versions.electron;
 const runtimeHardeningReport = {sandboxEnabled:false, removedSwitches:[], devToolsGuardInstalled:false, errors:[]};
 const registeredAppProtocolSessions = new WeakSet();
@@ -191,6 +199,81 @@ function appendLog(message, data) {
   }
   process.stderr.write(line + `${new Date().toISOString()} logger unavailable ${JSON.stringify(failures)}\n`);
   return {ok:false, files:[], failures};
+}
+
+function getUpdateController() {
+  if (updateController) return updateController;
+  updateController = new UpdateController({
+    productId: RELEASE.product_id,
+    currentVersion: VERSION,
+    channel: RELEASE.default_channel,
+    availableContracts: {
+      reg_api: RELEASE.contracts.reg_api,
+      license_auth: RELEASE.contracts.license_auth,
+      telegram_broker: RELEASE.contracts.telegram_broker,
+      storage_protocol: RELEASE.contracts.storage_protocol,
+    },
+    policy: UPDATE_POLICY,
+    trustStore: UPDATE_TRUST_STORE,
+    rootDirectory: localRoot(),
+    installationId: getMachineCode(),
+    installRoot: path.dirname(process.execPath),
+    installedHelper: path.join(path.dirname(process.execPath), UPDATE_HELPER_IDENTITY.file_name),
+    helperIdentity: UPDATE_HELPER_IDENTITY,
+    log: (message, data) => appendLog(message, data),
+    onStatus: status => sendWindowMessage(mainWindow, 'desktop:update-status', status),
+    onApplyScheduled: () => { const timer=setTimeout(()=>app.quit(),350);timer.unref?.(); },
+  });
+  return updateController;
+}
+
+function stopUpdateSchedule() {
+  if (updateCheckTimer) clearTimeout(updateCheckTimer);
+  if (updateCheckInterval) clearInterval(updateCheckInterval);
+  updateCheckTimer = null;
+  updateCheckInterval = null;
+  if (updateHelperPollTimer) clearInterval(updateHelperPollTimer);
+  updateHelperPollTimer = null;
+}
+
+function updateOperationArgument(name) {
+  const prefix=`--${name}=`;
+  const argument=process.argv.find(value=>String(value).startsWith(prefix));
+  const operation=argument?String(argument).slice(prefix.length):'';
+  return /^[A-Za-z0-9._-]{16,128}$/.test(operation)?operation:'';
+}
+
+function monitorUpdateHelper() {
+  if (updateHelperPollTimer) clearInterval(updateHelperPollTimer);
+  updateHelperPollTimer=setInterval(()=>{
+    try {
+      const status=getUpdateController().reconcileHelperState();
+      if (['CONFIRMED','ROLLED_BACK','FAILED','IDLE'].includes(status.state)) { clearInterval(updateHelperPollTimer);updateHelperPollTimer=null; }
+    } catch(error) { appendLog('update helper reconciliation failed',{code:String(error?.code||'UPDATE_RECONCILE_FAILED'),error:safeError(error)}); }
+  },1000);
+  updateHelperPollTimer.unref?.();
+}
+
+function confirmUpdateHealthIfRequested() {
+  const operationId=updateOperationArgument('update-health-operation');
+  if (!operationId) return;
+  try { getUpdateController().confirmHealth(operationId);monitorUpdateHelper(); }
+  catch(error) { appendLog('update health confirmation rejected',{code:String(error?.code||'UPDATE_HEALTH_FAILED'),error:safeError(error)}); }
+}
+
+function scheduleUpdateChecks() {
+  stopUpdateSchedule();
+  if (UPDATE_POLICY.enabled !== true) return;
+  const run = async () => {
+    try { await getUpdateController().check(); }
+    catch (error) { appendLog('automatic update check failed', {code:String(error?.code || 'UPDATE_CHECK_FAILED'), error:safeError(error)}); }
+  };
+  updateCheckTimer = setTimeout(() => {
+    run();
+    updateCheckInterval = setInterval(run, UPDATE_POLICY.check_interval_seconds * 1000);
+    updateCheckInterval.unref?.();
+  }, UPDATE_POLICY.check_delay_seconds * 1000);
+  updateCheckTimer.unref?.();
 }
 
 function withTimeout(promise, timeoutMs, message) {
@@ -2280,6 +2363,7 @@ function registerIPC(config) {
     if (/^[A-Za-z0-9_-]{1,120}$/.test(safePayload.warehouseId)) activateRendererWarehouse(safePayload.warehouseId);
     appendLog('renderer ready confirmed', safePayload);
     if (rendererReadyResolve) rendererReadyResolve(safePayload);
+    confirmUpdateHealthIfRequested();
     return true;
   });
   handleMainIPC('desktop:set-active-warehouse', (_event, payload) => {
@@ -2301,6 +2385,13 @@ function registerIPC(config) {
     auth:publicCloudAuth(currentSession?.cloudAuth)
   }));
   handleMainIPC('desktop:get-app-info', () => ({name:APP_NAME, version:VERSION, company:COMPANY, dataDir:config.data_dir, logDir:logDir(), machineCode:getMachineCode()}));
+  handleMainIPC('desktop:update-status', () => ({ok:true, ...getUpdateController().status()}));
+  handleMainIPC('desktop:update-check', async () => {
+    try { return await getUpdateController().check(); }
+    catch(error) { appendLog('manual update check failed',{code:String(error?.code||'UPDATE_CHECK_FAILED'),error:safeError(error)}); return {ok:false,code:String(error?.code||'UPDATE_CHECK_FAILED'),message:String(error?.message||'Не удалось проверить обновления.').slice(0,500),status:getUpdateController().status()}; }
+  });
+  handleMainIPC('desktop:update-download', async () => getUpdateController().download());
+  handleMainIPC('desktop:update-apply', async () => getUpdateController().apply());
   handleMainIPC('desktop:open-log-folder', async () => {
     ensureDir(logDir());
     const error=await shell.openPath(logDir());
@@ -2501,6 +2592,7 @@ async function startAuthorizedApplication() {
   await createMainWindow();
   startDemoTimer(config);
   scheduleTelegramCompanyPublishRetry('application-start',5000);
+  scheduleUpdateChecks();
   appendLog('application started', {edition:currentSession.edition, recovery:currentSession.recovery});
 }
 async function boot() {
@@ -2514,6 +2606,16 @@ async function boot() {
   appendLog('electron ready', {version:process.versions.electron, chrome:process.versions.chrome, node:process.versions.node});
   app.setAppUserModelId('JustFun.OrdersLogistics');
   configureElectronSession(config);
+  try { getUpdateController().reconcileHelperState(); }
+  catch(error) { appendLog('startup update reconciliation failed',{code:String(error?.code||'UPDATE_RECONCILE_FAILED'),error:safeError(error)}); }
+  const updateHealthOperation=updateOperationArgument('update-health-operation');
+  const updateRollbackOperation=updateOperationArgument('update-rollback');
+  if (!updateHealthOperation && !updateRollbackOperation && getUpdateController().startupRecovery().action === 'rollback') {
+    const recovery=await getUpdateController().recover();
+    appendLog('startup update recovery decision',recovery);
+    if (recovery.ok) return;
+  }
+  if (updateRollbackOperation) monitorUpdateHelper();
   createSplash();
   sendSplash('Запуск JustFun','Проверяем редакцию и лицензию',10);
   currentSession = await buildSession(config);
@@ -3152,7 +3254,7 @@ if (DESKTOP_UNIT_TEST_MODE) {
   else if (!runningInstanceProbeMode) {
     app.on('second-instance', () => { if (mainWindow&&!mainWindow.isDestroyed()&&!mainWindow.webContents?.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
     app.on('window-all-closed', () => { if (!visualQaMode && !printQaMode && process.platform !== 'darwin') app.quit(); });
-    app.on('before-quit', () => { clearInterval(demoTimer); stopTelegramCompanyPublishRetry(); flushRecurringLogs(); appendLog('application exiting'); });
+    app.on('before-quit', () => { clearInterval(demoTimer); stopTelegramCompanyPublishRetry(); stopUpdateSchedule(); flushRecurringLogs(); appendLog('application exiting'); });
     process.on('uncaughtException', error => { appendLog('uncaughtException', diagnosticError(error)); showRecoveryError('Не удалось продолжить запуск программы.', safeError(error)); });
     process.on('unhandledRejection', error => appendLog('unhandledRejection', diagnosticError(error)));
     const entry = installerSmokeMode ? runInstallerSmokeTest : (selfTestMode ? runSelfTest : (visualQaMode ? runVisualQa : (printQaMode ? runPrintQa : boot)));

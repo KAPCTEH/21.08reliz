@@ -5,7 +5,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "product_id", "product_name", "version", "channel", "commit_sha", "source_tree", "build_id", "generated_at_utc", "runner", "toolchain", "contracts", "lockfiles", "source_archive", "payload", "artifacts", "signing", "workflow", "sbom", "attestation", "test_groups"],
   "properties": {
-    "schema_version": { "const": 2 },
+    "schema_version": { "const": 3 },
     "product_id": { "const": "justfun-logistics" },
     "product_name": { "type": "string", "minLength": 1 },
     "version": { "type": "string", "minLength": 1 },
@@ -54,11 +54,24 @@
     "artifacts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["setup", "recovery_helper", "update_helper", "embedded_setup_engine", "official_logo_sha256", "source_encoding"],
+      "required": ["setup", "recovery_helper", "update_helper", "update_payload", "update_file_manifest", "embedded_setup_engine", "official_logo_sha256", "source_encoding"],
       "properties": {
         "setup": { "$ref": "#/$defs/file" },
         "recovery_helper": { "$ref": "#/$defs/file" },
-        "update_helper": { "anyOf": [{ "$ref": "#/$defs/file" }, { "type": "null" }] },
+        "update_helper": { "$ref": "#/$defs/file" },
+        "update_payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "bytes", "sha256", "unpacked_bytes", "file_count"],
+          "properties": {
+            "path": { "type": "string", "minLength": 1 },
+            "bytes": { "type": "integer", "minimum": 1 },
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "unpacked_bytes": { "type": "integer", "minimum": 1 },
+            "file_count": { "type": "integer", "minimum": 1 }
+          }
+        },
+        "update_file_manifest": { "$ref": "#/$defs/file" },
         "embedded_setup_engine": { "$ref": "#/$defs/file" },
         "official_logo_sha256": { "$ref": "#/$defs/sha256" },
         "source_encoding": { "const": "utf-8-bom" }

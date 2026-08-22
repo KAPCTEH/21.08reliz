@@ -40,6 +40,233 @@
       "class": "contract"
     },
     {
+      "id": "JF-TEST-UPDATE-CORE-UNIT",
+      "name": "Update Core Unit",
+      "level": "source",
+      "path": "tests/update-core-unit.cjs",
+      "command": "node tests/update-core-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "release"
+      ],
+      "contracts": [
+        "update-catalog",
+        "trusted-update-keys",
+        "update-journal",
+        "semver"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "canonical JSON and SemVer checks pass",
+        "Ed25519 tamper, trust, expiry, sequence, downgrade, URL and compatibility defenses pass",
+        "atomic journal transitions and recovery decisions pass"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when updater core, catalog schema, trust store, journal schema or release compatibility changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-DOWNLOADER-UNIT",
+      "name": "Update Downloader Unit",
+      "level": "source",
+      "path": "tests/update-downloader-unit.cjs",
+      "command": "node tests/update-downloader-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "update-catalog",
+        "update-download"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "interrupted payload resumes with a valid HTTP range",
+        "size, SHA-256, scheme and host violations are rejected",
+        "completed payload is atomically promoted from the partial file"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when downloader, catalog URL policy, retry policy or payload verification changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CONTROLLER-UNIT",
+      "name": "Update Controller Unit",
+      "level": "source",
+      "path": "tests/update-controller-unit.cjs",
+      "command": "node tests/update-controller-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "release"
+      ],
+      "contracts": [
+        "update-controller",
+        "update-catalog",
+        "update-download",
+        "update-journal"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "disabled, current, staged rollout and available-update decisions pass",
+        "verified catalog persists and survives controller restart",
+        "download failure is recorded safely and can be retried as a new operation"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when UpdateController, policy, downloader, journal or catalog validation changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-HELPER-RUNNER-UNIT",
+      "name": "Update Helper Runner Unit",
+      "level": "source",
+      "path": "tests/update-helper-runner-unit.cjs",
+      "command": "node tests/update-helper-runner-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "update-plan",
+        "update-helper-identity",
+        "update-helper-launch"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "installed helper hash is verified before its isolated copy is launched",
+        "operation plan uses fixed download, staging, previous and health paths",
+        "helper launch never uses a shell or renderer-supplied command"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when update plan, helper identity, helper runner or apply orchestration changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-WINDOWS-UPDATE-HELPER-SELF-TEST",
+      "name": "Windows Update Helper Self Test",
+      "level": "windows",
+      "path": "source/update-helper/JustFunUpdateHelper.csproj",
+      "command": "publish JustFunUpdateHelper.exe and run --self-test-report=<report>",
+      "cwd": ".",
+      "prerequisites": [
+        "windows-2022",
+        "dotnet-8",
+        "locked-nuget-restore"
+      ],
+      "env_allowlist": [
+        "JF_PRODUCT_VERSION"
+      ],
+      "network_allowed": false,
+      "executable_allowed": true,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "desktop-runtime",
+        "installer",
+        "release"
+      ],
+      "contracts": [
+        "update-helper",
+        "recovery-helper",
+        "trusted-update-keys",
+        "safe-zip"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "canonical JSON and Ed25519 self-test pass",
+        "tamper, path traversal, atomic state and SHA-256 self-tests pass",
+        "publish emits a self-contained single-file Windows helper"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [
+        ".release/update-helper-self-test.json",
+        ".release/update-helper/JustFunUpdateHelper.exe"
+      ],
+      "run_rule": "every Windows payload and installer build",
+      "invalidation_rule": "invalidate when Update Helper source, NuGet lock, embedded trust store, build identity or Windows toolchain changes",
+      "class": "windows-release"
+    },
+    {
+      "id": "JF-TEST-UPDATE-PAYLOAD-IDENTITY",
+      "name": "Update Payload Identity",
+      "level": "windows",
+      "path": "tests/update-payload-identity-test.mjs",
+      "command": "node tests/update-payload-identity-test.mjs <payload>",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24",
+        "completed-protected-payload"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "protected-asar",
+        "update-helper-identity",
+        "protected-payload"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "helper byte count and SHA-256 inside protected app.asar match the shipped PE",
+        "shipped helper has a Windows PE header"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [
+        ".release/payload/JustFun-UpdateHelper.exe",
+        ".release/payload/resources/app.asar"
+      ],
+      "run_rule": "every Windows payload and installer build",
+      "invalidation_rule": "invalidate when payload assembly, ASAR protection, helper build or helper identity changes",
+      "class": "windows-release"
+    },
+    {
       "id": "JF-TEST-BUILD-MANIFEST",
       "name": "Build Manifest",
       "level": "windows",

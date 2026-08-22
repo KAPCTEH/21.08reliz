@@ -38,12 +38,15 @@
         "payload": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["file_name", "url", "bytes", "sha256"],
+          "required": ["file_name", "url", "bytes", "sha256", "unpacked_bytes", "file_count", "file_manifest_sha256"],
           "properties": {
             "file_name": { "type": "string", "pattern": "^[^/\\\\]+\\.zip$" },
             "url": { "type": "string", "pattern": "^https://" },
             "bytes": { "type": "integer", "minimum": 1 },
-            "sha256": { "$ref": "#/$defs/sha256" }
+            "sha256": { "$ref": "#/$defs/sha256" },
+            "unpacked_bytes": { "type": "integer", "minimum": 1, "maximum": 8000000000 },
+            "file_count": { "type": "integer", "minimum": 1, "maximum": 100000 },
+            "file_manifest_sha256": { "$ref": "#/$defs/sha256" }
           }
         }
       }

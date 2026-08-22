@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://justfun.invalid/release/update-policy.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "enabled", "catalog_endpoints", "allowed_catalog_hosts", "allowed_payload_hosts", "allowed_release_notes_hosts", "check_delay_seconds", "check_interval_seconds", "max_catalog_bytes", "max_payload_bytes", "download_timeout_seconds", "max_download_attempts", "health_confirmation_timeout_seconds"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "enabled": { "type": "boolean" },
+    "catalog_endpoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["internal", "staging", "stable"],
+      "properties": {
+        "internal": { "type": ["string", "null"] },
+        "staging": { "type": ["string", "null"] },
+        "stable": { "type": ["string", "null"] }
+      }
+    },
+    "allowed_catalog_hosts": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "allowed_payload_hosts": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "allowed_release_notes_hosts": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+    "check_delay_seconds": { "type": "integer", "minimum": 5, "maximum": 3600 },
+    "check_interval_seconds": { "type": "integer", "minimum": 300, "maximum": 604800 },
+    "max_catalog_bytes": { "type": "integer", "minimum": 1024, "maximum": 1048576 },
+    "max_payload_bytes": { "type": "integer", "minimum": 1048576, "maximum": 4000000000 },
+    "download_timeout_seconds": { "type": "integer", "minimum": 5, "maximum": 600 },
+    "max_download_attempts": { "type": "integer", "minimum": 1, "maximum": 10 },
+    "health_confirmation_timeout_seconds": { "type": "integer", "minimum": 30, "maximum": 600 }
+  }
+}

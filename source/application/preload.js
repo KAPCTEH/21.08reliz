@@ -23,6 +23,18 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
   openLogFolder: () => ipcRenderer.invoke('desktop:open-log-folder'),
   copyText: (text) => ipcRenderer.invoke('desktop:copy-text', String(text ?? '')),
   openSupport: (channel) => ipcRenderer.invoke('desktop:open-support', channel),
+  updates: Object.freeze({
+    status: () => ipcRenderer.invoke('desktop:update-status'),
+    check: () => ipcRenderer.invoke('desktop:update-check'),
+    download: () => ipcRenderer.invoke('desktop:update-download'),
+    apply: () => ipcRenderer.invoke('desktop:update-apply'),
+    onStatus: (handler) => {
+      if (typeof handler !== 'function') return () => {};
+      const listener = (_event, payload) => handler(payload);
+      ipcRenderer.on('desktop:update-status', listener);
+      return () => ipcRenderer.removeListener('desktop:update-status', listener);
+    }
+  }),
   auth: Object.freeze({
     checkLicense: (licenseKey) => ipcRenderer.invoke('desktop:auth-license-check', {licenseKey:String(licenseKey||'')}),
     registerOwner: (payload) => ipcRenderer.invoke('desktop:auth-register-owner', payload||{}),

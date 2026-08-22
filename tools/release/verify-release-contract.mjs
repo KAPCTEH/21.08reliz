@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +48,11 @@ const catalogSchema = readJson('release/test-catalog.schema.json');
 const catalog = readJson('release/test-catalog.json');
 const updateCatalogSchema = readJson('release/update-catalog.schema.json');
 const updateJournalSchema = readJson('release/update-journal.schema.json');
+const updatePolicySchema = readJson('release/update-policy.schema.json');
+const updatePlanSchema = readJson('release/update-plan.schema.json');
+const updatePolicy = readJson('source/application/update/policy.json');
+const trustedKeysSchema = readJson('release/trusted-update-keys.schema.json');
+const trustedKeys = readJson('source/application/update/trusted-keys.json');
 const buildManifestSchema = readJson('release/build-manifest.schema.json');
 const compatibility = readJson('release/compatibility-policy.json');
 
@@ -122,6 +128,10 @@ checked('runtime-version-consumers', () => {
   const ownerPackager = readText('tools/package-owner-rc.ps1');
   const setupNsi = readText('source/installer/Setup.nsi');
   const recoveryNsi = readText('source/installer/Recovery.nsi');
+  const updateHelperProject = readText('source/update-helper/JustFunUpdateHelper.csproj');
+  const updateHelperEngine = readText('source/update-helper/UpdateEngine.cs');
+  const updateHelperZip = readText('source/update-helper/SafeZip.cs');
+  const updateHelperLock = readJson('source/update-helper/packages.lock.json');
   assert(main.includes("require('./release.json')"), 'desktop main process does not load the canonical release contract');
   assert(main.includes('const VERSION = RELEASE.version;'), 'desktop version is not derived from release.json');
   assert(!/const VERSION\s*=\s*['"]\d/.test(main), 'desktop contains a hard-coded product VERSION');
@@ -153,20 +163,45 @@ checked('runtime-version-consumers', () => {
   assert(ownerPackager.includes('source\\application\\release.json') && ownerPackager.includes('"JUSTFUN-$version-WINDOWS.zip"'), 'owner packager does not derive artifact names from release.json');
   assert(setupNsi.includes('!error "VERSION must come from the canonical release contract"'), 'Setup permits a non-canonical fallback version');
   assert(recoveryNsi.includes('!error "VERSION must come from the canonical release contract"'), 'Recovery permits a non-canonical fallback version');
-  assert(installer.includes('"schema_version": 2'), 'Windows builder does not emit the extended BUILD-MANIFEST');
+  assert(installer.includes('"schema_version": 3'), 'Windows builder does not emit the updater-aware BUILD-MANIFEST');
   assert(installer.includes('parser.add_argument("--build-identity", type=Path, required=True)'), 'Windows builder does not require exact build identity evidence');
   assert(installer.includes('f"/DFILE_VERSION={product_file_version}"'), 'NSIS file version is not derived from canonical SemVer');
+  assert(main.includes("require('./update/controller.cjs')") && main.includes("require('./update/helper-identity.json')"), 'desktop main process does not load the protected updater components');
+  assert(main.includes("handleMainIPC('desktop:update-check'") && main.includes("handleMainIPC('desktop:update-download'") && main.includes("handleMainIPC('desktop:update-apply'"), 'desktop updater IPC is incomplete');
+  assert(preload.includes('updates: Object.freeze({') && preload.includes("ipcRenderer.invoke('desktop:update-apply')"), 'sandboxed preload updater bridge is incomplete');
+  assert(payload.includes('parser.add_argument("--update-helper", type=Path, required=True)') && payload.includes('helper-identity.json'), 'payload builder does not bind the Update Helper hash into protected application code');
+  assert(installer.includes('write_update_file_manifest') && installer.includes('write_deterministic_update_zip') && installer.includes('JustFun-{version}-UpdateHelper.exe'), 'Windows builder does not create the full update payload and helper artifacts');
+  assert(updateHelperProject.includes('BouncyCastle.Cryptography') && updateHelperProject.includes('Version="2.7.0"'), 'Update Helper Ed25519 dependency is not pinned');
+  assert(updateHelperProject.includes('<PublishSingleFile>true</PublishSingleFile>') && updateHelperProject.includes('trusted-keys.json'), 'Update Helper is not a self-contained trust-bound executable');
+  assert(updateHelperLock?.dependencies?.['net8.0-windows7.0']?.['BouncyCastle.Cryptography']?.resolved === '2.7.0', 'Update Helper package lock differs from the pinned Ed25519 dependency');
+  assert(updateHelperEngine.includes('SetRecoveryRunOnce(operationId)') && updateHelperEngine.includes('AWAITING_HEALTH_CONFIRMATION') && updateHelperEngine.includes('Rollback('), 'Update Helper transaction or reboot recovery is incomplete');
+  for (const marker of ['Path.IsPathRooted', 'ReparsePoint', 'OrdinalIgnoreCase', 'payload.UnpackedBytes', 'payload.FileCount', 'VerifyStaging']) assert(updateHelperZip.includes(marker), `Update Helper safe ZIP defense is missing: ${marker}`);
+  assert(windowsWorkflow.includes('dotnet restore source/update-helper/JustFunUpdateHelper.csproj --locked-mode') && windowsWorkflow.includes('--self-test-report=') && windowsWorkflow.includes('--update-helper .release/update-helper/JustFunUpdateHelper.exe'), 'Windows workflow does not build, test and bind the Update Helper');
+});
+
+checked('github-actions-pinned', () => {
+  const workflowDirectory = path.join(repository, '.github', 'workflows');
+  for (const name of fs.readdirSync(workflowDirectory).filter(item => /\.ya?ml$/i.test(item))) {
+    const source = fs.readFileSync(path.join(workflowDirectory, name), 'utf8');
+    for (const match of source.matchAll(/^\s*uses:\s*([^\s#]+)@([^\s#]+)/gm)) {
+      assert(/^[0-9a-f]{40}$/.test(match[2]), `${name}: action ${match[1]} is not pinned to a full commit SHA`);
+    }
+  }
 });
 
 checked('release-formats-and-compatibility', () => {
   assert(updateCatalogSchema?.$id === 'https://justfun.invalid/release/update-catalog.schema.json', 'update catalog schema identity is invalid');
   assert(updateJournalSchema?.$id === 'https://justfun.invalid/release/update-journal.schema.json', 'update journal schema identity is invalid');
+  assert(updatePolicySchema?.$id === 'https://justfun.invalid/release/update-policy.schema.json', 'update policy schema identity is invalid');
+  assert(updatePlanSchema?.$id === 'https://justfun.invalid/release/update-plan.schema.json', 'update plan schema identity is invalid');
   assert(buildManifestSchema?.$id === 'https://justfun.invalid/release/build-manifest.schema.json', 'build manifest schema identity is invalid');
+  assert(trustedKeysSchema?.$id === 'https://justfun.invalid/release/trusted-update-keys.schema.json', 'trusted update key schema identity is invalid');
   const states = updateJournalSchema?.properties?.state?.enum || [];
   for (const state of ['IDLE', 'CHECKING', 'UPDATE_AVAILABLE', 'DOWNLOADING', 'VERIFYING', 'READY_TO_APPLY', 'APPLYING', 'AWAITING_HEALTH_CONFIRMATION', 'CONFIRMED', 'ROLLING_BACK', 'ROLLED_BACK', 'FAILED']) {
     assert(states.includes(state), `update journal state is missing: ${state}`);
   }
   assert(updateCatalogSchema?.properties?.signature?.properties?.algorithm?.const === 'Ed25519', 'update catalog signature algorithm must be Ed25519');
+  for (const field of ['unpacked_bytes', 'file_count', 'file_manifest_sha256']) assert(updateCatalogSchema?.properties?.release?.properties?.payload?.required?.includes(field), `signed update payload constraint is missing: ${field}`);
   assert(compatibility?.schema_version === 1, 'compatibility policy schema_version must be 1');
   assert(compatibility?.product_id === release?.product_id, 'compatibility policy product differs from release.json');
   assert(compatibility?.version_scheme === release?.version_scheme, 'compatibility version scheme differs from release.json');
@@ -178,6 +213,66 @@ checked('release-formats-and-compatibility', () => {
     assert(compatibility?.required_contracts?.[name]?.minimum === version, `compatibility minimum differs for ${name}`);
     assert(compatibility?.required_contracts?.[name]?.maximum === version, `compatibility maximum differs for ${name}`);
   }
+});
+
+checked('update-policy', () => {
+  assert(updatePolicy?.schema_version === 1, 'update policy schema_version must be 1');
+  assert(typeof updatePolicy?.enabled === 'boolean', 'update policy enabled flag is invalid');
+  assert(JSON.stringify(Object.keys(updatePolicy?.catalog_endpoints || {}).sort()) === JSON.stringify(['internal', 'stable', 'staging']), 'update policy catalog channels are invalid');
+  for (const field of ['allowed_catalog_hosts', 'allowed_payload_hosts', 'allowed_release_notes_hosts']) {
+    const hosts = updatePolicy?.[field];
+    assert(Array.isArray(hosts) && new Set(hosts).size === hosts.length && hosts.every(host => /^[A-Za-z0-9.-]+$/.test(host) && host === host.toLowerCase()), `${field} is invalid`);
+  }
+  for (const [channel, endpoint] of Object.entries(updatePolicy?.catalog_endpoints || {})) {
+    if (endpoint === null) continue;
+    try {
+      const url = new URL(endpoint);
+      assert(url.protocol === 'https:' && !url.username && !url.password && !url.hash && (!url.port || url.port === '443'), `${channel} catalog endpoint must be credential-free HTTPS on the standard port`);
+      assert(updatePolicy.allowed_catalog_hosts.includes(url.hostname.toLowerCase()), `${channel} catalog endpoint host is not allowlisted`);
+    } catch (error) {
+      assert(false, `${channel} catalog endpoint is invalid: ${error.message}`);
+    }
+  }
+  const integerLimits = {
+    check_delay_seconds: [5, 3600], check_interval_seconds: [300, 604800], max_catalog_bytes: [1024, 1048576],
+    max_payload_bytes: [1048576, 4000000000], download_timeout_seconds: [5, 600], max_download_attempts: [1, 10], health_confirmation_timeout_seconds: [30, 600],
+  };
+  for (const [field, [minimum, maximum]] of Object.entries(integerLimits)) assert(Number.isInteger(updatePolicy?.[field]) && updatePolicy[field] >= minimum && updatePolicy[field] <= maximum, `${field} is outside the allowed range`);
+  if (release?.release_status !== 'development') {
+    assert(updatePolicy?.enabled === true, 'candidate/released builds require the updater to be enabled');
+    assert(typeof updatePolicy?.catalog_endpoints?.stable === 'string', 'candidate/released builds require a stable catalog endpoint');
+  }
+});
+
+checked('trusted-update-keys', () => {
+  assert(trustedKeys?.schema_version === 1, 'trusted update key store schema_version must be 1');
+  assert(Array.isArray(trustedKeys?.keys), 'trusted update key store keys must be an array');
+  const keyIds = new Set();
+  let activeKeys = 0;
+  for (const key of trustedKeys?.keys || []) {
+    assert(key && typeof key === 'object' && !Array.isArray(key), 'trusted update key entry must be an object');
+    assert(JSON.stringify(Object.keys(key || {}).sort()) === JSON.stringify(['algorithm', 'key_id', 'public_key_spki_base64', 'status'].sort()), `${key?.key_id || '<missing key>'}: trusted update key fields are invalid`);
+    assert(/^[A-Za-z0-9._-]{1,80}$/.test(key?.key_id || ''), 'trusted update key_id is invalid');
+    assert(!keyIds.has(key?.key_id), `duplicate trusted update key_id: ${key?.key_id}`);
+    keyIds.add(key?.key_id);
+    assert(key?.algorithm === 'Ed25519', `${key?.key_id}: trusted update key algorithm must be Ed25519`);
+    assert(['active', 'next', 'revoked'].includes(key?.status), `${key?.key_id}: trusted update key status is invalid`);
+    if (key?.status === 'active') activeKeys += 1;
+    const encoded = key?.public_key_spki_base64;
+    assert(typeof encoded === 'string' && encoded.length % 4 === 0 && /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded), `${key?.key_id}: trusted update key is not strict Base64`);
+    if (typeof encoded === 'string') {
+      try {
+        const der = Buffer.from(encoded, 'base64');
+        assert(der.toString('base64') === encoded, `${key?.key_id}: trusted update key Base64 is not canonical`);
+        const publicKey = crypto.createPublicKey({ key: der, format: 'der', type: 'spki' });
+        assert(publicKey.asymmetricKeyType === 'ed25519', `${key?.key_id}: trusted update key is not Ed25519`);
+      } catch (error) {
+        assert(false, `${key?.key_id}: trusted update key cannot be parsed: ${error.message}`);
+      }
+    }
+  }
+  if (release?.release_status !== 'development') assert(activeKeys > 0, 'candidate/released builds require an active trusted update key');
+  assert(!JSON.stringify(trustedKeys || {}).match(/private[_-]?key|secret|password|token/i), 'trusted update key store contains private or secret material');
 });
 
 checked('service-health-versions', () => {
@@ -228,6 +323,12 @@ checked('test-catalog', () => {
   }
   for (const id of [
     'JF-TEST-RELEASE-CONTRACT',
+    'JF-TEST-UPDATE-CORE-UNIT',
+    'JF-TEST-UPDATE-DOWNLOADER-UNIT',
+    'JF-TEST-UPDATE-CONTROLLER-UNIT',
+    'JF-TEST-UPDATE-HELPER-RUNNER-UNIT',
+    'JF-TEST-WINDOWS-UPDATE-HELPER-SELF-TEST',
+    'JF-TEST-UPDATE-PAYLOAD-IDENTITY',
     'JF-TEST-BUILD-MANIFEST',
     'JF-TEST-SECURITY-AUDIT',
     'JF-TEST-RUNTIME-SMOKE',

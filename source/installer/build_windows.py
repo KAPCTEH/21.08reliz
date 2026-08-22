@@ -13,6 +13,7 @@ import sys
 import tempfile
 import math
 import re
+import zipfile
 from pathlib import Path
 
 
@@ -83,6 +84,44 @@ def write_unicode_nsis_source(source: Path, destination: Path) -> Path:
     return destination
 
 
+def write_update_file_manifest(payload: Path, build_identity: dict[str, object]) -> Path:
+    manifest_path = payload / "UPDATE-FILES.json"
+    if manifest_path.exists():
+        manifest_path.unlink()
+    files = sorted(
+        (file_record(item, payload) for item in payload.rglob("*") if item.is_file()),
+        key=lambda item: str(item["path"]).lower(),
+    )
+    manifest = {
+        "schema_version": 1,
+        "product_id": build_identity["product_id"],
+        "version": build_identity["version"],
+        "build_id": build_identity["build_id"],
+        "commit_sha": build_identity["commit_sha"],
+        "files": files,
+    }
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return manifest_path
+
+
+def write_deterministic_update_zip(payload: Path, output_file: Path) -> dict[str, object]:
+    files = sorted((item for item in payload.rglob("*") if item.is_file()), key=lambda item: item.relative_to(payload).as_posix().lower())
+    with zipfile.ZipFile(output_file, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9, allowZip64=True) as archive:
+        for source in files:
+            relative = source.relative_to(payload).as_posix()
+            info = zipfile.ZipInfo(relative, date_time=(1980, 1, 1, 0, 0, 0))
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = 3
+            info.external_attr = 0o100644 << 16
+            with source.open("rb") as input_stream, archive.open(info, "w", force_zip64=True) as output_stream:
+                shutil.copyfileobj(input_stream, output_stream, length=1024 * 1024)
+    return {
+        **file_record(output_file),
+        "unpacked_bytes": sum(item.stat().st_size for item in files),
+        "file_count": len(files),
+    }
+
+
 def main() -> int:
     if os.name != "nt":
         raise RuntimeError("The native installer build must run on Windows.")
@@ -127,6 +166,7 @@ def main() -> int:
         payload / "LICENSE",
         payload / "LICENSES.chromium.html",
         payload / "THIRD-PARTY-NOTICES.txt",
+        payload / "JustFun-UpdateHelper.exe",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
@@ -190,6 +230,19 @@ def main() -> int:
                 recovery_source,
             )
             shutil.copy2(recovery, payload / "Orders-Logistics-Recovery.exe")
+
+        update_helper = output / f"JustFun-{version}-UpdateHelper.exe"
+        shutil.copy2(payload / "JustFun-UpdateHelper.exe", update_helper)
+        verify_pe(update_helper, (b"JustFun",))
+        update_file_manifest = write_update_file_manifest(payload, build_identity)
+        update_file_manifest_copy = output / "UPDATE-FILES.json"
+        shutil.copy2(update_file_manifest, update_file_manifest_copy)
+        update_payload = output / f"JustFun-{version}-win-x64.zip"
+        update_payload_record = write_deterministic_update_zip(payload, update_payload)
+        payload_bytes = sum(path.stat().st_size for path in payload.rglob("*") if path.is_file())
+        required_free_mb = math.ceil(payload_bytes / (1024 * 1024)) + 256
+
+        if not reusable_setup_engine:
             run(
                 makensis,
                 "/WX",
@@ -237,6 +290,7 @@ def main() -> int:
         "source/application/package-lock.json",
         "source/desktop-runtime/package-lock.json",
         "source/installer/package-lock.json",
+        "source/update-helper/packages.lock.json",
         "source/license-server/package-lock.json",
         "source/company-telegram-broker/package-lock.json",
         "tests/package-lock.json",
@@ -259,7 +313,7 @@ def main() -> int:
         else None
     )
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "product_id": build_identity["product_id"],
         "product_name": build_identity["product_name"],
         "version": version,
@@ -293,7 +347,9 @@ def main() -> int:
         "artifacts": {
             "setup": file_record(setup),
             "recovery_helper": file_record(recovery),
-            "update_helper": None,
+            "update_helper": file_record(update_helper),
+            "update_payload": update_payload_record,
+            "update_file_manifest": file_record(update_file_manifest_copy),
             "embedded_setup_engine": engine_manifest,
             "official_logo_sha256": sha256(logo),
             "source_encoding": "utf-8-bom",
