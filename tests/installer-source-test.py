@@ -12,13 +12,24 @@ APP_MAIN = ROOT / "source" / "application" / "main.js"
 PAYLOAD_BUILDER = ROOT / "source" / "desktop-runtime" / "build_payload.py"
 PAYLOAD_HARDENER = ROOT / "source" / "desktop-runtime" / "harden_payload.mjs"
 WINDOWS_WORKFLOW = ROOT / ".github" / "workflows" / "windows-native-783.yml"
+WINDOWS_WORKFLOW_CONTRACT = ROOT / "tests" / "fixtures" / "windows-native-783.yml"
 CRASH_RECOVERY_TEST = ROOT / "tests" / "installer-crash-recovery-test.ps1"
 PE_ICON_TEST = ROOT / "tests" / "verify-pe-icon.mjs"
 
 
+def read_windows_workflow():
+    contract = WINDOWS_WORKFLOW_CONTRACT.read_text(encoding="utf-8")
+    if not WINDOWS_WORKFLOW.exists():
+        return contract
+    workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+    if workflow != contract:
+        raise AssertionError("Windows workflow and source-only test contract differ")
+    return workflow
+
+
 class NativeInstallerSourceTests(unittest.TestCase):
     def test_windows_ci_installs_pinned_pillow_dependency(self):
-        workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        workflow = read_windows_workflow()
         install = "python -m pip install --disable-pip-version-check --no-deps Pillow==12.3.0"
         self.assertIn(install, workflow)
         self.assertLess(workflow.index("Configure Python 3.12"), workflow.index(install))
@@ -215,7 +226,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
     def test_interrupted_update_recovery_is_exercised_on_windows(self):
         test = CRASH_RECOVERY_TEST.read_text(encoding="utf-8")
         setup = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")
-        workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        workflow = read_windows_workflow()
         for marker in (
             "restore-interrupted",
             "cleanup-completed",
@@ -235,7 +246,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
         self.assertIn("if (-not $?) { throw 'Installer crash recovery test failed.' }", workflow)
 
     def test_full_installer_acceptance_uses_powershell_invocation_status(self):
-        workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        workflow = read_windows_workflow()
         self.assertIn("installer-full-acceptance-test.ps1", workflow)
         self.assertIn("if (-not $?) { throw 'Full installer acceptance failed.' }", workflow)
         self.assertNotIn(
@@ -244,7 +255,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
         )
 
     def test_shortcut_icon_location_uses_required_com_output_parameter(self):
-        workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        workflow = read_windows_workflow()
         verifier = PE_ICON_TEST.read_text(encoding="utf-8")
         self.assertIn("$iconIndex = $link.GetIconLocation([ref]$iconSource)", workflow)
         self.assertIn("if ($iconIndex -ne 0)", workflow)
@@ -346,7 +357,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
         self.assertIn('`  "program_dir": "$1",$\\r$\\n`', source)
 
     def test_windows_acceptance_uses_native_nsis_directory_switch_last(self):
-        source = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        source = read_windows_workflow()
         self.assertIn("Render and validate every premium installer screen", source)
         self.assertIn("05-error.png", source)
         self.assertIn("07-route-telegram-actions.png", source)
