@@ -16,6 +16,11 @@ function argument(name) {
   return path.resolve(repository, args[index + 1]);
 }
 
+function optionalArgument(name) {
+  const index = args.indexOf(name);
+  return index >= 0 && args[index + 1] ? path.resolve(repository, args[index + 1]) : null;
+}
+
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 }
@@ -41,6 +46,7 @@ const identityPath = argument('--build-identity');
 const sourceArchive = argument('--source-archive');
 const payloadDirectory = argument('--payload-dir');
 const installerDirectory = argument('--installer-dir');
+const sbomPath = optionalArgument('--sbom');
 const manifest = readJson(manifestPath);
 const identity = readJson(identityPath);
 const release = readJson(path.join(repository, 'source', 'application', 'release.json'));
@@ -57,6 +63,16 @@ assert(JSON.stringify(manifest.contracts) === JSON.stringify(release.contracts),
 assert(identity.source_dirty === false, 'build identity describes a dirty source tree');
 assert(manifest.signing?.algorithm === 'Ed25519', 'BUILD-MANIFEST signing algorithm is invalid');
 assert(['unsigned', 'signed'].includes(manifest.signing?.status), 'BUILD-MANIFEST signing status is invalid');
+if (sbomPath) {
+  assert(fs.existsSync(sbomPath) && fs.statSync(sbomPath).isFile(), `SBOM file is missing: ${sbomPath}`);
+  if (fs.existsSync(sbomPath) && fs.statSync(sbomPath).isFile()) {
+    assert(manifest.sbom?.sha256 === sha256(sbomPath), 'BUILD-MANIFEST SBOM SHA-256 differs');
+    const sbom = readJson(sbomPath);
+    assert(sbom.spdxVersion === 'SPDX-2.3', 'SBOM SPDX version is invalid');
+    assert(sbom.SPDXID === 'SPDXRef-DOCUMENT', 'SBOM document SPDXID is invalid');
+    assert(Array.isArray(sbom.packages) && sbom.packages.length > 1, 'SBOM package inventory is incomplete');
+  }
+}
 assert(Array.isArray(manifest.test_groups) && manifest.test_groups.length > 0, 'BUILD-MANIFEST test groups are missing');
 assert(manifest.test_groups?.every(item => item?.status === 'passed'), 'BUILD-MANIFEST contains a non-passing test group');
 
