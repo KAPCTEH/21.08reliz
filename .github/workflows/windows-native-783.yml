@@ -82,6 +82,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Static audit regression failed.' }
           node tests/main-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Main unit tests failed.' }
+          node tests/reg-entity-source-contract.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Entity source contract failed.' }
+          node tests/background-cloud-sync-failure-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Background VPS sync failure regression failed.' }
           node tests/current-cycle-regression-v783.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Current-cycle regression failed.' }
           $env:JF_TEST_EDITION = 'full'

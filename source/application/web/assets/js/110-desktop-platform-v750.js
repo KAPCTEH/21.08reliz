@@ -599,6 +599,15 @@ function installEntityCommandGuards(){
   };
   for(const[name,spec]of Object.entries(specs)){const base=window[name];if(typeof base!=='function')continue;window[name]=function(){const args=arguments,event=args[0];if(event&&typeof event.preventDefault==='function')event.preventDefault();const targetId=String(spec.target(args)||'');if(!targetId&&!spec.optionalTarget)return base.apply(this,args);return commitEntityMutation({kind:spec.kind,targetId,critical:spec.critical},()=>base.apply(this,args))}}
 }
+function reportCloudSyncFailure(error){
+  cloudSyncState.dirty=true;
+  const message=String(error?.message||error||'VPS не подтвердил изменения.'),code=String(error?.code||'BACKGROUND_SYNC_FAILED');
+  try{integrationBadge('jfRegBadge','Не сохранено на VPS','error')}catch{}
+  try{integrationStatus('jfRegStatus',`Не сохранено на VPS: ${message}. Локальные изменения сохранены на этом компьютере; восстановите связь и повторите синхронизацию.`,'error')}catch{}
+  try{toast('Не сохранено на VPS. Локальные изменения ожидают подтверждения сервера.','error')}catch{}
+  try{audit('background_vps_sync_failed',{code,warehouseId:activeWarehouseId(),environment:activeEnvironment()})}catch{}
+  try{console.error('Background entity upload failed',error)}catch{}
+}
 async function backgroundCloudUpload(){
   if(!cloudSyncState.dirty||cloudSyncState.inFlight||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
   await bootstrapEntitySync();if(!cloudSyncState.bootstrapped)return;if(cloudSyncState.conflicts.size)throw new Error(`Обнаружены конфликты записей: ${cloudSyncState.conflicts.size}. Автоматическая перезапись остановлена.`);
