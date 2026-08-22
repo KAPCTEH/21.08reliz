@@ -14,6 +14,7 @@ assert(start>=0&&end>start,'server-authoritative snapshot source fragment is ava
 const context={
   console,
   structuredClone,
+  window:{},
   localStorage:{getItem:()=>null,setItem:()=>{}},
   desktopSession:{auth:{company:{id:'company-1'}}},
   activeWarehouseId:()=> 'warehouse-1',
@@ -28,6 +29,8 @@ const context={
 };
 vm.createContext(context);
 vm.runInContext(`${renderer.slice(start,end)}\nglobalThis.__fromServer=snapshotFromServerEntities;globalThis.__fp=entityFingerprint;`,context);
+assert.equal(typeof context.window.JustFunServerStorageV3?.writeWarehouse,'function','browser storage export remains available in the extracted fragment');
+assert(Object.isFrozen(context.window.JustFunServerStorageV3),'browser storage export remains immutable');
 
 const snapshot=order=>({
   warehouse:{id:'warehouse-1',environment:'live',createdAt:'2026-08-01T00:00:00Z'},
