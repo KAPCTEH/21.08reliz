@@ -22,7 +22,7 @@
 
 | ID | Экран/элемент | UI-код | IPC/API | Сервер/хранилище | Тест | Живой результат |
 |---|---|---|---|---|---|---|
-| JF3-UI-0001 | Создание доставки → поле адреса и «Найти адрес и район» | `web/index.html`; `searchDeliveryAddress`, `geocodeSearch`, `rankGeocodeResults` в `web/assets/js/00-app-bundle-v595.js` | `desktop:maps-geocode`; `resolveDesktopMapGeocode` в `main.js`; fallback `POST /v1/maps/geocode` | Nominatim direct или `proxy_geocode` в REG VPS; постоянного адресного индекса нет | `main-unit.cjs`, `reg-map-proxy-test.py`; Stage 39 tests отсутствуют | SOURCE BASELINE: BLOCKED |
+| JF3-UI-0001 | Создание доставки → поле адреса и «Найти адрес и район» | `web/index.html`; `04-address-intelligence-v783.js`; `searchDeliveryAddress`, `geocodeSearch`, `rankGeocodeResults` в `00-app-bundle-v595.js` | `desktop:maps-geocode`; `resolveDesktopMapGeocode` в `main.js`; fallback `POST /v1/maps/geocode` | Nominatim direct или `proxy_geocode` в REG VPS; постоянного адресного индекса нет | `address-intelligence-unit-v783.cjs`, `main-unit.cjs`, `reg-map-proxy-test.py` | SOURCE PARTIAL PASS; LIVE NOT TESTED; BLOCKER OPEN |
 | JF3-UI-0002 | Выбор результата адреса | `selectSearchResult`, `parseNominatimResult`, `setSelectedGeo` | reverse geocode через тот же IPC/API | Координаты/адрес сохраняются в `order.geo` текущего склада | текущие runtime smoke частично | LIVE NOT TESTED |
 | JF3-UI-0003 | Клик/перетаскивание маркера карты | `ensureOrderMap`, `placeOrderMarker`, `reverseGeocode` | `desktop:maps-geocode`, mode `reverse` | Nominatim reverse; ручные region/district при отказе | source regression частично | LIVE NOT TESTED |
 
@@ -32,4 +32,3 @@
 - Не создана карта всех 396+ обнаруживаемых кнопок.
 - Не выполнено живое сопоставление UI → IPC/API → VPS → PostgreSQL.
 - Текущая адресная цепочка не реализует Stage 39; см. `JF3-BLOCKER-002`.
-

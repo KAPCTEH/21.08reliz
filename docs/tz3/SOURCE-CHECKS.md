@@ -40,3 +40,17 @@
 - интеллектуальный поиск адресов Stage 39;
 - подписанный живой update/rollback.
 
+## Инкремент адресного поиска `4ba860a25cceb2cef4a43c85ea25a0fc9cd030b3`
+
+| Проверка | Результат | Подтверждение |
+|---|---|---|
+| Address intelligence unit/integration | PASS | нормализация, опечатки, номер, регион, дедупликация, Top-3, детерминизм, debounce, ручная карта |
+| JavaScript syntax | PASS | новый модуль и основной renderer |
+| Release contract | PASS | 79 тестов каталога, 0 failures |
+| Map diagnostic | PASS | отмена устаревшего поиска и диагностический trace сохранены |
+| Runtime smoke | PASS | 24/24 скрипта, 0 runtime errors, 349 кнопок обнаружено |
+| Security | PASS | 150 файлов application, 0 findings; security regression PASS |
+| Current cycle / experience | PASS | обе регрессии успешны |
+| Visual / release / tokens | PASS | контракты успешны, legacy visual risk не закрыт |
+
+Это подтверждает только исходный код и изолированный runtime. Реальная полнота адресной базы и качество на живых адресах пока не доказаны.

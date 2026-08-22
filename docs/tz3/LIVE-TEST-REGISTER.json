@@ -135,6 +135,38 @@
         "https://github.com/KAPCTEH/21.08reliz/issues/23",
         "https://github.com/KAPCTEH/21.08reliz/issues/24"
       ]
+    },
+    {
+      "step_id": "JF3-S0015",
+      "stage": 1,
+      "action": "implement and isolate-test first address intelligence increment",
+      "result": "PASS",
+      "commit": "4ba860a25cceb2cef4a43c85ea25a0fc9cd030b3",
+      "implemented": [
+        "russian address normalization",
+        "fuzzy candidate ranking",
+        "house and plot matching",
+        "preferred-region bias",
+        "deduplication",
+        "Top-3 results",
+        "debounced suggestions",
+        "confidence warnings"
+      ],
+      "tests": {
+        "address_intelligence": "PASS",
+        "release_contract_count": 79,
+        "runtime_scripts": 24,
+        "runtime_errors": 0,
+        "security_findings": 0
+      },
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-002",
+      "limitations": [
+        "no GAR/FIAS index",
+        "no server-side fuzzy index",
+        "no golden corpus metrics",
+        "no live installed-app acceptance"
+      ]
     }
   ],
   "current_gate": "stage-1/gate-a",
