@@ -114,7 +114,7 @@ try {
     '--payload-dir', $payload,
     '--logo', 'source/application/assets/JustFun-official.png',
     '--output-dir', $installer,
-    '--node-modules', 'source/installer/node_modules',
+    '--node-modules', 'source/desktop-runtime/node_modules',
     '--build-identity', $buildIdentityPath,
     '--source-archive', $sourceArchivePath,
     '--test-evidence', $testEvidencePath

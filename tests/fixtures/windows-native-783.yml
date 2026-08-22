@@ -158,7 +158,7 @@ jobs:
             --payload-dir .release/payload `
             --logo source/application/assets/JustFun-official.png `
             --output-dir .release/installer `
-            --node-modules source/installer/node_modules `
+            --node-modules source/desktop-runtime/node_modules `
             --build-identity .release/build-identity.json `
             --source-archive .release/source.zip `
             --test-evidence .release/prebuild-test-results.json `
