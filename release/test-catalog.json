@@ -148,6 +148,43 @@
       "class": "unit"
     },
     {
+      "id": "JF-TEST-UPDATE-UI-UNIT",
+      "name": "Update UI Unit",
+      "level": "source",
+      "path": "tests/update-ui-unit.cjs",
+      "command": "node tests/update-ui-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24",
+        "tests/node_modules"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "release"
+      ],
+      "contracts": [
+        "update-controller",
+        "update-renderer",
+        "accessible-status"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "disabled, idle, available, downloading, ready, applying and failed states render correctly",
+        "download progress and safe restart confirmation are exercised",
+        "signature failures are shown in plain language and remain fail-closed"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when update UI, preload update bridge, controller status or update settings markup changes",
+      "class": "unit"
+    },
+    {
       "id": "JF-TEST-UPDATE-HELPER-RUNNER-UNIT",
       "name": "Update Helper Runner Unit",
       "level": "source",

@@ -126,6 +126,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Update downloader unit tests failed.' }
           node tests/update-controller-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Update controller unit tests failed.' }
+          node tests/update-ui-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Update UI unit tests failed.' }
           node tests/update-helper-runner-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Update Helper runner unit tests failed.' }
           node tests/reg-entity-source-contract.cjs

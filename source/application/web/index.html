@@ -330,6 +330,14 @@
 </div>
 <div class="notice notice-info" id="diagnosticStatus" style="margin-top:12px">Версия системы: 7.8.3 · автоматическая проверка изоляции склада, LIVE/DEMO, заказов, рейсов, оплат и архива выполняется при каждом запуске.</div>
 </div>
+<div class="settings-box span-2 jf-update-center" id="jfUpdateCenter" aria-labelledby="jfUpdateTitle">
+<div class="jf-update-head"><div><h3 id="jfUpdateTitle">Обновление программы</h3><p class="jf-integration-lead">Новые версии скачиваются только после проверки цифровой подписи и устанавливаются с автоматическим возвратом к рабочей версии при сбое.</p></div><span class="jf-update-badge" id="jfUpdateBadge">Проверяется…</span></div>
+<div class="jf-update-versions" aria-label="Сведения о версии"><div><span>Установлена</span><b id="jfUpdateCurrentVersion">7.8.3</b></div><div><span>Доступна</span><b id="jfUpdateTargetVersion">—</b></div><div><span>Канал</span><b id="jfUpdateChannel">Стабильный</b></div></div>
+<div class="jf-update-status" id="jfUpdateStatus" role="status" aria-live="polite">Получаем состояние системы обновлений…</div>
+<div class="jf-update-progress" id="jfUpdateProgress" hidden><div><span id="jfUpdateProgressText">Скачивание обновления</span><b id="jfUpdateProgressPercent">0%</b></div><div class="jf-update-progress-track" id="jfUpdateProgressTrack" role="progressbar" aria-label="Скачивание обновления" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="jfUpdateProgressBar"></i></div></div>
+<div class="inline-actions jf-update-actions"><button class="btn-gray" id="jfUpdateCheck" type="button">Проверить обновление</button><button class="btn-blue" id="jfUpdateDownload" type="button" disabled>Скачать обновление</button><button class="btn-primary" id="jfUpdateApply" type="button" disabled>Установить и перезапустить</button></div>
+<div class="jf-update-safety"><b>Защита данных:</b> обновление не переносит и не удаляет базу складов. Если новая версия не подтвердит успешный запуск, программа автоматически вернёт предыдущую.</div>
+</div>
 <div class="settings-box span-2 jf-integrations-box" id="jfRegIntegrationsBox">
 <h3>Сервер и резервные копии REG.RU</h3>
 <p class="jf-integration-lead">Отдельный блок хранения рабочих данных. Недоступность REG.RU не блокирует запуск программы: локальная база открывается сразу, а связь восстанавливается в фоне.</p>
@@ -753,6 +761,7 @@
 <link href="assets/css/140-clarity-redesign-v783.css" id="clarity-redesign-style-v783" rel="stylesheet"/>
 <link href="assets/css/03-icon-system-v783.css" id="icon-system-style-v783" rel="stylesheet"/>
 <script id="desktop-platform-script-v750" src="assets/js/110-desktop-platform-v750.js"></script>
+<script id="update-center-script-v783" src="assets/js/111-update-center-v783.js"></script>
 <script id="experience-refresh-script-v783" src="assets/js/130-experience-refresh-v783.js"></script>
 <script id="clarity-redesign-script-v783" src="assets/js/140-clarity-redesign-v783.js"></script></body>
 </html>
