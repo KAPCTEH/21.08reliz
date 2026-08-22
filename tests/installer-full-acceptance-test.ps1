@@ -4,6 +4,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$releasePath = Join-Path $PSScriptRoot '..\source\application\release.json'
+$release = Get-Content -LiteralPath $releasePath -Raw | ConvertFrom-Json
+$productVersion = [string]$release.version
+if ($productVersion -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$') {
+  throw "Invalid product version in release.json: $productVersion"
+}
 $setupPath = (Resolve-Path -LiteralPath $Setup).Path
 $evidence = [IO.Path]::GetFullPath($EvidenceDirectory)
 $tempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
@@ -17,14 +23,14 @@ $uninstallReg = 'Registry::HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentV
 $productRegBackup = Join-Path $tempRoot 'state-backup\product.reg'
 $uninstallRegBackup = Join-Path $tempRoot 'state-backup\uninstall.reg'
 $localLogDirectory = Join-Path $env:LOCALAPPDATA 'JustFun\OrdersLogistics\logs'
-$log = Join-Path $localLogDirectory 'installer-7.8.3.log'
-$uninstallLog = Join-Path $localLogDirectory 'uninstall-7.8.3.log'
+$log = Join-Path $localLogDirectory "installer-$productVersion.log"
+$uninstallLog = Join-Path $localLogDirectory "uninstall-$productVersion.log"
 $desktopLog = Join-Path $localLogDirectory 'desktop.log'
 $evidenceLog = Join-Path $evidence 'full-installer.log'
 $evidenceUninstallLog = Join-Path $evidence 'full-uninstaller.log'
 $logState = @(
-  [pscustomobject]@{ Path = $log; Backup = (Join-Path $tempRoot 'state-backup\installer-7.8.3.log'); Existed = (Test-Path -LiteralPath $log -PathType Leaf) },
-  [pscustomobject]@{ Path = $uninstallLog; Backup = (Join-Path $tempRoot 'state-backup\uninstall-7.8.3.log'); Existed = (Test-Path -LiteralPath $uninstallLog -PathType Leaf) },
+  [pscustomobject]@{ Path = $log; Backup = (Join-Path $tempRoot "state-backup\installer-$productVersion.log"); Existed = (Test-Path -LiteralPath $log -PathType Leaf) },
+  [pscustomobject]@{ Path = $uninstallLog; Backup = (Join-Path $tempRoot "state-backup\uninstall-$productVersion.log"); Existed = (Test-Path -LiteralPath $uninstallLog -PathType Leaf) },
   [pscustomobject]@{ Path = $desktopLog; Backup = (Join-Path $tempRoot 'state-backup\desktop.log'); Existed = (Test-Path -LiteralPath $desktopLog -PathType Leaf) }
 )
 $resultPath = Join-Path $evidence 'FULL-INSTALLER-QA.json'
@@ -116,13 +122,13 @@ try {
   Assert-True (-not (Test-Path -LiteralPath (Join-Path $program 'resources\app'))) 'A loose application source directory was installed.'
 
   $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
-  Assert-True ($config.app_version -eq '7.8.3') 'Installed configuration has the wrong version.'
+  Assert-True ($config.app_version -eq $productVersion) 'Installed configuration has the wrong version.'
   Assert-True ($config.mode -eq 'demo') 'Installed configuration has the wrong mode.'
   Assert-True ([IO.Path]::GetFullPath($config.program_dir) -eq [IO.Path]::GetFullPath($program)) 'Installed configuration has the wrong program path.'
   Assert-True ([IO.Path]::GetFullPath($config.data_dir) -eq [IO.Path]::GetFullPath($data)) 'Installed configuration has the wrong data path.'
 
   $logText = Get-Content -LiteralPath $log -Raw
-  foreach ($marker in @('START version=7.8.3', 'TARGET program=', 'DISK root=', 'STEP smoke-test', 'SUCCESS')) {
+  foreach ($marker in @("START version=$productVersion", 'TARGET program=', 'DISK root=', 'STEP smoke-test', 'SUCCESS')) {
     Assert-True ($logText.Contains($marker)) "Installer log is missing: $marker"
   }
   Assert-True (-not $logText.Contains('Не удалось определить свободное место')) 'The released installer repeated the false free-space diagnosis.'
@@ -204,7 +210,7 @@ finally {
   [ordered]@{
     schema = 3
     product = 'JustFun Логистика'
-    version = '7.8.3'
+    version = $productVersion
     setup_sha256 = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash.ToLowerInvariant()
     target_was_absent = $true
     setup_exit = $setupExit

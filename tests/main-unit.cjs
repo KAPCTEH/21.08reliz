@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const Module = require('node:module');
+const release = require('../source/application/release.json');
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'justfun-main-unit-'));
 process.env.LOCALAPPDATA = path.join(temporary, 'local');
@@ -56,7 +57,7 @@ const mainSource = fs.readFileSync(mainPath, 'utf8');
 const main = require(mainPath);
 Module._load = originalLoad;
 
-assert.equal(main.VERSION, '7.8.3');
+assert.equal(main.VERSION, release.version);
 assert.match(mainSource, /directOpenStreetMapGeocode/);
 assert.match(mainSource, /directOpenStreetMapRoute/);
 assert.ok(mainSource.indexOf("try{const data=await directOpenStreetMapGeocode(payload)") < mainSource.indexOf("regApiRequest('POST','\/v1\/maps\/geocode'"));
@@ -113,7 +114,7 @@ assert.throws(
 );
 
 const config = main.readInstallConfig();
-assert.equal(config.app_version, '7.8.3');
+assert.equal(config.app_version, release.version);
 assert.equal(config.mode, 'demo');
 assert.ok(path.isAbsolute(config.data_dir));
 main.persistInstallConfig({ ...config, mode: 'full' });

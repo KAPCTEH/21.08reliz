@@ -4,14 +4,32 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 import time
 from pathlib import Path
 
-VERSION = "7.8.3"
+SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
+
+
+def load_release_contract(app_dir: Path) -> tuple[dict[str, object], str]:
+    contract_path = app_dir / "release.json"
+    if not contract_path.is_file():
+        raise RuntimeError(f"Release contract is missing: {contract_path}")
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    version = str(contract.get("version", "")).strip()
+    if contract.get("product_id") != "justfun-logistics" or not SEMVER.fullmatch(version):
+        raise RuntimeError("Release contract product or SemVer is invalid.")
+    if contract.get("source_commit_policy") != "resolve_at_build":
+        raise RuntimeError("Release contract must resolve the exact commit during the build.")
+    service_versions = contract.get("service_versions") or {}
+    if service_versions.get("desktop") != version:
+        raise RuntimeError("Desktop service version differs from the canonical release version.")
+    return contract, version
 
 
 def runtime_copy_ignore(directory: str, names: list[str]) -> set[str]:
@@ -61,7 +79,8 @@ def main() -> int:
     app_dir = args.app_dir.resolve()
     electron_dist = args.electron_dist.resolve()
     output_dir = args.output_dir.resolve()
-    required_app = [app_dir / "main.js", app_dir / "preload.js", app_dir / "web/index.html"]
+    _, version = load_release_contract(app_dir)
+    required_app = [app_dir / "main.js", app_dir / "preload.js", app_dir / "web/index.html", app_dir / "release.json"]
     missing_app = [str(item) for item in required_app if not item.is_file()]
     if missing_app:
         raise RuntimeError("Missing application sources: " + ", ".join(missing_app))
@@ -148,7 +167,7 @@ def main() -> int:
         )
         if not (resources / "app.asar").is_file() or (resources / "app").exists():
             raise RuntimeError("Protected ASAR packaging did not complete correctly.")
-        (temporary / "version").write_text(VERSION + os.linesep, encoding="utf-8")
+        (temporary / "version").write_text(version + os.linesep, encoding="utf-8")
         replace_directory_with_retry(temporary, output_dir)
 
     print(output_dir)

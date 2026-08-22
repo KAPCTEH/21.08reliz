@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "product_id": "justfun-logistics",
+  "version_scheme": "semver",
+  "allowed_channels": ["internal", "staging", "stable"],
+  "minimum_supported_version": "7.8.3",
+  "allow_automatic_downgrade": false,
+  "full_payload_only": true,
+  "required_contracts": {
+    "reg_api": { "minimum": 3, "maximum": 3 },
+    "license_auth": { "minimum": 4, "maximum": 4 },
+    "license_auth_context": { "minimum": 2, "maximum": 2 },
+    "telegram_broker": { "minimum": 1, "maximum": 1 },
+    "storage_protocol": { "minimum": 3, "maximum": 3 },
+    "update_manifest": { "minimum": 1, "maximum": 1 }
+  },
+  "catalog_rules": {
+    "https_only": true,
+    "reject_expired": true,
+    "reject_sequence_regression": true,
+    "require_ed25519": true,
+    "require_payload_sha256": true
+  }
+}

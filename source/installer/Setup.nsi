@@ -6,7 +6,10 @@ SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 
 !ifndef VERSION
-  !define VERSION "7.8.3"
+  !error "VERSION must come from the canonical release contract"
+!endif
+!ifndef FILE_VERSION
+  !error "FILE_VERSION must come from the canonical release contract"
 !endif
 !ifndef PAYLOAD_DIR
   !error "PAYLOAD_DIR is required"
@@ -42,12 +45,12 @@ WindowIcon On
 ShowInstDetails nevershow
 ShowUninstDetails nevershow
 
-VIProductVersion "${VERSION}.0"
+VIProductVersion "${FILE_VERSION}"
 VIAddVersionKey /LANG=1049 "ProductName" "JustFun Логистика"
 VIAddVersionKey /LANG=1049 "CompanyName" "JustFun"
 VIAddVersionKey /LANG=1049 "FileDescription" "Установщик JustFun Логистика"
-VIAddVersionKey /LANG=1049 "FileVersion" "${VERSION}.0"
-VIAddVersionKey /LANG=1049 "ProductVersion" "${VERSION}.0"
+VIAddVersionKey /LANG=1049 "FileVersion" "${FILE_VERSION}"
+VIAddVersionKey /LANG=1049 "ProductVersion" "${VERSION}"
 VIAddVersionKey /LANG=1049 "LegalCopyright" "JustFun"
 
 !define MUI_ABORTWARNING

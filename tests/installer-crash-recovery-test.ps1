@@ -59,7 +59,7 @@ try {
 
   $setupText = Get-Content -LiteralPath (Join-Path $PSScriptRoot '..\source\installer\Setup.nsi') -Raw -Encoding utf8
   [IO.File]::WriteAllText($source, $setupText, [Text.UTF8Encoding]::new($true))
-  & $Makensis /WX /V2 /DVERSION=9.9.9 /DREQUIRED_MB=2000000000 "/DPAYLOAD_DIR=$payload" "/DASSETS_DIR=$AssetsDir" "/DOUT_FILE=$engine" $source
+  & $Makensis /WX /V2 /DVERSION=9.9.9 /DFILE_VERSION=9.9.9.0 /DREQUIRED_MB=2000000000 "/DPAYLOAD_DIR=$payload" "/DASSETS_DIR=$AssetsDir" "/DOUT_FILE=$engine" $source
   Assert-True ($LASTEXITCODE -eq 0) "Crash-recovery fixture did not compile: $LASTEXITCODE"
   Assert-True (Test-Path -LiteralPath $engine -PathType Leaf) 'Crash-recovery fixture engine is missing.'
 

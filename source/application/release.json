@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "product_id": "justfun-logistics",
+  "product_name": "JustFun Логистика",
+  "version": "7.8.3",
+  "version_scheme": "semver",
+  "release_status": "development",
+  "default_channel": "stable",
+  "supported_channels": [
+    "internal",
+    "staging",
+    "stable"
+  ],
+  "minimum_supported_version": "7.8.3",
+  "source_commit_policy": "resolve_at_build",
+  "contracts": {
+    "update_manifest": 1,
+    "reg_api": 3,
+    "license_auth": 4,
+    "license_auth_context": 2,
+    "telegram_broker": 1,
+    "storage_protocol": 3
+  },
+  "service_versions": {
+    "desktop": "7.8.3",
+    "reg_api": "7.8.3",
+    "license_api": "7.8.3",
+    "telegram_worker": "7.8.3",
+    "company_telegram_broker": "1.0.2"
+  },
+  "windows": {
+    "architecture": "x64",
+    "install_scope": "per-user",
+    "authenticode_required": false
+  }
+}

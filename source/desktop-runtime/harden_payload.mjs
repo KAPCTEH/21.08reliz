@@ -22,7 +22,24 @@ function exactArrayBuffer(buffer) {
   return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
 }
 
-function brandWindowsExecutable(executablePath, iconPath) {
+function parseWindowsVersion(version) {
+  const match = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:[-+][0-9A-Za-z.-]+)?$/.exec(String(version || ''));
+  if (!match) throw new Error(`Invalid release SemVer: ${version}`);
+  return match.slice(1, 4).map(value => Number.parseInt(value, 10));
+}
+
+function readReleaseContract(appDir) {
+  const contractPath = path.join(appDir, 'release.json');
+  const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+  if (contract.product_id !== 'justfun-logistics') throw new Error('Unexpected release product id.');
+  parseWindowsVersion(contract.version);
+  if (contract.service_versions?.desktop !== contract.version) {
+    throw new Error('Desktop service version differs from the canonical release version.');
+  }
+  return contract;
+}
+
+function brandWindowsExecutable(executablePath, iconPath, release) {
   const executableImage = NtExecutable.from(fs.readFileSync(executablePath));
   const resources = NtExecutableResource.from(executableImage);
   const iconGroups = Resource.IconGroupEntry.fromEntries(resources.entries);
@@ -44,16 +61,17 @@ function brandWindowsExecutable(executablePath, iconPath) {
   if (languages.length !== 1) {
     throw new Error('Failed to locate a single Windows resource language.');
   }
-  versionInfo[0].setFileVersion(7, 8, 3, 0);
-  versionInfo[0].setProductVersion(7, 8, 3, 0);
+  const [major, minor, patch] = parseWindowsVersion(release.version);
+  versionInfo[0].setFileVersion(major, minor, patch, 0);
+  versionInfo[0].setProductVersion(major, minor, patch, 0);
   versionInfo[0].setStringValues(languages[0], {
     CompanyName: 'JustFun',
     FileDescription: 'JustFun Логистика',
-    FileVersion: '7.8.3',
+    FileVersion: release.version,
     InternalName: 'OrdersLogistics',
     OriginalFilename: 'OrdersLogistics.exe',
     ProductName: 'JustFun Логистика',
-    ProductVersion: '7.8.3',
+    ProductVersion: release.version,
   });
   versionInfo[0].outputToResourceEntries(resources.entries);
   resources.outputResource(executableImage);
@@ -97,6 +115,7 @@ const resourcesDir = argument('--resources-dir');
 const executable = argument('--executable');
 const appAsar = path.join(resourcesDir, 'app.asar');
 const applicationIcon = path.join(appDir, 'assets', 'JustFun.ico');
+const release = readReleaseContract(appDir);
 
 if (!fs.statSync(appDir).isDirectory()) throw new Error(`Application staging directory not found: ${appDir}`);
 if (!fs.statSync(resourcesDir).isDirectory()) throw new Error(`Electron resources directory not found: ${resourcesDir}`);
@@ -112,7 +131,7 @@ await createPackageWithOptions(appDir, appAsar, {
   unpack: '**/*.{exe,dll,node}',
 });
 
-brandWindowsExecutable(executable, applicationIcon);
+brandWindowsExecutable(executable, applicationIcon, release);
 const asarHeaderHash = embedWindowsAsarIntegrity(executable, appAsar);
 
 await flipFuses(executable, {
@@ -140,7 +159,10 @@ const manifest = {
   archive_sha256: sha256(appAsar),
   archive_header_sha256: asarHeaderHash,
   windows_integrity_resource: 'INTEGRITY/ELECTRONASAR',
-  executable_branding: 'JustFun Логистика 7.8.3',
+  executable_branding: `${release.product_name} ${release.version}`,
+  release_contract_schema: release.schema_version,
+  product_id: release.product_id,
+  product_version: release.version,
   loose_application_directory_present: fs.existsSync(path.join(resourcesDir, 'app')),
   fuses,
   integrity_model: 'electron-asar-header-sha256',

@@ -26,7 +26,7 @@ python build_windows.py \
   --payload-dir <payload> \
   --logo <official-logo.png> \
   --output-dir <output> \
-  --node-modules <installer/node_modules> \
+  --node-modules <desktop-runtime/node_modules> \
   --makensis <makensis.exe>
 ```
 

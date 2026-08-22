@@ -4,9 +4,14 @@ const editionArg = process.argv.find(value => String(value).startsWith('--jf-edi
 const bootstrapEdition = String(editionArg || '').slice('--jf-edition='.length) === 'demo' ? 'demo' : 'full';
 const companyArg = process.argv.find(value => String(value).startsWith('--jf-company-id='));
 const bootstrapCompanyId = String(companyArg || '').slice('--jf-company-id='.length).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
+const versionArg = process.argv.find(value => String(value).startsWith('--jf-version='));
+const bootstrapVersion = String(versionArg || '').slice('--jf-version='.length);
+if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(bootstrapVersion)) {
+  throw new Error('Canonical JustFun version is missing from the protected preload arguments.');
+}
 ipcRenderer.send('desktop:startup-stage', {stage:'preload-loaded', detail:`edition=${bootstrapEdition}`});
 contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
-  version: '7.8.3',
+  version: bootstrapVersion,
   platform: process.platform,
   bootstrapEdition,
   bootstrapCompanyId,

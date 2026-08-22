@@ -12,8 +12,9 @@ const nodeNet = require('net');
 const { verifyPackagedApplicationIntegrity } = require('./security-manifest.cjs');
 const telegramProvisioner = require('./integrations/telegram-cloudflare-native/provisioner.cjs');
 const regVpsNativeSsh = require('./integrations/reg-vps/native-ssh.cjs');
+const RELEASE = Object.freeze(require('./release.json'));
 
-const VERSION = '7.8.3';
+const VERSION = RELEASE.version;
 const APP_NAME = 'JustFun Логистика';
 const COMPANY = 'JustFun';
 const SUPPORT_TELEGRAM = 'https://t.me/KAPCTEH';
@@ -557,7 +558,8 @@ async function createMainWindow() {
       devTools:false, spellcheck:true, backgroundThrottling:false,
       additionalArguments:[
         `--jf-edition=${currentSession?.edition === 'demo' ? 'demo' : 'full'}`,
-        `--jf-company-id=${companyScope}`
+        `--jf-company-id=${companyScope}`,
+        `--jf-version=${VERSION}`
       ]
     }
   });
@@ -2117,7 +2119,7 @@ async function getTelegramStatus(warehouseId=activeRendererWarehouseId) {
         full=await companyTelegramBrokerRequest('GET',`/v1/company/telegram/status?warehouse_id=${encodeURIComponent(warehouseId)}`);
       }
       const service=full?.service||profile||{};
-      return{configured:true,online:true,status:'ready',architecture:'company-broker-v1',deploymentVersion:String(service.deployment_version||''),baseUrl:String(service.base_url||''),botUsername:String(full?.bot?.username||service.bot_username||''),webhookUrl:String(full?.webhook?.url||''),pendingUpdates:Number(full?.webhook?.pending_update_count)||0,lastError:String(full?.webhook?.last_error_message||''),version:String(service.deployment_version||'7.8.3'),cloudflareTokenSaved:false,deleteCloudflareTokenRecommended:true,checkedAt:new Date().toISOString()};
+      return{configured:true,online:true,status:'ready',architecture:'company-broker-v1',deploymentVersion:String(service.deployment_version||''),baseUrl:String(service.base_url||''),botUsername:String(full?.bot?.username||service.bot_username||''),webhookUrl:String(full?.webhook?.url||''),pendingUpdates:Number(full?.webhook?.pending_update_count)||0,lastError:String(full?.webhook?.last_error_message||''),version:String(service.deployment_version||VERSION),cloudflareTokenSaved:false,deleteCloudflareTokenRecommended:true,checkedAt:new Date().toISOString()};
     }catch(error){
       appendLog('Telegram company status failed',{code:String(error?.code||''),error:safeIntegrationError(error)});
       if(isTemporaryCompanyServiceError(error)){
@@ -2527,7 +2529,7 @@ async function boot() {
 function selfTestOutputPath() {
   const prefix = '--self-test-output=';
   const arg = process.argv.find(value => String(value).startsWith(prefix));
-  return arg ? String(arg).slice(prefix.length) : path.join(os.tmpdir(), 'JustFun-OrdersLogistics-self-test-7.8.3.json');
+  return arg ? String(arg).slice(prefix.length) : path.join(os.tmpdir(), `JustFun-OrdersLogistics-self-test-${VERSION}.json`);
 }
 async function runSelfTest() {
   const outputPath = selfTestOutputPath();
@@ -2582,7 +2584,7 @@ async function runSelfTest() {
     width: 1280, height: 800, show: false, backgroundColor: '#eef6f1',
     webPreferences: {preload:path.join(__dirname,'preload.js'), nodeIntegration:false, contextIsolation:true, sandbox:true, webSecurity:true, devTools:false,
       session:selfTestSession,
-      additionalArguments:[`--jf-edition=${currentSession?.edition === 'demo' ? 'demo' : 'full'}`]}
+      additionalArguments:[`--jf-edition=${currentSession?.edition === 'demo' ? 'demo' : 'full'}`,`--jf-version=${VERSION}`]}
   });
   mainWindow=win;
   const failures = [];
@@ -2745,7 +2747,7 @@ async function openVisualQaWindow(edition,partition,viewport={width:1600,height:
     x:-20000,y:-20000,useContentSize:false,frame:false,resizable:false,show:true,skipTaskbar:true,backgroundColor:'#edf5f1',
     webPreferences:{preload:path.join(__dirname,'preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,devTools:false,spellcheck:false,session:visualSession,
       backgroundThrottling:false,
-      additionalArguments:[`--jf-edition=${edition}`,`--jf-company-id=${edition==='demo'?'visualqa':''}`]}
+      additionalArguments:[`--jf-edition=${edition}`,`--jf-company-id=${edition==='demo'?'visualqa':''}`,`--jf-version=${VERSION}`]}
   });
   mainWindow=win;
   await win.loadURL(appRendererUrl('web/index.html'));
@@ -3045,7 +3047,7 @@ async function runPrintQa() {
 function installerSmokeOutputPath() {
   const prefix = '--installer-smoke-output=';
   const arg = process.argv.find(value => String(value).startsWith(prefix));
-  return arg ? String(arg).slice(prefix.length) : path.join(os.tmpdir(), 'JustFun-OrdersLogistics-installer-smoke-7.8.3.json');
+  return arg ? String(arg).slice(prefix.length) : path.join(os.tmpdir(), `JustFun-OrdersLogistics-installer-smoke-${VERSION}.json`);
 }
 function setInstallerSmokeSessionDefaults(outputPath) {
   const profile = `${path.resolve(outputPath)}.profile`;

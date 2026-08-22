@@ -5,6 +5,7 @@
   "description": "Самостоятельная настольная платформа JustFun для управления заказами, складами и логистикой",
   "author": "JustFun — разработка и автоматизация для малого бизнеса",
   "main": "main.js",
+  "justfunReleaseContract": "release.json",
   "private": true,
   "dependencies": {
     "ssh2": "1.17.0"

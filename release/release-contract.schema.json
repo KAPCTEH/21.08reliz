@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://justfun.invalid/release/release-contract.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "product_id",
+    "product_name",
+    "version",
+    "version_scheme",
+    "release_status",
+    "default_channel",
+    "supported_channels",
+    "minimum_supported_version",
+    "source_commit_policy",
+    "contracts",
+    "service_versions",
+    "windows"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "product_id": { "const": "justfun-logistics" },
+    "product_name": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
+    "version_scheme": { "const": "semver" },
+    "release_status": { "enum": ["development", "candidate", "released", "withdrawn"] },
+    "default_channel": { "enum": ["internal", "staging", "stable"] },
+    "supported_channels": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["internal", "staging", "stable"] }
+    },
+    "minimum_supported_version": { "type": "string" },
+    "source_commit_policy": { "const": "resolve_at_build" },
+    "contracts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["update_manifest", "reg_api", "license_auth", "license_auth_context", "telegram_broker", "storage_protocol"],
+      "properties": {
+        "update_manifest": { "type": "integer", "minimum": 1 },
+        "reg_api": { "type": "integer", "minimum": 1 },
+        "license_auth": { "type": "integer", "minimum": 1 },
+        "license_auth_context": { "type": "integer", "minimum": 1 },
+        "telegram_broker": { "type": "integer", "minimum": 1 },
+        "storage_protocol": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "service_versions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["desktop", "reg_api", "license_api", "telegram_worker", "company_telegram_broker"],
+      "properties": {
+        "desktop": { "type": "string" },
+        "reg_api": { "type": "string" },
+        "license_api": { "type": "string" },
+        "telegram_worker": { "type": "string" },
+        "company_telegram_broker": { "type": "string" }
+      }
+    },
+    "windows": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "install_scope", "authenticode_required"],
+      "properties": {
+        "architecture": { "const": "x64" },
+        "install_scope": { "const": "per-user" },
+        "authenticode_required": { "type": "boolean" }
+      }
+    }
+  }
+}
