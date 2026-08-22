@@ -1,0 +1,33 @@
+{
+  "id": "JF-EVID-0017",
+  "type": "css-ratchet-runtime-and-github-windows-verification",
+  "commit": "217d4b9587825d2f8d3617eb2f2c9f54cc117775",
+  "subject": "PR 17 canonical CSS token migration, complete runtime button matrix, accessibility verification, and Windows release gate",
+  "input_digests": {
+    "base_commit": "git:1c52dc625e5a9945e1cb78443cfcb08c3879ce82",
+    "target_commit": "git:217d4b9587825d2f8d3617eb2f2c9f54cc117775",
+    "runtime_button_matrix": "sha256:8a7aa88d9a5b9917d582bc95512848c4a58dbccdece391b2b16c401cd6af055f",
+    "windows_artifact": "sha256:98991f3c8b83edd69b686474710f962fce10c86ab335871f9cec099c9c0f3fb9"
+  },
+  "tool": "Node.js regressions, isolated JSDOM runtime button matrix, security audit, and GitHub Actions windows-native-783",
+  "tool_version": "runtime-button-matrix plus workflow run 32573276076, run number 18",
+  "command": "node tests/design-token-regression-v783.cjs; node tests/product-drawer-accessibility-v783.cjs; python tests/runtime-button-matrix.py source/application/web --edition full; node tests/security-audit.mjs source tools .github; pull_request event for PR 17",
+  "cwd": "isolated local worktree and GitHub-hosted Windows runner",
+  "timestamp_utc": "2026-08-22T12:43:04Z",
+  "exit_code": 0,
+  "normalized_result": "{\"pull_request\":17,\"commit\":\"217d4b9587825d2f8d3617eb2f2c9f54cc117775\",\"css_migration\":{\"files_changed\":18,\"exact_literal_replacements\":259,\"computed_color_change\":false,\"ratchet_before\":{\"files\":24,\"important\":885,\"hexOccurrences\":2038,\"uniqueHex\":1192,\"uniqueRgb\":171,\"uniqueFontSize\":62,\"uniqueRadius\":52,\"uniqueShadow\":130},\"ratchet_after\":{\"files\":24,\"important\":885,\"hexOccurrences\":1779,\"uniqueHex\":1191,\"uniqueRgb\":171,\"uniqueFontSize\":62,\"uniqueRadius\":52,\"uniqueShadow\":130}},\"runtime_button_matrix\":{\"candidates\":96,\"passed\":94,\"skipped\":2,\"failed\":0,\"timeouts\":0,\"isolated_retries\":[58,59]},\"accessibility\":\"PASS\",\"security_audit\":{\"files\":111,\"findings\":0,\"forbidden_artifacts\":0},\"workflow_run_id\":32573276076,\"job_id\":97031807977,\"conclusion\":\"success\",\"successful_steps\":22,\"failed_steps\":0,\"artifact\":{\"id\":9475997331,\"name\":\"justfun-7.8.3-windows-aa595f5caaf33cad171f996ee9cbd02c03d3501d\",\"bytes\":184470595,\"expires_at\":\"2026-09-05T12:42:52Z\"}}",
+  "artifact_sha256": "8a7aa88d9a5b9917d582bc95512848c4a58dbccdece391b2b16c401cd6af055f",
+  "location": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32573276076",
+  "retention": "permanent normalized metadata and local complete runtime matrix; GitHub artifact retained until 2026-09-05T12:42:52Z",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0005"
+  ],
+  "tests": [
+    "JF-TEST-DESIGN-TOKEN-REGRESSION-V783",
+    "JF-TEST-PRODUCT-DRAWER-ACCESSIBILITY-V783",
+    "JF-TEST-RUNTIME-BUTTON-MATRIX",
+    "JF-TEST-SECURITY-AUDIT",
+    "JF-TEST-WINDOWS-NATIVE-783"
+  ]
+}

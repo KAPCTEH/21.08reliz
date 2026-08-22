@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "run_id": "JF-RUN-20260822-PR17-217D4B9",
+  "audit_type": "verify",
+  "budget_mode": "FULL",
+  "base_commit": "1c52dc625e5a9945e1cb78443cfcb08c3879ce82",
+  "target_commit": "217d4b9587825d2f8d3617eb2f2c9f54cc117775",
+  "state": "COMPLETE",
+  "started_at_utc": "2026-08-22T11:37:00Z",
+  "completed_at_utc": "2026-08-22T12:43:04Z",
+  "changed_files": [
+    ".github/workflows/windows-native-783.yml",
+    "source/application/web/assets/css/00-base.css",
+    "source/application/web/assets/css/10-smart-status.css",
+    "source/application/web/assets/css/20-demonstration.css",
+    "source/application/web/assets/css/40-premium-extension.css",
+    "source/application/web/assets/css/50-route-engine.css",
+    "source/application/web/assets/css/60-system-stability.css",
+    "source/application/web/assets/css/70-route-cleanup.css",
+    "source/application/web/assets/css/80-route-composer-map.css",
+    "source/application/web/assets/css/90-route-workspace.css",
+    "source/application/web/assets/css/97-route-stop-interactions.css",
+    "source/application/web/assets/css/98-smart-automation-v598.css",
+    "source/application/web/assets/css/99-stability-v595.css",
+    "source/application/web/assets/css/100-multi-warehouse-v600.css",
+    "source/application/web/assets/css/102-professional-workspace-v610.css",
+    "source/application/web/assets/css/110-desktop-platform-v750.css",
+    "source/application/web/assets/css/120-premium-release-v783.css",
+    "source/application/web/assets/css/130-experience-refresh-v783.css",
+    "source/application/web/assets/css/140-clarity-redesign-v783.css",
+    "tests/design-token-regression-v783.cjs",
+    "tests/fixtures/windows-native-783.yml",
+    "tests/release-regression-v783.mjs"
+  ],
+  "impact_set": [
+    "application",
+    "ux",
+    "tests",
+    "ci",
+    "release"
+  ],
+  "tests_selected": [
+    "design-token regression with tightened literal ratchet",
+    "product-drawer accessibility regression",
+    "desktop-dialog, experience, and visual QA regressions",
+    "dead-override and runtime-overrides regressions",
+    "current-cycle regression",
+    "source-hygiene and static-audit regressions",
+    "security regression and security audit over 111 files",
+    "full-edition runtime load and accessibility",
+    "runtime-button-matrix all 96 candidates with isolated retries for overloaded indexes 58 and 59",
+    "installer-source-test 19 tests",
+    "release-regression-v783",
+    "windows-native-783 complete build-and-accept"
+  ],
+  "tests_skipped": [
+    {
+      "id": "protected-main-post-merge-verification",
+      "reason": "PR 17 remains Draft and was not merged without separate owner confirmation"
+    }
+  ],
+  "evidence_reused": [
+    "JF-EVID-0005"
+  ],
+  "finding_delta": {
+    "opened": [],
+    "closed": [],
+    "updated": [
+      "JF-AUDIT-0005"
+    ],
+    "status_changes": {
+      "JF-AUDIT-0005": "OPEN -> FIXED_PENDING_VERIFY"
+    }
+  },
+  "verdict": "NO_GO",
+  "limitations": [
+    "PR 17 is a stacked Draft based on PR 16 and is not merged into protected main",
+    "JF-AUDIT-0005 cannot be closed until dependent commits are merged and the tightened ratchet is rechecked on main",
+    "The active baseline remains null and the baseline tag has not been created",
+    "Authenticated Cloudflare and Telegram acceptance remains incomplete",
+    "No OPEN P0-P3 findings remain, but the release gate stays NO_GO because pending verification and live acceptance contracts are incomplete"
+  ]
+}
