@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: read
+  attestations: write
+  id-token: write
 
 jobs:
   build-and-accept:
@@ -130,6 +132,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Update UI unit tests failed.' }
           node tests/update-helper-runner-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Update Helper runner unit tests failed.' }
+          python tests/release-evidence-unit.py
+          if ($LASTEXITCODE -ne 0) { throw 'Release evidence unit tests failed.' }
           node tests/reg-entity-source-contract.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Entity source contract failed.' }
           node tests/entity-bootstrap-merge-unit.cjs
@@ -353,6 +357,44 @@ jobs:
             if (Test-Path -LiteralPath $root) { Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue }
           }
 
+      - name: Attest verified primary release artifacts
+        id: attest
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            .release/installer/*.exe
+            .release/installer/*.zip
+            .release/source.zip
+
+      - name: Build SBOM and release evidence package
+        shell: pwsh
+        run: |
+          $evidenceArguments = @(
+            '--manifest', '.release/installer/BUILD-MANIFEST.json',
+            '--build-identity', '.release/build-identity.json',
+            '--source-archive', '.release/source.zip',
+            '--test-results', '.release/prebuild-test-results.json',
+            '--installer-dir', '.release/installer',
+            '--output-dir', '.release/release-evidence',
+            '--evidence', 'premium-previews=.release/premium-previews',
+            '--evidence', 'visual-qa=.release/visual-qa',
+            '--evidence', 'full-acceptance=.release/full-acceptance',
+            '--evidence', 'native-safety=.release/native-safety'
+          )
+          $attestation = '${{ steps.attest.outputs.attestation-url }}'
+          if ($attestation) { $evidenceArguments += @('--attestation-reference', $attestation) }
+          python tools/release/build_release_evidence.py @evidenceArguments
+          if ($LASTEXITCODE -ne 0) { throw 'Release evidence package generation failed.' }
+          node tools/release/verify-build-manifest.mjs `
+            --manifest .release/installer/BUILD-MANIFEST.json `
+            --build-identity .release/build-identity.json `
+            --source-archive .release/source.zip `
+            --payload-dir .release/payload `
+            --installer-dir .release/installer `
+            --sbom .release/release-evidence/SBOM.spdx.json
+          if ($LASTEXITCODE -ne 0) { throw 'Final BUILD-MANIFEST and SBOM verification failed.' }
+
       - name: Upload verified Windows evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -368,5 +410,6 @@ jobs:
             .release/visual-qa/
             .release/full-acceptance/
             .release/native-safety/
+            .release/release-evidence/
           if-no-files-found: warn
           retention-days: 14

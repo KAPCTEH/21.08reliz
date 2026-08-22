@@ -10,7 +10,6 @@ const release = require('../source/application/release.json');
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'justfun-main-unit-'));
 process.env.LOCALAPPDATA = path.join(temporary, 'local');
 process.env.PROGRAMDATA = path.join(temporary, 'programdata');
-process.env.JF_LOG_EXE_DIR_FOR_TEST = path.join(temporary, 'exe');
 process.env.JF_LOG_EMERGENCY_DIR_FOR_TEST = path.join(temporary, 'emergency');
 process.env.JF_DESKTOP_UNIT_TEST = '1';
 
@@ -56,6 +55,15 @@ const mainPath = path.resolve(__dirname, '../source/application/main.js');
 const mainSource = fs.readFileSync(mainPath, 'utf8');
 const main = require(mainPath);
 Module._load = originalLoad;
+
+const primaryLog = path.join(process.env.LOCALAPPDATA, 'JustFun', 'OrdersLogistics', 'logs', 'desktop.log');
+const emergencyLog = path.join(process.env.JF_LOG_EMERGENCY_DIR_FOR_TEST, 'desktop-emergency.log');
+const logWrite = main.appendLog('main unit log routing');
+assert.equal(logWrite.ok, true);
+assert.deepEqual(logWrite.files, [primaryLog]);
+assert.equal(fs.existsSync(primaryLog), true);
+assert.equal(fs.existsSync(emergencyLog), false);
+assert.equal(main.logCandidates().includes(path.join(path.dirname(process.execPath), 'logs', 'desktop.log')), false);
 
 assert.equal(main.VERSION, release.version);
 assert.match(mainSource, /directOpenStreetMapGeocode/);

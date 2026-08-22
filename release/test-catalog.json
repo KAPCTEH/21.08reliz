@@ -416,6 +416,42 @@
       "class": "windows-release"
     },
     {
+      "id": "JF-TEST-RELEASE-EVIDENCE-UNIT",
+      "name": "Release Evidence Unit",
+      "level": "source",
+      "path": "tests/release-evidence-unit.py",
+      "command": "python tests/release-evidence-unit.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python-3.12"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci"
+      ],
+      "contracts": [
+        "spdx-sbom",
+        "release-evidence",
+        "artifact-checksums"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "npm and NuGet locks produce SPDX 2.3 packages",
+        "evidence output cannot erase the .release root",
+        "evidence ZIP creation is deterministic",
+        "canonical release artifacts, checksums and NO-GO status assemble together"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when SBOM, checksum, evidence packaging or release artifact naming changes",
+      "class": "unit"
+    },
+    {
       "id": "JF-TEST-WINDOWS-NATIVE-783",
       "name": "Windows Native 783",
       "level": "windows",
