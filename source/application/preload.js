@@ -1,12 +1,13 @@
 'use strict';
 const { contextBridge, ipcRenderer } = require('electron');
+const RELEASE = require('./release.json');
 const editionArg = process.argv.find(value => String(value).startsWith('--jf-edition='));
 const bootstrapEdition = String(editionArg || '').slice('--jf-edition='.length) === 'demo' ? 'demo' : 'full';
 const companyArg = process.argv.find(value => String(value).startsWith('--jf-company-id='));
 const bootstrapCompanyId = String(companyArg || '').slice('--jf-company-id='.length).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
 ipcRenderer.send('desktop:startup-stage', {stage:'preload-loaded', detail:`edition=${bootstrapEdition}`});
 contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
-  version: '7.8.3',
+  version: RELEASE.version,
   platform: process.platform,
   bootstrapEdition,
   bootstrapCompanyId,

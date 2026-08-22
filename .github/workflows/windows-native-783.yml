@@ -1,4 +1,4 @@
-name: Windows native 7.8.3
+name: Windows native release gate
 
 on:
   workflow_dispatch:
@@ -31,6 +31,23 @@ jobs:
             source/desktop-runtime/package-lock.json
             source/installer/package-lock.json
             tests/package-lock.json
+
+      - name: Resolve and verify canonical release contract
+        shell: pwsh
+        run: |
+          $release = Get-Content -LiteralPath 'source/application/release.json' -Raw | ConvertFrom-Json
+          $version = [string]$release.version
+          if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$') {
+            throw "Invalid product version in release.json: $version"
+          }
+          "JF_PRODUCT_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          New-Item -ItemType Directory -Path '.release' -Force | Out-Null
+          node tools/release/verify-release-contract.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Canonical release contract validation failed.' }
+          node tools/release/write-build-identity.mjs --output .release/build-identity.json --commit $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Exact build identity generation failed.' }
+          git archive --format=zip --output=.release/source.zip $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Exact source archive generation failed.' }
 
       - name: Configure Python 3.12
         uses: actions/setup-python@v5
@@ -113,6 +130,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Release regression failed.' }
           python tests/installer-source-test.py
           if ($LASTEXITCODE -ne 0) { throw 'Installer source tests failed.' }
+          [ordered]@{
+            schema_version = 1
+            commit_sha = $env:GITHUB_SHA.ToLowerInvariant()
+            groups = @(
+              [ordered]@{ id = 'source-contracts'; status = 'passed' },
+              [ordered]@{ id = 'security'; status = 'passed' },
+              [ordered]@{ id = 'business-regression'; status = 'passed' },
+              [ordered]@{ id = 'installer-source'; status = 'passed' }
+            )
+          } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath '.release/prebuild-test-results.json' -Encoding utf8
 
       - name: Build protected Electron payload
         shell: pwsh
@@ -132,14 +159,24 @@ jobs:
             --logo source/application/assets/JustFun-official.png `
             --output-dir .release/installer `
             --node-modules source/installer/node_modules `
+            --build-identity .release/build-identity.json `
+            --source-archive .release/source.zip `
+            --test-evidence .release/prebuild-test-results.json `
             --makensis $env:NSIS_MAKENSIS
           if ($LASTEXITCODE -ne 0) { throw 'Native Windows installer build failed.' }
+          node tools/release/verify-build-manifest.mjs `
+            --manifest .release/installer/BUILD-MANIFEST.json `
+            --build-identity .release/build-identity.json `
+            --source-archive .release/source.zip `
+            --payload-dir .release/payload `
+            --installer-dir .release/installer
+          if ($LASTEXITCODE -ne 0) { throw 'Extended BUILD-MANIFEST verification failed.' }
 
       - name: Render and validate every premium installer screen
         shell: pwsh
         run: |
           $preview = Join-Path $PWD '.release\premium-previews'
-          $setup = Join-Path $PWD '.release\installer\Orders-Logistics-Setup-7.8.3-Premium.exe'
+          $setup = Join-Path $PWD ".release\installer\Orders-Logistics-Setup-$env:JF_PRODUCT_VERSION-Premium.exe"
           New-Item -ItemType Directory -Path $preview -Force | Out-Null
           $process = Start-Process -FilePath $setup -ArgumentList "--render-previews=$preview" -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Premium preview renderer returned $($process.ExitCode)." }
@@ -177,7 +214,7 @@ jobs:
       - name: Run isolated full installer acceptance
         shell: pwsh
         run: |
-          $setup = Join-Path $PWD '.release\installer\Orders-Logistics-Setup-7.8.3-Premium.exe'
+          $setup = Join-Path $PWD ".release\installer\Orders-Logistics-Setup-$env:JF_PRODUCT_VERSION-Premium.exe"
           & tests/installer-full-acceptance-test.ps1 -Setup $setup -EvidenceDirectory (Join-Path $PWD '.release\full-acceptance')
           if (-not $?) { throw 'Full installer acceptance failed.' }
 
@@ -199,7 +236,7 @@ jobs:
           $install = Join-Path $root 'Program'
           $data = Join-Path $root 'Data'
           $evidence = Join-Path $PWD '.release\native-safety'
-          $setup = Join-Path $PWD '.release\installer\Orders-Logistics-Setup-7.8.3-Premium.exe'
+          $setup = Join-Path $PWD ".release\installer\Orders-Logistics-Setup-$env:JF_PRODUCT_VERSION-Premium.exe"
           $desktop = [Environment]::GetFolderPath([Environment+SpecialFolder]::DesktopDirectory)
           $shortcutPath = Join-Path $desktop 'JustFun Логистика.lnk'
           New-Item -ItemType Directory -Path $root, $evidence -Force | Out-Null
@@ -280,8 +317,11 @@ jobs:
       - name: Upload verified Windows evidence
         uses: actions/upload-artifact@v4
         with:
-          name: justfun-7.8.3-windows-${{ github.sha }}
+          name: justfun-windows-${{ github.sha }}
           path: |
+            .release/build-identity.json
+            .release/source.zip
+            .release/prebuild-test-results.json
             .release/installer/
             .release/premium-previews/
             .release/visual-qa/

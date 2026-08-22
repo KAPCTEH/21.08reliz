@@ -5,7 +5,10 @@ CRCCheck force
 SetCompressor /SOLID lzma
 
 !ifndef VERSION
-  !define VERSION "7.8.3"
+  !error "VERSION must come from the canonical release contract"
+!endif
+!ifndef FILE_VERSION
+  !error "FILE_VERSION must come from the canonical release contract"
 !endif
 !ifndef ASSETS_DIR
   !error "ASSETS_DIR is required"
@@ -28,11 +31,11 @@ WindowIcon On
 ShowInstDetails nevershow
 SilentInstall normal
 
-VIProductVersion "${VERSION}.0"
+VIProductVersion "${FILE_VERSION}"
 VIAddVersionKey /LANG=1049 "ProductName" "JustFun Логистика — диагностика"
 VIAddVersionKey /LANG=1049 "CompanyName" "JustFun"
 VIAddVersionKey /LANG=1049 "FileDescription" "Диагностика JustFun Логистика"
-VIAddVersionKey /LANG=1049 "FileVersion" "${VERSION}.0"
+VIAddVersionKey /LANG=1049 "FileVersion" "${FILE_VERSION}"
 VIAddVersionKey /LANG=1049 "LegalCopyright" "JustFun"
 
 !define MUI_ICON "${ASSETS_DIR}\JustFun.ico"

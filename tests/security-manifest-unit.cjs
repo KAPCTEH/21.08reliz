@@ -8,6 +8,7 @@ const {
   sha256File,
   verifySecurityManifestFiles,
 } = require('../source/application/security-manifest.cjs');
+const release = require('../source/application/release.json');
 
 function integrityFixture(root) {
   const archivePath = path.join(root, 'app.asar');
@@ -20,7 +21,7 @@ function integrityFixture(root) {
     archive_sha256: sha256File(archivePath),
     archive_header_sha256: 'A'.repeat(64),
     windows_integrity_resource: 'INTEGRITY/ELECTRONASAR',
-    executable_branding: 'JustFun Логистика 7.8.3',
+    executable_branding: `${release.product_name} ${release.version}`,
     loose_application_directory_present: false,
     fuses: 'fixture',
     integrity_model: 'electron-asar-header-sha256',

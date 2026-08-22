@@ -69,7 +69,7 @@
                       CornerRadius="8"
                       Padding="8,3"
                       Margin="12,0,0,0">
-                <TextBlock Text="7.8.3"
+                <TextBlock x:Name="ReleaseVersionText"
                            Foreground="#E5C36F"
                            FontSize="11"
                            FontWeight="SemiBold" />

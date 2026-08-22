@@ -12,11 +12,12 @@ import subprocess
 import sys
 import tempfile
 import math
+import re
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-VERSION = "7.8.3"
+SEMVER = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 
 
 def sha256(path: Path) -> str:
@@ -29,6 +30,19 @@ def sha256(path: Path) -> str:
 
 def run(*args: str | os.PathLike[str]) -> None:
     subprocess.run([str(value) for value in args], check=True)
+
+
+def command_version(*args: str) -> str:
+    result = subprocess.run(args, check=True, capture_output=True, text=True)
+    return result.stdout.strip()
+
+
+def file_record(path: Path, base: Path | None = None) -> dict[str, object]:
+    return {
+        "path": path.relative_to(base).as_posix() if base else path.name,
+        "bytes": path.stat().st_size,
+        "sha256": sha256(path),
+    }
 
 
 def find_makensis(explicit: str | None) -> Path:
@@ -56,7 +70,7 @@ def verify_pe(path: Path, required_strings: tuple[bytes, ...]) -> dict[str, obje
     missing = [item.decode("utf-8", "replace") for item in required_strings if item not in raw]
     if missing:
         raise RuntimeError(f"{path.name} is missing expected product markers: {missing}")
-    return {"file": path.name, "bytes": path.stat().st_size, "sha256": sha256(path)}
+    return {"path": path.name, "bytes": path.stat().st_size, "sha256": sha256(path)}
 
 
 def write_unicode_nsis_source(source: Path, destination: Path) -> Path:
@@ -78,6 +92,9 @@ def main() -> int:
     parser.add_argument("--logo", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--node-modules", type=Path, required=True)
+    parser.add_argument("--build-identity", type=Path, required=True)
+    parser.add_argument("--source-archive", type=Path, required=True)
+    parser.add_argument("--test-evidence", type=Path, required=True)
     parser.add_argument("--makensis")
     parser.add_argument("--setup-engine", type=Path)
     parser.add_argument("--recovery", type=Path)
@@ -87,6 +104,9 @@ def main() -> int:
     logo = args.logo.resolve()
     output = args.output_dir.resolve()
     node_modules = args.node_modules.resolve()
+    build_identity_path = args.build_identity.resolve()
+    source_archive = args.source_archive.resolve()
+    test_evidence_path = args.test_evidence.resolve()
     makensis = find_makensis(args.makensis)
     if bool(args.setup_engine) != bool(args.recovery):
         raise RuntimeError("--setup-engine and --recovery must be supplied together.")
@@ -94,6 +114,9 @@ def main() -> int:
     reusable_recovery = args.recovery.resolve() if args.recovery else None
     if reusable_setup_engine and (not reusable_setup_engine.is_file() or not reusable_recovery.is_file()):
         raise RuntimeError("Reusable setup engine or Recovery file is missing.")
+    for required_input in (build_identity_path, source_archive, test_evidence_path):
+        if not required_input.is_file():
+            raise RuntimeError(f"Required release evidence is missing: {required_input}")
     output.mkdir(parents=True, exist_ok=True)
 
     required = [
@@ -108,8 +131,21 @@ def main() -> int:
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
         raise RuntimeError("Missing payload files: " + ", ".join(missing))
-    if (payload / "version").read_text(encoding="utf-8-sig").strip() != VERSION:
-        raise RuntimeError("Payload version is not 7.8.3.")
+    version = (payload / "version").read_text(encoding="utf-8-sig").strip()
+    if not SEMVER.fullmatch(version):
+        raise RuntimeError("Payload version is not valid SemVer.")
+    build_identity = json.loads(build_identity_path.read_text(encoding="utf-8-sig"))
+    if build_identity.get("version") != version:
+        raise RuntimeError("Build identity version differs from the protected payload.")
+    if build_identity.get("source_dirty") is not False:
+        raise RuntimeError("Build identity does not describe a clean source tree.")
+    test_evidence = json.loads(test_evidence_path.read_text(encoding="utf-8-sig"))
+    if test_evidence.get("commit_sha") != build_identity.get("commit_sha"):
+        raise RuntimeError("Test evidence commit differs from the build identity.")
+    if not test_evidence.get("groups") or any(item.get("status") != "passed" for item in test_evidence["groups"]):
+        raise RuntimeError("Required pre-build test evidence is incomplete or failed.")
+    numeric_version = version.split("-", 1)[0].split("+", 1)[0]
+    product_file_version = f"{numeric_version}.0"
     payload_bytes = sum(path.stat().st_size for path in payload.rglob("*") if path.is_file())
     # Staging is placed next to the final application so an update is atomic.
     # Leave an additional 256 MiB for the uninstaller, smoke report, filesystem
@@ -135,7 +171,7 @@ def main() -> int:
             temporary / "Recovery.unicode.nsi",
         )
 
-        recovery = output / f"Orders-Logistics-Recovery-{VERSION}.exe"
+        recovery = output / f"Orders-Logistics-Recovery-{version}.exe"
         setup_engine = temporary / "JustFun.Setup.Engine.exe"
         if reusable_setup_engine:
             shutil.copy2(reusable_recovery, recovery)
@@ -147,7 +183,8 @@ def main() -> int:
                 makensis,
                 "/WX",
                 "/V4",
-                f"/DVERSION={VERSION}",
+                f"/DVERSION={version}",
+                f"/DFILE_VERSION={product_file_version}",
                 f"/DASSETS_DIR={assets}",
                 f"/DOUT_FILE={recovery}",
                 recovery_source,
@@ -157,7 +194,8 @@ def main() -> int:
                 makensis,
                 "/WX",
                 "/V4",
-                f"/DVERSION={VERSION}",
+                f"/DVERSION={version}",
+                f"/DFILE_VERSION={product_file_version}",
                 f"/DREQUIRED_MB={required_free_mb}",
                 f"/DPAYLOAD_DIR={payload}",
                 f"/DASSETS_DIR={assets}",
@@ -184,26 +222,96 @@ def main() -> int:
             publish,
             f"/p:PremiumEnginePath={setup_engine}",
             f"/p:PremiumIconPath={assets / 'JustFun.ico'}",
+            f"/p:JustFunProductVersion={version}",
+            f"/p:JustFunProductFileVersion={product_file_version}",
         )
         premium_executable = publish / "JustFunPremiumSetup.exe"
         if not premium_executable.is_file():
             raise RuntimeError("The premium WPF installer executable was not published.")
-        setup = output / f"Orders-Logistics-Setup-{VERSION}-Premium.exe"
+        setup = output / f"Orders-Logistics-Setup-{version}-Premium.exe"
         shutil.copy2(premium_executable, setup)
 
+    repository = ROOT.parents[1]
+    lockfiles = []
+    for relative in (
+        "source/application/package-lock.json",
+        "source/desktop-runtime/package-lock.json",
+        "source/installer/package-lock.json",
+        "source/license-server/package-lock.json",
+        "source/company-telegram-broker/package-lock.json",
+        "tests/package-lock.json",
+    ):
+        lockfile = repository / relative
+        if not lockfile.is_file():
+            raise RuntimeError(f"Required lockfile is missing: {relative}")
+        lockfiles.append(file_record(lockfile, repository))
+    electron_package = json.loads((node_modules / "electron" / "package.json").read_text(encoding="utf-8"))
+    payload_files = sorted(
+        (file_record(path, payload) for path in payload.rglob("*") if path.is_file()),
+        key=lambda item: str(item["path"]).lower(),
+    )
+    github_server = os.environ.get("GITHUB_SERVER_URL", "")
+    github_repository = os.environ.get("GITHUB_REPOSITORY", "")
+    github_run_id = os.environ.get("GITHUB_RUN_ID", "")
+    workflow_url = (
+        f"{github_server}/{github_repository}/actions/runs/{github_run_id}"
+        if github_server and github_repository and github_run_id
+        else None
+    )
     manifest = {
-        "product": "JustFun Логистика",
-        "version": VERSION,
-        "runtime": "wpf-premium-shell+native-nsis-engine",
-        "source_encoding": "utf-8-bom",
-        "official_logo_sha256": sha256(logo),
-        "payload_bytes": payload_bytes,
-        "required_free_mb": required_free_mb,
-        "embedded_engine": engine_manifest,
-        "files": [
-            verify_pe(setup, ()),
-            verify_pe(recovery, (b"Nullsoft",)),
-        ],
+        "schema_version": 2,
+        "product_id": build_identity["product_id"],
+        "product_name": build_identity["product_name"],
+        "version": version,
+        "channel": build_identity["channel"],
+        "commit_sha": build_identity["commit_sha"],
+        "source_tree": build_identity["source_tree"],
+        "build_id": build_identity["build_id"],
+        "generated_at_utc": build_identity["generated_at_utc"],
+        "runner": {
+            "image": os.environ.get("ImageOS") or os.environ.get("RUNNER_OS") or "local-windows",
+            "os": os.environ.get("RUNNER_OS") or "Windows",
+            "architecture": os.environ.get("RUNNER_ARCH") or os.environ.get("PROCESSOR_ARCHITECTURE") or "unknown",
+        },
+        "toolchain": {
+            "python": sys.version.split()[0],
+            "node": command_version("node", "--version"),
+            "npm": command_version("npm.cmd", "--version"),
+            "electron": electron_package["version"],
+            "nsis": command_version(str(makensis), "/VERSION"),
+            "dotnet": command_version(str(dotnet), "--version"),
+        },
+        "contracts": build_identity["contracts"],
+        "lockfiles": lockfiles,
+        "source_archive": file_record(source_archive),
+        "payload": {
+            "runtime": "electron-protected-asar",
+            "bytes": payload_bytes,
+            "required_free_mb": required_free_mb,
+            "files": payload_files,
+        },
+        "artifacts": {
+            "setup": file_record(setup),
+            "recovery_helper": file_record(recovery),
+            "update_helper": None,
+            "embedded_setup_engine": engine_manifest,
+            "official_logo_sha256": sha256(logo),
+            "source_encoding": "utf-8-bom",
+        },
+        "signing": {
+            "status": "unsigned",
+            "algorithm": "Ed25519",
+            "key_id": os.environ.get("JF_RELEASE_SIGNING_KEY_ID") or None,
+            "authenticode_required": False,
+        },
+        "workflow": {
+            "repository": github_repository or None,
+            "run_id": github_run_id or None,
+            "url": workflow_url,
+        },
+        "sbom": {"sha256": None},
+        "attestation": {"reference": None},
+        "test_groups": test_evidence["groups"],
     }
     (output / "BUILD-MANIFEST.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",

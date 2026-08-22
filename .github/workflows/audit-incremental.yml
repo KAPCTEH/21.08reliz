@@ -57,6 +57,9 @@ jobs:
         shell: bash
         run: python -m pip install --disable-pip-version-check --no-deps Pillow==12.3.0
 
+      - name: Verify canonical release contract and test catalog
+        run: node tools/release/verify-release-contract.mjs
+
       - name: Resolve exact diff range
         id: range
         shell: bash

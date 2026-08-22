@@ -11,13 +11,21 @@ $installer = (Resolve-Path -LiteralPath $InstallerDirectory).Path
 $gatePath = (Resolve-Path -LiteralPath $ReleaseGate).Path
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 $gate = Get-Content -LiteralPath $gatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+$release = Get-Content -LiteralPath (Join-Path $repo 'source\application\release.json') -Raw | ConvertFrom-Json
+$version = [string]$release.version
+if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$') {
+  throw "Некорректная версия в release.json: $version"
+}
+if ([string]$gate.version -ne $version) {
+  throw "Версия RELEASE-GATE.json не совпадает с release.json: $($gate.version) != $version"
+}
 if (-not $gate.release_eligible -and -not $AllowBlockedOwnerRc) {
   throw 'Сборка не прошла обязательную проверку установщика. Архив владельца не создан.'
 }
 
 $required = @(
-  'Orders-Logistics-Setup-7.8.3-Premium.exe',
-  'Orders-Logistics-Recovery-7.8.3.exe',
+  "Orders-Logistics-Setup-$version-Premium.exe",
+  "Orders-Logistics-Recovery-$version.exe",
   'BUILD-MANIFEST.json'
 )
 foreach ($name in $required) {
@@ -46,7 +54,7 @@ $tempRoot = Join-Path $tempBase ('jf-owner-' + [Guid]::NewGuid().ToString('N'))
 $stage = Join-Path $tempRoot 'package'
 $setupStage = Join-Path $stage 'УСТАНОВЩИК'
 $sourceArchive = Join-Path $stage '02-ИСХОДНЫЙ-КОД.zip'
-$archive = Join-Path $output 'JUSTFUN-7.8.3-WINDOWS.zip'
+$archive = Join-Path $output "JUSTFUN-$version-WINDOWS.zip"
 
 try {
   New-Item -ItemType Directory -Path $setupStage -Force | Out-Null
@@ -65,7 +73,7 @@ try {
 
   [ordered]@{
     product = 'JustFun Логистика'
-    version = '7.8.3'
+    version = $version
     commit = $head
     release_eligible = [bool]$gate.release_eligible
     generated_at = (Get-Date).ToUniversalTime().ToString('o')

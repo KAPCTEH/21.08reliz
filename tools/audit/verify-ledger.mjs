@@ -52,7 +52,7 @@ if (await stat(path.join(ledger, "baselines", publishManifest?.baseline_id || "m
 
 const allLedgerFiles = (await filesUnder(ledger))
   .map(file => posix(path.relative(ledger, file)))
-  .filter(file => file !== "publish-manifest.json" && !file.startsWith(".git/"));
+  .filter(file => file !== ".git" && file !== "publish-manifest.json" && !file.startsWith(".git/"));
 const manifestPaths = new Set((publishManifest?.files || []).map(file => file.path));
 const actualPaths = new Set(allLedgerFiles);
 for (const file of actualPaths) if (!manifestPaths.has(file)) failures.push(`manifest_missing:${file}`);

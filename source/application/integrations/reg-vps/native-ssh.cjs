@@ -1,5 +1,7 @@
 'use strict';
 
+const RELEASE = require('../../release.json');
+
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -185,7 +187,7 @@ async function installRegVps(rawOptions) {
     if (!match) throw new Error('VPS не вернул подтверждённый отпечаток TLS-сертификата.');
     return {
       format: 2,
-      version: '7.8.3',
+      version: RELEASE.version,
       address: options.host,
       ssh_user: options.username,
       ssh_port: options.port,

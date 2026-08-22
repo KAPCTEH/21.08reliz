@@ -8,9 +8,14 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+$release = Get-Content -LiteralPath (Join-Path $repo 'source\application\release.json') -Raw | ConvertFrom-Json
+$version = [string]$release.version
+if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$') {
+  throw "Некорректная версия в release.json: $version"
+}
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-  $OutputDirectory = Join-Path $repo "build\windows-7.8.3-$stamp"
+  $OutputDirectory = Join-Path $repo "build\windows-$version-$stamp"
 }
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 if (Test-Path -LiteralPath $output) {
@@ -29,10 +34,13 @@ $installer = Join-Path $output 'installer'
 $evidence = Join-Path $output 'evidence'
 New-Item -ItemType Directory -Path $installer, $evidence -Force | Out-Null
 $gatePath = Join-Path $output 'RELEASE-GATE.json'
+$buildIdentityPath = Join-Path $output 'BUILD-IDENTITY.json'
+$sourceArchivePath = Join-Path $output 'SOURCE.zip'
+$testEvidencePath = Join-Path $output 'PREBUILD-TEST-RESULTS.json'
 $gate = [ordered]@{
   schema = 1
   product = 'JustFun Логистика'
-  version = '7.8.3'
+  version = $version
   release_eligible = $false
   source_archive = '02-ИСХОДНЫЙ-КОД'
   installer_acceptance = 'not-run'
@@ -53,6 +61,9 @@ function Invoke-Checked([string]$File, [string[]]$Arguments, [string]$WorkingDir
 }
 
 try {
+  Invoke-Checked 'node' @('tools/release/verify-release-contract.mjs')
+  Invoke-Checked 'node' @('tools/release/write-build-identity.mjs', '--output', $buildIdentityPath)
+  Invoke-Checked 'git' @('archive', '--format=zip', "--output=$sourceArchivePath", 'HEAD')
   if (-not $SkipDependencyInstall) {
     foreach ($directory in @(
       'source/application',
@@ -79,6 +90,18 @@ try {
   Invoke-Checked 'node' @('tests/release-regression-v783.mjs')
   Invoke-Checked 'python' @('tests/installer-source-test.py')
 
+  $head = (git -C $repo rev-parse HEAD).Trim().ToLowerInvariant()
+  [ordered]@{
+    schema_version = 1
+    commit_sha = $head
+    groups = @(
+      [ordered]@{ id = 'source-contracts'; status = 'passed' },
+      [ordered]@{ id = 'security'; status = 'passed' },
+      [ordered]@{ id = 'business-regression'; status = 'passed' },
+      [ordered]@{ id = 'installer-source'; status = 'passed' }
+    )
+  } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $testEvidencePath -Encoding utf8
+
   Invoke-Checked 'python' @(
     'source/desktop-runtime/build_payload.py',
     '--app-dir', 'source/application',
@@ -91,14 +114,25 @@ try {
     '--payload-dir', $payload,
     '--logo', 'source/application/assets/JustFun-official.png',
     '--output-dir', $installer,
-    '--node-modules', 'source/installer/node_modules'
+    '--node-modules', 'source/installer/node_modules',
+    '--build-identity', $buildIdentityPath,
+    '--source-archive', $sourceArchivePath,
+    '--test-evidence', $testEvidencePath
   )
   if (-not [string]::IsNullOrWhiteSpace($Makensis)) {
     $installerArguments += @('--makensis', $Makensis)
   }
   Invoke-Checked 'python' $installerArguments
+  Invoke-Checked 'node' @(
+    'tools/release/verify-build-manifest.mjs',
+    '--manifest', (Join-Path $installer 'BUILD-MANIFEST.json'),
+    '--build-identity', $buildIdentityPath,
+    '--source-archive', $sourceArchivePath,
+    '--payload-dir', $payload,
+    '--installer-dir', $installer
+  )
 
-  $setup = Join-Path $installer 'Orders-Logistics-Setup-7.8.3-Premium.exe'
+  $setup = Join-Path $installer "Orders-Logistics-Setup-$version-Premium.exe"
   if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) {
     throw "Установщик не создан: $setup"
   }

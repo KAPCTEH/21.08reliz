@@ -4,10 +4,11 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const RELEASE = require('../../release.json');
 
 const CLOUDFLARE_HOST = 'api.cloudflare.com';
 const TELEGRAM_HOST = 'api.telegram.org';
-const DEPLOYMENT_VERSION = '7.8.3';
+const DEPLOYMENT_VERSION = RELEASE.version;
 const SCHEMA_VERSION = 2;
 const DEFAULT_WORKER_NAME = 'justfun-logistics-bot';
 const DEFAULT_DATABASE_NAME = 'justfun-logistics-bot-db';

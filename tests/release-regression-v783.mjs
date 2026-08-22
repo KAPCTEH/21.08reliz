@@ -4,6 +4,7 @@ import path from 'node:path';
 
 const root=path.resolve(import.meta.dirname,'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
+const release=JSON.parse(read('source/application/release.json'));
 const index=read('source/application/web/index.html');
 const designTokens=read('source/application/web/assets/css/01-design-tokens-v783.css');
 const premiumCss=read('source/application/web/assets/css/120-premium-release-v783.css');
@@ -40,7 +41,7 @@ assert(designTokens.includes('color-scheme:light'));
 assert(index.includes('assets/css/01-design-tokens-v783.css'));
 assert(premiumCss.includes('.jf-auth-main{background:var(--jf-color-surface)!important;color:var(--jf-ink)!important}'));
 assert(premiumCss.includes('.brand-title{color:var(--jf-color-surface)!important'));
-assert(index.includes('<title>JustFun Логистика · 7.8.3</title>'));
+assert(index.includes(`<title>${release.product_name} · ${release.version}</title>`));
 assert(index.includes('assets/justfun-official-transparent.png'));
 assert(fs.existsSync(path.join(root,'source/application/web/assets/justfun-official-transparent.png')));
 for(const relative of [

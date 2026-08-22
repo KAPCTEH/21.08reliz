@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     {
         _arguments = arguments;
         InitializeComponent();
+        ReleaseVersionText.Text = ReleaseIdentity.Version;
 
         ProgramDirectoryText.Text = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -237,7 +238,7 @@ public partial class MainWindow : Window
             "JustFun",
             "OrdersLogistics",
             "logs",
-            "installer-7.8.3.log");
+            $"installer-{ReleaseIdentity.Version}.log");
         Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!);
 
         _installing = true;
@@ -418,7 +419,7 @@ public partial class MainWindow : Window
             "JustFun",
             "OrdersLogistics",
             "logs",
-            "installer-7.8.3.log");
+            $"installer-{ReleaseIdentity.Version}.log");
         ErrorMessageText.Text = "Пример: целостность встроенного пакета не подтверждена. Установка остановлена без изменения прежней версии.";
         ErrorLogPathText.Text = _logPath;
         SetStep(4);
