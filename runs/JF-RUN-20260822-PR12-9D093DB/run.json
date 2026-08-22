@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "run_id": "JF-RUN-20260822-PR12-9D093DB",
+  "audit_type": "verify",
+  "budget_mode": "STANDARD",
+  "base_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "target_commit": "9d093db1551b6239b4c4587eb697312e577af716",
+  "state": "COMPLETE",
+  "started_at_utc": "2026-08-22T00:13:23Z",
+  "completed_at_utc": "2026-08-22T00:22:27Z",
+  "changed_files": [
+    ".github/workflows/windows-native-783.yml",
+    "source/application/assets/JustFun.ico",
+    "source/application/main.js",
+    "source/application/web/assets/js/110-desktop-platform-v750.js",
+    "source/desktop-runtime/harden_payload.mjs",
+    "source/installer/Setup.nsi",
+    "source/installer/build_assets.py",
+    "tests/installer-crash-recovery-test.ps1",
+    "tests/installer-source-test.py",
+    "tests/main-unit.cjs",
+    "tests/runtime-smoke.mjs",
+    "tests/verify-pe-icon.mjs"
+  ],
+  "impact_set": [
+    "application",
+    "desktop-runtime",
+    "installer",
+    "ci",
+    "release"
+  ],
+  "tests_selected": [
+    "order-save-integrity",
+    "atomic-mutation",
+    "deep-business",
+    "main-unit",
+    "security-audit",
+    "current-cycle-regression-v783",
+    "release-regression-v783",
+    "installer-source-test",
+    "hidden-application-visual-acceptance",
+    "installer-crash-recovery",
+    "installer-full-acceptance",
+    "shortcut-icon-destructive-operation-refusals"
+  ],
+  "tests_skipped": [
+    {
+      "id": "live-two-account-verification",
+      "reason": "Not part of PR 12 impact set and requires a separately authorized live run"
+    },
+    {
+      "id": "cloudflare-deployment-verification",
+      "reason": "Deployment is separate from source and Windows verification"
+    }
+  ],
+  "evidence_reused": [],
+  "finding_delta": {
+    "opened": [],
+    "closed": [],
+    "updated": [
+      "JF-AUDIT-0007"
+    ],
+    "status_changes": {
+      "JF-AUDIT-0007": "OPEN -> FIXED_PENDING_VERIFY"
+    }
+  },
+  "verdict": "NO_GO",
+  "limitations": [
+    "PR 12 is still Draft and its target commit is not merged into main",
+    "JF-AUDIT-0007 cannot be closed until the verified commit is merged and rechecked on protected main",
+    "The active baseline remains null and the baseline tag has not been created",
+    "Other P1 findings and live deployment verification remain open",
+    "Audit governance PR 7 and audit-ledger PR 8 remain unmerged"
+  ]
+}

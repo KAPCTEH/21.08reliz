@@ -1,0 +1,29 @@
+{
+  "id": "JF-EVID-0011",
+  "type": "github-windows-verification",
+  "commit": "9d093db1551b6239b4c4587eb697312e577af716",
+  "subject": "PR 12 order-save integrity fix and complete Windows release gate",
+  "input_digests": {
+    "base_commit": "git:f8e12ecee3e9371dea23c76913302db24050160d",
+    "target_commit": "git:9d093db1551b6239b4c4587eb697312e577af716",
+    "windows_artifact": "sha256:a473394dcaf071af0736e685a097d71d377090efddc7d5a5a914cf2b3aa0ab00"
+  },
+  "tool": "GitHub Actions windows-native-783",
+  "tool_version": "workflow run 32539616544, run number 13",
+  "command": "pull_request event for PR 12 at exact head SHA 9d093db1551b6239b4c4587eb697312e577af716",
+  "cwd": "GitHub-hosted Windows runner",
+  "timestamp_utc": "2026-08-22T00:22:27Z",
+  "exit_code": 0,
+  "normalized_result": "{\"pull_request\":12,\"workflow_run_id\":32539616544,\"job_id\":96946892217,\"job\":\"build-and-accept\",\"conclusion\":\"success\",\"successful_steps\":22,\"failed_steps\":0,\"order_save_integrity\":{\"ok\":true,\"runtime_errors\":0},\"atomic_mutation\":{\"ok\":true},\"installer_crash_recovery\":\"PASS\",\"full_installer_acceptance\":\"PASS\",\"pe_icon_resources\":{\"status\":\"PASS\",\"images\":7},\"running_application_uninstall_refusal\":\"PASS\",\"invalid_data_marker_purge_refusal\":\"PASS\",\"artifact\":{\"id\":9466717972,\"name\":\"justfun-7.8.3-windows-e6ce69d4f77039f34ea3d4e5eee7deeb5a221dcc\",\"bytes\":184428801,\"expires_at\":\"2026-09-05T00:22:13Z\"}}",
+  "artifact_sha256": "a473394dcaf071af0736e685a097d71d377090efddc7d5a5a914cf2b3aa0ab00",
+  "location": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32539616544",
+  "retention": "permanent normalized metadata; GitHub artifact retained until 2026-09-05T00:22:13Z",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0007"
+  ],
+  "tests": [
+    "JF-TEST-RUNTIME-SMOKE",
+    "JF-TEST-WINDOWS-NATIVE-783"
+  ]
+}

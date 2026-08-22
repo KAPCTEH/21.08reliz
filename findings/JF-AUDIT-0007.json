@@ -12,10 +12,11 @@
     "line": 388
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "fact": "Order-save-integrity regression стабильно завершается с кодом 1 в GitHub Windows runner и локально: sanitizeRouteIntegrity выполняет orders.map(o => o.id), когда тестовая цепочка содержит undefined. Подтверждён FAIL и стек; пока не доказано, возникает ли undefined в реальном UI либо только после неуспешной create-фазы fixture.",
+  "last_verified_commit": "9d093db1551b6239b4c4587eb697312e577af716",
+  "fact": "На baseline commit order-save-integrity стабильно завершался с кодом 1 из-за смешения локального сценария сохранения с VPS command path. В PR 12 сценарии разделены: order-save-integrity и atomic-mutation проходят независимо, а полный Windows release gate завершён успешно на exact head commit. Исправление ещё не слито в protected main.",
   "evidence": [
-    "JF-EVID-0009"
+    "JF-EVID-0009",
+    "JF-EVID-0011"
   ],
   "impact": "Windows release gate останавливается до сборки protected payload и установщика; контракт создания, редактирования, удаления заказа и сохранности независимых маршрутов не подтверждён.",
   "reproduction": [
@@ -31,7 +32,9 @@
     "регрессия предотвращает повторное попадание undefined либо подтверждает безопасную обработку повреждённого состояния"
   ],
   "fingerprint": "sha256:6a7c689d6b0a19284bd68264c8b8be0632225512f5de34c816d58b649efa4287",
-  "related": [],
+  "related": [
+    "https://github.com/KAPCTEH/21.08reliz/pull/12"
+  ],
   "owner": "@KAPCTEH",
-  "status": "OPEN"
+  "status": "FIXED_PENDING_VERIFY"
 }

@@ -1,6 +1,6 @@
 # Полномасштабный аудит JustFun 7.8.3 — промежуточный отчёт
 
-Дата: 21.08.2026. Точный clean commit: `f8e12ecee3e9371dea23c76913302db24050160d`. Статус: **NO-GO**. Это `NON_RELEASE_SNAPSHOT`, а не доказанный релиз.
+Дата исходного baseline: 21.08.2026. Последняя проверка: 22.08.2026. Точный clean commit: `f8e12ecee3e9371dea23c76913302db24050160d`. Проверенный head PR №12: `9d093db1551b6239b4c4587eb697312e577af716`. Статус: **NO-GO**. Это `NON_RELEASE_SNAPSHOT`, а не доказанный релиз.
 
 ## Зафиксированная база
 
@@ -18,7 +18,7 @@
 - Runtime load: demo и full загрузили 22/22 скрипта, без runtime errors.
 - Повтор 16 UI-сценариев, ранее завершившихся тайм-аутом при высокой параллельной нагрузке: 16/16 PASS, 0 timeout.
 - Cloudflare read-only: оба deployed Worker не совпадают с clean source; Telegram broker не содержит трёх локальных защит.
-- После перевода GitHub-репозитория в public incremental workflow прошёл полностью; Windows workflow дошёл до release contracts и воспроизвёл JF-AUDIT-0007 до начала installer build.
+- После перевода GitHub-репозитория в public incremental workflow прошёл полностью. В PR №12 JF-AUDIT-0007 исправлен на уровне тестового контура, а Windows workflow прошёл все 22 шага, включая protected payload, Setup/Recovery, визуальную QA, полный install/uninstall acceptance, точную проверку 7 PE icon resources и блокировку удаления при запущенной программе.
 - Ветка `main` защищена: обязательный PR, strict checks `impact-and-tests` и `build-and-accept`, правила применяются к владельцу, force-push и удаление запрещены.
 
 ## Открытые findings
@@ -29,8 +29,8 @@
 - **JF-AUDIT-0004 P1** — Production Cloudflare Workers не соответствуют текущему исходнику (LIVE_CONFIRMED).
 - **JF-AUDIT-0005 P2** — UI-каскад остаётся чрезмерно фрагментированным (TEST_CONFIRMED).
 - **JF-AUDIT-0006 P2** — Source-only ZIP не самодостаточен для двух release-тестов (TEST_CONFIRMED).
-- **JF-AUDIT-0007 P1** — Order-save-integrity падает в sanitizeRouteIntegrity (TEST_CONFIRMED).
+- **JF-AUDIT-0007 P1** — исправление и полный Windows gate подтверждены на head PR №12; статус `FIXED_PENDING_VERIFY` до merge и повторной проверки protected `main`.
 
 ## Не завершено
 
-Репозиторий публичный, `main` защищена, Issues #9/#10 закрыты. Incremental workflow прошёл, Windows required check остановлен подтверждённым JF-AUDIT-0007 и теперь формально блокирует merge. Tag, исправление order-save/source-only ZIP контрактов, installer executable acceptance, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.
+Репозиторий публичный, `main` защищена, Issues #9/#10 закрыты. PR №12 остаётся Draft и не слит; поэтому JF-AUDIT-0007 ещё не закрыт. Baseline PR №8 и governance PR №7 также не слиты. Tag, source-only ZIP contract, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.
