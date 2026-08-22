@@ -138,11 +138,9 @@ function programDataRoot() {
 }
 function installConfigPath() { return path.join(localRoot(), INSTALL_CONFIG_NAME); }
 function logCandidates() {
-  const executableDir = String(process.env.JF_LOG_EXE_DIR_FOR_TEST || '').trim() || (process.execPath ? path.dirname(process.execPath) : '');
   const emergencyDir = String(process.env.JF_LOG_EMERGENCY_DIR_FOR_TEST || '').trim() || path.join(os.tmpdir(), 'JustFun-OrdersLogistics');
   const candidates = [
     path.join(localRoot(), 'logs', 'desktop.log'),
-    executableDir ? path.join(executableDir, 'logs', 'desktop.log') : '',
     path.join(emergencyDir, 'desktop-emergency.log')
   ].filter(Boolean).map(value => path.resolve(value));
   return [...new Set(candidates)];
@@ -180,23 +178,20 @@ function writeFailureArtifact(file,value,label) {
 }
 function appendLog(message, data) {
   const line = `${new Date().toISOString()} ${message}${data === undefined ? '' : ' ' + JSON.stringify(data)}\n`;
-  const written = [], failures = [];
+  const failures = [];
   for (const file of logCandidates()) {
     try {
       ensureDir(path.dirname(file));
       fs.appendFileSync(file, line, 'utf8');
-      written.push(file);
+      startupLog = file;
+      if (failures.length) {
+        const warning = `${new Date().toISOString()} logger target failed ${JSON.stringify(failures)}\n`;
+        try { fs.appendFileSync(startupLog, warning, 'utf8'); } catch (error) { process.stderr.write(warning + safeError(error) + '\n'); }
+      }
+      return {ok:true, files:[file], failures};
     } catch (error) {
       failures.push({file, error:safeError(error)});
     }
-  }
-  if (written.length) {
-    startupLog = written[0];
-    if (failures.length) {
-      const warning = `${new Date().toISOString()} logger target failed ${JSON.stringify(failures)}\n`;
-      try { fs.appendFileSync(startupLog, warning, 'utf8'); } catch (error) { process.stderr.write(warning + safeError(error) + '\n'); }
-    }
-    return {ok:true, files:written, failures};
   }
   process.stderr.write(line + `${new Date().toISOString()} logger unavailable ${JSON.stringify(failures)}\n`);
   return {ok:false, files:[], failures};
