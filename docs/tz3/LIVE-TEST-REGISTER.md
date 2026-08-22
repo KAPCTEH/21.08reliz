@@ -146,6 +146,13 @@
 - Результат Stage 0: `PASS`.
 - Следующий этап: карта проекта и Gate A; исправление релизных блокеров до формирования нового RC.
 
+### JF3-S0014 — Фиксация блокеров в GitHub
+
+- `JF3-BLOCKER-001`: https://github.com/KAPCTEH/21.08reliz/issues/23
+- `JF3-BLOCKER-002`: https://github.com/KAPCTEH/21.08reliz/issues/24
+- Результат: `PASS`.
+- Секреты и приватные данные в Issues не размещались.
+
 ## Текущее решение
 
 - Stage 0: `PASS`.

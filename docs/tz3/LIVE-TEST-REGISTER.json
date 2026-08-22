@@ -125,6 +125,16 @@
       "stage": 0,
       "action": "complete baseline stage",
       "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0014",
+      "stage": 0,
+      "action": "create GitHub issues for confirmed release blockers",
+      "result": "PASS",
+      "issues": [
+        "https://github.com/KAPCTEH/21.08reliz/issues/23",
+        "https://github.com/KAPCTEH/21.08reliz/issues/24"
+      ]
     }
   ],
   "current_gate": "stage-1/gate-a",

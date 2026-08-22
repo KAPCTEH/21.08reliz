@@ -11,6 +11,7 @@
 | Обнаружено | JF3-S0005 |
 | Коммит | `b3a9e7c0f2892b4e3276b51ca5c0ee1760e88568` |
 | Состояние | OPEN |
+| GitHub | https://github.com/KAPCTEH/21.08reliz/issues/23 |
 
 Подтверждённые факты:
 
@@ -37,6 +38,7 @@
 | Обнаружено | JF3-S0012 |
 | Коммит | `b3a9e7c0f2892b4e3276b51ca5c0ee1760e88568` |
 | Состояние | OPEN |
+| GitHub | https://github.com/KAPCTEH/21.08reliz/issues/24 |
 
 Подтверждённое текущее поведение:
 
