@@ -82,7 +82,7 @@ jobs:
           $process = Start-Process -FilePath $helper -ArgumentList "--self-test-report=$report" -WindowStyle Hidden -Wait -PassThru
           if ($process.ExitCode -ne 0) { throw "Update Helper self-test returned $($process.ExitCode)." }
           $result = Get-Content -LiteralPath $report -Raw | ConvertFrom-Json
-          if ($result.ok -ne $true -or [int]$result.checks -lt 7) { throw 'Update Helper self-test evidence is incomplete.' }
+          if ($result.ok -ne $true -or [int]$result.checks -lt 10) { throw 'Update Helper self-test evidence is incomplete.' }
 
       - name: Install pinned Node dependencies
         shell: pwsh

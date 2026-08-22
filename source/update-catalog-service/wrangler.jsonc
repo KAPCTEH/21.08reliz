@@ -1,0 +1,47 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "justfun-update-catalog",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-08-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "DEPLOYMENT_ENVIRONMENT": "production",
+    "MAX_CATALOG_BYTES": "262144"
+  },
+  "kv_namespaces": [
+    {
+      "binding": "UPDATE_CATALOGS"
+    }
+  ],
+  "env": {
+    "production": {
+      "name": "justfun-update-catalog",
+      "vars": {
+        "DEPLOYMENT_ENVIRONMENT": "production",
+        "MAX_CATALOG_BYTES": "262144"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "UPDATE_CATALOGS"
+        }
+      ]
+    },
+    "staging": {
+      "name": "justfun-update-catalog-staging",
+      "vars": {
+        "DEPLOYMENT_ENVIRONMENT": "staging",
+        "MAX_CATALOG_BYTES": "262144"
+      },
+      "kv_namespaces": [
+        {
+          "binding": "UPDATE_CATALOGS"
+        }
+      ]
+    }
+  }
+}

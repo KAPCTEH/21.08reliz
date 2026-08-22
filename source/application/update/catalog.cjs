@@ -69,7 +69,7 @@ function rolloutBucket(installationId, buildId) {
 function validateSignedCatalog(catalog, options = {}) {
   const now = options.now instanceof Date ? options.now : new Date(options.now || Date.now());
   if (Number.isNaN(now.getTime())) throw updateError('UPDATE_CLOCK_INVALID', 'Local update clock is invalid.');
-  exactKeys(catalog, ['schema_version', 'product_id', 'channel', 'catalog_sequence', 'generated_at', 'expires_at', 'release', 'signature'], 'catalog');
+  exactKeys(catalog, ['schema_version', 'product_id', 'channel', 'catalog_sequence', 'generated_at', 'expires_at', 'directive', 'release', 'signature'], 'catalog');
   if (catalog.schema_version !== 1) throw updateError('UPDATE_CATALOG_SCHEMA', 'Unsupported update catalog schema.');
   if (catalog.product_id !== options.productId) throw updateError('UPDATE_PRODUCT_MISMATCH', 'Update catalog belongs to another product.');
   if (!new Set(options.allowedChannels || []).has(catalog.channel)) throw updateError('UPDATE_CHANNEL_REJECTED', 'Update channel is not allowed.');
@@ -79,6 +79,14 @@ function validateSignedCatalog(catalog, options = {}) {
   const clockSkewMs = Number(options.clockSkewMs ?? 300000);
   if (generatedAt.getTime() > now.getTime() + clockSkewMs) throw updateError('UPDATE_CATALOG_FUTURE', 'Catalog was generated in the future.');
   if (expiresAt.getTime() < now.getTime() - clockSkewMs) throw updateError('UPDATE_CATALOG_EXPIRED', 'Update catalog has expired.');
+
+  exactKeys(catalog.directive, ['mode', 'withdrawn_build_ids', 'rollback_from_versions', 'message'], 'directive');
+  const directive = catalog.directive;
+  if (!['release', 'halt', 'rollback'].includes(directive.mode)) throw updateError('UPDATE_DIRECTIVE_MODE', 'Update directive mode is invalid.');
+  if (!Array.isArray(directive.withdrawn_build_ids) || directive.withdrawn_build_ids.length > 64 || new Set(directive.withdrawn_build_ids).size !== directive.withdrawn_build_ids.length || directive.withdrawn_build_ids.some(item => typeof item !== 'string' || !/^[A-Za-z0-9._-]{1,160}$/.test(item))) throw updateError('UPDATE_WITHDRAWN_BUILDS', 'Withdrawn update build identifiers are invalid.');
+  if (!Array.isArray(directive.rollback_from_versions) || directive.rollback_from_versions.length > 32 || new Set(directive.rollback_from_versions).size !== directive.rollback_from_versions.length) throw updateError('UPDATE_ROLLBACK_VERSIONS', 'Rollback source versions are invalid.');
+  for (const version of directive.rollback_from_versions) parseSemver(version);
+  if (!(directive.message === null || (typeof directive.message === 'string' && directive.message.length <= 500))) throw updateError('UPDATE_DIRECTIVE_MESSAGE', 'Update directive message is invalid.');
 
   exactKeys(catalog.signature, ['algorithm', 'key_id', 'value'], 'signature');
   if (catalog.signature.algorithm !== 'Ed25519') throw updateError('UPDATE_SIGNATURE_ALGORITHM', 'Only Ed25519 update signatures are accepted.');
@@ -95,12 +103,13 @@ function validateSignedCatalog(catalog, options = {}) {
   catch (error) { if (error.code?.startsWith('UPDATE_')) throw error; throw updateError('UPDATE_KEY_FORMAT', 'Update public key cannot be used.'); }
   if (!verified) throw updateError('UPDATE_SIGNATURE_INVALID', 'Update catalog signature is invalid.');
 
-  exactKeys(catalog.release, ['version', 'build_id', 'commit_sha', 'published_at', 'minimum_supported_version', 'mandatory_after', 'rollout_percent', 'release_notes_url', 'required_contracts', 'payload'], 'release');
+  exactKeys(catalog.release, ['version', 'build_id', 'commit_sha', 'published_at', 'minimum_supported_version', 'mandatory_after', 'rollout_percent', 'summary', 'release_notes_url', 'required_contracts', 'payload'], 'release');
   parseSemver(catalog.release.version);
   parseSemver(catalog.release.minimum_supported_version);
   if (!/^[0-9a-f]{40}$/.test(catalog.release.commit_sha)) throw updateError('UPDATE_COMMIT_INVALID', 'Release commit SHA is invalid.');
   if (typeof catalog.release.build_id !== 'string' || !catalog.release.build_id.includes(catalog.release.version)) throw updateError('UPDATE_BUILD_ID', 'Release build ID is invalid.');
   if (!Number.isInteger(catalog.release.rollout_percent) || catalog.release.rollout_percent < 0 || catalog.release.rollout_percent > 100) throw updateError('UPDATE_ROLLOUT_INVALID', 'Rollout percentage is invalid.');
+  if (typeof catalog.release.summary !== 'string' || catalog.release.summary.trim().length < 1 || catalog.release.summary.length > 500 || /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(catalog.release.summary)) throw updateError('UPDATE_SUMMARY_INVALID', 'Release summary is invalid.');
   const publishedAt = new Date(catalog.release.published_at);
   if (Number.isNaN(publishedAt.getTime()) || publishedAt > now.getTime() + clockSkewMs) throw updateError('UPDATE_PUBLISHED_AT', 'Release publication time is invalid.');
   const mandatoryAfter = catalog.release.mandatory_after === null ? null : new Date(catalog.release.mandatory_after);
@@ -114,6 +123,9 @@ function validateSignedCatalog(catalog, options = {}) {
   if (!Number.isSafeInteger(catalog.release.payload.file_count) || catalog.release.payload.file_count < 1 || catalog.release.payload.file_count > Number(options.maximumFileCount || 100_000)) throw updateError('UPDATE_FILE_COUNT', 'Update file count is invalid.');
   if (!/^[0-9a-f]{64}$/.test(catalog.release.payload.file_manifest_sha256)) throw updateError('UPDATE_FILE_MANIFEST_HASH', 'Update file manifest SHA-256 is invalid.');
   validHttpsUrl(catalog.release.payload.url, options.allowedPayloadHosts, 'Payload URL');
+  if (directive.mode === 'halt' && (catalog.release.rollout_percent !== 0 || !directive.withdrawn_build_ids.includes(catalog.release.build_id))) throw updateError('UPDATE_HALT_INVALID', 'A halt directive must withdraw its build and set rollout to zero.');
+  if (directive.mode !== 'rollback' && directive.rollback_from_versions.length !== 0) throw updateError('UPDATE_ROLLBACK_VERSIONS', 'Rollback source versions are allowed only for a rollback directive.');
+  if (directive.mode === 'rollback' && directive.rollback_from_versions.length === 0) throw updateError('UPDATE_ROLLBACK_VERSIONS', 'A rollback directive must identify affected installed versions.');
 
   const requiredContracts = catalog.release.required_contracts;
   if (!plainObject(requiredContracts)) throw updateError('UPDATE_CONTRACT_FORMAT', 'Required contracts are invalid.');
@@ -129,7 +141,11 @@ function validateSignedCatalog(catalog, options = {}) {
   const currentVersion = String(options.currentVersion || '');
   parseSemver(currentVersion);
   if (compareSemver(currentVersion, catalog.release.minimum_supported_version) < 0) throw updateError('UPDATE_CLIENT_TOO_OLD', 'Installed version is below the safe automatic-update boundary.');
-  if (compareSemver(catalog.release.version, currentVersion) < 0 && options.allowDowngrade !== true) throw updateError('UPDATE_DOWNGRADE_REJECTED', 'Automatic downgrade is not allowed.');
+  const versionDirection = compareSemver(catalog.release.version, currentVersion);
+  const rollbackPermitted = directive.mode === 'rollback' && versionDirection < 0 && directive.rollback_from_versions.includes(currentVersion);
+  if (directive.mode === 'rollback' && !rollbackPermitted) throw updateError('UPDATE_ROLLBACK_NOT_APPLICABLE', 'Signed rollback does not apply to this installed version.');
+  if (versionDirection < 0 && !rollbackPermitted) throw updateError('UPDATE_DOWNGRADE_REJECTED', 'Automatic downgrade is not allowed without an applicable signed rollback directive.');
+  if (directive.mode === 'rollback' && catalog.release.rollout_percent === 0) throw updateError('UPDATE_ROLLBACK_ROLLOUT', 'A rollback directive must have a non-zero rollout.');
   const digest = catalogDigest(catalog);
   const previousSequence = Number(options.previousSequence || 0);
   if (catalog.catalog_sequence < previousSequence) throw updateError('UPDATE_SEQUENCE_REGRESSION', 'Catalog sequence moved backwards.');
@@ -137,15 +153,23 @@ function validateSignedCatalog(catalog, options = {}) {
   const installationId = String(options.installationId || '');
   if (!installationId) throw updateError('UPDATE_INSTALLATION_ID', 'Installation ID is unavailable.');
   const bucket = rolloutBucket(installationId, catalog.release.build_id);
+  const rolloutEligible = directive.mode !== 'halt' && bucket < catalog.release.rollout_percent;
   return {
     catalog,
     digest,
     canonical: canonicalBytes(signingDocument(catalog)),
     keyId: key.key_id,
-    updateAvailable: compareSemver(catalog.release.version, currentVersion) > 0,
+    updateAvailable: directive.mode !== 'halt' && (versionDirection > 0 || rollbackPermitted),
     mandatory: Boolean(mandatoryAfter && mandatoryAfter <= now),
     rolloutBucket: bucket,
-    rolloutEligible: bucket < catalog.release.rollout_percent,
+    rolloutEligible,
+    directive: Object.freeze({
+      mode: directive.mode,
+      withdrawnBuildIds: Object.freeze([...directive.withdrawn_build_ids]),
+      rollbackFromVersions: Object.freeze([...directive.rollback_from_versions]),
+      message: directive.message,
+    }),
+    rollbackRecommended: rollbackPermitted,
   };
 }
 

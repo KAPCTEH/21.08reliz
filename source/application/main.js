@@ -82,6 +82,7 @@ let updateController = null;
 let updateCheckTimer = null;
 let updateCheckInterval = null;
 let updateHelperPollTimer = null;
+let updateCloseApplyStarted = false;
 const DESKTOP_UNIT_TEST_MODE = process.env.JF_DESKTOP_UNIT_TEST === '1' && !process.versions.electron;
 const runtimeHardeningReport = {sandboxEnabled:false, removedSwitches:[], devToolsGuardInstalled:false, errors:[]};
 const registeredAppProtocolSessions = new WeakSet();
@@ -2392,6 +2393,8 @@ function registerIPC(config) {
   });
   handleMainIPC('desktop:update-download', async () => getUpdateController().download());
   handleMainIPC('desktop:update-apply', async () => getUpdateController().apply());
+  handleMainIPC('desktop:update-after-close', async () => getUpdateController().defer('after_close'));
+  handleMainIPC('desktop:update-remind-later', async () => getUpdateController().defer('remind_later'));
   handleMainIPC('desktop:open-log-folder', async () => {
     ensureDir(logDir());
     const error=await shell.openPath(logDir());
@@ -2923,7 +2926,7 @@ async function runVisualQa() {
     await waitForRenderer(win,"document.querySelector('#jfUpdateCenter[data-update-ready=\"1\"]')?.classList.contains('open')&&!document.querySelector('#jfUpdateCenter > .settings-accordion-body-v610')?.hidden");
     await new Promise(resolve=>setTimeout(resolve,500));
     result.screens.push(await captureVisualQa(win,output,'04-update-center'));
-    result.contracts.push({screen:'update-center',...(await collectVisualContract(win,['#jfUpdateTitle','#jfUpdateBadge','#jfUpdateStatus','#jfUpdateCheck','#jfUpdateDownload','#jfUpdateApply']))});
+    result.contracts.push({screen:'update-center',...(await collectVisualContract(win,['#jfUpdateTitle','#jfUpdateBadge','#jfUpdateStatus','#jfUpdateCheck','#jfUpdateDownload','#jfUpdateApply','#jfUpdateAfterClose','#jfUpdateRemindLater','#jfUpdateHistory','#jfUpdateDiagnostic']))});
 
     await win.webContents.executeJavaScript("showView('programSettings');const box=document.querySelector('#jfRegIntegrationsBox');const toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610');if(box&&!box.classList.contains('open'))toggle?.click();box?.scrollIntoView({block:'start'});");
     await waitForRenderer(win,"document.querySelector('#jfRegIntegrationsBox')?.classList.contains('open')&&!document.querySelector('#jfRegIntegrationsBox > .settings-accordion-body-v610')?.hidden");
@@ -3260,7 +3263,26 @@ if (DESKTOP_UNIT_TEST_MODE) {
   else if (!runningInstanceProbeMode) {
     app.on('second-instance', () => { if (mainWindow&&!mainWindow.isDestroyed()&&!mainWindow.webContents?.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
     app.on('window-all-closed', () => { if (!visualQaMode && !printQaMode && process.platform !== 'darwin') app.quit(); });
-    app.on('before-quit', () => { clearInterval(demoTimer); stopTelegramCompanyPublishRetry(); stopUpdateSchedule(); flushRecurringLogs(); appendLog('application exiting'); });
+    app.on('before-quit', event => {
+      if (!updateCloseApplyStarted) {
+        try {
+          const controller=getUpdateController();
+          if (controller.shouldApplyOnClose()) {
+            event.preventDefault();
+            updateCloseApplyStarted=true;
+            controller.apply().then(result=>{
+              if(!result?.ok)appendLog('deferred update apply failed',{code:String(result?.code||'UPDATE_APPLY_FAILED'),error:String(result?.message||'')});
+              const timer=setTimeout(()=>app.quit(),500);timer.unref?.();
+            }).catch(error=>{
+              appendLog('deferred update apply failed',{code:String(error?.code||'UPDATE_APPLY_FAILED'),error:safeError(error)});
+              const timer=setTimeout(()=>app.quit(),0);timer.unref?.();
+            });
+            return;
+          }
+        } catch(error) { appendLog('deferred update decision failed',{code:String(error?.code||'UPDATE_DEFER_FAILED'),error:safeError(error)}); }
+      }
+      clearInterval(demoTimer); stopTelegramCompanyPublishRetry(); stopUpdateSchedule(); flushRecurringLogs(); appendLog('application exiting');
+    });
     process.on('uncaughtException', error => { appendLog('uncaughtException', diagnosticError(error)); showRecoveryError('Не удалось продолжить запуск программы.', safeError(error)); });
     process.on('unhandledRejection', error => appendLog('unhandledRejection', diagnosticError(error)));
     const entry = installerSmokeMode ? runInstallerSmokeTest : (selfTestMode ? runSelfTest : (visualQaMode ? runVisualQa : (printQaMode ? runPrintQa : boot)));

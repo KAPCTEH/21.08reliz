@@ -47,6 +47,7 @@ jobs:
             source/installer/package-lock.json
             source/license-server/package-lock.json
             source/company-telegram-broker/package-lock.json
+            source/update-catalog-service/package-lock.json
 
       - name: Configure Python 3.12
         uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
@@ -97,9 +98,15 @@ jobs:
       - name: Install lockfile-pinned test dependencies
         shell: bash
         run: |
-          for directory in tests source/application source/desktop-runtime source/installer source/license-server source/company-telegram-broker; do
+          for directory in tests source/application source/desktop-runtime source/installer source/license-server source/company-telegram-broker source/update-catalog-service; do
             npm ci --ignore-scripts --no-audit --no-fund --prefix "$directory"
           done
+
+      - name: Verify signed catalog service and publication policy
+        run: |
+          node tests/update-catalog-worker-unit.mjs
+          node tests/update-catalog-ops-unit.mjs
+          npm run check --prefix source/update-catalog-service
 
       - name: Run safe selected tests
         run: node tools/audit/run-selected-tests.mjs audit-impact.json selected-test-results.json

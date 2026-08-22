@@ -6,7 +6,7 @@ const path = require('path');
 const { validateSignedCatalog } = require('./catalog.cjs');
 const { fetchCatalogJson } = require('./catalog-client.cjs');
 const { downloadVerifiedPayload } = require('./downloader.cjs');
-const { UpdateJournal, writeJsonAtomic } = require('./journal.cjs');
+const { UpdateJournal, validateJournal, writeJsonAtomic } = require('./journal.cjs');
 const { createUpdatePlan } = require('./plan.cjs');
 const { verifiedHelperCopy, runHelperPhase } = require('./helper-runner.cjs');
 
@@ -28,6 +28,7 @@ class UpdateController {
     this.downloadRoot = path.join(this.updateRoot, 'downloads');
     this.catalogRoot = path.join(this.updateRoot, 'catalogs');
     this.stateFile = path.join(this.updateRoot, 'catalog-state.json');
+    this.scheduleFile = path.join(this.updateRoot, 'schedule.json');
     this.journal = new UpdateJournal(path.join(this.updateRoot, 'journal.json'), { now: options.now });
     this.installationId = String(options.installationId || '');
     this.installRoot = path.resolve(String(options.installRoot || '.'));
@@ -57,18 +58,136 @@ class UpdateController {
 
   status() {
     let journal = null;
+    let accepted = null;
     try { journal = this.journal.read(); } catch (error) { return { enabled: this.policy.enabled === true, channel: this.channel, currentVersion: this.currentVersion, state: 'FAILED', code: error.code, message: error.message }; }
+    try { accepted = this.acceptedState(); } catch {}
+    if (!this.active && accepted?.catalog_sequence > 0) { try { this.loadActiveCatalog(); } catch {} }
+    const schedule = this.readSchedule(journal);
+    const lastOperationRecord = this.lastCompletedOperation(journal);
+    const lastOperation = lastOperationRecord ? {
+      state: lastOperationRecord.state,
+      toVersion: lastOperationRecord.toVersion,
+      updatedAt: lastOperationRecord.updatedAt,
+      rollback: lastOperationRecord.rollback,
+    } : null;
     return {
       enabled: this.policy.enabled === true,
       channel: this.channel,
       currentVersion: this.currentVersion,
       state: journal?.state || 'IDLE',
-      targetVersion: journal?.to_version || null,
+      targetVersion: journal && journal.state !== 'IDLE' ? journal.to_version : null,
+      lastCheckedAt: accepted?.updated_at || null,
       mandatory: this.active?.validation?.mandatory === true,
       rolloutEligible: this.active?.validation?.rolloutEligible ?? null,
+      directiveMode: this.active?.validation?.directive?.mode || null,
+      directiveMessage: this.active?.validation?.directive?.message || null,
+      rollbackRecommended: this.active?.validation?.rollbackRecommended === true,
+      releaseNotesUrl: this.active?.catalog?.release?.release_notes_url || null,
+      payloadBytes: this.active?.catalog?.release?.payload?.bytes || null,
+      releaseSummary: this.active?.catalog?.release?.summary || null,
+      installTiming: schedule?.mode || null,
+      remindAfter: schedule?.remind_after || null,
+      lastOperation,
+      diagnosticId: this.diagnosticId(journal || lastOperationRecord),
       error: journal?.error || null,
       rollback: journal?.rollback || null,
     };
+  }
+
+  diagnosticId(operation) {
+    const source = String(operation?.correlation_id || operation?.operation_id || '');
+    return source ? `JF-UPD-${crypto.createHash('sha256').update(source, 'utf8').digest('hex').slice(0, 12).toUpperCase()}` : null;
+  }
+
+  lastCompletedOperation(current = null) {
+    const completed = new Set(['CONFIRMED', 'ROLLED_BACK', 'FAILED']);
+    if (current && completed.has(current.state)) return {
+      state: current.state, toVersion: current.to_version, updatedAt: current.updated_at,
+      rollback: current.rollback, operation_id: current.operation_id, correlation_id: current.correlation_id,
+    };
+    const directory = path.join(this.updateRoot, 'history');
+    if (!fs.existsSync(directory)) return null;
+    const files = fs.readdirSync(directory).filter(name => name.endsWith('.json')).sort().reverse();
+    for (const name of files) {
+      try {
+        const value = validateJournal(JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8').replace(/^\uFEFF/, '')));
+        if (completed.has(value.state)) return {
+          state: value.state, toVersion: value.to_version, updatedAt: value.updated_at,
+          rollback: value.rollback, operation_id: value.operation_id, correlation_id: value.correlation_id,
+        };
+      } catch {}
+    }
+    return null;
+  }
+
+  readSchedule(journal = this.journal.read()) {
+    if (!fs.existsSync(this.scheduleFile)) return null;
+    try {
+      const value = JSON.parse(fs.readFileSync(this.scheduleFile, 'utf8').replace(/^\uFEFF/, ''));
+      const expected = ['schema_version', 'operation_id', 'build_id', 'mode', 'scheduled_at', 'remind_after'].sort();
+      if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(expected) || value.schema_version !== 1 || !/^[A-Za-z0-9._-]{16,128}$/.test(value.operation_id) || typeof value.build_id !== 'string' || !['after_close', 'remind_later'].includes(value.mode) || Number.isNaN(Date.parse(value.scheduled_at)) || !(value.remind_after === null || !Number.isNaN(Date.parse(value.remind_after)))) throw new Error('invalid schedule');
+      if (!journal || journal.operation_id !== value.operation_id || journal.build_id !== value.build_id) return null;
+      return value;
+    } catch {
+      return null;
+    }
+  }
+
+  clearSchedule() {
+    try { fs.unlinkSync(this.scheduleFile); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+
+  defer(mode) {
+    try {
+      const journal = this.journal.read();
+      const validState = mode === 'after_close' ? journal?.state === 'READY_TO_APPLY' : ['UPDATE_AVAILABLE', 'READY_TO_APPLY'].includes(journal?.state);
+      if (!validState || !['after_close', 'remind_later'].includes(mode)) throw Object.assign(new Error('The update cannot be deferred in its current state.'), { code: 'UPDATE_DEFER_NOT_AVAILABLE' });
+      const now = this.now();
+      const schedule = {
+        schema_version: 1,
+        operation_id: journal.operation_id,
+        build_id: journal.build_id,
+        mode,
+        scheduled_at: now.toISOString(),
+        remind_after: mode === 'remind_later' ? new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() : null,
+      };
+      writeJsonAtomic(this.scheduleFile, schedule);
+      this.log('update timing selected', { mode, operationId: journal.operation_id });
+      return { ok: true, mode, remindAfter: schedule.remind_after, status: this.emitStatus() };
+    } catch (error) {
+      return { ...publicFailure(error), status: this.emitStatus() };
+    }
+  }
+
+  shouldApplyOnClose() {
+    const journal = this.journal.read();
+    const schedule = this.readSchedule(journal);
+    return Boolean(journal?.state === 'READY_TO_APPLY' && schedule?.mode === 'after_close');
+  }
+
+  cancelPendingUpdate(validation) {
+    const journal = this.journal.read();
+    if (!journal) return null;
+    const withdrawn = validation.directive.withdrawnBuildIds.includes(journal.build_id);
+    const sameBuildUnavailable = journal.build_id === validation.catalog.release.build_id
+      && (!validation.updateAvailable || !validation.rolloutEligible);
+    const superseded = journal.catalog_sequence < validation.catalog.catalog_sequence
+      && journal.build_id !== validation.catalog.release.build_id;
+    if (!withdrawn && !sameBuildUnavailable && !superseded) return null;
+    if (['UPDATE_AVAILABLE', 'READY_TO_APPLY'].includes(journal.state)) {
+      this.journal.transition('IDLE');
+    } else if (['DOWNLOADING', 'VERIFYING'].includes(journal.state)) {
+      this.journal.transition('FAILED', { error: { code: 'UPDATE_WITHDRAWN', message: 'The downloaded update was withdrawn by a newer signed catalog.' } });
+    } else {
+      return null;
+    }
+    this.clearSchedule();
+    this.log('pending update cancelled by signed catalog', {
+      buildId: journal.build_id,
+      sequence: validation.catalog.catalog_sequence,
+      directive: validation.directive.mode,
+    });
+    return withdrawn ? 'withdrawn' : (superseded ? 'superseded' : 'unavailable');
   }
 
   emitStatus() {
@@ -115,12 +234,15 @@ class UpdateController {
       updated_at: this.now().toISOString(),
     });
     this.active = { catalog, validation, catalogFile };
+    const cancellationReason = this.cancelPendingUpdate(validation);
     if (!validation.updateAvailable || !validation.rolloutEligible) {
       this.log('update catalog checked', { sequence: catalog.catalog_sequence, updateAvailable: validation.updateAvailable, rolloutEligible: validation.rolloutEligible });
-      return { ok: true, updateAvailable: false, reason: validation.updateAvailable ? 'rollout' : 'current', status: this.emitStatus() };
+      const reason = validation.directive.mode === 'halt' ? 'halt' : (cancellationReason || (validation.updateAvailable ? 'rollout' : 'current'));
+      return { ok: true, updateAvailable: false, reason, status: this.emitStatus() };
     }
     const existing = this.journal.read();
     if (!existing || existing.build_id !== catalog.release.build_id || ['FAILED', 'CONFIRMED', 'ROLLED_BACK'].includes(existing.state)) {
+      this.clearSchedule();
       this.journal.begin({
         installation_id_hash: crypto.createHash('sha256').update(this.installationId, 'utf8').digest('hex'),
         channel: this.channel,
@@ -137,7 +259,7 @@ class UpdateController {
       this.journal.transition('UPDATE_AVAILABLE');
     }
     this.log('signed update available', { sequence: catalog.catalog_sequence, version: catalog.release.version, buildId: catalog.release.build_id, mandatory: validation.mandatory });
-    return { ok: true, updateAvailable: true, version: catalog.release.version, mandatory: validation.mandatory, releaseNotesUrl: catalog.release.release_notes_url, status: this.emitStatus() };
+    return { ok: true, updateAvailable: true, version: catalog.release.version, mandatory: validation.mandatory, rollbackRecommended: validation.rollbackRecommended, releaseNotesUrl: catalog.release.release_notes_url, payloadBytes: catalog.release.payload.bytes, status: this.emitStatus() };
   }
 
   loadActiveCatalog() {
@@ -175,7 +297,9 @@ class UpdateController {
         clientVersion: this.currentVersion,
         onProgress: progress => this.onStatus({ ...this.status(), progress }),
       });
-      if (this.journal.read().state === 'DOWNLOADING') this.journal.transition('VERIFYING');
+      const afterDownload = this.journal.read();
+      if (!afterDownload || afterDownload.build_id !== active.catalog.release.build_id || afterDownload.state !== 'DOWNLOADING') throw Object.assign(new Error('The update was withdrawn while it was downloading.'), { code: 'UPDATE_WITHDRAWN' });
+      this.journal.transition('VERIFYING');
       await this.prepareUpdate(active, this.journal.read());
       this.journal.transition('READY_TO_APPLY');
       this.log('update payload verified', { version: active.catalog.release.version, bytes: result.bytes, sha256: result.sha256 });
@@ -193,6 +317,7 @@ class UpdateController {
   plan(active, journal) {
     return createUpdatePlan({
       operationId: journal.operation_id,
+      fromVersion: this.currentVersion,
       installRoot: this.installRoot,
       updateRoot: this.updateRoot,
       catalog: active.catalog,
@@ -221,6 +346,7 @@ class UpdateController {
       const active = this.active || this.loadActiveCatalog();
       const journal = this.journal.read();
       if (!journal || journal.state !== 'READY_TO_APPLY' || journal.build_id !== active.catalog.release.build_id) throw Object.assign(new Error('Verified update is not ready to apply.'), { code: 'UPDATE_NOT_READY' });
+      this.clearSchedule();
       this.journal.transition('APPLYING');
       try { await this.applyUpdate(active, this.journal.read()); }
       catch (error) {

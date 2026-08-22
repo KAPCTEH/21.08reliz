@@ -1,0 +1,24 @@
+name: Publish stable update catalog
+
+on:
+  workflow_dispatch:
+    inputs:
+      catalog_path:
+        description: Signed stable catalog tracked under release/catalogs
+        required: true
+        default: release/catalogs/stable.json
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    uses: ./.github/workflows/_publish-update-catalog.yml
+    with:
+      channel: stable
+      catalog_path: ${{ inputs.catalog_path }}
+      wrangler_environment: production
+      protected_environment: update-production
+      required_directive: release
+    secrets: inherit

@@ -1,0 +1,24 @@
+name: Publish staging update catalog
+
+on:
+  workflow_dispatch:
+    inputs:
+      catalog_path:
+        description: Signed staging catalog tracked under release/catalogs
+        required: true
+        default: release/catalogs/staging.json
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    uses: ./.github/workflows/_publish-update-catalog.yml
+    with:
+      channel: staging
+      catalog_path: ${{ inputs.catalog_path }}
+      wrangler_environment: staging
+      protected_environment: update-staging
+      required_directive: release
+    secrets: inherit

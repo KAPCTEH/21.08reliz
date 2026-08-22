@@ -18,6 +18,7 @@
     "https_only": true,
     "reject_expired": true,
     "reject_sequence_regression": true,
+    "signed_rollback_only": true,
     "require_ed25519": true,
     "require_payload_sha256": true
   }

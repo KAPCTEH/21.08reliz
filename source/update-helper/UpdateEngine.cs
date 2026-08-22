@@ -11,12 +11,15 @@ internal sealed partial class UpdateEngine
     private readonly string _updateRoot;
     private readonly TrustedKeyStore _trustStore;
     private readonly bool _testMode;
+    private readonly Func<UpdatePlan, UpdateCatalog, bool>? _testHealthProbe;
 
-    internal UpdateEngine(string updateRoot, TrustedKeyStore trustStore, bool testMode = false)
+    internal UpdateEngine(string updateRoot, TrustedKeyStore trustStore, bool testMode = false, Func<UpdatePlan, UpdateCatalog, bool>? testHealthProbe = null)
     {
+        if (!testMode && testHealthProbe is not null) throw new ArgumentException("A test health probe requires isolated test mode.", nameof(testHealthProbe));
         _updateRoot = Path.GetFullPath(updateRoot);
         _trustStore = trustStore;
         _testMode = testMode;
+        _testHealthProbe = testHealthProbe;
     }
 
     internal string PlanPath(string operationId)
@@ -52,7 +55,7 @@ internal sealed partial class UpdateEngine
         }
         SafeZip.VerifyStaging(plan.StagingRoot, catalog, plan.PreserveFiles);
         string retired = plan.PreviousRoot + ".retired-" + operationId;
-        SetRecoveryRunOnce(operationId);
+        if (!_testMode) SetRecoveryRunOnce(operationId);
         WriteState(operationId, "APPLYING", null);
         if (Directory.Exists(plan.PreviousRoot)) Directory.Move(plan.PreviousRoot, retired);
         try
@@ -61,17 +64,26 @@ internal sealed partial class UpdateEngine
             WriteState(operationId, "CURRENT_MOVED", null);
             Directory.Move(plan.StagingRoot, plan.InstallRoot);
             WriteState(operationId, "AWAITING_HEALTH_CONFIRMATION", null);
-            Process process = StartApplication(plan.InstallRoot, "--update-health-operation=" + operationId);
-            bool healthy = WaitForHealth(plan, catalog, process);
+            Process? process = null;
+            bool healthy;
+            if (_testHealthProbe is not null) healthy = _testHealthProbe(plan, catalog);
+            else
+            {
+                process = StartApplication(plan.InstallRoot, "--update-health-operation=" + operationId);
+                healthy = WaitForHealth(plan, catalog, process);
+            }
             if (!healthy)
             {
-                try { if (!process.HasExited) process.Kill(true); } catch { }
+                try { if (process is not null && !process.HasExited) process.Kill(true); } catch { }
                 return Rollback(plan, operationId, retired, "health confirmation failed");
             }
-            UpdateRegistry(plan.InstallRoot, catalog.Release.Version);
-            UpdateInstallConfig(plan.InstallRoot, catalog.Release.Version);
+            if (!_testMode)
+            {
+                UpdateRegistry(plan.InstallRoot, catalog.Release.Version);
+                UpdateInstallConfig(plan.InstallRoot, catalog.Release.Version);
+            }
             WriteState(operationId, "CONFIRMED", null);
-            ClearRecoveryRunOnce();
+            if (!_testMode) ClearRecoveryRunOnce();
             if (Directory.Exists(retired)) Directory.Delete(retired, true);
             return 0;
         }
@@ -79,7 +91,7 @@ internal sealed partial class UpdateEngine
         {
             if (Directory.Exists(plan.PreviousRoot)) return Rollback(plan, operationId, retired, error.Message);
             WriteState(operationId, "FAILED", error.Message);
-            ClearRecoveryRunOnce();
+            if (!_testMode) ClearRecoveryRunOnce();
             throw;
         }
     }
@@ -101,16 +113,16 @@ internal sealed partial class UpdateEngine
         if (Directory.Exists(plan.InstallRoot)) Directory.Move(plan.InstallRoot, failed);
         Directory.Move(plan.PreviousRoot, plan.InstallRoot);
         if (Directory.Exists(retired)) Directory.Move(retired, plan.PreviousRoot);
-        try
+        if (!_testMode) try
         {
             string restoredVersion = ReadInstalledVersion(plan.InstallRoot);
             UpdateRegistry(plan.InstallRoot, restoredVersion);
             UpdateInstallConfig(plan.InstallRoot, restoredVersion);
         }
         catch (Exception metadataError) { reason += "; metadata: " + metadataError.Message; }
-        StartApplication(plan.InstallRoot, "--update-rollback=" + operationId);
+        if (!_testMode) StartApplication(plan.InstallRoot, "--update-rollback=" + operationId);
         WriteState(operationId, "ROLLED_BACK", reason);
-        ClearRecoveryRunOnce();
+        if (!_testMode) ClearRecoveryRunOnce();
         return 30;
     }
 
@@ -123,6 +135,18 @@ internal sealed partial class UpdateEngine
         if (plan.SourcePid < 0 || plan.HealthTimeoutSeconds is < 30 or > 600) throw new InvalidDataException("Update plan process or health timeout is invalid.");
         UpdateCatalog catalog = ReleaseSecurity.VerifyCatalog(plan.SignedCatalog, _trustStore, allowExpired ? created : DateTimeOffset.UtcNow);
         ValidatePaths(plan, catalog);
+        if (!allowExpired)
+        {
+            string installedVersion = ReadInstalledVersion(plan.InstallRoot);
+            if (!string.Equals(installedVersion, plan.FromVersion, StringComparison.Ordinal)) throw new InvalidDataException("Update plan source version differs from the installed application.");
+        }
+        int versionDirection = ReleaseSecurity.CompareSemver(catalog.Release.Version, plan.FromVersion);
+        if (catalog.Directive.Mode == "halt") throw new InvalidDataException("A halted build cannot be applied.");
+        if (catalog.Directive.Mode == "rollback")
+        {
+            if (versionDirection >= 0 || !catalog.Directive.RollbackFromVersions.Contains(plan.FromVersion, StringComparer.Ordinal)) throw new InvalidDataException("Signed rollback does not apply to the installed version.");
+        }
+        else if (versionDirection < 0) throw new InvalidDataException("Update plan attempts an unsigned downgrade.");
         return (plan, catalog);
     }
 
@@ -196,7 +220,7 @@ internal sealed partial class UpdateEngine
     private static string ReadInstalledVersion(string installRoot)
     {
         string value = File.ReadAllText(Path.Combine(installRoot, "version")).Trim();
-        if (!Regex.IsMatch(value, "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$", RegexOptions.CultureInvariant)) throw new InvalidDataException("Restored version file is invalid.");
+        if (!ReleaseSecurity.IsValidSemver(value)) throw new InvalidDataException("Restored version file is invalid.");
         return value;
     }
 

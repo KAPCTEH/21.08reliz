@@ -96,6 +96,7 @@ checked('package-versions', () => {
     ['source/installer', release?.service_versions?.desktop],
     ['source/license-server', release?.service_versions?.license_api],
     ['source/company-telegram-broker', release?.service_versions?.company_telegram_broker],
+    ['source/update-catalog-service', release?.service_versions?.update_catalog_service],
   ]);
   assert(release?.service_versions?.desktop === release?.version, 'desktop service version must equal product version');
   assert(release?.service_versions?.reg_api === release?.version, 'REG API service version must equal product version');
@@ -201,13 +202,18 @@ checked('release-formats-and-compatibility', () => {
     assert(states.includes(state), `update journal state is missing: ${state}`);
   }
   assert(updateCatalogSchema?.properties?.signature?.properties?.algorithm?.const === 'Ed25519', 'update catalog signature algorithm must be Ed25519');
+  assert(JSON.stringify(updateCatalogSchema?.properties?.directive?.properties?.mode?.enum) === JSON.stringify(['release', 'halt', 'rollback']), 'update catalog directive modes are invalid');
+  for (const field of ['mode', 'withdrawn_build_ids', 'rollback_from_versions', 'message']) assert(updateCatalogSchema?.properties?.directive?.required?.includes(field), `signed update directive field is missing: ${field}`);
   for (const field of ['unpacked_bytes', 'file_count', 'file_manifest_sha256']) assert(updateCatalogSchema?.properties?.release?.properties?.payload?.required?.includes(field), `signed update payload constraint is missing: ${field}`);
+  assert(updateCatalogSchema?.properties?.release?.required?.includes('summary'), 'signed release summary is missing');
+  assert(updatePlanSchema?.required?.includes('from_version'), 'update plan must bind the installed source version');
   assert(compatibility?.schema_version === 1, 'compatibility policy schema_version must be 1');
   assert(compatibility?.product_id === release?.product_id, 'compatibility policy product differs from release.json');
   assert(compatibility?.version_scheme === release?.version_scheme, 'compatibility version scheme differs from release.json');
   assert(JSON.stringify(compatibility?.allowed_channels) === JSON.stringify(release?.supported_channels), 'compatibility channels differ from release.json');
   assert(compatibility?.minimum_supported_version === release?.minimum_supported_version, 'minimum supported version differs from release.json');
   assert(compatibility?.allow_automatic_downgrade === false, 'automatic downgrade must be disabled');
+  assert(compatibility?.catalog_rules?.signed_rollback_only === true, 'downgrade must require an explicit signed rollback directive');
   assert(compatibility?.full_payload_only === true, 'first updater contract must require a full payload');
   for (const [name, version] of Object.entries(release?.contracts || {})) {
     assert(compatibility?.required_contracts?.[name]?.minimum === version, `compatibility minimum differs for ${name}`);
@@ -278,12 +284,14 @@ checked('trusted-update-keys', () => {
 checked('service-health-versions', () => {
   const license = readText('source/license-server/worker.mjs');
   const broker = readText('source/company-telegram-broker/worker.mjs');
+  const catalogWorker = readText('source/update-catalog-service/worker.mjs');
   const regServer = readText('source/application/integrations/reg-vps/server/server.py');
   const telegramWorker = readText('source/application/integrations/telegram-cloudflare-native/worker/index.js');
   const telegramPackage = readJson('source/application/integrations/telegram-cloudflare-native/package.json');
   const index = readText('source/application/web/index.html');
   assert(license.includes(`version: '${release?.service_versions?.license_api}'`), 'license health version differs from release.json');
   assert(broker.includes(`version: '${release?.service_versions?.company_telegram_broker}'`), 'broker health version differs from release.json');
+  assert(catalogWorker.includes(`const VERSION = '${release?.service_versions?.update_catalog_service}'`), 'update catalog health version differs from release.json');
   assert(regServer.includes(`VERSION = "${release?.service_versions?.reg_api}"`), 'REG API version differs from release.json');
   assert(regServer.includes(`MIN_CLIENT_VERSION = "${release?.minimum_supported_version}"`), 'REG API minimum client version differs from release.json');
   assert(telegramWorker.includes(`env.DEPLOYMENT_VERSION || '${release?.service_versions?.telegram_worker}'`), 'Telegram Worker fallback version differs from release.json');
@@ -327,6 +335,8 @@ checked('test-catalog', () => {
     'JF-TEST-UPDATE-DOWNLOADER-UNIT',
     'JF-TEST-UPDATE-CONTROLLER-UNIT',
     'JF-TEST-UPDATE-UI-UNIT',
+    'JF-TEST-UPDATE-CATALOG-WORKER-UNIT',
+    'JF-TEST-UPDATE-CATALOG-OPS-UNIT',
     'JF-TEST-UPDATE-HELPER-RUNNER-UNIT',
     'JF-TEST-WINDOWS-UPDATE-HELPER-SELF-TEST',
     'JF-TEST-UPDATE-PAYLOAD-IDENTITY',
