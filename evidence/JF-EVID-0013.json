@@ -1,0 +1,33 @@
+{
+  "id": "JF-EVID-0013",
+  "type": "cloudflare-production-deployment",
+  "commit": "6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "subject": "Production Cloudflare canary deployment, rollback preparation, and source-parity verification",
+  "input_digests": {
+    "justfun-company-telegram-source": "sha256:01382fb18e77f4f11f4de7137ce46c09d460ae8906792f96a9acfdc91d1afdef",
+    "justfun-license-api-source": "sha256:92a011ba538835e2a9175ceac1a9bf1f7f7703eb7016b3b68b4bc19f6a016ffa",
+    "broker-d1-backup": "sha256:d2987965fafd2d178cbc9fc64a50f7637ed925f1a58f0fcd868feffbabfc0e67",
+    "license-d1-backup": "sha256:0c02b2e867120e40d2555073897c2bca453909cb0e83e58551064760ebdf587b",
+    "rollback-plan": "sha256:5fbe327ccce8d195691d30582e46d4b052164c476daabbf98ddf131ca9046f7f",
+    "deployment-result": "sha256:600d125a05e2b83f6d6f569966c2fb2c0614fdd2d64e2fed3e904ec163aeb227"
+  },
+  "tool": "Wrangler, Cloudflare API, and isolated Node verification",
+  "tool_version": "Wrangler 4.114.0; deployment 2026-08-22",
+  "command": "backup D1 and active versions; dry-run; versions upload; 10 percent canary; verify; 100 percent rollout; read-only source and settings recheck",
+  "cwd": "clean worktree at exact source commit 6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "timestamp_utc": "2026-08-22T09:14:49.719Z",
+  "exit_code": 0,
+  "normalized_result": "{\"status\":\"DEPLOYED_WITH_LIMITATIONS\",\"license\":{\"version\":\"d7b08a82-9a9f-43be-ab89-4d5df139e908\",\"deployment\":\"c05aca8c-1484-4124-947c-fb9b023dde87\",\"preview\":\"9/9 PASS\",\"canary\":\"45/45 PASS\",\"full\":\"27/27 PASS\",\"normalized_bundle_exact_match\":true},\"broker\":{\"version\":\"2dcdc5e8-d77f-4013-bd36-ec7796f79500\",\"deployment\":\"de4b4f77-cee0-4db5-bfe5-73010492cb9c\",\"preview\":\"3/3 PASS\",\"canary\":\"30/30 PASS\",\"full\":\"30/30 PASS\",\"normalized_bundle_exact_match\":true,\"configure_retry\":true,\"warehouse_scoped_rate_limit\":true,\"warehouse_access_guard_before_save\":true},\"settings_preserved\":true,\"d1_backups_complete\":true,\"rollback_prepared\":true,\"rollback_executed\":false,\"not_verified\":[\"authenticated login/refresh/introspect\",\"existing and new Telegram connection acceptance\"],\"external_blockers\":[\"api.telegram.org UND_ERR_CONNECT_TIMEOUT\",\"incomplete owner credentials\",\"saved session SafeStorage decryption unavailable\"]}",
+  "artifact_sha256": "600d125a05e2b83f6d6f569966c2fb2c0614fdd2d64e2fed3e904ec163aeb227",
+  "location": "local-only protected deployment backup; sanitized metadata retained here",
+  "retention": "sanitized metadata permanent; raw D1, profile, and session backups remain local-only under restricted ACL and are not publishable",
+  "status": "LIVE_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0004"
+  ],
+  "tests": [
+    "JF-TEST-COMPANY-TELEGRAM-BROKER-UNIT",
+    "JF-TEST-LICENSE-SERVER-UNIT",
+    "JF-TEST-LIVE-CLOUDFLARE-WORKER-SOURCE-READONLY"
+  ]
+}

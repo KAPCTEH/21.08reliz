@@ -3,13 +3,13 @@
   "branch": "audit-ledger",
   "orphan_history_required": true,
   "baseline_id": "baseline-20260821-f8e12ec",
-  "generated_at_utc": "2026-08-22T08:23:05.012Z",
+  "generated_at_utc": "2026-08-22T09:18:18.298Z",
   "raw_sensitive_evidence_published": false,
   "exclusions": [
     "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
   ],
-  "file_count": 160,
-  "total_bytes": 5237200,
+  "file_count": 162,
+  "total_bytes": 5244514,
   "files": [
     {
       "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
@@ -662,6 +662,11 @@
       "sha256": "9e86836aff75c9d8f03539eaaa4a723df7e60904caf4659211f46b378fa1a41e"
     },
     {
+      "path": "evidence/JF-EVID-0013.json",
+      "bytes": 2905,
+      "sha256": "372765c4a7a352e54a7c41db7ac204f937ce2add9fabbae2fded8f71662abc10"
+    },
+    {
       "path": "findings/JF-AUDIT-0001.json",
       "bytes": 2855,
       "sha256": "22e20431ec7b362bb0f285a721768812f1f7133efc006f635b28f28ac1e6490b"
@@ -678,8 +683,8 @@
     },
     {
       "path": "findings/JF-AUDIT-0004.json",
-      "bytes": 2308,
-      "sha256": "8bb7a77c8fc8f224c6ba31cfb634d12fc4f4cad3fe6686b7cf5e777aba46baba"
+      "bytes": 2861,
+      "sha256": "49549a12debe9eea4bbf3d691028a3723901af3865563ece166232a6dee1cc97"
     },
     {
       "path": "findings/JF-AUDIT-0005.json",
@@ -738,8 +743,8 @@
     },
     {
       "path": "index.json",
-      "bytes": 1547,
-      "sha256": "ec559d24f719e531a3694e97274d7f741f8da19680701aed50d1fa72d6f0f649"
+      "bytes": 1776,
+      "sha256": "383fe7f34ad7a4a3e9e1a34ec781284835e0db002a523bd78553322ec3f34e63"
     },
     {
       "path": "module-map.yml",
@@ -749,17 +754,17 @@
     {
       "path": "publish-secret-scan.json",
       "bytes": 234,
-      "sha256": "33060fd91014b949e630da6bbb5d4f8f10eacb1e36f72dca61319be9450534ff"
+      "sha256": "ce21a080481fea3c4c95a697eae2dcd4b91fb46002f21ebad71cb67196a425a3"
     },
     {
       "path": "README.md",
-      "bytes": 858,
-      "sha256": "67d779590d8de5cc353018b66f4a9c49cb8b3f73281f10e2b4ae6470a4a27c7b"
+      "bytes": 1040,
+      "sha256": "3e70171e8160629c606848ea95e68cdbf488dd389a03925739cd76ccaef0c12e"
     },
     {
       "path": "reports/FULL-AUDIT-INTERIM-RU.md",
-      "bytes": 5108,
-      "sha256": "9173d7b4a4530fbffbe996d03259b8e2a4590bae8c18af3e79718893adcfe710"
+      "bytes": 5965,
+      "sha256": "a3dcbce6674ad1f70f1d5545189057cf2ee8fc01459f847b86506f124cfedac4"
     },
     {
       "path": "reports/LEGACY-DEDUPLICATION-RU.md",
@@ -770,6 +775,11 @@
       "path": "runs/JF-RUN-20260821-BASELINE-F8E12EC/run.json",
       "bytes": 15008,
       "sha256": "cb604b95f204435b588af7e39916113eb54403c24ae0f37442173858bb71e26a"
+    },
+    {
+      "path": "runs/JF-RUN-20260822-CLOUDFLARE-DEPLOY-6B7D16C/run.json",
+      "bytes": 2588,
+      "sha256": "138ba81e9ec83922ed04d2c6169da964b71ea986231433f86b5ef75ba7371cbf"
     },
     {
       "path": "runs/JF-RUN-20260822-PR12-9D093DB/run.json",

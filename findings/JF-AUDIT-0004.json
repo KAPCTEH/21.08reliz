@@ -12,10 +12,11 @@
     "line": null
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "fact": "Read-only Cloudflare API 2026-08-21 подтвердил exactLocalMatch=false для justfun-company-telegram и justfun-license-api. В deployed broker отсутствуют configure retry, warehouse-scoped rate limit и access guard before save, присутствующие в clean commit.",
+  "last_verified_commit": "6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "fact": "22.08.2026 оба production Worker раздельно развёрнуты из exact source commit 6b7d16c через 10% canary и 100% rollout. Нормализованные production bundles точно совпали с dry-run, а deployed broker содержит configure retry, warehouse-scoped rate limit и access guard before save. D1 и активные версии сохранены для отката; bindings и secrets не потеряны. Authenticated login/refresh/introspect и приёмка существующих/новых Telegram-подключений не подтверждены из-за недоступности api.telegram.org, неполных owner credentials и невозможности расшифровать сохранённую SafeStorage-сессию.",
   "evidence": [
-    "JF-EVID-0004"
+    "JF-EVID-0004",
+    "JF-EVID-0013"
   ],
   "impact": "Подтверждённые source-исправления не действуют в production; поведение установленного приложения и восстановление нельзя приравнивать к протестированному исходнику.",
   "reproduction": [
@@ -37,5 +38,5 @@
     "legacy:JF-CF-003"
   ],
   "owner": "@KAPCTEH",
-  "status": "OPEN"
+  "status": "FIXED_PENDING_VERIFY"
 }

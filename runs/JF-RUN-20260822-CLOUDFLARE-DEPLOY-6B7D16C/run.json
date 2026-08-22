@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "run_id": "JF-RUN-20260822-CLOUDFLARE-DEPLOY-6B7D16C",
+  "audit_type": "verify",
+  "budget_mode": "STANDARD",
+  "base_commit": "6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "target_commit": "6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "state": "PARTIAL",
+  "started_at_utc": "2026-08-22T08:37:56Z",
+  "completed_at_utc": "2026-08-22T09:14:49.719Z",
+  "changed_files": [],
+  "impact_set": [
+    "cloudflare-production",
+    "company-telegram-broker",
+    "license-server",
+    "data-contracts",
+    "live-integration"
+  ],
+  "tests_selected": [
+    "13 focused source, schema, migration, and unit checks",
+    "Cloudflare D1 full exports and migration inspection",
+    "Wrangler dry-run for both Workers",
+    "license preview, canary, and full production contract checks",
+    "broker preview, canary, and full production contract checks",
+    "postdeploy normalized bundle parity and feature markers",
+    "postdeploy bindings, secrets, service binding, compatibility, and observability checks"
+  ],
+  "tests_skipped": [
+    {
+      "id": "JF-TEST-LIVE-CLOUD-SESSION-CHECK",
+      "reason": "The saved native session could not be decrypted with the available Windows SafeStorage profiles; the original user file was not changed"
+    },
+    {
+      "id": "JF-TEST-LIVE-TELEGRAM-TWO-ACCOUNT-AUDIT",
+      "reason": "Owner login credentials are incomplete and direct api.telegram.org access timed out with UND_ERR_CONNECT_TIMEOUT"
+    },
+    {
+      "id": "new-telegram-connection-acceptance",
+      "reason": "Requires a reachable Telegram API and an authenticated owner session"
+    }
+  ],
+  "evidence_reused": [],
+  "finding_delta": {
+    "opened": [],
+    "closed": [],
+    "updated": [
+      "JF-AUDIT-0004"
+    ],
+    "status_changes": {
+      "JF-AUDIT-0004": "OPEN -> FIXED_PENDING_VERIFY"
+    }
+  },
+  "verdict": "NO_GO",
+  "limitations": [
+    "Production source drift is fixed, but authenticated login, refresh, introspection, existing Telegram bindings, and new connection acceptance remain NOT_VERIFIED",
+    "Direct api.telegram.org verification from this PC timed out for both configured bot credentials",
+    "Rollback targets and D1 backups are verified and the previous versions served 90 percent during successful canaries; an emergency rollback was not executed because no critical deployment failure occurred",
+    "PR 12 and stacked PR 13 remain Draft and unmerged into protected main",
+    "The active baseline remains null and the baseline tag has not been created",
+    "Four P2 findings and release acceptance limitations remain"
+  ]
+}
