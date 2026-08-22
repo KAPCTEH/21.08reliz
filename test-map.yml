@@ -2,6 +2,41 @@
   "schema_version": 1,
   "tests": [
     {
+      "id": "JF-TEST-BACKGROUND-CLOUD-SYNC-FAILURE-REGRESSION-V783",
+      "path": "tests/background-cloud-sync-failure-regression-v783.cjs",
+      "command": "node tests/background-cloud-sync-failure-regression-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "dirtyPreserved=true",
+        "userStatus=true",
+        "auditEvent=true",
+        "handlerNeverRejects=true"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when renderer synchronization, VPS error handling, or mapped contracts change",
+      "invalidation_rule": "invalidate when the test, renderer synchronization source, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
       "id": "JF-TEST-ACTION-DISPATCH-UNIT",
       "path": "tests/action-dispatch-unit.cjs",
       "command": "node tests/action-dispatch-unit.cjs",

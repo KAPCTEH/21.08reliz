@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "run_id": "JF-RUN-20260822-PR13-6B7D16C",
+  "audit_type": "verify",
+  "budget_mode": "STANDARD",
+  "base_commit": "9d093db1551b6239b4c4587eb697312e577af716",
+  "target_commit": "6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "state": "COMPLETE",
+  "started_at_utc": "2026-08-22T08:06:56Z",
+  "completed_at_utc": "2026-08-22T08:16:33Z",
+  "changed_files": [
+    ".github/workflows/windows-native-783.yml",
+    "source/application/web/assets/js/110-desktop-platform-v750.js",
+    "tests/background-cloud-sync-failure-regression-v783.cjs"
+  ],
+  "impact_set": [
+    "application",
+    "data-contracts",
+    "vps-integration",
+    "ci",
+    "release"
+  ],
+  "tests_selected": [
+    "reg-entity-source-contract",
+    "background-cloud-sync-failure-regression-v783",
+    "main-unit",
+    "current-cycle-regression-v783",
+    "static-audit-regression-v783",
+    "security-regression-v783",
+    "order-save-integrity",
+    "atomic-mutation",
+    "deep-business",
+    "release-regression-v783",
+    "hidden-application-visual-acceptance",
+    "installer-crash-recovery",
+    "installer-full-acceptance",
+    "shortcut-icon-destructive-operation-refusals"
+  ],
+  "tests_skipped": [
+    {
+      "id": "live-vps-failure-injection",
+      "reason": "The finding verification contract is satisfied by isolated runtime behavior; destructive live failure injection requires separate authorization"
+    },
+    {
+      "id": "cloudflare-deployment-verification",
+      "reason": "Deployment is outside the PR 13 impact set"
+    }
+  ],
+  "evidence_reused": [],
+  "finding_delta": {
+    "opened": [],
+    "closed": [],
+    "updated": [
+      "JF-AUDIT-0001"
+    ],
+    "status_changes": {
+      "JF-AUDIT-0001": "OPEN -> FIXED_PENDING_VERIFY"
+    }
+  },
+  "verdict": "NO_GO",
+  "limitations": [
+    "PR 13 is a stacked Draft based on PR 12 and is not merged into protected main",
+    "JF-AUDIT-0001 cannot be closed until both dependent commits are merged and rechecked on main",
+    "The active baseline remains null and the baseline tag has not been created",
+    "Production Cloudflare drift remains an open P1 finding",
+    "Audit governance PR 7 and audit-ledger PR 8 remain unmerged"
+  ]
+}

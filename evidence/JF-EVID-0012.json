@@ -1,0 +1,30 @@
+{
+  "id": "JF-EVID-0012",
+  "type": "github-windows-verification",
+  "commit": "6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "subject": "PR 13 background VPS synchronization failure handling and complete Windows release gate",
+  "input_digests": {
+    "base_commit": "git:9d093db1551b6239b4c4587eb697312e577af716",
+    "target_commit": "git:6b7d16c07c4991fdeec255bfe35c69487432198a",
+    "windows_artifact": "sha256:a26295d98c8830dfa80210934a35c2bb957ccb6ff5188f37c5b680a691df38ea"
+  },
+  "tool": "GitHub Actions windows-native-783",
+  "tool_version": "workflow run 32561418283, run number 14",
+  "command": "pull_request event for PR 13 at exact head SHA 6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "cwd": "GitHub-hosted Windows runner",
+  "timestamp_utc": "2026-08-22T08:16:33Z",
+  "exit_code": 0,
+  "normalized_result": "{\"pull_request\":13,\"workflow_run_id\":32561418283,\"job_id\":97003441530,\"job\":\"build-and-accept\",\"conclusion\":\"success\",\"successful_steps\":22,\"failed_steps\":0,\"reg_entity_source_contract\":\"PASS\",\"background_cloud_sync_failure_regression\":{\"status\":\"PASS\",\"dirty_preserved\":true,\"user_status\":true,\"audit_event\":true,\"handler_never_rejects\":true},\"full_installer_acceptance\":\"PASS\",\"artifact\":{\"id\":9473002171,\"name\":\"justfun-7.8.3-windows-561dcb5a33992d318d92a1ed438c9e5979e01be9\",\"bytes\":184426449,\"expires_at\":\"2026-09-05T08:16:21Z\"}}",
+  "artifact_sha256": "a26295d98c8830dfa80210934a35c2bb957ccb6ff5188f37c5b680a691df38ea",
+  "location": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32561418283",
+  "retention": "permanent normalized metadata; GitHub artifact retained until 2026-09-05T08:16:21Z",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0001"
+  ],
+  "tests": [
+    "JF-TEST-REG-ENTITY-SOURCE-CONTRACT",
+    "JF-TEST-BACKGROUND-CLOUD-SYNC-FAILURE-REGRESSION-V783",
+    "JF-TEST-WINDOWS-NATIVE-783"
+  ]
+}

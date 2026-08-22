@@ -1,6 +1,6 @@
 # Полномасштабный аудит JustFun 7.8.3 — промежуточный отчёт
 
-Дата исходного baseline: 21.08.2026. Последняя проверка: 22.08.2026. Точный clean commit: `f8e12ecee3e9371dea23c76913302db24050160d`. Проверенный head PR №12: `9d093db1551b6239b4c4587eb697312e577af716`. Статус: **NO-GO**. Это `NON_RELEASE_SNAPSHOT`, а не доказанный релиз.
+Дата исходного baseline: 21.08.2026. Последняя проверка: 22.08.2026. Точный clean commit: `f8e12ecee3e9371dea23c76913302db24050160d`. Проверенные heads: PR №12 `9d093db1551b6239b4c4587eb697312e577af716`, PR №13 `6b7d16c07c4991fdeec255bfe35c69487432198a`. Статус: **NO-GO**. Это `NON_RELEASE_SNAPSHOT`, а не доказанный релиз.
 
 ## Зафиксированная база
 
@@ -19,11 +19,12 @@
 - Повтор 16 UI-сценариев, ранее завершившихся тайм-аутом при высокой параллельной нагрузке: 16/16 PASS, 0 timeout.
 - Cloudflare read-only: оба deployed Worker не совпадают с clean source; Telegram broker не содержит трёх локальных защит.
 - После перевода GitHub-репозитория в public incremental workflow прошёл полностью. В PR №12 JF-AUDIT-0007 исправлен на уровне тестового контура, а Windows workflow прошёл все 22 шага, включая protected payload, Setup/Recovery, визуальную QA, полный install/uninstall acceptance, точную проверку 7 PE icon resources и блокировку удаления при запущенной программе.
+- В stacked PR №13 добавлен безопасный обработчик фонового отказа VPS. Контракт подтверждает сохранение dirty-state, пользовательский статус и отсутствие повторного rejection; Windows workflow снова прошёл 22/22 шага.
 - Ветка `main` защищена: обязательный PR, strict checks `impact-and-tests` и `build-and-accept`, правила применяются к владельцу, force-push и удаление запрещены.
 
 ## Открытые findings
 
-- **JF-AUDIT-0001 P1** — Фоновый повтор VPS-синхронизации использует отсутствующий обработчик ошибки (TEST_CONFIRMED).
+- **JF-AUDIT-0001 P1** — исправление и полный Windows gate подтверждены на head PR №13; статус `FIXED_PENDING_VERIFY` до merge зависимых PR и повторной проверки protected `main`.
 - **JF-AUDIT-0002 P2** — Unit-тест bootstrap merge выполняет браузерный фрагмент без window (TEST_CONFIRMED).
 - **JF-AUDIT-0003 P2** — Revision-тесты остались на удалённом snapshot API после перехода на storage v3 (TEST_CONFIRMED).
 - **JF-AUDIT-0004 P1** — Production Cloudflare Workers не соответствуют текущему исходнику (LIVE_CONFIRMED).
@@ -33,4 +34,4 @@
 
 ## Не завершено
 
-Репозиторий публичный, `main` защищена, Issues #9/#10 закрыты. PR №12 остаётся Draft и не слит; поэтому JF-AUDIT-0007 ещё не закрыт. Baseline PR №8 и governance PR №7 также не слиты. Tag, source-only ZIP contract, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.
+Репозиторий публичный, `main` защищена, Issues #9/#10 закрыты. PR №12 и stacked PR №13 остаются Draft и не слиты; поэтому JF-AUDIT-0007 и JF-AUDIT-0001 ещё не закрыты. Baseline PR №8 и governance PR №7 также не слиты. Tag, source-only ZIP contract, live two-account/VPS verification и deploy/release proof не завершены. До их завершения статус не может быть GO.
