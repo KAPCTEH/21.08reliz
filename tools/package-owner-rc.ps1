@@ -26,6 +26,9 @@ if (-not $gate.release_eligible -and -not $AllowBlockedOwnerRc) {
 $required = @(
   "Orders-Logistics-Setup-$version-Premium.exe",
   "Orders-Logistics-Recovery-$version.exe",
+  "JustFun-$version-UpdateHelper.exe",
+  "JustFun-$version-win-x64.zip",
+  'UPDATE-FILES.json',
   'BUILD-MANIFEST.json'
 )
 foreach ($name in $required) {

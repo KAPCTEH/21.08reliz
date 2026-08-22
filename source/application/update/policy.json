@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "enabled": false,
+  "catalog_endpoints": {
+    "internal": null,
+    "staging": null,
+    "stable": null
+  },
+  "allowed_catalog_hosts": [],
+  "allowed_payload_hosts": [],
+  "allowed_release_notes_hosts": [],
+  "check_delay_seconds": 60,
+  "check_interval_seconds": 21600,
+  "max_catalog_bytes": 262144,
+  "max_payload_bytes": 2000000000,
+  "download_timeout_seconds": 60,
+  "max_download_attempts": 3,
+  "health_confirmation_timeout_seconds": 120
+}

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>JustFunUpdateHelper</AssemblyName>
+    <RootNamespace>JustFun.UpdateHelper</RootNamespace>
+    <Product>JustFun Логистика</Product>
+    <Company>JustFun</Company>
+    <Description>Безопасное применение и восстановление обновлений JustFun</Description>
+    <Version>$(JustFunProductVersion)</Version>
+    <AssemblyVersion>$(JustFunProductFileVersion)</AssemblyVersion>
+    <FileVersion>$(JustFunProductFileVersion)</FileVersion>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <DebugType>none</DebugType>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
+    <EmbeddedResource Include="..\application\update\trusted-keys.json" LogicalName="JustFun.UpdateHelper.trusted-keys.json" />
+  </ItemGroup>
+
+  <Target Name="RequireReleaseIdentity" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(JustFunProductVersion)' == ''" Text="JustFunProductVersion must come from the canonical release contract." />
+    <Error Condition="'$(JustFunProductFileVersion)' == ''" Text="JustFunProductFileVersion must come from the canonical release contract." />
+  </Target>
+</Project>

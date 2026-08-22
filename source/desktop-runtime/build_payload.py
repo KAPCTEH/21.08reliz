@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -65,6 +66,14 @@ def replace_directory_with_retry(source: Path, target: Path) -> None:
             time.sleep(0.25 * (attempt + 1))
 
 
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--app-dir", type=Path, required=True)
@@ -74,16 +83,20 @@ def main() -> int:
         default=Path("node_modules/electron/dist"),
     )
     parser.add_argument("--output-dir", type=Path, required=True)
+    parser.add_argument("--update-helper", type=Path, required=True)
     args = parser.parse_args()
 
     app_dir = args.app_dir.resolve()
     electron_dist = args.electron_dist.resolve()
     output_dir = args.output_dir.resolve()
+    update_helper = args.update_helper.resolve()
     _, version = load_release_contract(app_dir)
     required_app = [app_dir / "main.js", app_dir / "preload.js", app_dir / "web/index.html", app_dir / "release.json"]
     missing_app = [str(item) for item in required_app if not item.is_file()]
     if missing_app:
         raise RuntimeError("Missing application sources: " + ", ".join(missing_app))
+    if not update_helper.is_file() or update_helper.read_bytes()[:2] != b"MZ":
+        raise RuntimeError("Verified Windows Update Helper is missing or is not a PE executable.")
 
     electron_exe = electron_dist / "electron.exe"
     if not electron_exe.is_file() or not (electron_dist / "resources").is_dir():
@@ -126,6 +139,17 @@ def main() -> int:
             staged_app,
             ignore=runtime_copy_ignore,
         )
+        helper_identity = {
+            "schema_version": 1,
+            "file_name": "JustFun-UpdateHelper.exe",
+            "bytes": update_helper.stat().st_size,
+            "sha256": sha256(update_helper),
+        }
+        (staged_app / "update" / "helper-identity.json").write_text(
+            json.dumps(helper_identity, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        shutil.copy2(update_helper, temporary / helper_identity["file_name"])
         notices = app_dir / "THIRD-PARTY-NOTICES.txt"
         if not notices.is_file():
             raise RuntimeError("THIRD-PARTY-NOTICES.txt is missing from the application sources.")

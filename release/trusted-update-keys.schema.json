@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://justfun.invalid/release/trusted-update-keys.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "keys"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "keys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key_id", "algorithm", "status", "public_key_spki_base64"],
+        "properties": {
+          "key_id": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,80}$" },
+          "algorithm": { "const": "Ed25519" },
+          "status": { "enum": ["active", "next", "revoked"] },
+          "public_key_spki_base64": { "type": "string", "minLength": 56, "maxLength": 112 }
+        }
+      }
+    }
+  }
+}

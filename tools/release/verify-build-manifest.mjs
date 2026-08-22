@@ -47,7 +47,7 @@ const release = readJson(path.join(repository, 'source', 'application', 'release
 const schema = readJson(path.join(repository, 'release', 'build-manifest.schema.json'));
 
 assert(schema.$id === 'https://justfun.invalid/release/build-manifest.schema.json', 'BUILD-MANIFEST schema identity is invalid');
-assert(manifest.schema_version === 2, 'BUILD-MANIFEST schema_version must be 2');
+assert(manifest.schema_version === 3, 'BUILD-MANIFEST schema_version must be 3');
 for (const field of ['product_id', 'product_name', 'version', 'channel', 'commit_sha', 'source_tree', 'build_id', 'generated_at_utc']) {
   assert(manifest[field] === identity[field], `BUILD-MANIFEST ${field} differs from build identity`);
 }
@@ -85,10 +85,17 @@ for (const [name, record] of [
   const file = path.join(installerDirectory, String(record?.path || ''));
   verifyRecord(record, file, `artifact ${name}`);
 }
-if (manifest.artifacts?.update_helper !== null) {
-  const record = manifest.artifacts.update_helper;
-  verifyRecord(record, path.join(installerDirectory, String(record?.path || '')), 'artifact update_helper');
-}
+for (const [name, record] of [
+  ['update_helper', manifest.artifacts?.update_helper],
+  ['update_payload', manifest.artifacts?.update_payload],
+  ['update_file_manifest', manifest.artifacts?.update_file_manifest],
+]) verifyRecord(record, path.join(installerDirectory, String(record?.path || '')), `artifact ${name}`);
+assert(Number.isSafeInteger(manifest.artifacts?.update_payload?.unpacked_bytes) && manifest.artifacts.update_payload.unpacked_bytes > 0, 'update payload unpacked byte count is invalid');
+assert(Number.isSafeInteger(manifest.artifacts?.update_payload?.file_count) && manifest.artifacts.update_payload.file_count === actualPayloadFiles.length, 'update payload file count differs from payload');
+const payloadHelper = declaredPayload.get('justfun-updatehelper.exe');
+assert(payloadHelper?.sha256 === manifest.artifacts?.update_helper?.sha256, 'versioned Update Helper differs from payload helper');
+const payloadUpdateManifest = declaredPayload.get('update-files.json');
+assert(payloadUpdateManifest?.sha256 === manifest.artifacts?.update_file_manifest?.sha256, 'published update file manifest differs from payload manifest');
 
 const result = {
   schema_version: 1,
