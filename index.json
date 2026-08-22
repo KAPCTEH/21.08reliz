@@ -10,17 +10,18 @@
   "open_findings_by_severity": {
     "P0": 0,
     "P1": 0,
-    "P2": 3,
+    "P2": 2,
     "P3": 0
   },
   "governance_status": "NO_GO",
-  "last_run_id": "JF-RUN-20260822-PR14-C517545",
+  "last_run_id": "JF-RUN-20260822-PR15-DCE5F97",
   "known_limitations": [
     "Baseline is not accepted and active_baseline_id remains null",
     "Clean tree is derived from a dirty legacy worktree and is NON_RELEASE_SNAPSHOT",
     "Repository is public and main is protected; PR 12 passes the complete Windows required check, but remains Draft and unmerged, so JF-AUDIT-0007 is FIXED_PENDING_VERIFY",
     "Stacked PR 13 passes the complete Windows required check, but remains Draft and unmerged, so JF-AUDIT-0001 is FIXED_PENDING_VERIFY",
     "Stacked PR 14 repairs and continuously enforces the entity bootstrap merge harness, but remains Draft and unmerged, so JF-AUDIT-0002 is FIXED_PENDING_VERIFY",
+    "Stacked PR 15 migrates revision coverage to storage v3 and passes non-superuser PostgreSQL plus Windows verification, but remains Draft and unmerged, so JF-AUDIT-0003 is FIXED_PENDING_VERIFY",
     "Cloudflare production source parity is restored, but JF-AUDIT-0004 remains FIXED_PENDING_VERIFY because authenticated login/refresh/introspection and existing/new Telegram connection acceptance could not be completed",
     "Installer acceptance is confirmed only on unmerged PR heads; two-account live verification, VPS live diagnostics, and release proof are not complete",
     "Source-only ZIP contract does not include the workflow file required by two bundled release tests (JF-AUDIT-0006)",

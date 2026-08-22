@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "run_id": "JF-RUN-20260822-PR15-DCE5F97",
+  "audit_type": "verify",
+  "budget_mode": "STANDARD",
+  "base_commit": "c517545832ad41b20405cfb6376a6c3c0f4c1392",
+  "target_commit": "dce5f976b701722d3ef6770a7c93d7e4075a4175",
+  "state": "COMPLETE",
+  "started_at_utc": "2026-08-22T10:54:25Z",
+  "completed_at_utc": "2026-08-22T11:04:29Z",
+  "changed_files": [
+    ".github/workflows/windows-native-783.yml",
+    "tests/reg-revision-test.py"
+  ],
+  "impact_set": [
+    "tests",
+    "data-contracts",
+    "ci",
+    "release"
+  ],
+  "tests_selected": [
+    "reg-revision-test 14 tests",
+    "reg-storage-v3-integration 3 tests under non-superuser role",
+    "reg-entity-protocol-test 35 tests",
+    "reg-api-contract-test 4 tests",
+    "reg-entity-source-contract",
+    "entity-bootstrap-merge-unit",
+    "background-cloud-sync-failure-regression-v783",
+    "current-cycle-regression-v783",
+    "static-audit-regression-v783",
+    "security-regression-v783",
+    "security-audit",
+    "windows-native-783 complete build-and-accept"
+  ],
+  "tests_skipped": [
+    {
+      "id": "production-vps-destructive-write",
+      "reason": "The contract was verified against an isolated PostgreSQL 18 database; production data was not mutated"
+    }
+  ],
+  "evidence_reused": [
+    "JF-EVID-0003"
+  ],
+  "finding_delta": {
+    "opened": [],
+    "closed": [],
+    "updated": [
+      "JF-AUDIT-0003"
+    ],
+    "status_changes": {
+      "JF-AUDIT-0003": "OPEN -> FIXED_PENDING_VERIFY"
+    }
+  },
+  "verdict": "NO_GO",
+  "limitations": [
+    "PR 15 is a stacked Draft based on PR 14 and is not merged into protected main",
+    "JF-AUDIT-0003 cannot be closed until dependent commits are merged and rechecked on main",
+    "The active baseline remains null and the baseline tag has not been created",
+    "Authenticated Cloudflare and Telegram acceptance remains incomplete",
+    "Two P2 findings remain open"
+  ]
+}

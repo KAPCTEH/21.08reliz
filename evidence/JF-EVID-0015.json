@@ -1,0 +1,30 @@
+{
+  "id": "JF-EVID-0015",
+  "type": "storage-v3-and-github-windows-verification",
+  "commit": "dce5f976b701722d3ef6770a7c93d7e4075a4175",
+  "subject": "PR 15 storage v3 revision coverage, non-superuser PostgreSQL integration, and complete Windows release gate",
+  "input_digests": {
+    "base_commit": "git:c517545832ad41b20405cfb6376a6c3c0f4c1392",
+    "target_commit": "git:dce5f976b701722d3ef6770a7c93d7e4075a4175",
+    "windows_artifact": "sha256:39cdf6e4a796bffa6a55492d31935fbccfc456a66a3226e32faf2a598aa29c37"
+  },
+  "tool": "Python unittest, PostgreSQL 18, and GitHub Actions windows-native-783",
+  "tool_version": "local PostgreSQL integration plus workflow run 32568851490, run number 16",
+  "command": "python tests/reg-revision-test.py; python tests/reg-storage-v3-integration.py with isolated non-superuser test database; pull_request event for PR 15",
+  "cwd": "isolated local PostgreSQL test database and GitHub-hosted Windows runner",
+  "timestamp_utc": "2026-08-22T11:04:29Z",
+  "exit_code": 0,
+  "normalized_result": "{\"pull_request\":15,\"commit\":\"dce5f976b701722d3ef6770a7c93d7e4075a4175\",\"revision_suite\":{\"passed\":14,\"failed\":0,\"save_entity_batch\":true,\"business_records_v3\":true,\"version_conflict\":true,\"command_idempotency\":true,\"permissions\":true},\"postgresql_integration\":{\"role\":\"justfun-nonsuperuser\",\"passed\":3,\"failed\":0,\"parallel_users\":36,\"rls\":true,\"temporary_database_removed\":true},\"workflow_run_id\":32568851490,\"job_id\":97021327407,\"conclusion\":\"success\",\"successful_steps\":22,\"failed_steps\":0,\"artifact\":{\"id\":9474892454,\"name\":\"justfun-7.8.3-windows-c5c59fd2bb9bcf2033fc22aa44d7f17506f82f9e\",\"bytes\":184539243,\"expires_at\":\"2026-09-05T11:04:17Z\"}}",
+  "artifact_sha256": "39cdf6e4a796bffa6a55492d31935fbccfc456a66a3226e32faf2a598aa29c37",
+  "location": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32568851490",
+  "retention": "permanent normalized metadata; GitHub artifact retained until 2026-09-05T11:04:17Z",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0003"
+  ],
+  "tests": [
+    "JF-TEST-REG-REVISION-TEST",
+    "JF-TEST-REG-STORAGE-V3-INTEGRATION",
+    "JF-TEST-WINDOWS-NATIVE-783"
+  ]
+}

@@ -21,6 +21,7 @@
 - После перевода GitHub-репозитория в public incremental workflow прошёл полностью. В PR №12 JF-AUDIT-0007 исправлен на уровне тестового контура, а Windows workflow прошёл все 22 шага, включая protected payload, Setup/Recovery, визуальную QA, полный install/uninstall acceptance, точную проверку 7 PE icon resources и блокировку удаления при запущенной программе.
 - В stacked PR №13 добавлен безопасный обработчик фонового отказа VPS. Контракт подтверждает сохранение dirty-state, пользовательский статус и отсутствие повторного rejection; Windows workflow снова прошёл 22/22 шага.
 - В stacked PR №14 восстановлен bootstrap merge harness: VM-контекст получил изолированный `window`, browser-export проверяется отдельно, а тест включён в обязательный Windows gate. Server-wins merge и удаление устаревших локальных записей подтверждены; Windows workflow прошёл 22/22 шага.
+- В stacked PR №15 revision-suite перенесён с удалённого snapshot API на `save_entity_batch`/`business_records_v3`. Unit-проверки прошли 14/14, изолированная PostgreSQL 18 интеграция под несуперпользовательской ролью — 3/3, включая 36 параллельных пользователей и RLS; Windows workflow прошёл 22/22 шага.
 - Production Cloudflare: `justfun-license-api` и `justfun-company-telegram` раздельно развёрнуты из commit `6b7d16c` через 10% canary и 100% rollout. До deploy сохранены обе D1-базы и активные версии. Нормализованные deployed bundles точно совпали с dry-run; обязательные broker-защиты присутствуют, bindings/secrets/observability сохранены.
 - Ветка `main` защищена: обязательный PR, strict checks `impact-and-tests` и `build-and-accept`, правила применяются к владельцу, force-push и удаление запрещены.
 
@@ -28,7 +29,7 @@
 
 - **JF-AUDIT-0001 P1** — исправление и полный Windows gate подтверждены на head PR №13; статус `FIXED_PENDING_VERIFY` до merge зависимых PR и повторной проверки protected `main`.
 - **JF-AUDIT-0002 P2** — bootstrap merge harness исправлен и включён в Windows gate на head PR №14; статус `FIXED_PENDING_VERIFY` до merge всей stacked-цепочки и повторной проверки protected `main`.
-- **JF-AUDIT-0003 P2** — Revision-тесты остались на удалённом snapshot API после перехода на storage v3 (TEST_CONFIRMED).
+- **JF-AUDIT-0003 P2** — revision-suite перенесён на storage v3 и подтверждён unit/PostgreSQL/Windows проверками на head PR №15; статус `FIXED_PENDING_VERIFY` до merge всей stacked-цепочки и повторной проверки protected `main`.
 - **JF-AUDIT-0004 P1** — production source drift устранён; статус `FIXED_PENDING_VERIFY`, потому что authenticated login/refresh/introspection и приёмка существующих/новых Telegram-подключений не завершены из-за сетевого тайм-аута Telegram API и отсутствующих пригодных live credentials/session.
 - **JF-AUDIT-0005 P2** — UI-каскад остаётся чрезмерно фрагментированным (TEST_CONFIRMED).
 - **JF-AUDIT-0006 P2** — Source-only ZIP не самодостаточен для двух release-тестов (TEST_CONFIRMED).
@@ -36,4 +37,4 @@
 
 ## Не завершено
 
-Репозиторий публичный, `main` защищена, Issues #9/#10 закрыты. PR №12 и stacked PR №13/№14 остаются Draft и не слиты; поэтому JF-AUDIT-0007, JF-AUDIT-0001 и JF-AUDIT-0002 ещё не закрыты. Cloudflare source deployment выполнен, но JF-AUDIT-0004 не закрыт без authenticated Telegram acceptance. Baseline PR №8 и governance PR №7 также не слиты. Tag, source-only ZIP contract, live two-account/VPS verification и release proof не завершены. До их завершения статус не может быть GO.
+Репозиторий публичный, `main` защищена, Issues #9/#10 закрыты. PR №12 и stacked PR №13/№14/№15 остаются Draft и не слиты; поэтому JF-AUDIT-0007, JF-AUDIT-0001, JF-AUDIT-0002 и JF-AUDIT-0003 ещё не закрыты. Cloudflare source deployment выполнен, но JF-AUDIT-0004 не закрыт без authenticated Telegram acceptance. Baseline PR №8 и governance PR №7 также не слиты. Tag, source-only ZIP contract, live two-account/VPS verification и release proof не завершены. До их завершения статус не может быть GO.

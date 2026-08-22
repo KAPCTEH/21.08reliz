@@ -3,13 +3,13 @@
   "branch": "audit-ledger",
   "orphan_history_required": true,
   "baseline_id": "baseline-20260821-f8e12ec",
-  "generated_at_utc": "2026-08-22T10:36:39.942Z",
+  "generated_at_utc": "2026-08-22T11:06:59.390Z",
   "raw_sensitive_evidence_published": false,
   "exclusions": [
     "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
   ],
-  "file_count": 164,
-  "total_bytes": 5249272,
+  "file_count": 166,
+  "total_bytes": 5254762,
   "files": [
     {
       "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
@@ -672,6 +672,11 @@
       "sha256": "402101b375bb16cbefbb68102ce6da1f720b1877387de998b7c1f610835a2f1e"
     },
     {
+      "path": "evidence/JF-EVID-0015.json",
+      "bytes": 2218,
+      "sha256": "3b943a84eaee5fefd0f7c9f91408fb0913b9c0a81c96fee571dc66484bc4270b"
+    },
+    {
       "path": "findings/JF-AUDIT-0001.json",
       "bytes": 2855,
       "sha256": "22e20431ec7b362bb0f285a721768812f1f7133efc006f635b28f28ac1e6490b"
@@ -683,8 +688,8 @@
     },
     {
       "path": "findings/JF-AUDIT-0003.json",
-      "bytes": 2181,
-      "sha256": "ea247aa0dc666b95e986033f93f6aa3ccf54ed59b67855a73aeabd4ba4c8831f"
+      "bytes": 2666,
+      "sha256": "19edc953858f47efb667bdbddf7b72f545aefa74c70e45da8e5afb25ff860333"
     },
     {
       "path": "findings/JF-AUDIT-0004.json",
@@ -748,8 +753,8 @@
     },
     {
       "path": "index.json",
-      "bytes": 1927,
-      "sha256": "da3d8e31098b9a25f2262cf1eaa640d9f6085781a901b2b90d6c95d8afa6eb9e"
+      "bytes": 2125,
+      "sha256": "5f9607327fad371cfc90ad35631335a1016bf05e2a10be420d86e0ea608bbcf6"
     },
     {
       "path": "module-map.yml",
@@ -759,17 +764,17 @@
     {
       "path": "publish-secret-scan.json",
       "bytes": 234,
-      "sha256": "48353a3d92dd0288400ae33d7d4d89ed97f9de91e484df66aad966bdff093a33"
+      "sha256": "cc01dbf1510bc2a78be329860dd94702403d3be5f81fb3e527e0918a976702a3"
     },
     {
       "path": "README.md",
-      "bytes": 1119,
-      "sha256": "452c2f312526f3111ad02100e1010eebe758aac022bea528cd64fce384cd080e"
+      "bytes": 1184,
+      "sha256": "c49f188115c3451abe6709e11cc677ed6a0447129e68067573ddf2dbd6422b2c"
     },
     {
       "path": "reports/FULL-AUDIT-INTERIM-RU.md",
-      "bytes": 6534,
-      "sha256": "3990da53e688782dfcaea05cecb284cf735b5cfad3e6c09fbb24dc35c9464f6d"
+      "bytes": 7139,
+      "sha256": "57bf10d65d7e18fb6678f13bfc5dd2eca4b7c1f7a529b6e8396491e5e6290dc0"
     },
     {
       "path": "reports/LEGACY-DEDUPLICATION-RU.md",
@@ -800,6 +805,11 @@
       "path": "runs/JF-RUN-20260822-PR14-C517545/run.json",
       "bytes": 1678,
       "sha256": "c65dad12b206d0eb829caedeb764d322cfd35f9e3ef48c3485cd732bdce6111b"
+    },
+    {
+      "path": "runs/JF-RUN-20260822-PR15-DCE5F97/run.json",
+      "bytes": 1919,
+      "sha256": "94f860df4b999e41bc1cfb84f134105367a27c93c5ceb1019ce42c4f9e7a3eea"
     },
     {
       "path": "schemas/audit-index.schema.json",
