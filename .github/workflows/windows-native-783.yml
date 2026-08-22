@@ -144,6 +144,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Background VPS sync failure regression failed.' }
           node tests/current-cycle-regression-v783.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Current-cycle regression failed.' }
+          node tests/address-intelligence-unit-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Address intelligence regression failed.' }
           node tests/design-token-regression-v783.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Design-token regression failed.' }
           node tests/product-drawer-accessibility-v783.cjs

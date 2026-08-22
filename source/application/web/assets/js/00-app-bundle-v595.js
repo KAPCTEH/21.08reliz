@@ -172,6 +172,7 @@ let nominatimQueue=Promise.resolve();
 const geocodeCache=new Map();
 let deliveryAddressSearchSerial=0;
 let deliveryAddressAbortController=null;
+let deliveryAddressSuggestTimer=null;
 const renderTimers=new Map();
 const smartClusterCache=new Map();
 let appErrorCount=0;
@@ -723,7 +724,7 @@ function ensureOrderMap(){if(orderMap)return true;if(!warehouseRouteStartReady()
 function addTileLayer(map){return window.JustFunMapReliabilityV772?.createLayer?.(map)||L.tileLayer(settings.tileUrl,{maxZoom:19,attribution:''}).addTo(map)}
 function placeOrderMarker(lat,lon){if(!orderMap)return;if(orderMarker)orderMarker.setLatLng([lat,lon]);else{orderMarker=L.marker([lat,lon],{draggable:true,icon:numberedIcon('Д','candidate-marker')}).addTo(orderMap);orderMarker.on('dragend',async()=>{const p=orderMarker.getLatLng();setGeoStatus('Уточняю адрес новой позиции маркера…','warn');try{const r=await reverseGeocode(p.lat,p.lng);setSelectedGeo(parseNominatimResult(r,'Перемещение маркера'),true)}catch{if(selectedGeo){selectedGeo.lat=p.lat;selectedGeo.lon=p.lng;renderSelectedGeo();calculateDeliveryForGeo(selectedGeo);setGeoStatus('Координаты изменены. Область и район сохранены из предыдущего результата — проверьте их. Доставка пересчитана.','warn')}}})}}
 function setGeoStatus(text,type='info'){$('geoStatus').className='notice notice-'+type;$('geoStatus').textContent=text}
-function clearSelectedPoint(){invalidateDeliveryAddressSearch();selectedGeo=null;geoDirty=false;if(orderMarker){orderMap.removeLayer(orderMarker);orderMarker=null}$('geoResults').innerHTML='';$('selectedAddress').classList.remove('show');$('manualRegion').value='';$('manualDistrict').value='';resetDeliveryCalculation('Точка сброшена. Выберите адрес для расчёта доставки.');setGeoStatus('Точка сброшена. Выполните поиск или поставьте новую точку кликом по карте.','info')}
+function clearSelectedPoint(){invalidateDeliveryAddressSearch(false);selectedGeo=null;geoDirty=false;if(orderMarker){orderMap.removeLayer(orderMarker);orderMarker=null}$('geoResults').innerHTML='';$('selectedAddress').classList.remove('show');$('manualRegion').value='';$('manualDistrict').value='';resetDeliveryCalculation('Точка сброшена. Выберите адрес для расчёта доставки.');setGeoStatus('Точка сброшена. Выполните поиск или поставьте новую точку кликом по карте.','info')}
 
 function mapRequestId(){return globalThis.crypto?.randomUUID?.()||`map-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,9)}`}
 function geocodeAbortError(){return new DOMException('Картографический запрос отменён.','AbortError')}
@@ -758,8 +759,49 @@ async function nominatimFetch(path,params,context={}){
   nominatimQueue=task.catch(()=>{});
   return task;
 }
-function invalidateDeliveryAddressSearch(){deliveryAddressSearchSerial++;deliveryAddressAbortController?.abort();deliveryAddressAbortController=null;window.__geoCandidates=[];const btn=$('addressSearchBtn');if(btn)btn.disabled=false}
-async function searchDeliveryAddress(){const q=$('deliveryAddress').value.trim();if(!q){setGeoStatus('Введите адрес доставки.','warn');return}deliveryAddressAbortController?.abort();const controller=new AbortController();deliveryAddressAbortController=controller;const requestSerial=++deliveryAddressSearchSerial,requestId=mapRequestId(),btn=$('addressSearchBtn');btn.disabled=true;setGeoStatus('Ищу адрес…','warn');$('geoResults').innerHTML='';try{const list=await geocodeSearch(q,{requestId,signal:controller.signal});if(requestSerial!==deliveryAddressSearchSerial||controller.signal.aborted)return;if(!list.length){setGeoStatus('Точного совпадения нет. Уточните адрес или поставьте точку вручную на карте.','warn');return}window.__geoCandidates=list;$('geoResults').innerHTML=list.map((r,i)=>{const g=parseNominatimResult(r,'Nominatim');return `<button class="geo-result" type="button" data-jf-onclick="selectSearchResult(${i})"><div class="geo-result-title">${escapeHtml(g.displayName)}</div><div class="geo-result-meta">${escapeHtml([g.region,g.district,g.settlement].filter(Boolean).join(' · ')||'Административные данные неполные')} · ${Number(g.lat).toFixed(6)}, ${Number(g.lon).toFixed(6)}</div></button>`}).join('');setGeoStatus(`Найдено вариантов: ${list.length}.`,'info')}catch(err){if(err?.name!=='AbortError'&&requestSerial===deliveryAddressSearchSerial)setGeoStatus('Поиск адреса недоступен: '+err.message+'. Поставьте точку на карте или проверьте адрес сервиса в настройках.','danger')}finally{if(deliveryAddressAbortController===controller)deliveryAddressAbortController=null;if(requestSerial===deliveryAddressSearchSerial)btn.disabled=false}}
+function invalidateDeliveryAddressSearch(scheduleSuggestion=true){
+  deliveryAddressSearchSerial++;
+  deliveryAddressAbortController?.abort();deliveryAddressAbortController=null;
+  clearTimeout(deliveryAddressSuggestTimer);deliveryAddressSuggestTimer=null;
+  window.__geoCandidates=[];$('geoResults').innerHTML='';
+  const btn=$('addressSearchBtn');if(btn)btn.disabled=false;
+  if(!scheduleSuggestion)return;
+  const q=$('deliveryAddress').value.trim();
+  if(q.replace(/[^0-9a-zа-я]/gi,'').length<3){setGeoStatus('Введите не менее трёх символов адреса. Точку также можно выбрать на карте.','info');return}
+  setGeoStatus('Подсказки появятся после короткой паузы…','info');
+  deliveryAddressSuggestTimer=setTimeout(()=>{deliveryAddressSuggestTimer=null;searchDeliveryAddress({automatic:true})},700)
+}
+async function searchDeliveryAddress({automatic=false}={}){
+  clearTimeout(deliveryAddressSuggestTimer);deliveryAddressSuggestTimer=null;
+  const q=$('deliveryAddress').value.trim();
+  if(!q){setGeoStatus('Введите адрес доставки.','warn');return}
+  deliveryAddressAbortController?.abort();
+  const controller=new AbortController();
+  deliveryAddressAbortController=controller;
+  const requestSerial=++deliveryAddressSearchSerial,requestId=mapRequestId(),btn=$('addressSearchBtn');
+  btn.disabled=true;setGeoStatus('Ищу адрес…','warn');$('geoResults').innerHTML='';
+  try{
+    const list=await geocodeSearch(q,{requestId,signal:controller.signal});
+    if(requestSerial!==deliveryAddressSearchSerial||controller.signal.aborted)return;
+    if(!list.length){setGeoStatus('Точного совпадения нет. Уточните адрес или поставьте точку вручную на карте.','warn');return}
+    window.__geoCandidates=list;
+    const intelligence=globalThis.JustFunAddressIntelligenceV783;
+    $('geoResults').innerHTML=list.map((r,i)=>{
+      const g=parseNominatimResult(r,'Nominatim'),meta=r.__jfAddressMeta||{};
+      const match=intelligence?.confidenceLabel?.(meta)||'';
+      const warning=Array.isArray(meta.warnings)?meta.warnings[0]||'':'';
+      const details=[g.region,g.district,g.settlement].filter(Boolean).join(' · ')||'Административные данные неполные';
+      const quality=[match,warning].filter(Boolean).join(' · ');
+      return `<button class="geo-result" type="button" data-jf-onclick="selectSearchResult(${i})"><div class="geo-result-title">${escapeHtml(g.displayName)}</div><div class="geo-result-meta">${escapeHtml(details)} · ${Number(g.lat).toFixed(6)}, ${Number(g.lon).toFixed(6)}</div>${quality?`<div class="geo-result-meta">${escapeHtml(quality)}</div>`:''}</button>`
+    }).join('');
+    setGeoStatus(`Показано лучших вариантов: ${list.length}. Проверьте адрес перед выбором.`,'info')
+  }catch(err){
+    if(err?.name!=='AbortError'&&requestSerial===deliveryAddressSearchSerial)setGeoStatus(automatic?'Автоподсказки временно недоступны. Нажмите кнопку поиска или поставьте точку на карте.':'Поиск адреса недоступен: '+err.message+'. Поставьте точку на карте или проверьте адрес сервиса в настройках.',automatic?'warn':'danger')
+  }finally{
+    if(deliveryAddressAbortController===controller)deliveryAddressAbortController=null;
+    if(requestSerial===deliveryAddressSearchSerial)btn.disabled=false
+  }
+}
 async function geocodeSearch(q,context={}){
   const expanded=expandAddressQuery(q),params={q:expanded,format:'jsonv2',addressdetails:'1',namedetails:'1',limit:'10',countrycodes:'ru','accept-language':'ru',viewbox:'27.0,61.5,35.0,57.2',bounded:'0',layer:'address',dedupe:'1'};
   let list=await nominatimFetch('/search',params,context);
@@ -767,8 +809,8 @@ async function geocodeSearch(q,context={}){
   if(!list.length){const broad={...params};delete broad.layer;delete broad.viewbox;delete broad.bounded;list=await nominatimFetch('/search',broad,context)}
   return rankGeocodeResults(list,q);
 }
-function expandAddressQuery(q){return String(q||'').replace(/\bдер\.?\s+/gi,'деревня ').replace(/\bд\.\s+/gi,'деревня ').replace(/\bпос\.?\s+/gi,'посёлок ').replace(/\bуч\.?\s*/gi,'участок ').replace(/\s+/g,' ').trim()}
-function rankGeocodeResults(list,q){const nq=normalizeText(q),terms=nq.split(' ').filter(x=>x.length>2),house=(nq.match(/(?:дом|д|участок|уч)\s*([0-9]+[а-яa-z-]*)/i)||[])[1]||'';return [...list].map(r=>{const text=normalizeText(r.display_name),a=r.address||{};let score=Number(r.importance||0)*10;for(const t of terms)if(text.includes(t))score+=2;if(house){const rh=normalizeText(a.house_number||a.plot||'');score+=rh===normalizeText(house)?12:rh? -8:0}if(detectRegion(a,r.display_name))score+=2;if(detectDistrict(a,r.display_name,detectRegion(a,r.display_name)))score+=3;return{r,score}}).sort((a,b)=>b.score-a.score).map(x=>x.r)}
+function expandAddressQuery(q){const intelligence=globalThis.JustFunAddressIntelligenceV783;if(intelligence?.normalizeQuery)return intelligence.normalizeQuery(q);return String(q||'').replace(/\bдер\.?\s+/gi,'деревня ').replace(/\bд\.\s+/gi,'деревня ').replace(/\bпос\.?\s+/gi,'посёлок ').replace(/\bуч\.?\s*/gi,'участок ').replace(/\s+/g,' ').trim()}
+function rankGeocodeResults(list,q){const intelligence=globalThis.JustFunAddressIntelligenceV783;if(intelligence?.rankCandidates)return intelligence.rankCandidates(list,q,{limit:3});const nq=normalizeText(q),terms=nq.split(' ').filter(x=>x.length>2),house=(nq.match(/(?:дом|д|участок|уч)\s*([0-9]+[а-яa-z-]*)/i)||[])[1]||'';return [...list].map(r=>{const text=normalizeText(r.display_name),a=r.address||{};let score=Number(r.importance||0)*10;for(const t of terms)if(text.includes(t))score+=2;if(house){const rh=normalizeText(a.house_number||a.plot||'');score+=rh===normalizeText(house)?12:rh? -8:0}if(detectRegion(a,r.display_name))score+=2;if(detectDistrict(a,r.display_name,detectRegion(a,r.display_name)))score+=3;return{r,score}}).sort((a,b)=>b.score-a.score).slice(0,3).map(x=>x.r)}
 async function reverseGeocode(lat,lon){return await nominatimFetch('/reverse',{lat:String(lat),lon:String(lon),format:'jsonv2',addressdetails:'1',zoom:'18','accept-language':'ru',layer:'address'})}
 async function selectSearchResult(i){let r=window.__geoCandidates?.[i];if(!r)return;let g=parseNominatimResult(r,'Nominatim');setSelectedGeo(g,true);if(!g.district||!g.region){setGeoStatus('Точка выбрана. Уточняю административный район…','warn');try{const rev=await reverseGeocode(g.lat,g.lon);g=mergeGeo(g,parseNominatimResult(rev,'Nominatim reverse'));setSelectedGeo(g,true)}catch{setGeoStatus('Точка выбрана, но район не подтверждён. Заполните область и район вручную.','warn')}}}
 function mergeGeo(a,b){return{...a,...Object.fromEntries(Object.entries(b).filter(([,v])=>v!==''&&v!==null&&v!==undefined)),lat:a.lat,lon:a.lon,displayName:a.displayName||b.displayName}}

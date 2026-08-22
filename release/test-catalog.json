@@ -1598,6 +1598,39 @@
       "class": "unit"
     },
     {
+      "id": "JF-TEST-ADDRESS-INTELLIGENCE-UNIT-V783",
+      "name": "Address Intelligence Unit V783",
+      "level": "integration",
+      "path": "tests/address-intelligence-unit-v783.cjs",
+      "command": "node tests/address-intelligence-unit-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "normalization, fuzzy ranking, deduplication and Top-3 selection pass",
+        "manual map fallback remains available"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when application or UX address-search code changes",
+      "invalidation_rule": "invalidate when the address intelligence module, renderer integration, test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
       "id": "JF-TEST-MAP-DIAGNOSTIC-REGRESSION-V783",
       "name": "Map Diagnostic Regression V783",
       "level": "integration",
