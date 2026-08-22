@@ -1,0 +1,1956 @@
+{
+  "schema_version": 1,
+  "project": "JustFun",
+  "source_state": "AUDITED_SOURCE_BASELINE",
+  "source_inventory_sha256": "18ae80aa6fa4014be2270aae430107a85510163f022a3976bb2f683fa0f197c6",
+  "source_input_root": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\release-main",
+  "generated_at_utc": "2026-08-22T15:34:27.311Z",
+  "file_count": 216,
+  "total_bytes": 8752679,
+  "files": [
+    {
+      "path": ".github/CODEOWNERS",
+      "size": 171,
+      "sha256": "9caaedc635b61cf01f820d097667441d9bc378e1f1a5dd7e76fad6cc24a1b731",
+      "module": "ci",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": false
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/audit-finding.yml",
+      "size": 1422,
+      "sha256": "cff6e4195404b1ad7f59705fcda3e23d5f4865ed86f0de420479d0fa624bec3d",
+      "module": "ci",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": false
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/audit-request.yml",
+      "size": 1343,
+      "sha256": "9a8ff38a40003606717cfe191256a24a1945c15412e13195c35f34e0f41f704f",
+      "module": "ci",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": false
+    },
+    {
+      "path": ".github/pull_request_template.md",
+      "size": 730,
+      "sha256": "f4e312cd41a69e9e54de4300fbd11079906334788a3dbd052d0b8df17e77e178",
+      "module": "ci",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": false
+    },
+    {
+      "path": ".github/workflows/audit-baseline.yml",
+      "size": 2040,
+      "sha256": "5a9c96a496a7dae4ad0a55359d35404e3949489217fd0c555f8abab466245e46",
+      "module": "ci",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": false
+    },
+    {
+      "path": ".github/workflows/audit-incremental.yml",
+      "size": 3910,
+      "sha256": "6ee8b90fdb7dc5f9a6ba9e154426216cd57960ccc27930502b78c87fd965e3df",
+      "module": "ci",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": false
+    },
+    {
+      "path": ".github/workflows/audit-verify-finding.yml",
+      "size": 2264,
+      "sha256": "8cc8c56c6952aa79c36a9b8d18ec85e89302187137bd80d8f61955efefc3b5f1",
+      "module": "ci",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": false
+    },
+    {
+      "path": ".github/workflows/windows-native-783.yml",
+      "size": 15795,
+      "sha256": "694ce0482903bcb52963bc19fd1a98055895686bc012807512e9cba6d0b9d568",
+      "module": "ci",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": false
+    },
+    {
+      "path": ".gitignore",
+      "size": 417,
+      "sha256": "d9b6d5048a3e736a3399e947da9556adda83383063f793c48d3d0bf474c379ea",
+      "module": "repository-root",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/assets/JustFun-official-transparent.png",
+      "size": 1614376,
+      "sha256": "464d69baa9d275324532b8a55527d72452021cace7da04d88ec7d213b83a0359",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/assets/JustFun-official.png",
+      "size": 1786386,
+      "sha256": "4faffc5cd41e8e26f44df14c879f340d5451ae058a7b5e90ca485ea442258813",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/assets/JustFun.ico",
+      "size": 166302,
+      "sha256": "a5c189b91d71d7a4bac6297f2b04218104c41f6464d2d347d34014ea2a9fd140",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/reg-vps/native-ssh.cjs",
+      "size": 8221,
+      "sha256": "170fb925e68557dca2ddafb3b091496d473ec144b6ab33867543242f8070c324",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/reg-vps/README-RU.txt",
+      "size": 2638,
+      "sha256": "59d12708c17fe041852196289a80cc45ebf942f5838226c1e49afbc7df888c26",
+      "module": "application",
+      "category": "INCLUDE_REQUIRED_DOC",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/reg-vps/server/install.sh",
+      "size": 10252,
+      "sha256": "0171c44715060701df1948a4e672768654ca4ea7e5b276a0a6d5cb1821df5e78",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/reg-vps/server/server.py",
+      "size": 113138,
+      "sha256": "74d0bbfdf2567d98c630c0e533371d1a6d5135557b30fbb6181f311e9fb7cb19",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/migrations/0001_init.sql",
+      "size": 3090,
+      "sha256": "99e54e3cf9ce65ae699008d18b5a6c0940e6e2da5fe48d6267618c31fe8738cd",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/migrations/0002_shared_installations.sql",
+      "size": 5052,
+      "sha256": "42c84c21ccbc6b2c59ceef2f5d47e86eb4144e75dacf23e2191451cb983e7c66",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/package.json",
+      "size": 298,
+      "sha256": "96499c55a7dc2928e7c7187080d590b0ae0691181dd84d17d257e3ec531f8a5f",
+      "module": "application",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/provisioner.cjs",
+      "size": 42855,
+      "sha256": "d9f0e8fac3cd8349dd0ff1f731299a987f1609e93535837fe0e187f53950f1f9",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/worker/crypto.js",
+      "size": 1411,
+      "sha256": "586f51213ad7d265a89ad8b4300e5d1693aa41e6d85f9415de023ae393f7c703",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/worker/db.js",
+      "size": 4567,
+      "sha256": "c1f1b575c4e3503e14318339abdb05e4f1ee9e2455cb225554d33031635bf623",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/worker/http.js",
+      "size": 3480,
+      "sha256": "9e9f6e66aaf8cb6023a1a6cc6ab96b8aa3b971e4ea728a76eb7785d881179b90",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/worker/index.js",
+      "size": 27982,
+      "sha256": "011224d1aaeae52742427c49f94fdd6ca7eedbaee5904b3245088ce12a6abf94",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/worker/package.json",
+      "size": 33,
+      "sha256": "89c47db7851f89caec72da4f215ebc21cf1e294aeef3b45d2583562d846ab035",
+      "module": "application",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/worker/status.js",
+      "size": 2928,
+      "sha256": "24290a8f4c12c5b401256dce3f0828495ed07e66660eac47b2612765da9aaca0",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/integrations/telegram-cloudflare-native/worker/telegram.js",
+      "size": 2469,
+      "sha256": "042511ed661dabae0a0a534736d6889f35404ff3c2a7f3c0da56c07136624747",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/main.js",
+      "size": 222096,
+      "sha256": "128a14865099fe61e030d7fdbeb4ed75da22138aeb3fbdb9d99358270239bd0c",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/package-lock.json",
+      "size": 3221,
+      "sha256": "e8ff3ec6245639764b7af7ae5dc5fad2cdd21cda5a60e03638fb6b79ad78ca20",
+      "module": "application",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/package.json",
+      "size": 503,
+      "sha256": "1e271c025bc0916226a27c6721da1be6cf45392b0a2eebcc4416cd1ecf2dfe4c",
+      "module": "application",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/preload.js",
+      "size": 5536,
+      "sha256": "2e20efd7fa48615a56ae9f937d9c0fd4043742e307c70e8ea055efa3bef3e86d",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/reg-vps-setup-preload.js",
+      "size": 312,
+      "sha256": "97a32a1c629f187155fb62f1e66b30ac4e24a82ddba824d5205481d346f1d316",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/reg-vps-setup-renderer.js",
+      "size": 1221,
+      "sha256": "7cf7f93761002ada5c38e739092230772ca68a2d0480feff6d10157e4a54c9b7",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/reg-vps-setup.html",
+      "size": 4151,
+      "sha256": "eba0ba07824a6e01ac0ba517ccf191cf0599d3982d1a5b40fba62b56baae4819",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/security-manifest.cjs",
+      "size": 4590,
+      "sha256": "d99229264f39c10121ee3fa88e8e2a68dc2c0838ff33adf61019a54fd84300f8",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/splash-preload.js",
+      "size": 287,
+      "sha256": "ae32f447f6dcbd2c03cbc44df082838484f33a34f3a435ab124dc234bd1ee62d",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/splash-renderer.js",
+      "size": 342,
+      "sha256": "42017f3822c01df5b5fc72eb2ec9791573dab61414bc0825f1c47a276be004ed",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/splash.html",
+      "size": 2199,
+      "sha256": "9143767a6f3e0e61292f0c8ed53ac75c65026e9e764a6c73e15cc0ff114e3742",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/telegram-setup-preload.js",
+      "size": 694,
+      "sha256": "7266f641c55b09dd6e5acc2025f5bc57a36bc655a6e04a7d8f768dc4495d7c6d",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/telegram-setup-renderer.js",
+      "size": 2226,
+      "sha256": "7ba75a3fb462735250bb9969a61ba3f24e1b23c07599a5e949c3ef1a82175dcb",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/telegram-setup.html",
+      "size": 6325,
+      "sha256": "e776e391ee46c2ccc127d561778c4e6b9266fc30409ad2aa3a855602b9b76949",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/THIRD-PARTY-NOTICES.txt",
+      "size": 1369,
+      "sha256": "2efc5185bbf98fe5231f5db8f1821c3d3b68cfe2f688c116f2a45d81fe47887c",
+      "module": "application",
+      "category": "INCLUDE_REQUIRED_DOC",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/00-base.css",
+      "size": 188455,
+      "sha256": "a7f3e03d5c6c6501d26f5472687617a5cd4bc78fad1b393384480a09632b4c68",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/01-design-tokens-v783.css",
+      "size": 2690,
+      "sha256": "c8f89c28e5b3ffb69714ad24b1bae94c3474798ca74670c213ce659428109e9c",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/03-icon-system-v783.css",
+      "size": 826,
+      "sha256": "0fe022a7dec3e3beb33c128e1498e261f247486840fe736283618d48f347c009",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/10-smart-status.css",
+      "size": 6928,
+      "sha256": "e1562c8ce102cd8c0c5848829b6493a4ebbff90ff95f281a31798495d6d6ab4b",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/100-multi-warehouse-v600.css",
+      "size": 8504,
+      "sha256": "e03d22d2becd18d867801a5e70d9af761fe65976d4412221d4f9ed8d26efb07f",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/102-professional-workspace-v610.css",
+      "size": 13369,
+      "sha256": "4c584e444564c7b19386cfdc0893afcc885b3082868726565c14415e1335a805",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/103-regression-recovery-v611.css",
+      "size": 1554,
+      "sha256": "14a328ac09025ff4840f285ed8237cf15e6785d3552a0d953cff023f039d8753",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/105-map-reliability-v772.css",
+      "size": 1268,
+      "sha256": "c29a0b6bdef1c392e7323887dd728cbc198871e6e6d861042222d96b20af6138",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/110-desktop-platform-v750.css",
+      "size": 15035,
+      "sha256": "3322026b0d8cd96aaa3226d1b0bad907682167c489b7691f026476f69903c8bc",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/120-premium-release-v783.css",
+      "size": 10320,
+      "sha256": "078c8ebd1c3c49ceb278beaccf70be1cd9004bd1e26d9d2225363478d854dbd6",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/130-experience-refresh-v783.css",
+      "size": 5306,
+      "sha256": "382916a01316813866b6ff4da3dd8a9760fe8cb5e199432d0c24f11a72a8b711",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/140-clarity-redesign-v783.css",
+      "size": 37695,
+      "sha256": "d6a1aadd3803175d6935c25595921be995bccbf9cbc6cd08090460ecd199e8f6",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/20-demonstration.css",
+      "size": 2890,
+      "sha256": "de08380443f60f28f1c4e82c03529e0b1d3020d986bb61ea1a3252da36f0190c",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/30-full-audit.css",
+      "size": 389,
+      "sha256": "65f69e04fa9f8059a04fb37b6dab77863e79f0c64b6c44d72b57920be0c65f56",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/40-premium-extension.css",
+      "size": 8187,
+      "sha256": "2673dfd0f1dc643004e7e599cadf7c1f4ffb3fda4f6d1e1da8fb46b1b0bed241",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/50-route-engine.css",
+      "size": 3989,
+      "sha256": "42d2a04fff7cc65e0942c2bfaf90b0d23bd791467732631f56c7dc7bc0efbaea",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/60-system-stability.css",
+      "size": 6204,
+      "sha256": "49f5fe53d181a1748f29ae8112f60a15efaf6511ee98cc01b2417632eea1e8b8",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/70-route-cleanup.css",
+      "size": 3151,
+      "sha256": "f1a9a36bc936cc104e71a93481d08e36914f982083f5e03f678044723829867c",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/80-route-composer-map.css",
+      "size": 1874,
+      "sha256": "07c7115a1a570d20005ffaedf662fe361f74cf88e5bc383d549183c4b74ee285",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/90-route-workspace.css",
+      "size": 4071,
+      "sha256": "c9acde9500f666b021521506f9e087f22171704c8726948e8f0abb7d6bfa4e2f",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/95-route-map-loading.css",
+      "size": 619,
+      "sha256": "894e4d962956136c508c300976a640992e63a40a54d5edd1a36f56f962015c2f",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/97-route-stop-interactions.css",
+      "size": 5501,
+      "sha256": "e4fdfc4bd486f233364b5697fd8546a56d51a0538b00bf46ada6c66f1c7fde14",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/98-smart-automation-v598.css",
+      "size": 8745,
+      "sha256": "068dc87019d17d60ca1eeea77f862182384178424645be63f0d6acbf876e66a9",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/css/99-stability-v595.css",
+      "size": 5729,
+      "sha256": "e191f3b4b0f03cb2a83d9f9591176a473499def94d55cd6cfab7d3627bdea30a",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/00-app-bundle-v595.js",
+      "size": 838521,
+      "sha256": "92cba31f1c11b046bc60889a0d17cbf0e2b4ad172928f00b7c9a809313b1682b",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/00-warehouse-bootstrap-v600.js",
+      "size": 8677,
+      "sha256": "f083aa7bacbffec08fb31c11626ee52b1d108d73b95d313770e39341f9d4fe05",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/01-action-dispatch-v783.js",
+      "size": 7285,
+      "sha256": "2be9e3465476bf46ca13b9448878a19a776f360fab3ce9475e7f0d47adeef1d0",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/02-runtime-overrides-v783.js",
+      "size": 1994,
+      "sha256": "198412478cab1729b1437597c61efa8f3df21e53d63b1effa740d20d892747bb",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/03-icon-system-v783.js",
+      "size": 5565,
+      "sha256": "a3e5625f263f201147ab848da0929ce7cf935fa6e8fad40877b2d4c07de21d1b",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/100-multi-warehouse-v600.js",
+      "size": 71461,
+      "sha256": "fc4446c219f15a5d820d86eb20b39e0148de9f2a245d4d273a85ce9cb85814eb",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/101-release-hardening-v601.js",
+      "size": 12243,
+      "sha256": "f43be524026a82c9953a629325c411901867f6d5248123910440715dbaa5e2c7",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/102-professional-workspace-v610.js",
+      "size": 19958,
+      "sha256": "d206e8cb2565434a306ba1d6a8caef27a369b8d1b03ffe8a586ec6ec3a650bfb",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/103-regression-recovery-v611.js",
+      "size": 7871,
+      "sha256": "b51d60fc9f8ebf29a647cbf38f8e0d38ae307fcf0c1a4ffce2338c08a2fccb19",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/105-map-reliability-v772.js",
+      "size": 9983,
+      "sha256": "b3bd24418b00494b1f6ecfdfd90aeee67d08b846d4e65dfcecf12a2e879eef99",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/110-desktop-platform-v750.js",
+      "size": 201298,
+      "sha256": "64e735e2622d9cb1b8ef111b67647914b266a96fc4e822f1da64c5a8ba229970",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/130-experience-refresh-v783.js",
+      "size": 9659,
+      "sha256": "56873cf4488a05504fc6bef906881dc5fe1655e035af35c1cf4e75489d6e31ad",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/140-clarity-redesign-v783.js",
+      "size": 61248,
+      "sha256": "4ac460f0a299eddb486e3bdfe490d92a4b27ee9962ae7a6694fd59c5a7461521",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/90-route-engine.js",
+      "size": 45616,
+      "sha256": "d411bd67bea4a7a08ef1c5412cedc963c9743b7fabacb3b01f155555a9319f14",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/91-system-stability.js",
+      "size": 9842,
+      "sha256": "3057fb345e432f3592ab1351b2537fec147f93279b5ee403fa645fb9b64a301e",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/92-route-cleanup.js",
+      "size": 8681,
+      "sha256": "6a6ba311afdca2ff13b826d0a0d33846e6a00ece7edd4b705f44515ad1ec6233",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/93-route-composer-map.js",
+      "size": 14231,
+      "sha256": "f79facf338ab69d830accab89d45a415e1c9b4b0f83c3a190a4076b8e47b544d",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/94-route-workspace-final.js",
+      "size": 3964,
+      "sha256": "93a67333a0a2c27abd7f149923157d5f37f22a2d91e3e0d08541e28aeef3d658",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/95-route-map-loading.js",
+      "size": 6322,
+      "sha256": "cb644a1c4c488ad6c39b1c5aa8db5af7c13a8f614798628bd94f1a284f49d49e",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/97-route-stop-interactions.js",
+      "size": 23455,
+      "sha256": "5578942ba78aef0c3fb118f20d45cd669fe143816584e8ed3af788be81da3a3a",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/98-smart-automation-v598.js",
+      "size": 82158,
+      "sha256": "d61b9496a9e754cc33233de03a0d4ef037f58f0fe799ca9fc79a8948735351e4",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/js/99-stability-v595.js",
+      "size": 30718,
+      "sha256": "a5331de574e378575b16e2ab37e28038a758efe6f0328cea45cb450606770988",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/justfun-official-transparent.png",
+      "size": 1614376,
+      "sha256": "464d69baa9d275324532b8a55527d72452021cace7da04d88ec7d213b83a0359",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/vendor/leaflet/images/layers-2x.png",
+      "size": 1259,
+      "sha256": "066daca850d8ffbef007af00b06eac0015728dee279c51f3cb6c716df7c42edf",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/vendor/leaflet/images/layers.png",
+      "size": 696,
+      "sha256": "1dbbe9d028e292f36fcba8f8b3a28d5e8932754fc2215b9ac69e4cdecf5107c6",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/vendor/leaflet/images/marker-icon-2x.png",
+      "size": 2464,
+      "sha256": "00179c4c1ee830d3a108412ae0d294f55776cfeb085c60129a39aa6fc4ae2528",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/vendor/leaflet/images/marker-icon.png",
+      "size": 1466,
+      "sha256": "574c3a5cca85f4114085b6841596d62f00d7c892c7b03f28cbfa301deb1dc437",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/vendor/leaflet/images/marker-shadow.png",
+      "size": 618,
+      "sha256": "264f5c640339f042dd729062cfc04c17f8ea0f29882b538e3848ed8f10edb4da",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/vendor/leaflet/leaflet.css",
+      "size": 14806,
+      "sha256": "a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/assets/vendor/leaflet/leaflet.js",
+      "size": 147552,
+      "sha256": "db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/application/web/index.html",
+      "size": 125830,
+      "sha256": "db5dc992caa832c6c258d26694c92d86342584c1ef7a96175e80ee5675620abb",
+      "module": "application",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/.gitignore",
+      "size": 58,
+      "sha256": "ccf19f1078ee86eddb527e16a4357fe3b984a11ce167bde7268536efedc33239",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/migrations/0002-warehouse-services.sql",
+      "size": 1117,
+      "sha256": "9fcdb6751acee8c1a2a95089add9d52d94b5bfeb1754df8dff53595bc822bf55",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/package-lock.json",
+      "size": 50079,
+      "sha256": "f27a6e976699a8f5c42aa3ce9f5c5a421535a3921b98f5e2d2fa97d475e49914",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/package.json",
+      "size": 255,
+      "sha256": "8753cffacd4e2d95c8b814ce51d1f470341739b80687191ae0215bb005f53f37",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/README.md",
+      "size": 3734,
+      "sha256": "0738ce49d903234ce2e8928c93bca1658491b3b6614c91b638330b88f10ea536",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_REQUIRED_DOC",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/schema.sql",
+      "size": 1042,
+      "sha256": "8e81de67234646d3d970b72d71c8a6502691616f56d3a47dadde2c86e92eca42",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/worker.mjs",
+      "size": 21956,
+      "sha256": "01382fb18e77f4f11f4de7137ce46c09d460ae8906792f96a9acfdc91d1afdef",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/wrangler.jsonc",
+      "size": 714,
+      "sha256": "1f711671ed6544d17f5e582ea753b06db828d4d42716e5b6e61acd382af09116",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/wrangler.jsonc.example",
+      "size": 688,
+      "sha256": "dee1f9dfdd6865f1c74b308ece2b6cf774ebb2d13e500f662ccafbc23fa24540",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/company-telegram-broker/wrangler.toml.example",
+      "size": 496,
+      "sha256": "9c14fe9c646525328b0dabb01c09b30245160c5b6caeaeb47b5fc3de48a18962",
+      "module": "company-telegram-broker",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/desktop-runtime/build_payload.py",
+      "size": 6393,
+      "sha256": "74d1dfbcce06d2c89a4680c5594ad74607d20142ebff0af1031f28fa8d5c8462",
+      "module": "desktop-runtime",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/desktop-runtime/harden_payload.mjs",
+      "size": 6515,
+      "sha256": "897c36b1348931741048ee3bd594628c252784b744828ae80a4df30defe61431",
+      "module": "desktop-runtime",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/desktop-runtime/package-lock.json",
+      "size": 15725,
+      "sha256": "cdcc812495f57130c85cdf849e1ecfdb94efbac6cbd85121c8e5f9f10ab280e9",
+      "module": "desktop-runtime",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/desktop-runtime/package.json",
+      "size": 388,
+      "sha256": "51337efa704d9b7fb4a4eaf09868298b5fc75638e289b16f184e255b1b59e9d8",
+      "module": "desktop-runtime",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/desktop-runtime/protect_stage.mjs",
+      "size": 2607,
+      "sha256": "9a870a4d519278d9f7171de3e27d189ccf16ab301add65a5fabfb9d9f031b34a",
+      "module": "desktop-runtime",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/brand_executable.cjs",
+      "size": 1214,
+      "sha256": "cfb0676e09becf0de15d1b10a991f027a1acf488c1b551a4cf8747f8d2fa9769",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/build_assets.py",
+      "size": 5240,
+      "sha256": "9ca998ad1f6678b918de9cb32ccbe5655e043db58078d946b3b8b6318efcb86b",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/build_windows.py",
+      "size": 8534,
+      "sha256": "a2611161952687d0e2b2396a716104f3a817c39f888a24b41aea01f9d218e04f",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/package-lock.json",
+      "size": 527,
+      "sha256": "617bd294e624492294e6b9524544933ffbe03f05e9f2b22bd8ef17c047a819cb",
+      "module": "installer",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/package.json",
+      "size": 178,
+      "sha256": "54bec3eb200e8470f4754dd8a40b85b48f4365380ae0f22803c7c4a7feb8877b",
+      "module": "installer",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/premium-ui/App.xaml",
+      "size": 10725,
+      "sha256": "6699c5179ad7be0af4e35f6137b7194b7ed0308f4944abcf9a16a91ad3480c41",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/premium-ui/App.xaml.cs",
+      "size": 1715,
+      "sha256": "eecb3a7ff4655a3a441568c8946fb084144218def6b504e40779b04ca4704ded",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/premium-ui/JustFunPremiumSetup.csproj",
+      "size": 1937,
+      "sha256": "279e59c898c4cdab95de672078e627f7e8397b364217571446a748fcb455b957",
+      "module": "installer",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/premium-ui/MainWindow.xaml",
+      "size": 29334,
+      "sha256": "e0d0d99beea28bbb60dfb6d1816690c4d35c4afaa4583a8090f27419113d93d9",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/premium-ui/MainWindow.xaml.cs",
+      "size": 16163,
+      "sha256": "affc5ef3932041e936dc030a67e7582cab35326f214a408ea334ea631e6d9ccf",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/premium-ui/SetupEngine.cs",
+      "size": 8516,
+      "sha256": "42679181bc0c150a921f36bfd81daaef0f9c3575562821f58da0ea3629304f3b",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/README.md",
+      "size": 2103,
+      "sha256": "b0d20477d53bc4a586722c9579353a67d6882cdf47251d1fb8ca6db7e331fc32",
+      "module": "installer",
+      "category": "INCLUDE_REQUIRED_DOC",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/Recovery.nsi",
+      "size": 6750,
+      "sha256": "f896986bd7636bed49f3fe8b067eb4488f73d0a9e2b069bb1e7bf552659c551d",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/installer/Setup.nsi",
+      "size": 40937,
+      "sha256": "9c61fb177d373b8f255e3cd47283c40cbd202b524df7e3841e8100d87a77807b",
+      "module": "installer",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/create-license.mjs",
+      "size": 843,
+      "sha256": "dcf2c102237ebecf6a2fb64b34ebc4e5199fa2f2119f11f769a6d249442ba00a",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/migrations/002-company-data-service.sql",
+      "size": 452,
+      "sha256": "2c24fa1456de7b28f9aa91d5c55dd13ab0476dbe096f40e786df3663612a8176",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/migrations/003-company-telegram-service.sql",
+      "size": 606,
+      "sha256": "59f04bd657f3bb7b57e3ef5b9248f267a515555bda9f890a1a5a60c3d64d0a28",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/migrations/004-custom-roles.sql",
+      "size": 4434,
+      "sha256": "7d9065fead2eaaa3dabb6a4068cf471f820a44079e692bfd6bca102a6e5014da",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/migrations/005-granular-permissions-audit.sql",
+      "size": 303,
+      "sha256": "7d7f8440139982f7354fe3c5c0f88bcb16e75f5755410a2c28ba2477d9f0f8ca",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/migrations/006-exact-permissions.sql",
+      "size": 3927,
+      "sha256": "2c2f16b8edeab694af75d3beb2588601f822e1b21c5dffadce12c346f2d75c30",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/package-lock.json",
+      "size": 49403,
+      "sha256": "3d097b91e342c7b487fd61520cf96b556ed1b68ca061c311c95aa40101cc2510",
+      "module": "license-server",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/package.json",
+      "size": 273,
+      "sha256": "7dd085a951837a6ecd8a65a3109cddabb0e4b5fa939287b4ef2dc20d95c975d4",
+      "module": "license-server",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/README.md",
+      "size": 8509,
+      "sha256": "9a843e8d4b102b2b3388d9cb043d0697863544162060575c0997e7e6ba9a3d93",
+      "module": "license-server",
+      "category": "INCLUDE_REQUIRED_DOC",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/schema.sql",
+      "size": 5485,
+      "sha256": "a525e5b26a3483f4a633e0b900321ebe4b04ef2d784f683a9d7780ad596c14b0",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/verify-deployment.mjs",
+      "size": 2301,
+      "sha256": "9da7cb2b27f1573b8172f2481ca7224d9edbdf53b781a4b761b8a53cee44e5c7",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/worker.mjs",
+      "size": 55333,
+      "sha256": "92a011ba538835e2a9175ceac1a9bf1f7f7703eb7016b3b68b4bc19f6a016ffa",
+      "module": "license-server",
+      "category": "INCLUDE_SOURCE",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/wrangler.jsonc",
+      "size": 484,
+      "sha256": "41c573c2b234222981a1126e377154e170b37209dd82fb82d1997d039d6ecf8f",
+      "module": "license-server",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/license-server/wrangler.toml.example",
+      "size": 347,
+      "sha256": "bf11d561a5fe761febf11ecb418f8fdf94cca4a8ce734ce828c34aae5b5c5281",
+      "module": "license-server",
+      "category": "INCLUDE_BUILD",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "source/README.md",
+      "size": 5286,
+      "sha256": "141e6039648285f18b7600c41f45697dd3e1c2db2f3c29853b4768471551be51",
+      "module": "repository-root",
+      "category": "INCLUDE_REQUIRED_DOC",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/action-dispatch-unit.cjs",
+      "size": 2415,
+      "sha256": "5fbfefabfb8b40467a2443c0dc7fca112d40986be10af9e9c7b20a4eb41dff2e",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/asar-file-hash.mjs",
+      "size": 615,
+      "sha256": "a356d820f3fcf8ebe1fc7d7aa831ae4eef3add341ddba42f6cfe72f432dd3f7d",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/atomic-mutation-async-regression-v783.cjs",
+      "size": 2382,
+      "sha256": "54bdf8d44569fc2eabb728aa12ffd3814944a9e4525bebfde722132b83d17e96",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/auth-reg-source-contract.cjs",
+      "size": 4562,
+      "sha256": "3dc217175af686899d6555c50fc0eb533dcfbd5b51f8c6b6d8eab1e1be2c3b26",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/background-cloud-sync-failure-regression-v783.cjs",
+      "size": 3066,
+      "sha256": "94404f31403720c7fe60f57a81f0d97a0b0578b2e8b821277b850e3289ded58a",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/company-scope-test.mjs",
+      "size": 2825,
+      "sha256": "7d31aeebe2f2d9c07c673271e0bc5e06af7b486b542b4e09238c27efe62f7ae0",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/company-telegram-broker-schema-test.py",
+      "size": 3074,
+      "sha256": "160f0a1d3843ea8503261feea7192b84d3b28441bfd4ac27f7508e43f67c9b2e",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/company-telegram-broker-unit.mjs",
+      "size": 7190,
+      "sha256": "eeeb08de0df22ba9c4aaf4257b78e99abbab99f3a9c1db99655e196edf9319ad",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/current-cycle-regression-v783.mjs",
+      "size": 4338,
+      "sha256": "33c018952dfb81b34253e87d68a45d306c51340ecbd4b2c6b52b26c6be0de886",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/dead-override-regression-v783.cjs",
+      "size": 3733,
+      "sha256": "32f27a1b216f297388c8654167d03ae1c0b13dff455ee1e93031d3fa1ce5922a",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/deep-business-fixture-regression-v783.cjs",
+      "size": 1252,
+      "sha256": "f2fd75483664ca29697961adb2dcc56b35dcf6d06769910f31ad0bb02a420b41",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/deploy-reg-vps-server.cjs",
+      "size": 4699,
+      "sha256": "be51be3de2ea058fbb1566d2a9d8d790f019f2f7bc8903cdf012cfc3254ec6c2",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/design-token-regression-v783.cjs",
+      "size": 4174,
+      "sha256": "d8f981e846d1bf37dbff100439d65f6fbef654aa75871069d131678ecca00915",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/desktop-dialog-regression-v783.cjs",
+      "size": 3028,
+      "sha256": "91299f7e460b81507316819892ebe2c8be97548e015716fadf0cf8a958104fa7",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/entity-bootstrap-merge-unit.cjs",
+      "size": 3160,
+      "sha256": "d785738e5681327550e0257213c1432ef99fc814f21645a3e1d749ae6aacb976",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/error-boundary-regression-v783.cjs",
+      "size": 1146,
+      "sha256": "89b6753778914b9a5a8c4544e37dc063cbdce02867d8409742989aac86f32fec",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/experience-regression-v783.mjs",
+      "size": 7921,
+      "sha256": "c63c207ef45fcbfa02c4a9ef2f4910d51ce469704d5e409665e0a945161af140",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/fixtures/windows-native-783.yml",
+      "size": 15795,
+      "sha256": "694ce0482903bcb52963bc19fd1a98055895686bc012807512e9cba6d0b9d568",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/icon-system-regression-v783.cjs",
+      "size": 1880,
+      "sha256": "0a49ffadf2e61d23f8df341d7425edc8b6a658cddfc8a7a7802520bc5a49758c",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/installer-crash-recovery-test.ps1",
+      "size": 7881,
+      "sha256": "4a4dc1b3126f1990c0fa8a3f733b5cc2046f2514593a81140688c3871c095c0d",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/installer-full-acceptance-test.ps1",
+      "size": 11523,
+      "sha256": "9050a0351103d3f4b4d5ed291404a8f0e8f60b23a2864e78247933cbe4df3c2b",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/installer-source-test.py",
+      "size": 21500,
+      "sha256": "1874ccc659e8074038b4f7cc289597ddd3dd6eb6fa4612ca24525e5000f5f143",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/license-custom-role-migration-test.py",
+      "size": 2594,
+      "sha256": "5bbfc985f960f1a931e94b8d8beed1faa3cf012e5555a3bbaf19de26f0597df6",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/license-exact-permission-migration-test.py",
+      "size": 2016,
+      "sha256": "7c9ba4fb76a06e8957d416d828f56091955ba5bd9911862b0a87238d2f43567c",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/license-granular-permission-migration-test.py",
+      "size": 1070,
+      "sha256": "347caf3dcdc2cd3a58510775dddbfdc352ec106c800df6bd29f2725485871a88",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/license-schema-test.py",
+      "size": 8691,
+      "sha256": "6f8564caa4651bc5067628bbfc8d5e5e170448071750199ee54f684d1777ec55",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/license-server-unit.mjs",
+      "size": 15293,
+      "sha256": "6d5f2d1e20075ce2e0429feac8adfcc82cc65490810886c52a197a2dbf9f402d",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/live-cloud-session-check.cjs",
+      "size": 6054,
+      "sha256": "3a5362d2ba127a3035a63fa67ad3579aa2672e19941aeb44bfc11cbd37298a08",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/live-cloudflare-readonly-inventory.cjs",
+      "size": 4907,
+      "sha256": "526bd9bd4f9c88ad570f87222a6ff29f654ea9351f8126a0cbb66ca60e5f4efe",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/live-cloudflare-worker-source-readonly.cjs",
+      "size": 6682,
+      "sha256": "450a8029bb1fe42fc873d59779371c12bea55a57ca287ade40b4128e6076a5ee",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/live-multi-user-isolation.cjs",
+      "size": 17284,
+      "sha256": "c3d4e1119a39f0a5ec5df65fa15e9d373fd206528683d2e68b068ee58f47f25b",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/live-telegram-scope-migration.cjs",
+      "size": 15847,
+      "sha256": "7ce78f9571e41efe5e62052885ff475b66e7e7008c8140b56927291509ea2d11",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/live-telegram-two-account-audit.cjs",
+      "size": 12120,
+      "sha256": "835f25ff64e635112b8f99901fbe08bb180fba08dfdeab16f9b35b7c041b47fa",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/logo-transparency-test.py",
+      "size": 2499,
+      "sha256": "5a3d274eb2b84924178e3ab757f2204f3192e4edf04c10784f1a3a13efc2af50",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/main-unit.cjs",
+      "size": 18982,
+      "sha256": "4b982d81ffd53e64e3d4a69d87b86059dbd46b86d16f463077bba91ec0c25713",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/map-diagnostic-regression-v783.cjs",
+      "size": 1095,
+      "sha256": "b6b759a73f2ec392d4ae329976e2970fed0424b61a26164d72d9317716a402e8",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/package-lock.json",
+      "size": 54268,
+      "sha256": "037a3ed5afcfa0c16cc07adb201bbd260b33f1a9e2766d5906ba427722ddd3ef",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/package.json",
+      "size": 187,
+      "sha256": "87d8f3bb833db1b78538ece81a99b278272896dcfbbf188ba0687e56d4bc068a",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/permission-compat-regression-v783.cjs",
+      "size": 1343,
+      "sha256": "eb6991cfba85d8eebdf573a8de95bbee7bdef93b0d71e0c8283c016522ee7ab1",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/product-drawer-accessibility-v783.cjs",
+      "size": 1008,
+      "sha256": "3b384ae2b8ec63de5c2cabe8da6e461689ba8db6871140338cf15e8e99b78d65",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/reg-api-contract-test.py",
+      "size": 2718,
+      "sha256": "2215f2bfe954421a7f53ef274b6e2f92095b015951ab2a684515dd84de5400dc",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/reg-entity-protocol-test.py",
+      "size": 30046,
+      "sha256": "089d408671cc4463e33c8e0ffb79b37c95ea11db0402e3e9cb54970f4099c67c",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/reg-entity-source-contract.cjs",
+      "size": 7508,
+      "sha256": "cb171880f118d36ef6a54ed66e11c037d4020aa89c18382517e75731bd6e1ebb",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/reg-map-proxy-test.py",
+      "size": 4109,
+      "sha256": "e43ada778ddb9e3855064ae54768c7f5e4724a5e6c70d01d36eca73d55c46ed0",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/reg-native-ssh-unit.cjs",
+      "size": 2461,
+      "sha256": "1beab5b59b9c3264dcd253435f0f0329c7349bf3a53a445c156d2e6cd778e6ea",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/reg-revision-test.py",
+      "size": 11182,
+      "sha256": "d04f65f0715f3ce1216ce6acba40a55812abdfbf8d8eca5a2ecc060f1c39709b",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/reg-storage-v3-integration.py",
+      "size": 5471,
+      "sha256": "8a24afee323c876d626a7588b398900fb325edb57acf0c1a016ba2f628f3da71",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/reg-tls-source-test.cjs",
+      "size": 3689,
+      "sha256": "124a029cbc2482d3d831d1f440e7691913b88d8db83fc0ca5f14a5b9b5a9aadf",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/release-regression-v783.mjs",
+      "size": 11630,
+      "sha256": "90a4938dd02a6782fa94a615c8a9b9db5dd0c4735b306f4be3d8b7ce9c0c0ace",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/runtime-button-matrix.py",
+      "size": 7591,
+      "sha256": "6fab7de9c7c8a965f03c179bb98ff803dfbbbf76c51b6870e57b11fe42c961ff",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/runtime-overrides-regression-v783.cjs",
+      "size": 2178,
+      "sha256": "5368756e32539792623850827a467fc9f3ae76d4608a725bf191fca45adf8cf7",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/runtime-smoke.mjs",
+      "size": 84439,
+      "sha256": "278d815e42cea088e02b9565e15bc98f3212adde1d8e12446001376dc21e9079",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/security-audit.mjs",
+      "size": 3483,
+      "sha256": "cfb28cbe19d2c454a06f032bb8b3fee90095ab234dbe90d716d70ac1e2b7af3a",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/security-manifest-unit.cjs",
+      "size": 2339,
+      "sha256": "3fa31a58f65cf2fc58935665a45c08e91f0851cb8fe4e523ff91370d1e455c54",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/security-regression-v783.mjs",
+      "size": 3121,
+      "sha256": "595d56b1bc6b5f00e12e0c3e69e8c113bd5a42bc645e9873c93a0983e0eb6378",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/source-hygiene-regression-v783.cjs",
+      "size": 1535,
+      "sha256": "4f3e19fde0ca4b605886261389dfcce847c4bbd171f95f3fce812620815f9a78",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/startup-auth-regression.cjs",
+      "size": 2911,
+      "sha256": "908e3f72cbf79b6c842ebbd1aede99240d4da836a5d495aaeaefcdeb1cc77b0e",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/static-audit-regression-v783.cjs",
+      "size": 1215,
+      "sha256": "9f104b254c6e64ecb904414ff33d39538d6c0e596b91a16a8ebcac11f965891c",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/static-audit.mjs",
+      "size": 14946,
+      "sha256": "084450f8d9a563ba7d1961b369e05299cb971227ca3d013e8df52718592211ad",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/telegram-scope-regression-v783.cjs",
+      "size": 3072,
+      "sha256": "2c1f5fbabeff552150bc35410a8ecfe70cf7f82fbe17454cd548b5cfea774801",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/telegram-shared-d1-schema.cjs",
+      "size": 2658,
+      "sha256": "27a769c7cf779ebbf4cbaaaf689d0800ee9ee95a9e0e8567b647467e20f0ea76",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/telegram-wizard-open-regression-v783.cjs",
+      "size": 3228,
+      "sha256": "e6bb9a2919b35384d7c69dd72ba6720d0f276dd9414c4d019371b0ef992d6c0e",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/telegram-worker-unit.mjs",
+      "size": 8847,
+      "sha256": "e7b4c3b3cbc1eb5421e921ea5ec87a18a0c414366fc6959de7e2e02d2ae5b2f0",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/verify-pe-icon.mjs",
+      "size": 2325,
+      "sha256": "e530dbcd66bb3666c0f588dcef4c2160f963f70284bceaa8af8aa8256d406b2f",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/visual-qa-contract-regression-v783.cjs",
+      "size": 1727,
+      "sha256": "6e92c8760670887878915db6dc950b089c4135d4d99dc1decfa82d799de6b592",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/vps-cleanup-qa-workspaces.cjs",
+      "size": 3670,
+      "sha256": "64f5e87d836fcf396e1cd1814697139f2c3f255984282f877ffe40e1f0e59a7a",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/vps-deploy-row-protocol.cjs",
+      "size": 6473,
+      "sha256": "40772accf7609866f77995a7c2c27bb21adfc2e2423bd42a4714465e2dba9c6b",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/vps-entity-created-at-diagnostic.cjs",
+      "size": 2690,
+      "sha256": "8e062d54334be086e33373ca6b19514f58001559629fe9932923587872526018",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tests/vps-live-diagnostic.cjs",
+      "size": 4777,
+      "sha256": "9002cd4f7b17786952148da96a8df690ce5ff4a688b29bf5d19b1db6dcdb9cef",
+      "module": "tests",
+      "category": "INCLUDE_TEST",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tools/audit/impact.mjs",
+      "size": 4489,
+      "sha256": "7f4b74784f37cfea3bb03dac9f6426febd42d5641c78848d509481448c9da05d",
+      "module": "tools",
+      "category": "INCLUDE_TOOL",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tools/audit/run-selected-tests.mjs",
+      "size": 2639,
+      "sha256": "ef4e07944cfd8a2423e7005ba5fd8287f9eca8ce716401b7ff6a8ee20fab3cf4",
+      "module": "tools",
+      "category": "INCLUDE_TOOL",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tools/audit/verify-finding.mjs",
+      "size": 2110,
+      "sha256": "7bd956b411aa85ab7a78aaeed9f5420da38b71863d2a5dfae427e5454b235cc8",
+      "module": "tools",
+      "category": "INCLUDE_TOOL",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tools/audit/verify-ledger.mjs",
+      "size": 7305,
+      "sha256": "984c9dcaaa25d75a71980d5f7def194f6d8bb08cac5d9cbfada0a433621bcb6e",
+      "module": "tools",
+      "category": "INCLUDE_TOOL",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tools/build-audited-rc.ps1",
+      "size": 4842,
+      "sha256": "39305b6bc085e86299512affa69d89a0e3ceecae9894fb6e7ca23a830c1ac0e1",
+      "module": "tools",
+      "category": "INCLUDE_TOOL",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    },
+    {
+      "path": "tools/package-owner-rc.ps1",
+      "size": 3772,
+      "sha256": "c2fdaaae1ed6a42c8e290bce9a8a45c982f368da0bcef6de4dd995326f609d12",
+      "module": "tools",
+      "category": "INCLUDE_TOOL",
+      "source_git_status": "tracked",
+      "source_zip_eligible": true
+    }
+  ]
+}

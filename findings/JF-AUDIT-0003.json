@@ -12,11 +12,12 @@
     "line": 86
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "dce5f976b701722d3ef6770a7c93d7e4075a4175",
-  "fact": "На baseline commit 9 из 12 тестов вызывали отсутствующие save_snapshot, snapshot_digest, require_snapshot_access и require_changed_sections_allowed. В Draft PR 15 suite перенесён на row-level business_records_v3/save_entity_batch: 14/14 unit-тестов подтверждают version conflict, command idempotency/reuse, digest и права; 3/3 PostgreSQL integration-тестов прошли под несуперпользовательской ролью, включая 36 параллельных пользователей и RLS. Полный Windows gate прошёл на exact head commit; исправление ещё не слито в protected main.",
+  "last_verified_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "fact": "На baseline commit 9 из 12 тестов вызывали отсутствующие save_snapshot, snapshot_digest, require_snapshot_access и require_changed_sections_allowed. В PR 15 suite перенесён на row-level business_records_v3/save_entity_batch: 14/14 unit-тестов подтверждают version conflict, command idempotency/reuse, digest и права; 3/3 PostgreSQL integration-тестов прошли под несуперпользовательской ролью, включая 36 параллельных пользователей и RLS. Исправление включено в protected main 8fc993ea9ac84c511845279b796f4fbacdff6435; incremental audit и полный Windows gate на точном итоговом SHA завершились успешно.",
   "evidence": [
     "JF-EVID-0003",
-    "JF-EVID-0015"
+    "JF-EVID-0015",
+    "JF-EVID-0018"
   ],
   "impact": "Старый release gate красный по удалённому контракту и не даёт достоверного покрытия актуальных revision/conflict/permission гарантий storage v3.",
   "reproduction": [
@@ -35,5 +36,5 @@
     "https://github.com/KAPCTEH/21.08reliz/pull/15"
   ],
   "owner": "@KAPCTEH",
-  "status": "FIXED_PENDING_VERIFY"
+  "status": "CLOSED"
 }

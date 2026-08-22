@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "project": "JustFun",
+  "input_root": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\release-main",
+  "output_directory": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\artifacts\\baseline-8fc993e-inventory",
+  "started_at_utc": "2026-08-22T15:33:33.281Z",
+  "completed_at_utc": "2026-08-22T15:33:41.407Z",
+  "head_before": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "head_after": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "branch": "codex/release-updater",
+  "remotes": [
+    "origin\thttps://github.com/KAPCTEH/21.08reliz.git (fetch)",
+    "origin\thttps://github.com/KAPCTEH/21.08reliz.git (push)"
+  ],
+  "working_tree_dirty": false,
+  "snapshot_consistent": true,
+  "physical_file_count": 217,
+  "total_bytes": 8752787,
+  "inventory_sha256": "18ae80aa6fa4014be2270aae430107a85510163f022a3976bb2f683fa0f197c6",
+  "counts_by_category": {
+    "EXCLUDE_GENERATED": 1,
+    "INCLUDE_BUILD": 28,
+    "INCLUDE_REQUIRED_DOC": 6,
+    "INCLUDE_SOURCE": 107,
+    "INCLUDE_TEST": 69,
+    "INCLUDE_TOOL": 6
+  },
+  "counts_by_git_status": {
+    "not-known-to-git": 1,
+    "tracked": 216
+  },
+  "counts_by_module": {
+    "application": 88,
+    "ci": 8,
+    "company-telegram-broker": 10,
+    "desktop-runtime": 5,
+    "installer": 14,
+    "license-server": 14,
+    "repository-root": 3,
+    "tests": 69,
+    "tools": 6
+  },
+  "manual_review_count": 0,
+  "read_error_count": 0,
+  "secret_exclusion_count": 0,
+  "potential_credential_review_count": 0,
+  "note": "Automated initial classification is not an approved final allowlist; MANUAL_REVIEW entries require explicit resolution."
+}

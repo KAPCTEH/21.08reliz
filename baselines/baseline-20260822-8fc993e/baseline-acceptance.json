@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "baseline_id": "baseline-20260822-8fc993e",
+  "commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "tree": "0ec7a58d562989296646c05725b695828e900526",
+  "annotated_tag": "audit-baseline-2026-08-22-8fc993e",
+  "parent_baseline_id": "baseline-20260821-f8e12ec",
+  "acceptance_run_id": "JF-RUN-20260822-MAIN-8FC993E",
+  "evidence_id": "JF-EVID-0018",
+  "file_count": 216,
+  "inventory_sha256": "18ae80aa6fa4014be2270aae430107a85510163f022a3976bb2f683fa0f197c6",
+  "accepted_at_utc": "2026-08-22T15:31:23Z",
+  "source_baseline_accepted": true,
+  "release_verdict": "NO_GO",
+  "limitations": [
+    "live multi-account, Telegram and VPS acceptance remains open",
+    "TZ 2 release and automatic update implementation remains open"
+  ]
+}

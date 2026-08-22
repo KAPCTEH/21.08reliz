@@ -1,0 +1,35 @@
+{
+  "id": "JF-EVID-0018",
+  "type": "protected-main-verification",
+  "commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "subject": "Protected main consolidation and exact-commit release gate",
+  "input_digests": {
+    "commit": "git:8fc993ea9ac84c511845279b796f4fbacdff6435",
+    "tree": "git:0ec7a58d562989296646c05725b695828e900526",
+    "windows_artifact_id": "github-artifact:9478020502",
+    "incremental_artifact_id": "github-artifact:9477918919"
+  },
+  "tool": "GitHub Actions protected main checks",
+  "tool_version": "windows run 32581507281; incremental run 32581507293",
+  "command": "push event on protected main at exact commit 8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "cwd": "GitHub-hosted Windows 2022 and Ubuntu 24.04 runners",
+  "timestamp_utc": "2026-08-22T15:31:23Z",
+  "exit_code": 0,
+  "normalized_result": "{\"commit\":\"8fc993ea9ac84c511845279b796f4fbacdff6435\",\"impact_and_tests\":\"success\",\"build_and_accept\":\"success\",\"windows_artifact\":{\"id\":9478020502,\"name\":\"justfun-7.8.3-windows-8fc993ea9ac84c511845279b796f4fbacdff6435\",\"bytes\":184525178,\"expires_at\":\"2026-09-05T15:31:12Z\"},\"incremental_artifact\":{\"id\":9477918919,\"name\":\"audit-incremental-32581507293\",\"bytes\":11332,\"expires_at\":\"2026-09-05T15:23:03Z\"},\"baseline_tag\":\"audit-baseline-2026-08-22-8fc993e\"}",
+  "artifact_sha256": null,
+  "location": "https://github.com/KAPCTEH/21.08reliz/commit/8fc993ea9ac84c511845279b796f4fbacdff6435/checks",
+  "retention": "permanent normalized metadata; GitHub workflow artifacts retained until 2026-09-05",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0001",
+    "JF-AUDIT-0002",
+    "JF-AUDIT-0003",
+    "JF-AUDIT-0005",
+    "JF-AUDIT-0006",
+    "JF-AUDIT-0007"
+  ],
+  "tests": [
+    "JF-TEST-AUDIT-INCREMENTAL",
+    "JF-TEST-WINDOWS-NATIVE-783"
+  ]
+}

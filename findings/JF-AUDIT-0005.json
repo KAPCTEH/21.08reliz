@@ -12,11 +12,12 @@
     "line": null
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "217d4b9587825d2f8d3617eb2f2c9f54cc117775",
-  "fact": "На baseline design-token ratchet фиксировал 24 CSS-файла, 885 !important, 2038 hex-вхождений и 1192 уникальных hex. В Draft PR 17 выполнена первая измеримая модульная миграция: 259 точных литералов в 18 CSS-файлах заменены существующими каноническими токенами без изменения вычисляемых цветов; hexOccurrences снижен до 1779 (-12,7%), uniqueHex — до 1191, а тест запрещает возврат мигрированных литералов. Runtime button matrix покрыл 96/96 кандидатов с итогом 94 PASS, 2 штатно SKIPPED, 0 FAIL/timeout; accessibility, security и полный Windows gate 22/22 прошли. Исправление ещё не слито в protected main.",
+  "last_verified_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "fact": "На baseline design-token ratchet фиксировал 24 CSS-файла, 885 !important, 2038 hex-вхождений и 1192 уникальных hex. В PR 17 выполнена первая измеримая модульная миграция: 259 точных литералов в 18 CSS-файлах заменены существующими каноническими токенами без изменения вычисляемых цветов; hexOccurrences снижен до 1779 (-12,7%), uniqueHex — до 1191, а тест запрещает возврат мигрированных литералов. Изменение включено в protected main 8fc993ea9ac84c511845279b796f4fbacdff6435; runtime matrix, accessibility, security, incremental audit и полный Windows gate на точном итоговом SHA прошли.",
   "evidence": [
     "JF-EVID-0005",
-    "JF-EVID-0017"
+    "JF-EVID-0017",
+    "JF-EVID-0018"
   ],
   "impact": "Изменение темы и компонентов остаётся дорогим и рискованным; локальные исправления легко конфликтуют и дают визуальный дрейф между экранами.",
   "reproduction": [
@@ -35,5 +36,5 @@
     "https://github.com/KAPCTEH/21.08reliz/pull/17"
   ],
   "owner": "@KAPCTEH",
-  "status": "FIXED_PENDING_VERIFY"
+  "status": "CLOSED"
 }

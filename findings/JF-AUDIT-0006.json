@@ -12,11 +12,12 @@
     "line": 20
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "1c52dc625e5a9945e1cb78443cfcb08c3879ce82",
-  "fact": "На baseline детерминированный source-only ZIP исключал .github, а два release-теста напрямую читали workflow и падали в изолированной распаковке. В Draft PR 16 добавлен зафиксированный workflow-контракт: полный checkout требует его точного совпадения с реальным workflow, а source-only профиль использует fixture без внешних файлов. Новый ZIP из exact commit содержит 204 файла, прошёл allowlist/blob-hash проверку; installer suite 19/19, release regression и полный Windows gate 22/22 прошли. Исправление ещё не слито в protected main.",
+  "last_verified_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "fact": "На baseline детерминированный source-only ZIP исключал .github, а два release-теста напрямую читали workflow и падали в изолированной распаковке. В PR 16 добавлен зафиксированный workflow-контракт: полный checkout требует его точного совпадения с реальным workflow, а source-only профиль использует fixture без внешних файлов. Исправление включено в protected main 8fc993ea9ac84c511845279b796f4fbacdff6435; source-only ZIP, installer suite, release regression, incremental audit и полный Windows gate на точном итоговом SHA прошли.",
   "evidence": [
     "JF-EVID-0007",
-    "JF-EVID-0016"
+    "JF-EVID-0016",
+    "JF-EVID-0018"
   ],
   "impact": "Получатель опубликованного source-only ZIP не может воспроизвести заявленные release-проверки только из содержимого архива; зелёный результат полного checkout не переносится на поставляемый артефакт.",
   "reproduction": [
@@ -38,5 +39,5 @@
     "https://github.com/KAPCTEH/21.08reliz/pull/16"
   ],
   "owner": "@KAPCTEH",
-  "status": "FIXED_PENDING_VERIFY"
+  "status": "CLOSED"
 }

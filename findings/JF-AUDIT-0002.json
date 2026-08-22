@@ -12,11 +12,12 @@
     "line": 30
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "c517545832ad41b20405cfb6376a6c3c0f4c1392",
-  "fact": "На baseline commit тест извлекал фрагмент до initialServerSeedChanges, куда входит экспорт window.JustFunServerStorageV3, но VM-контекст не определял window и падал с ReferenceError до assertions. В Draft PR 14 добавлен изолированный window stub, отдельные assertions browser-export и обязательный запуск теста в Windows CI. Server-wins merge, удаление устаревших локальных записей и полный Windows gate прошли на exact head commit; исправление ещё не слито в protected main.",
+  "last_verified_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "fact": "На baseline commit тест извлекал фрагмент до initialServerSeedChanges, куда входит экспорт window.JustFunServerStorageV3, но VM-контекст не определял window и падал с ReferenceError до assertions. В PR 14 добавлен изолированный window stub, отдельные assertions browser-export и обязательный запуск теста в Windows CI. Исправление включено в protected main 8fc993ea9ac84c511845279b796f4fbacdff6435; server-wins merge, удаление устаревших локальных записей, incremental audit и полный Windows gate на точном итоговом SHA завершились успешно.",
   "evidence": [
     "JF-EVID-0002",
-    "JF-EVID-0014"
+    "JF-EVID-0014",
+    "JF-EVID-0018"
   ],
   "impact": "Регрессия merge/bootstrap фактически не проверяется и даёт ложный красный результат, скрывая возможные реальные дефекты за ошибкой harness.",
   "reproduction": [
@@ -33,5 +34,5 @@
     "https://github.com/KAPCTEH/21.08reliz/pull/14"
   ],
   "owner": "@KAPCTEH",
-  "status": "FIXED_PENDING_VERIFY"
+  "status": "CLOSED"
 }

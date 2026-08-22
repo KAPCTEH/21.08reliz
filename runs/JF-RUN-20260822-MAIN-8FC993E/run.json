@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "run_id": "JF-RUN-20260822-MAIN-8FC993E",
+  "audit_type": "rebaseline",
+  "budget_mode": "FULL",
+  "base_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "target_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "state": "COMPLETE",
+  "started_at_utc": "2026-08-22T15:22:38Z",
+  "completed_at_utc": "2026-08-22T15:31:23Z",
+  "changed_files": [
+    ".github governance and Windows workflow",
+    "application VPS synchronization and CSS token changes",
+    "desktop payload hardening and installer safety changes",
+    "storage v3, source ZIP, UI and Windows regression tests"
+  ],
+  "impact_set": [
+    "application",
+    "audit-registry",
+    "ci",
+    "data-contracts",
+    "desktop-runtime",
+    "installer",
+    "repository-wide",
+    "tests",
+    "ux"
+  ],
+  "tests_selected": [
+    "GitHub Actions impact-and-tests run 32581507293",
+    "GitHub Actions build-and-accept run 32581507281",
+    "protected payload build",
+    "native Setup and Recovery build",
+    "installer screen render acceptance",
+    "hidden application visual acceptance",
+    "interrupted update recovery",
+    "isolated full installer acceptance",
+    "shortcut, icon and destructive-operation refusals"
+  ],
+  "tests_skipped": [
+    {
+      "id": "authenticated-cloudflare-and-telegram-live-acceptance",
+      "reason": "requires separate live credentials and multi-account execution"
+    },
+    {
+      "id": "vps-production-diagnostics",
+      "reason": "separate production acceptance remains required"
+    },
+    {
+      "id": "tz2-updater-and-release-proof",
+      "reason": "implementation begins after this accepted source baseline"
+    }
+  ],
+  "evidence_reused": [
+    "JF-EVID-0011",
+    "JF-EVID-0012",
+    "JF-EVID-0014",
+    "JF-EVID-0015",
+    "JF-EVID-0016",
+    "JF-EVID-0017"
+  ],
+  "finding_delta": {
+    "opened": [],
+    "closed": [
+      "JF-AUDIT-0001",
+      "JF-AUDIT-0002",
+      "JF-AUDIT-0003",
+      "JF-AUDIT-0005",
+      "JF-AUDIT-0006",
+      "JF-AUDIT-0007"
+    ],
+    "updated": [
+      "JF-AUDIT-0004"
+    ],
+    "status_changes": {
+      "JF-AUDIT-0001": "FIXED_PENDING_VERIFY -> CLOSED",
+      "JF-AUDIT-0002": "FIXED_PENDING_VERIFY -> CLOSED",
+      "JF-AUDIT-0003": "FIXED_PENDING_VERIFY -> CLOSED",
+      "JF-AUDIT-0005": "FIXED_PENDING_VERIFY -> CLOSED",
+      "JF-AUDIT-0006": "FIXED_PENDING_VERIFY -> CLOSED",
+      "JF-AUDIT-0007": "FIXED_PENDING_VERIFY -> CLOSED"
+    }
+  },
+  "verdict": "NO_GO",
+  "limitations": [
+    "JF-AUDIT-0004 remains FIXED_PENDING_VERIFY until authenticated Cloudflare and Telegram live acceptance is complete",
+    "two-account live verification and VPS production diagnostics remain incomplete",
+    "automatic update, release identity and final release proof belong to TZ 2 and are not implemented yet",
+    "Windows Authenticode is an accepted non-blocking absence; internal update authenticity is still mandatory"
+  ]
+}

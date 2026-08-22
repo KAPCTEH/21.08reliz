@@ -3,10 +3,10 @@
   "project": "JustFun",
   "audit_type": "baseline",
   "budget_mode": "FULL",
-  "input_snapshot": "C:/Users/zvd1/Desktop/исходники",
-  "clean_tree_state": "CLEAN_ROOT_COMMIT_PENDING_AUDIT",
+  "input_snapshot": "C:/Users/zvd1/Desktop/JUSTFUN-AUDIT-WORK-20260821/release-main",
+  "clean_tree_state": "AUDITED_SOURCE_BASELINE",
   "legacy_input_commit": "5f9e48e4a458d2e25e35b3b051c2dcad0442601b",
-  "target_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "target_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
   "include": [
     "source/**",
     "tests/**",

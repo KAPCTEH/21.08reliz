@@ -12,11 +12,12 @@
     "line": 611
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "6b7d16c07c4991fdeec255bfe35c69487432198a",
-  "fact": "На baseline commit единственное вхождение reportCloudSyncFailure находилось в .catch(reportCloudSyncFailure), а объявление отсутствовало. В PR 13 добавлен безопасный обработчик: dirty-state сохраняется, пользователь получает badge/status/toast, записывается audit-событие, а ошибки UI не создают повторный rejection. Контракт и полный Windows gate проходят на exact head commit; исправление ещё не слито в protected main.",
+  "last_verified_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "fact": "На baseline commit единственное вхождение reportCloudSyncFailure находилось в .catch(reportCloudSyncFailure), а объявление отсутствовало. В PR 13 добавлен безопасный обработчик: dirty-state сохраняется, пользователь получает badge/status/toast, записывается audit-событие, а ошибки UI не создают повторный rejection. Исправление включено в protected main 8fc993ea9ac84c511845279b796f4fbacdff6435; incremental audit и полный Windows gate на точном итоговом SHA завершились успешно.",
   "evidence": [
     "JF-EVID-0001",
-    "JF-EVID-0012"
+    "JF-EVID-0012",
+    "JF-EVID-0018"
   ],
   "impact": "При изменении serial во время загрузки отложенный повтор начинает отправку, но привязка отсутствующего callback выбрасывает ReferenceError. Ошибка повтора не доводится до пользователя, а промис остаётся без штатной обработки.",
   "reproduction": [
@@ -35,5 +36,5 @@
     "https://github.com/KAPCTEH/21.08reliz/pull/13"
   ],
   "owner": "@KAPCTEH",
-  "status": "FIXED_PENDING_VERIFY"
+  "status": "CLOSED"
 }

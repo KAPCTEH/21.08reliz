@@ -12,11 +12,12 @@
     "line": 388
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "9d093db1551b6239b4c4587eb697312e577af716",
-  "fact": "На baseline commit order-save-integrity стабильно завершался с кодом 1 из-за смешения локального сценария сохранения с VPS command path. В PR 12 сценарии разделены: order-save-integrity и atomic-mutation проходят независимо, а полный Windows release gate завершён успешно на exact head commit. Исправление ещё не слито в protected main.",
+  "last_verified_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "fact": "На baseline commit order-save-integrity стабильно завершался с кодом 1 из-за смешения локального сценария сохранения с VPS command path. В PR 12 сценарии разделены: order-save-integrity и atomic-mutation проходят независимо. Исправление включено в protected main 8fc993ea9ac84c511845279b796f4fbacdff6435; incremental audit и полный Windows release gate на точном итоговом SHA завершились успешно.",
   "evidence": [
     "JF-EVID-0009",
-    "JF-EVID-0011"
+    "JF-EVID-0011",
+    "JF-EVID-0018"
   ],
   "impact": "Windows release gate останавливается до сборки protected payload и установщика; контракт создания, редактирования, удаления заказа и сохранности независимых маршрутов не подтверждён.",
   "reproduction": [
@@ -36,5 +37,5 @@
     "https://github.com/KAPCTEH/21.08reliz/pull/12"
   ],
   "owner": "@KAPCTEH",
-  "status": "FIXED_PENDING_VERIFY"
+  "status": "CLOSED"
 }

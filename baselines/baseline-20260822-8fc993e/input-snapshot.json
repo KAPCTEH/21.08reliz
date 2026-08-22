@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "input_root": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\release-main",
+  "head": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "branch": "codex/release-updater",
+  "remotes": [
+    "origin\thttps://github.com/KAPCTEH/21.08reliz.git (fetch)",
+    "origin\thttps://github.com/KAPCTEH/21.08reliz.git (push)"
+  ],
+  "status_porcelain_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "status_porcelain": [],
+  "metadata_before_sha256": "1044bde73c1bda84cbe27c554aef21969b211c3d060609aa4f8268d59be23c39",
+  "metadata_after_sha256": "1044bde73c1bda84cbe27c554aef21969b211c3d060609aa4f8268d59be23c39",
+  "inventory_sha256": "18ae80aa6fa4014be2270aae430107a85510163f022a3976bb2f683fa0f197c6",
+  "snapshot_consistent": true,
+  "captured_at_utc": "2026-08-22T15:33:41.420Z"
+}

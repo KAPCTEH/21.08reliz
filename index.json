@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "project": "JustFun",
-  "active_baseline_id": null,
-  "baseline_commit": null,
-  "last_audited_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
+  "active_baseline_id": "baseline-20260822-8fc993e",
+  "baseline_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
+  "last_audited_commit": "8fc993ea9ac84c511845279b796f4fbacdff6435",
   "audit_rules_digest": "sha256:6b18a28f3aa6435af9efdfec798705be3b64655fa5eb17da8309f1df183b6d1a",
   "module_map_digest": "sha256:900c66a1af672818d8de18f8ad8ab4c63573e2109fb79a8fddcccd79454635a3",
   "toolchain_digest": "sha256:88b1502b3069b96c3ff86109549ca6672b94a944c59ce1fa36ac085f02a4f794",
@@ -14,18 +14,13 @@
     "P3": 0
   },
   "governance_status": "NO_GO",
-  "last_run_id": "JF-RUN-20260822-PR17-217D4B9",
+  "last_run_id": "JF-RUN-20260822-MAIN-8FC993E",
   "known_limitations": [
-    "Baseline is not accepted and active_baseline_id remains null",
-    "Clean tree is derived from a dirty legacy worktree and is NON_RELEASE_SNAPSHOT",
-    "Repository is public and main is protected; PR 12 passes the complete Windows required check, but remains Draft and unmerged, so JF-AUDIT-0007 is FIXED_PENDING_VERIFY",
-    "Stacked PR 13 passes the complete Windows required check, but remains Draft and unmerged, so JF-AUDIT-0001 is FIXED_PENDING_VERIFY",
-    "Stacked PR 14 repairs and continuously enforces the entity bootstrap merge harness, but remains Draft and unmerged, so JF-AUDIT-0002 is FIXED_PENDING_VERIFY",
-    "Stacked PR 15 migrates revision coverage to storage v3 and passes non-superuser PostgreSQL plus Windows verification, but remains Draft and unmerged, so JF-AUDIT-0003 is FIXED_PENDING_VERIFY",
-    "Stacked PR 16 makes both release tests self-contained in the exact-commit source-only ZIP and passes the complete Windows gate, but remains Draft and unmerged, so JF-AUDIT-0006 is FIXED_PENDING_VERIFY",
-    "Stacked PR 17 reduces canonical CSS literal debt by 259 occurrences, tightens the ratchet, and passes complete runtime, accessibility, security, and Windows verification, but remains Draft and unmerged, so JF-AUDIT-0005 is FIXED_PENDING_VERIFY",
+    "Audited source baseline 8fc993ea9ac84c511845279b796f4fbacdff6435 is accepted and tagged audit-baseline-2026-08-22-8fc993e",
+    "PR 12 through PR 17 were consolidated through PR 7; the exact protected main commit passed incremental audit and the complete Windows gate",
     "Cloudflare production source parity is restored, but JF-AUDIT-0004 remains FIXED_PENDING_VERIFY because authenticated login/refresh/introspection and existing/new Telegram connection acceptance could not be completed",
-    "Installer acceptance is confirmed only on unmerged PR heads; two-account live verification, VPS live diagnostics, and release proof are not complete",
+    "Two-account live verification, VPS live diagnostics, TZ 2 automatic update, and final release proof are not complete",
+    "Windows Authenticode is an accepted non-blocking absence; internal update authenticity remains mandatory",
     "Raw Cloudflare inventory contains operational identifiers and must remain local; only sanitized evidence is publishable"
   ]
 }
