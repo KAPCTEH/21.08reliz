@@ -24,7 +24,7 @@ async function main(){
   checked(()=>assert(source.includes('UPDATE_SIGNATURE_INVALID')));
   checked(()=>assert(source.includes("root.dataset.updateReady='1'")));
   checked(()=>assert(css.includes('@media(max-width:720px)')));
-  checked(()=>assert(mainSource.includes("const box=document.querySelector('#jfUpdateCenter');const toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610')")));
+  checked(()=>assert(mainSource.includes("(()=>{showView('programSettings');const box=document.querySelector('#jfUpdateCenter');const toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610')")));
   checked(()=>assert(mainSource.includes("#jfUpdateCenter[data-update-ready=\\\"1\\\"]')?.classList.contains('open')")));
 
   const fixture=`<!doctype html><html><body><section id="jfUpdateCenter"><span id="jfUpdateBadge"></span><b id="jfUpdateCurrentVersion"></b><b id="jfUpdateTargetVersion"></b><b id="jfUpdateChannel"></b><div id="jfUpdateStatus"></div><div id="jfUpdateProgress" hidden><span id="jfUpdateProgressText"></span><b id="jfUpdateProgressPercent"></b><div id="jfUpdateProgressTrack"><i id="jfUpdateProgressBar"></i></div></div><button id="jfUpdateCheck"></button><button id="jfUpdateDownload"></button><button id="jfUpdateApply"></button></section></body></html>`;
