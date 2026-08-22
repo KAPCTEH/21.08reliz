@@ -86,6 +86,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Entity source contract failed.' }
           node tests/entity-bootstrap-merge-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Entity bootstrap merge unit test failed.' }
+          python tests/reg-revision-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Storage v3 revision tests failed.' }
           node tests/background-cloud-sync-failure-regression-v783.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Background VPS sync failure regression failed.' }
           node tests/current-cycle-regression-v783.mjs

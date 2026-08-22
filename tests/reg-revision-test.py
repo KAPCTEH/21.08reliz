@@ -25,14 +25,24 @@ SPEC.loader.exec_module(SERVER)
 
 class FakeUpdatedAt:
     def isoformat(self):
-        return "2026-07-27T00:00:00+00:00"
+        return "2026-08-22T00:00:00+00:00"
+
+
+class FakeDatabase:
+    def __init__(self):
+        self.records = {}
+        self.commands = {}
+        self.event_id = 0
+        self.queries = []
+
+    def connect(self):
+        return FakeConnection(self)
 
 
 class FakeCursor:
-    def __init__(self, current):
-        self.current = current
-        self.last_query = ""
-        self.execute_calls = []
+    def __init__(self, database):
+        self.database = database
+        self.row = None
 
     def __enter__(self):
         return self
@@ -40,24 +50,35 @@ class FakeCursor:
     def __exit__(self, *_args):
         return False
 
-    def execute(self, query, params):
-        self.last_query = " ".join(query.split())
-        self.execute_calls.append((self.last_query, params))
+    def execute(self, query, params=()):
+        normalized = " ".join(query.split())
+        self.database.queries.append((normalized, params))
+        self.row = None
+        if normalized.startswith("SELECT result, request_sha256 FROM business_commands_v3"):
+            self.row = self.database.commands.get(params[3])
+        elif normalized.startswith("SELECT version, payload_sha256, is_deleted, last_event_id, payload FROM business_records_v3"):
+            self.row = self.database.records.get((params[3], params[4]))
+        elif normalized.startswith("INSERT INTO business_events_v3"):
+            self.database.event_id += 1
+            self.row = (self.database.event_id, FakeUpdatedAt())
+        elif normalized.startswith("INSERT INTO business_records_v3"):
+            key = (params[3], params[4])
+            self.database.records[key] = (params[5], params[6], False, params[8], params[7])
+        elif normalized.startswith("UPDATE business_records_v3"):
+            key = (params[11], params[12])
+            self.database.records[key] = (params[0], params[1], bool(params[3]), params[4], params[2])
+        elif normalized.startswith("SELECT COALESCE(MAX(event_id), 0) FROM business_events_v3"):
+            self.row = (self.database.event_id,)
+        elif normalized.startswith("INSERT INTO business_commands_v3"):
+            self.database.commands[params[3]] = (params[7], params[6])
 
     def fetchone(self):
-        if self.last_query.startswith("SELECT revision"):
-            return self.current
-        if self.last_query.startswith("INSERT INTO"):
-            return (1, self.execute_calls[-1][1][3], FakeUpdatedAt())
-        if self.last_query.startswith("UPDATE warehouse_snapshots"):
-            revision = int(self.current[0]) + 1
-            return (revision, self.execute_calls[-1][1][0], FakeUpdatedAt())
-        raise AssertionError(self.last_query)
+        return self.row
 
 
 class FakeConnection:
-    def __init__(self, cursor):
-        self.cursor_value = cursor
+    def __init__(self, database):
+        self.database = database
 
     def __enter__(self):
         return self
@@ -66,95 +87,125 @@ class FakeConnection:
         return False
 
     def cursor(self):
-        return self.cursor_value
+        return FakeCursor(self.database)
 
 
 class RevisionTests(unittest.TestCase):
     def setUp(self):
-        self.snapshot = {
-            "warehouse": {"id": "warehouse-1", "code": "MAIN-01", "environment": "live"},
-            "data": {"warehouseId": "warehouse-1"},
+        self.workspace = "workspace-123456"
+        self.warehouse_id = "warehouse-1"
+        self.warehouse_snapshot = {
+            "warehouse": {"id": self.warehouse_id, "code": "MAIN-01", "environment": "live"},
+            "data": {"warehouseId": self.warehouse_id},
         }
-        self.owner = {"role": "owner", "permissions": {"*"}}
+        self.owner = {
+            "company_id": self.workspace,
+            "role": "owner",
+            "permissions": {"*"},
+            "user_id": "owner-1",
+            "device_id": "revision-test",
+        }
+        self.database = FakeDatabase()
+        SERVER.db_connect = self.database.connect
+        SERVER.set_database_scope = lambda *_args: None
+        SERVER.load_entity_access_snapshot = lambda *_args: self.warehouse_snapshot
+        SERVER.validate_entity_intent_current = lambda *_args: None
+        SERVER.validate_entity_inventory_current = lambda *_args: None
 
-    def connect(self, current):
-        cursor = FakeCursor(current)
-        SERVER.db_connect = lambda: FakeConnection(cursor)
-        return cursor
+    def order_change(self, base_version=0, status="new"):
+        return {
+            "type": "orders",
+            "id": "order-1",
+            "base_version": base_version,
+            "payload": {"id": "order-1", "warehouseId": self.warehouse_id, "status": status},
+        }
 
-    def digest(self):
-        return SERVER.snapshot_digest(self.snapshot)
+    def save(self, command_id, changes, auth=None):
+        return SERVER.save_entity_batch(
+            self.workspace,
+            self.warehouse_id,
+            "live",
+            {"command_id": command_id, "changes": changes},
+            auth or self.owner,
+        )
 
-    def test_first_snapshot_requires_zero_revision(self):
-        cursor = self.connect(None)
-        result = SERVER.save_snapshot("workspace-123456", "warehouse-1", "live", self.snapshot, 0, self.owner)
-        self.assertEqual(result["revision"], 1)
-        self.assertTrue(any(query.startswith("INSERT INTO") for query, _ in cursor.execute_calls))
+    def test_first_entity_requires_zero_version(self):
+        result = self.save("client:test:order:create:0001", [self.order_change()])
+        self.assertEqual(result["entities"][0]["version"], 1)
+        self.assertTrue(any(query.startswith("INSERT INTO business_records_v3") for query, _ in self.database.queries))
 
-    def test_same_digest_is_idempotent(self):
-        cursor = self.connect((7, self.digest(), FakeUpdatedAt(), self.snapshot))
-        result = SERVER.save_snapshot("workspace-123456", "warehouse-1", "live", self.snapshot, 3, self.owner)
-        self.assertEqual(result["revision"], 7)
-        self.assertTrue(result["unchanged"])
-        self.assertEqual(len(cursor.execute_calls), 1)
+    def test_same_command_is_idempotent(self):
+        first = self.save("client:test:order:create:0002", [self.order_change()])
+        replay = self.save("client:test:order:create:0002", [self.order_change()])
+        self.assertFalse(first["replayed"])
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(replay["entities"][0]["version"], 1)
+        self.assertEqual(self.database.event_id, 1)
 
-    def test_stale_revision_is_rejected(self):
-        self.connect((7, "0" * 64, FakeUpdatedAt(), self.snapshot))
+    def test_reused_command_with_different_payload_is_rejected(self):
+        self.save("client:test:order:create:0003", [self.order_change()])
         with self.assertRaises(SERVER.ApiError) as caught:
-            SERVER.save_snapshot("workspace-123456", "warehouse-1", "live", self.snapshot, 6, self.owner)
+            self.save("client:test:order:create:0003", [self.order_change(status="changed")])
         self.assertEqual(caught.exception.status, 409)
-        self.assertEqual(caught.exception.code, "revision_conflict")
-        self.assertEqual(caught.exception.details["current_revision"], 7)
+        self.assertEqual(caught.exception.code, "command_id_reused")
 
-    def test_current_revision_updates_once(self):
-        cursor = self.connect((7, "0" * 64, FakeUpdatedAt(), self.snapshot))
-        result = SERVER.save_snapshot("workspace-123456", "warehouse-1", "live", self.snapshot, 7, self.owner)
-        self.assertEqual(result["revision"], 8)
-        self.assertTrue(any(query.startswith("UPDATE warehouse_snapshots") for query, _ in cursor.execute_calls))
-
-    def test_export_timestamp_does_not_create_revision(self):
-        first = {**self.snapshot, "exportedAt": "2026-07-27T10:00:00Z"}
-        second = {**self.snapshot, "exportedAt": "2026-07-27T10:01:00Z"}
-        self.assertEqual(SERVER.snapshot_digest(first), SERVER.snapshot_digest(second))
-
-    def test_role_cannot_change_section_without_permission(self):
-        current = {
-            "warehouse": self.snapshot["warehouse"],
-            "data": {"warehouseId": "warehouse-1", "settings": {"routeMode": "round"}},
-        }
-        incoming = {
-            "warehouse": self.snapshot["warehouse"],
-            "data": {"warehouseId": "warehouse-1", "settings": {"routeMode": "oneway"}},
-        }
-        warehouse_user = {
-            "role": "warehouse",
-            "permissions": {"orders.update", "inventory.*", "jf.warehouse-code:MAIN-01"},
-        }
+    def test_stale_entity_version_is_rejected(self):
+        self.save("client:test:order:create:0004", [self.order_change()])
         with self.assertRaises(SERVER.ApiError) as caught:
-            SERVER.require_changed_sections_allowed(warehouse_user, current, incoming)
-        self.assertEqual(caught.exception.code, "section_access_denied")
-        self.assertIn("settings", caught.exception.details["sections"])
+            self.save("client:test:order:stale:0004", [self.order_change(base_version=0, status="changed")])
+        self.assertEqual(caught.exception.status, 409)
+        self.assertEqual(caught.exception.code, "entity_version_conflict")
+        self.assertEqual(caught.exception.details["current_version"], 1)
 
-    def test_role_can_change_permitted_section(self):
-        current = {
-            "warehouse": self.snapshot["warehouse"],
-            "data": {"warehouseId": "warehouse-1", "orders": [{"id": "order-1", "status": "new"}]},
-        }
-        incoming = {
-            "warehouse": self.snapshot["warehouse"],
-            "data": {"warehouseId": "warehouse-1", "orders": [{"id": "order-1", "status": "ready"}]},
-        }
-        warehouse_user = {
+    def test_current_entity_version_updates_once(self):
+        self.save("client:test:order:create:0005", [self.order_change()])
+        result = self.save("client:test:order:update:0005", [self.order_change(base_version=1, status="ready")])
+        self.assertEqual(result["entities"][0]["version"], 2)
+        self.assertFalse(result["entities"][0]["unchanged"])
+        self.assertTrue(any(query.startswith("UPDATE business_records_v3") for query, _ in self.database.queries))
+
+    def test_same_entity_digest_does_not_create_new_version(self):
+        self.save("client:test:order:create:0006", [self.order_change()])
+        result = self.save("client:test:order:confirm:0006", [self.order_change(base_version=1)])
+        self.assertEqual(result["entities"][0]["version"], 1)
+        self.assertTrue(result["entities"][0]["unchanged"])
+        self.assertEqual(self.database.event_id, 1)
+
+    def test_entity_digest_is_stable_for_key_order(self):
+        first = {"id": "order-1", "warehouseId": self.warehouse_id, "status": "new"}
+        second = {"status": "new", "warehouseId": self.warehouse_id, "id": "order-1"}
+        self.assertEqual(SERVER.entity_payload_digest(first), SERVER.entity_payload_digest(second))
+
+    def test_role_cannot_change_settings_without_field_permission(self):
+        auth = {
+            "company_id": self.workspace,
             "role": "warehouse",
-            "permissions": {"orders.update", "inventory.*", "jf.warehouse-code:MAIN-01"},
+            "permissions": {"warehouses.manage", "jf.warehouse-code:MAIN-01"},
+            "user_id": "warehouse-1",
+            "device_id": "revision-test",
         }
-        SERVER.require_changed_sections_allowed(warehouse_user, current, incoming)
+        change = {"type": "settings", "id": "settings", "base_version": 0, "payload": {"routeMode": "round"}}
+        with self.assertRaises(SERVER.ApiError) as caught:
+            self.save("client:test:settings:denied:0001", [change], auth)
+        self.assertEqual(caught.exception.code, "entity_field_access_denied")
+        self.assertIn("routes.settings", caught.exception.details["required_permissions"])
+
+    def test_role_can_change_permitted_settings_field(self):
+        auth = {
+            "company_id": self.workspace,
+            "role": "warehouse",
+            "permissions": {"routes.settings", "jf.warehouse-code:MAIN-01"},
+            "user_id": "warehouse-1",
+            "device_id": "revision-test",
+        }
+        change = {"type": "settings", "id": "settings", "base_version": 0, "payload": {"routeMode": "round"}}
+        result = self.save("client:test:settings:allowed:0001", [change], auth)
+        self.assertEqual(result["entities"][0]["version"], 1)
 
     def test_account_is_restricted_to_its_company(self):
-        auth = {"company_id": "cmp_company_one_12345"}
-        SERVER.require_workspace(auth, "cmp_company_one_12345")
+        SERVER.require_workspace(self.owner, self.workspace)
         with self.assertRaises(SERVER.ApiError) as caught:
-            SERVER.require_workspace(auth, "cmp_company_two_12345")
+            SERVER.require_workspace(self.owner, "workspace-other-123456")
         self.assertEqual(caught.exception.code, "workspace_mismatch")
 
     def test_employee_can_access_only_assigned_warehouse(self):
@@ -162,32 +213,37 @@ class RevisionTests(unittest.TestCase):
             "role": "manager",
             "permissions": {"orders.*", "jf.warehouse-code:MAIN-01"},
         }
-        self.assertTrue(SERVER.warehouse_allowed(auth, "warehouse-1", self.snapshot))
-        foreign = {
+        SERVER.require_entity_scope_access(auth, self.workspace, self.warehouse_id, "live")
+        SERVER.load_entity_access_snapshot = lambda *_args: {
             "warehouse": {"id": "warehouse-2", "code": "OTHER", "environment": "live"},
             "data": {"warehouseId": "warehouse-2"},
         }
-        self.assertFalse(SERVER.warehouse_allowed(auth, "warehouse-2", foreign))
+        with self.assertRaises(SERVER.ApiError) as caught:
+            SERVER.require_entity_scope_access(auth, self.workspace, "warehouse-2", "live")
+        self.assertEqual(caught.exception.code, "warehouse_access_denied")
 
-    def test_viewer_cannot_write_snapshot(self):
+    def test_viewer_cannot_write_entity(self):
         auth = {
+            "company_id": self.workspace,
             "role": "viewer",
             "permissions": {"orders.read", "jf.warehouse-code:MAIN-01"},
+            "user_id": "viewer-1",
+            "device_id": "revision-test",
         }
         with self.assertRaises(SERVER.ApiError) as caught:
-            SERVER.require_snapshot_access(auth, "warehouse-1", self.snapshot, write=True)
-        self.assertEqual(caught.exception.code, "write_access_denied")
+            self.save("client:test:order:viewer:0001", [self.order_change()], auth)
+        self.assertEqual(caught.exception.code, "entity_access_denied")
 
-    def test_owner_has_all_company_warehouses(self):
-        auth = {"role": "owner", "permissions": {"*"}}
-        SERVER.require_snapshot_access(auth, "warehouse-1", self.snapshot, write=True)
+    def test_owner_can_write_entity(self):
+        result = self.save("client:test:order:owner:0001", [self.order_change()])
+        self.assertEqual(result["entities"][0]["version"], 1)
 
     def test_introspection_context_keeps_company_role_and_warehouse_permissions(self):
         context = SERVER._normalize_auth_context(
             {
                 "ok": True,
                 "active": True,
-                "company": {"id": "cmp_company_one_12345"},
+                "company": {"id": self.workspace},
                 "user": {
                     "id": "usr_employee",
                     "role": "manager",
@@ -196,7 +252,7 @@ class RevisionTests(unittest.TestCase):
                 "device_id": "dev_pc_two",
             }
         )
-        self.assertEqual(context["company_id"], "cmp_company_one_12345")
+        self.assertEqual(context["company_id"], self.workspace)
         self.assertEqual(context["role"], "manager")
         self.assertIn("jf.warehouse-code:MAIN-01", context["permissions"])
         self.assertEqual(context["device_id"], "dev_pc_two")
