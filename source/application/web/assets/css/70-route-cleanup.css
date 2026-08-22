@@ -7,9 +7,9 @@
 #tripsView .route-map-home-v590,#tripsView .route-operational-links,#tripsView .route-execution-timing,#tripsView .route-ai-insight,#routeServiceStatusV560{display:none!important}
 @media(max-width:640px){.route-hints-setting{align-items:flex-start;flex-direction:column}.route-hints-setting .toggle-control{width:100%;justify-content:space-between}}
 @media print{
-  html,body{height:auto!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;background:#fff!important}
+  html,body{height:auto!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;background:var(--jf-color-surface)!important}
   body>*{display:none!important}
-  body>#printArea{display:block!important;position:static!important;inset:auto!important;width:auto!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;visibility:visible!important;background:#fff!important}
+  body>#printArea{display:block!important;position:static!important;inset:auto!important;width:auto!important;height:auto!important;min-height:0!important;margin:0!important;padding:0!important;overflow:visible!important;visibility:visible!important;background:var(--jf-color-surface)!important}
   #printArea,#printArea *{visibility:visible!important}
   #printArea .print-route-sheet{display:block!important;position:static!important;width:auto!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;overflow:visible!important;break-after:auto!important;page-break-after:auto!important}
   #printArea .print-section{break-inside:auto!important;page-break-inside:auto!important;margin-top:7px!important}
@@ -20,7 +20,7 @@
   #printArea .print-product-table-wrap{break-inside:auto!important;page-break-inside:auto!important;overflow:visible!important}
   #printArea .print-route-sheet-compact{page:justfun-route-landscape}
   #printArea .print-header,#printArea .print-meta-row,#printArea .print-payment-total-only,#printArea .print-operations,#printArea .print-sign{break-inside:avoid!important;page-break-inside:avoid!important}
-  #printArea .print-payment-total-only{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:8px 0;padding:9px 12px;border:2px solid #168a55;border-radius:7px;background:#eef8f2!important;font-size:12pt;font-weight:900}
+  #printArea .print-payment-total-only{display:flex;justify-content:space-between;align-items:center;gap:20px;margin:8px 0;padding:9px 12px;border:2px solid var(--jf-color-brand-500);border-radius:7px;background:#eef8f2!important;font-size:12pt;font-weight:900}
   #printArea .print-payment-total-only b{font-size:15pt;white-space:nowrap}
   #printArea .print-footnote,#printArea .print-alert,#printArea .print-page-break{display:none!important}
 }

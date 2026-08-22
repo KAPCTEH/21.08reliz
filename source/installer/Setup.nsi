@@ -386,6 +386,7 @@ Function ReconcileInterruptedInstallation
         Return
       ${EndIf}
       ${IfNot} ${FileExists} "$BackupDir\resources\app.asar"
+        !insertmacro JFLog "RECOVERY corrupt-backup detected"
         StrCpy $FailureMessage "Резерв предыдущей установки повреждён. Файлы сохранены для ручной диагностики; установка остановлена."
         StrCpy $RecoveryFailed "1"
         Return
@@ -637,18 +638,21 @@ Section "Установка" SEC_INSTALL
   ${GetRoot} "$INSTDIR" $1
   StrLen $2 "$1"
   ${If} $2 < 2
+    !insertmacro JFLog "FAIL_CODE disk-root-unavailable"
     StrCpy $FailureMessage "Не удалось определить диск выбранной папки программы."
     Goto install_failed
   ${EndIf}
   ClearErrors
   ${DriveSpace} "$1" "/D=F /S=M" $0
   ${If} ${Errors}
+    !insertmacro JFLog "FAIL_CODE disk-space-unavailable"
     StrCpy $FailureMessage "Не удалось определить свободное место на диске программы."
     Goto install_failed
   ${EndIf}
   !insertmacro JFLog "DISK root=$1 free_mb=$0 required_mb=${REQUIRED_MB}"
   IntCmp $0 ${REQUIRED_MB} disk_space_ok disk_space_low disk_space_ok
 disk_space_low:
+  !insertmacro JFLog "FAIL_CODE low-disk-space"
   StrCpy $FailureMessage "Недостаточно свободного места: для безопасной установки и отката требуется не менее ${REQUIRED_MB} МБ. Доступно $0 МБ."
   Goto install_failed
 disk_space_ok:
@@ -965,6 +969,30 @@ Section "Uninstall"
   Push "START uninstall"
   Call un.WriteLog
 
+  IfFileExists "$INSTDIR\OrdersLogistics.exe" 0 uninstall_window_checks
+  InitPluginsDir
+  StrCpy $2 "$PLUGINSDIR\running-instance.txt"
+  Delete "$2"
+  StrCpy $4 "missing"
+  nsExec::ExecToStack /TIMEOUT=15000 '"$INSTDIR\OrdersLogistics.exe" --running-instance-probe-output="$2"'
+  Pop $0
+  Pop $1
+  IfFileExists "$2" 0 uninstall_probe_invalid
+  FileOpen $3 "$2" r
+  FileRead $3 $4
+  FileClose $3
+  StrCmp $4 "RUNNING" uninstall_running
+  StrCmp $4 "NOT_RUNNING" 0 uninstall_probe_invalid
+  StrCmp $0 "0" uninstall_window_checks uninstall_probe_invalid
+uninstall_probe_invalid:
+  Push "FAIL application probe returned $0 state=$4"
+  Call un.WriteLog
+  Goto uninstall_locked
+uninstall_running:
+  Push "FAIL application is running"
+  Call un.WriteLog
+  Goto uninstall_locked
+uninstall_window_checks:
   FindWindow $0 "" "JustFun Логистика · ${VERSION}"
   StrCmp $0 0 +4
   Push "FAIL application is running"

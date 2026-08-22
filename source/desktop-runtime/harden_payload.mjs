@@ -6,6 +6,8 @@ import { createPackageWithOptions, getRawHeader } from '@electron/asar';
 import { flipFuses, FuseVersion, FuseV1Options, getCurrentFuseWire } from '@electron/fuses';
 import { Data, NtExecutable, NtExecutableResource, Resource } from 'resedit';
 
+const APPLICATION_ICON_SHA256 = 'A5C189B91D71D7A4BAC6297F2B04218104C41F6464D2D347D34014EA2A9FD140';
+
 function argument(name) {
   const index = process.argv.indexOf(name);
   if (index < 0 || !process.argv[index + 1]) throw new Error(`Missing required argument: ${name}`);
@@ -100,6 +102,10 @@ if (!fs.statSync(appDir).isDirectory()) throw new Error(`Application staging dir
 if (!fs.statSync(resourcesDir).isDirectory()) throw new Error(`Electron resources directory not found: ${resourcesDir}`);
 if (!fs.statSync(executable).isFile()) throw new Error(`Electron executable not found: ${executable}`);
 if (!fs.statSync(applicationIcon).isFile()) throw new Error(`Application icon not found: ${applicationIcon}`);
+const applicationIconHash = sha256(applicationIcon);
+if (applicationIconHash !== APPLICATION_ICON_SHA256) {
+  throw new Error(`Application icon is not the approved installer icon: ${applicationIconHash}`);
+}
 if (fs.existsSync(appAsar)) throw new Error(`Refusing to overwrite existing archive: ${appAsar}`);
 
 await createPackageWithOptions(appDir, appAsar, {

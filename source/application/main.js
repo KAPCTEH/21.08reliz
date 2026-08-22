@@ -3106,6 +3106,15 @@ async function runInstallerSmokeTest() {
   app.exit(result.ok ? 0 : 5);
 }
 
+function runRunningInstanceProbe(outputPath = '') {
+  const acquired = app.requestSingleInstanceLock({ mode: 'running-instance-probe' });
+  if (acquired) app.releaseSingleInstanceLock();
+  if (outputPath) fs.writeFileSync(path.resolve(outputPath), acquired ? 'NOT_RUNNING' : 'RUNNING', 'ascii');
+  const exitCode = acquired ? 0 : 30;
+  app.exit(exitCode);
+  return exitCode;
+}
+
 if (DESKTOP_UNIT_TEST_MODE) {
   module.exports = {
     VERSION, DEMO_DURATION_MS, DEMO_SCHEMA, DEMO_STATE_NAME, RENDERER_READY_TIMEOUT_MS,
@@ -3120,18 +3129,25 @@ if (DESKTOP_UNIT_TEST_MODE) {
     readCloudAuthState, writeCloudAuthState, clearCloudAuthState, saveCloudSession, cloudSessionComplete,
     companyWorkspaceId, cloudRegState, selectRegState, canConfigureCompanyServer,
     regStatePath, regApiSecretName, readLocalRegState, regDiagnosticStage,
-    installerSmokeOutputPath, setInstallerSmokeSessionDefaults, runInstallerSmokeTest, parseCssColor, contrastRatio,
+    installerSmokeOutputPath, setInstallerSmokeSessionDefaults, runInstallerSmokeTest, runRunningInstanceProbe, parseCssColor, contrastRatio,
     appRendererUrl, resolveAppRendererPath, isTrustedAppUrl, verifyPackagedApplicationIntegrity,
     directOpenStreetMapGeocode, resolveDesktopMapGeocode
   };
 } else {
+  const runningInstanceProbeArgument = process.argv.find(value=>String(value).startsWith('--running-instance-probe-output='));
+  const runningInstanceProbeMode = process.argv.includes('--running-instance-probe') || Boolean(runningInstanceProbeArgument);
+  if (runningInstanceProbeMode) {
+    runRunningInstanceProbe(runningInstanceProbeArgument ? String(runningInstanceProbeArgument).slice('--running-instance-probe-output='.length) : '');
+  }
   const installerSmokeMode = process.argv.includes('--installer-smoke-test');
   const selfTestMode = process.argv.includes('--self-test');
   const visualQaMode = process.argv.some(value=>String(value).startsWith('--visual-qa-output='));
   const printQaMode = process.argv.some(value=>String(value).startsWith('--print-qa-output='));
-  singleInstanceLock = (selfTestMode || installerSmokeMode || visualQaMode || printQaMode) ? true : app.requestSingleInstanceLock();
-  if (!singleInstanceLock) app.quit();
-  else {
+  singleInstanceLock = runningInstanceProbeMode || selfTestMode || installerSmokeMode || visualQaMode || printQaMode
+    ? true
+    : app.requestSingleInstanceLock();
+  if (!runningInstanceProbeMode && !singleInstanceLock) app.quit();
+  else if (!runningInstanceProbeMode) {
     app.on('second-instance', () => { if (mainWindow&&!mainWindow.isDestroyed()&&!mainWindow.webContents?.isDestroyed()) { if (mainWindow.isMinimized()) mainWindow.restore(); mainWindow.show(); mainWindow.focus(); } });
     app.on('window-all-closed', () => { if (!visualQaMode && !printQaMode && process.platform !== 'darwin') app.quit(); });
     app.on('before-quit', () => { clearInterval(demoTimer); stopTelegramCompanyPublishRetry(); flushRecurringLogs(); appendLog('application exiting'); });

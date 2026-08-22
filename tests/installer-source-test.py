@@ -10,11 +10,30 @@ INSTALLER = ROOT / "source" / "installer"
 PREMIUM_UI = INSTALLER / "premium-ui"
 APP_MAIN = ROOT / "source" / "application" / "main.js"
 PAYLOAD_BUILDER = ROOT / "source" / "desktop-runtime" / "build_payload.py"
+PAYLOAD_HARDENER = ROOT / "source" / "desktop-runtime" / "harden_payload.mjs"
 WINDOWS_WORKFLOW = ROOT / ".github" / "workflows" / "windows-native-783.yml"
+WINDOWS_WORKFLOW_CONTRACT = ROOT / "tests" / "fixtures" / "windows-native-783.yml"
 CRASH_RECOVERY_TEST = ROOT / "tests" / "installer-crash-recovery-test.ps1"
+PE_ICON_TEST = ROOT / "tests" / "verify-pe-icon.mjs"
+
+
+def read_windows_workflow():
+    contract = WINDOWS_WORKFLOW_CONTRACT.read_text(encoding="utf-8")
+    if not WINDOWS_WORKFLOW.exists():
+        return contract
+    workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+    if workflow != contract:
+        raise AssertionError("Windows workflow and source-only test contract differ")
+    return workflow
 
 
 class NativeInstallerSourceTests(unittest.TestCase):
+    def test_windows_ci_installs_pinned_pillow_dependency(self):
+        workflow = read_windows_workflow()
+        install = "python -m pip install --disable-pip-version-check --no-deps Pillow==12.3.0"
+        self.assertIn(install, workflow)
+        self.assertLess(workflow.index("Configure Python 3.12"), workflow.index(install))
+
     def test_old_script_runtime_is_removed(self):
         removed = (
             "bootstrap.c",
@@ -177,12 +196,23 @@ class NativeInstallerSourceTests(unittest.TestCase):
             "Call un.ValidatePurgeTarget",
             'StrCmp $2 "1" 0 data_not_confirmed',
             "SetErrorLevel 30",
+            "--running-instance-probe-output=",
+            "FAIL application probe returned $0 state=$4",
             "Рабочие данные и регистрация не изменены",
             "GetFileAttributesW",
             "0x400",
             "program directory is a reparse point",
         ):
             self.assertIn(marker, source)
+        main_source = APP_MAIN.read_text(encoding="utf-8")
+        for marker in (
+            "runRunningInstanceProbe",
+            "requestSingleInstanceLock({ mode: 'running-instance-probe' })",
+            "releaseSingleInstanceLock()",
+            "acquired ? 'NOT_RUNNING' : 'RUNNING'",
+            "acquired ? 0 : 30",
+        ):
+            self.assertIn(marker, main_source)
         self.assertLess(
             uninstall.index('Rename "$INSTDIR" "$RemovalDir"'),
             uninstall.index("DeleteRegKey HKCU"),
@@ -195,7 +225,8 @@ class NativeInstallerSourceTests(unittest.TestCase):
 
     def test_interrupted_update_recovery_is_exercised_on_windows(self):
         test = CRASH_RECOVERY_TEST.read_text(encoding="utf-8")
-        workflow = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        setup = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")
+        workflow = read_windows_workflow()
         for marker in (
             "restore-interrupted",
             "cleanup-completed",
@@ -204,7 +235,33 @@ class NativeInstallerSourceTests(unittest.TestCase):
             "2000000000",
         ):
             self.assertIn(marker, test)
+        for marker in (
+            "FAIL_CODE low-disk-space",
+            "FAIL_CODE disk-root-unavailable",
+            "FAIL_CODE disk-space-unavailable",
+            "RECOVERY corrupt-backup detected",
+        ):
+            self.assertIn(marker, setup)
         self.assertIn("installer-crash-recovery-test.ps1", workflow)
+        self.assertIn("if (-not $?) { throw 'Installer crash recovery test failed.' }", workflow)
+
+    def test_full_installer_acceptance_uses_powershell_invocation_status(self):
+        workflow = read_windows_workflow()
+        self.assertIn("installer-full-acceptance-test.ps1", workflow)
+        self.assertIn("if (-not $?) { throw 'Full installer acceptance failed.' }", workflow)
+        self.assertNotIn(
+            "if ($LASTEXITCODE -ne 0) { throw 'Full installer acceptance failed.' }",
+            workflow,
+        )
+
+    def test_shortcut_icon_location_uses_required_com_output_parameter(self):
+        workflow = read_windows_workflow()
+        verifier = PE_ICON_TEST.read_text(encoding="utf-8")
+        self.assertIn("$iconIndex = $link.GetIconLocation([ref]$iconSource)", workflow)
+        self.assertIn("if ($iconIndex -ne 0)", workflow)
+        self.assertNotIn("$link.GetIconLocation()", workflow)
+        self.assertIn("node tests/verify-pe-icon.mjs $exe", workflow)
+        self.assertIn("Buffer.from(entry.bin).equals", verifier)
 
     def test_program_and_data_are_separate_and_data_is_preserved_by_default(self):
         source = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")
@@ -235,10 +292,16 @@ class NativeInstallerSourceTests(unittest.TestCase):
 
     def test_official_logo_hash_is_pinned(self):
         source = (INSTALLER / "build_assets.py").read_text(encoding="utf-8")
+        hardener = PAYLOAD_HARDENER.read_text(encoding="utf-8")
         expected = "4faffc5cd41e8e26f44df14c879f340d5451ae058a7b5e90ca485ea442258813"
         transparent_expected = "464d69baa9d275324532b8a55527d72452021cace7da04d88ec7d213b83a0359"
+        icon_expected = "a5c189b91d71d7a4bac6297f2b04218104c41f6464d2d347d34014ea2a9fd140"
         self.assertIn(expected, source)
         self.assertIn(transparent_expected, source)
+        self.assertIn(icon_expected, source)
+        self.assertIn(icon_expected.upper(), hardener)
+        icon = ROOT / "source" / "application" / "assets" / "JustFun.ico"
+        self.assertEqual(hashlib.sha256(icon.read_bytes()).hexdigest(), icon_expected)
         logo = ROOT / "source" / "application" / "assets" / "JustFun-official.png"
         transparent_logo = ROOT / "source" / "application" / "assets" / "JustFun-official-transparent.png"
         self.assertEqual(hashlib.sha256(logo.read_bytes()).hexdigest(), expected)
@@ -294,20 +357,23 @@ class NativeInstallerSourceTests(unittest.TestCase):
         self.assertIn('`  "program_dir": "$1",$\\r$\\n`', source)
 
     def test_windows_acceptance_uses_native_nsis_directory_switch_last(self):
-        source = WINDOWS_WORKFLOW.read_text(encoding="utf-8")
+        source = read_windows_workflow()
         self.assertIn("Render and validate every premium installer screen", source)
         self.assertIn("05-error.png", source)
         self.assertIn("07-route-telegram-actions.png", source)
         self.assertIn("08-driver-telegram.png", source)
         self.assertIn("$shortcutPath = Join-Path $desktop 'JustFun Логистика.lnk'", source)
         self.assertIn("New-Object -ComObject Shell.Application", source)
-        self.assertIn("[System.Drawing.Icon]::ExtractAssociatedIcon", source)
+        self.assertIn("node tests/verify-pe-icon.mjs", source)
         self.assertIn("Installed executable icon differs from the official icon", source)
         self.assertIn("Desktop shortcut target is invalid", source)
         self.assertIn("Desktop shortcut icon source is invalid", source)
         self.assertIn("Running-application uninstall refusal and state preservation: PASS", source)
         self.assertIn("Invalid data-marker purge refusal: PASS", source)
         self.assertIn("uninstall-locked.log", source)
+        self.assertIn("FAIL application is running", source)
+        self.assertIn("uninstaller launcher returned unexpected code", source)
+        self.assertNotIn("instead of 30", source)
         self.assertIn("uninstall-invalid-marker.log", source)
         self.assertNotIn("New-Object -ComObject WScript.Shell", source)
         self.assertIn("tauri-apps/binary-releases/releases/download/nsis-3.11/nsis-3.11.zip", source)

@@ -5,7 +5,7 @@
 #tripsView .route-map-slot-v590:empty{display:none!important}
 #tripsView .route-map-home-v590{display:none!important}
 .route-compose-summary-v592{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
-.route-compose-metric-v592{border:1px solid var(--line);border-radius:12px;background:#fff;padding:9px 10px;min-width:0}
+.route-compose-metric-v592{border:1px solid var(--line);border-radius:12px;background:var(--jf-color-surface);padding:9px 10px;min-width:0}
 .route-compose-metric-v592 span{display:block;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em}
 .route-compose-metric-v592 b{display:block;margin-top:4px;font-size:15px}
 .compose-order.compose-order-incompatible-v592{border-color:#ffd4a2;background:#fffaf1}

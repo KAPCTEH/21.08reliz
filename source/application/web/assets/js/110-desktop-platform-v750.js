@@ -445,11 +445,13 @@ function canonicalServerEntity(entity){
 }
 function splitEntitySnapshot(snapshot){
   const map=new Map(),data=asObject(snapshot?.data),warehouse=asObject(snapshot?.warehouse),warehouseId=activeWarehouseId();
+  // Unassigned automatic routes are render-time previews, not server entities.
+  const referencedRouteIds=new Set([...Object.values(asObject(data.routeAssignments)),...Object.values(asObject(data.routeLocks)),...Object.keys(asObject(data.routePlans)),...Object.keys(asObject(data.routeDriverAssignments)),...Object.keys(asObject(data.routeOverrides)),...Object.keys(asObject(data.routeExecutions))].map(String).filter(id=>id&&id!=='__unassigned__'));
   const add=(type,id,payload)=>{id=String(id||'');if(!/^[A-Za-z0-9_-]{1,160}$/.test(id))throw new Error(`Раздел ${type} содержит запись без безопасного идентификатора.`);map.set(entityKey(type,id),{type,id,payload:wrappedEntityPayload(payload),fingerprint:entityFingerprint(wrappedEntityPayload(payload))})};
   add('warehouse',warehouseId,warehouse);
   for(const type of ENTITY_SINGLETON_SECTIONS){const value=data[type];if(value&&typeof value==='object'&&!Array.isArray(value))add(type,type,value)}
   for(const type of ENTITY_ARRAY_SECTIONS){for(const value of asArray(data[type])){const fallback=type==='routeArchives'?(value?.routeId||value?.executionId):'';add(type,value?.id||fallback,value)}}
-  for(const type of ENTITY_MAP_SECTIONS){for(const[id,value]of Object.entries(asObject(data[type])))add(type,id,value)}
+  for(const type of ENTITY_MAP_SECTIONS){for(const[id,value]of Object.entries(asObject(data[type]))){if(type==='routeCatalog'&&value?.custom!==true&&!referencedRouteIds.has(String(id)))continue;add(type,id,value)}}
   return map;
 }
 function canWriteEntity(type){
@@ -596,6 +598,15 @@ function installEntityCommandGuards(){
     approveRouteManually:{kind:'route_approve',target:args=>args[0]},startRoutePicking:{kind:'route_picking',target:args=>args[0]},cancelRouteBeforeStart:{kind:'route_cancel',target:args=>args[0]},startRoute:{kind:'route_start',target:args=>args[0]},openRouteClosure:{kind:'route_return',target:args=>args[0]},commitRouteClosure:{kind:'route_close',target:()=>q('#routeCloseId')?.value},markCurrentPickupReady:{kind:'pickup_ready',target:currentOrderId},markCurrentPickupCollected:{kind:'pickup_collected',target:currentOrderId}
   };
   for(const[name,spec]of Object.entries(specs)){const base=window[name];if(typeof base!=='function')continue;window[name]=function(){const args=arguments,event=args[0];if(event&&typeof event.preventDefault==='function')event.preventDefault();const targetId=String(spec.target(args)||'');if(!targetId&&!spec.optionalTarget)return base.apply(this,args);return commitEntityMutation({kind:spec.kind,targetId,critical:spec.critical},()=>base.apply(this,args))}}
+}
+function reportCloudSyncFailure(error){
+  cloudSyncState.dirty=true;
+  const message=String(error?.message||error||'VPS не подтвердил изменения.'),code=String(error?.code||'BACKGROUND_SYNC_FAILED');
+  try{integrationBadge('jfRegBadge','Не сохранено на VPS','error')}catch{}
+  try{integrationStatus('jfRegStatus',`Не сохранено на VPS: ${message}. Локальные изменения сохранены на этом компьютере; восстановите связь и повторите синхронизацию.`,'error')}catch{}
+  try{toast('Не сохранено на VPS. Локальные изменения ожидают подтверждения сервера.','error')}catch{}
+  try{audit('background_vps_sync_failed',{code,warehouseId:activeWarehouseId(),environment:activeEnvironment()})}catch{}
+  try{console.error('Background entity upload failed',error)}catch{}
 }
 async function backgroundCloudUpload(){
   if(!cloudSyncState.dirty||cloudSyncState.inFlight||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
