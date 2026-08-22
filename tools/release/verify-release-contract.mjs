@@ -137,7 +137,8 @@ checked('runtime-version-consumers', () => {
   assert(!windowsWorkflow.includes(`Orders-Logistics-Setup-${release.version}-Premium.exe`), 'Windows workflow contains a hard-coded installer version');
   assert(installerAcceptance.includes('source\\application\\release.json'), 'installer acceptance does not load release.json');
   assert(!installerAcceptance.includes(`version = '${release.version}'`), 'installer acceptance contains a hard-coded result version');
-  assert(preload.includes("require('./release.json')") && preload.includes('version: RELEASE.version'), 'preload version is not derived from release.json');
+  assert(preload.includes("startsWith('--jf-version=')") && preload.includes('version: bootstrapVersion'), 'sandboxed preload does not consume the canonical version argument');
+  assert(main.includes('`--jf-version=${VERSION}`'), 'main process does not pass the canonical version into sandboxed preloads');
   assert(nativeSsh.includes("require('../../release.json')") && nativeSsh.includes('version: RELEASE.version'), 'VPS provisioning version is not derived from release.json');
   assert(provisioner.includes("require('../../release.json')") && provisioner.includes('const DEPLOYMENT_VERSION = RELEASE.version;'), 'Telegram provisioning version is not derived from release.json');
   assert(!main.includes(`'JustFun-OrdersLogistics-self-test-${release.version}.json'`), 'main self-test path contains a hard-coded product version');

@@ -558,7 +558,8 @@ async function createMainWindow() {
       devTools:false, spellcheck:true, backgroundThrottling:false,
       additionalArguments:[
         `--jf-edition=${currentSession?.edition === 'demo' ? 'demo' : 'full'}`,
-        `--jf-company-id=${companyScope}`
+        `--jf-company-id=${companyScope}`,
+        `--jf-version=${VERSION}`
       ]
     }
   });
@@ -2583,7 +2584,7 @@ async function runSelfTest() {
     width: 1280, height: 800, show: false, backgroundColor: '#eef6f1',
     webPreferences: {preload:path.join(__dirname,'preload.js'), nodeIntegration:false, contextIsolation:true, sandbox:true, webSecurity:true, devTools:false,
       session:selfTestSession,
-      additionalArguments:[`--jf-edition=${currentSession?.edition === 'demo' ? 'demo' : 'full'}`]}
+      additionalArguments:[`--jf-edition=${currentSession?.edition === 'demo' ? 'demo' : 'full'}`,`--jf-version=${VERSION}`]}
   });
   mainWindow=win;
   const failures = [];
@@ -2746,7 +2747,7 @@ async function openVisualQaWindow(edition,partition,viewport={width:1600,height:
     x:-20000,y:-20000,useContentSize:false,frame:false,resizable:false,show:true,skipTaskbar:true,backgroundColor:'#edf5f1',
     webPreferences:{preload:path.join(__dirname,'preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true,devTools:false,spellcheck:false,session:visualSession,
       backgroundThrottling:false,
-      additionalArguments:[`--jf-edition=${edition}`,`--jf-company-id=${edition==='demo'?'visualqa':''}`]}
+      additionalArguments:[`--jf-edition=${edition}`,`--jf-company-id=${edition==='demo'?'visualqa':''}`,`--jf-version=${VERSION}`]}
   });
   mainWindow=win;
   await win.loadURL(appRendererUrl('web/index.html'));

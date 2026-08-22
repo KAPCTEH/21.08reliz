@@ -196,7 +196,11 @@ jobs:
           New-Item -ItemType Directory -Path $qa -Force | Out-Null
           $app = Join-Path $PWD '.release\payload\OrdersLogistics.exe'
           $process = Start-Process -FilePath $app -ArgumentList "--visual-qa-output=$qa" -Wait -PassThru
-          if ($process.ExitCode -ne 0) { throw "Visual QA returned $($process.ExitCode)." }
+          if ($process.ExitCode -ne 0) {
+            $resultPath = Join-Path $qa 'VISUAL-QA.json'
+            if (Test-Path -LiteralPath $resultPath -PathType Leaf) { Get-Content -LiteralPath $resultPath -Raw }
+            throw "Visual QA returned $($process.ExitCode)."
+          }
           foreach ($name in @('07-route-telegram-actions.png','08-driver-telegram.png','VISUAL-QA.json')) {
             if (-not (Test-Path -LiteralPath (Join-Path $qa $name) -PathType Leaf)) {
               throw "Visual QA artifact is missing: $name"
@@ -315,6 +319,7 @@ jobs:
           }
 
       - name: Upload verified Windows evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: justfun-windows-${{ github.sha }}
@@ -327,5 +332,5 @@ jobs:
             .release/visual-qa/
             .release/full-acceptance/
             .release/native-safety/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
