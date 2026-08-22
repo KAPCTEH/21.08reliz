@@ -28,20 +28,22 @@ const policy = {
   download_timeout_seconds: 60, max_download_attempts: 3,
 };
 
-function catalog(version = '7.9.0', sequence = 1, rollout = 100) {
+function catalog(version = '7.9.0', sequence = 1, rollout = 100, mutator = null) {
   const value = {
     schema_version: 1, product_id: 'justfun-logistics', channel: 'stable', catalog_sequence: sequence,
     generated_at: '2026-08-22T11:00:00.000Z', expires_at: '2026-08-29T11:00:00.000Z',
+    directive: { mode: 'release', withdrawn_build_ids: [], rollback_from_versions: [], message: null },
     release: {
       version, build_id: `jf-${version}-0123456789abcdef0123456789abcdef01234567`,
       commit_sha: '0123456789abcdef0123456789abcdef01234567', published_at: '2026-08-22T10:00:00.000Z',
-      minimum_supported_version: '7.8.3', mandatory_after: null, rollout_percent: rollout,
+      minimum_supported_version: '7.8.3', mandatory_after: null, rollout_percent: rollout, summary: `Изменения версии ${version}.`,
       release_notes_url: `https://releases.justfun.invalid/${version}`,
       required_contracts: { reg_api: 3, license_auth: 4, telegram_broker: 1, storage_protocol: 3 },
       payload: { file_name: `JustFun-${version}-win-x64.zip`, url: `https://downloads.justfun.invalid/JustFun-${version}-win-x64.zip`, bytes: 123, sha256: 'a'.repeat(64), unpacked_bytes: 456, file_count: 7, file_manifest_sha256: 'b'.repeat(64) },
     },
     signature: { algorithm: 'Ed25519', key_id: 'controller-unit-key', value: '' },
   };
+  if (mutator) mutator(value);
   value.signature.value = crypto.sign(null, canonicalBytes(signingDocument(value)), privateKey).toString('base64');
   return value;
 }
@@ -73,15 +75,26 @@ function options(root, overrides = {}) {
     checked(() => assert.equal(available.ok, true));
     checked(() => assert.equal(available.updateAvailable, true));
     checked(() => assert.equal(controller.status().state, 'UPDATE_AVAILABLE'));
+    checked(() => assert.equal(controller.status().lastCheckedAt, now.toISOString()));
+    checked(() => assert.equal(controller.status().payloadBytes, 123));
+    checked(() => assert.equal(controller.status().releaseSummary, 'Изменения версии 7.9.0.'));
+    checked(() => assert.match(controller.status().diagnosticId, /^JF-UPD-[0-9A-F]{12}$/));
     checked(() => assert.equal(fs.existsSync(path.join(root, 'Update', 'catalog-state.json')), true));
     checked(() => assert.equal(fs.readdirSync(path.join(root, 'Update', 'catalogs')).length, 1));
     const downloaded = await controller.download();
     checked(() => assert.equal(downloaded.ok, true));
     checked(() => assert.equal(controller.status().state, 'READY_TO_APPLY'));
     checked(() => assert.ok(statuses.length >= 2));
+    const reminded = controller.defer('remind_later');
+    checked(() => assert.equal(reminded.mode, 'remind_later'));
+    checked(() => assert.equal(controller.status().installTiming, 'remind_later'));
+    const afterClose = controller.defer('after_close');
+    checked(() => assert.equal(afterClose.mode, 'after_close'));
+    checked(() => assert.equal(controller.shouldApplyOnClose(), true));
     const applied = await controller.apply();
     checked(() => assert.equal(applied.scheduled, true));
     checked(() => assert.equal(controller.status().state, 'APPLYING'));
+    checked(() => assert.equal(controller.shouldApplyOnClose(), false));
 
     const restarted = new UpdateController(options(root, { fetchCatalog: async () => { throw new Error('not expected'); } }));
     checked(() => assert.deepEqual(restarted.startupRecovery(), { action: 'rollback', state: 'APPLYING' }));
@@ -94,6 +107,7 @@ function options(root, overrides = {}) {
     checked(() => assert.equal(fs.existsSync(path.join(root, 'Update', 'health', `${applied.operationId}.json`)), true));
     fs.writeFileSync(helperStateFile, `${JSON.stringify({ schema_version: 1, operation_id: applied.operationId, phase: 'CONFIRMED', updated_at: now.toISOString(), message: null }, null, 2)}\n`, 'utf8');
     checked(() => assert.equal(updatedApplication.reconcileHelperState().state, 'CONFIRMED'));
+    checked(() => assert.equal(updatedApplication.status().lastOperation.state, 'CONFIRMED'));
 
     const disabled = new UpdateController(options(path.join(root, 'disabled'), { policy: { ...policy, enabled: false }, fetchCatalog: async () => { throw new Error('must not fetch'); } }));
     const disabledResult = await disabled.check();
@@ -107,6 +121,50 @@ function options(root, overrides = {}) {
     const rollout = new UpdateController(options(path.join(root, 'rollout'), { fetchCatalog: async () => catalog('7.9.0', 1, 0) }));
     const rolloutResult = await rollout.check();
     checked(() => assert.equal(rolloutResult.reason, 'rollout'));
+
+    const cancelRoot = path.join(root, 'cancel');
+    const beforeHalt = new UpdateController(options(cancelRoot, {
+      fetchCatalog: async () => catalog('7.9.0', 1, 100),
+      downloadPayload: async input => ({ path: input.destination, bytes: 123, sha256: 'a'.repeat(64), attempts: 1 }),
+    }));
+    await beforeHalt.check();
+    await beforeHalt.download();
+    checked(() => assert.equal(beforeHalt.status().state, 'READY_TO_APPLY'));
+    beforeHalt.defer('after_close');
+    const haltedBuild = catalog('7.9.0').release.build_id;
+    const halt = new UpdateController(options(cancelRoot, { fetchCatalog: async () => catalog('7.9.0', 2, 0, value => {
+      value.directive = { mode: 'halt', withdrawn_build_ids: [haltedBuild], rollback_from_versions: [], message: 'Выпуск остановлен.' };
+    }) }));
+    const haltResult = await halt.check();
+    checked(() => assert.equal(haltResult.reason, 'halt'));
+    checked(() => assert.equal(halt.status().state, 'IDLE'));
+    checked(() => assert.equal(halt.status().targetVersion, null));
+    checked(() => assert.equal(halt.shouldApplyOnClose(), false));
+    checked(() => assert.equal(halt.status().directiveMode, 'halt'));
+
+    const supersededRoot = path.join(root, 'superseded');
+    const oldRelease = new UpdateController(options(supersededRoot, {
+      fetchCatalog: async () => catalog('7.9.0', 1, 100),
+      downloadPayload: async input => ({ path: input.destination, bytes: 123, sha256: 'a'.repeat(64), attempts: 1 }),
+    }));
+    await oldRelease.check();
+    await oldRelease.download();
+    const newRelease = new UpdateController(options(supersededRoot, { fetchCatalog: async () => catalog('8.0.0', 2, 0) }));
+    const supersededResult = await newRelease.check();
+    checked(() => assert.equal(supersededResult.reason, 'superseded'));
+    checked(() => assert.equal(newRelease.status().state, 'IDLE'));
+    checked(() => assert.equal(newRelease.status().targetVersion, null));
+
+    const rollbackController = new UpdateController(options(path.join(root, 'rollback'), {
+      currentVersion: '7.9.0',
+      fetchCatalog: async () => catalog('7.8.3', 1, 100, value => {
+        value.directive = { mode: 'rollback', withdrawn_build_ids: [haltedBuild], rollback_from_versions: ['7.9.0'], message: 'Рекомендуется безопасный откат.' };
+      }),
+    }));
+    const rollbackResult = await rollbackController.check();
+    checked(() => assert.equal(rollbackResult.updateAvailable, true));
+    checked(() => assert.equal(rollbackResult.rollbackRecommended, true));
+    checked(() => assert.equal(rollbackController.status().directiveMessage, 'Рекомендуется безопасный откат.'));
 
     const failing = new UpdateController(options(failureRoot, {
       fetchCatalog: async () => catalog(),

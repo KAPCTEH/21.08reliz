@@ -3,7 +3,7 @@
   "$id": "https://justfun.invalid/release/update-catalog.schema.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "product_id", "channel", "catalog_sequence", "generated_at", "expires_at", "release", "signature"],
+  "required": ["schema_version", "product_id", "channel", "catalog_sequence", "generated_at", "expires_at", "directive", "release", "signature"],
   "properties": {
     "schema_version": { "const": 1 },
     "product_id": { "const": "justfun-logistics" },
@@ -11,10 +11,31 @@
     "catalog_sequence": { "type": "integer", "minimum": 1 },
     "generated_at": { "type": "string", "format": "date-time" },
     "expires_at": { "type": "string", "format": "date-time" },
+    "directive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "withdrawn_build_ids", "rollback_from_versions", "message"],
+      "properties": {
+        "mode": { "enum": ["release", "halt", "rollback"] },
+        "withdrawn_build_ids": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]{1,160}$" }
+        },
+        "rollback_from_versions": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/semver" }
+        },
+        "message": { "type": ["string", "null"], "maxLength": 500 }
+      }
+    },
     "release": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "build_id", "commit_sha", "published_at", "minimum_supported_version", "mandatory_after", "rollout_percent", "release_notes_url", "required_contracts", "payload"],
+      "required": ["version", "build_id", "commit_sha", "published_at", "minimum_supported_version", "mandatory_after", "rollout_percent", "summary", "release_notes_url", "required_contracts", "payload"],
       "properties": {
         "version": { "$ref": "#/$defs/semver" },
         "build_id": { "type": "string", "minLength": 1 },
@@ -23,6 +44,7 @@
         "minimum_supported_version": { "$ref": "#/$defs/semver" },
         "mandatory_after": { "type": ["string", "null"], "format": "date-time" },
         "rollout_percent": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 500 },
         "release_notes_url": { "type": "string", "pattern": "^https://" },
         "required_contracts": {
           "type": "object",
@@ -63,7 +85,7 @@
     }
   },
   "$defs": {
-    "semver": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$" },
+    "semver": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-((?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\\+([0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*))?$" },
     "sha40": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
     "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
   }

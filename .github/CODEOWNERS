@@ -4,3 +4,6 @@
 /source/application/integrations/ @KAPCTEH
 /source/license-server/ @KAPCTEH
 /source/company-telegram-broker/ @KAPCTEH
+/source/update-catalog-service/ @KAPCTEH
+/release/catalogs/ @KAPCTEH
+/tools/release/update-catalog-ops.mjs @KAPCTEH

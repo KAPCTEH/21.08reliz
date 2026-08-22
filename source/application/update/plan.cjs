@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { writeJsonAtomic } = require('./journal.cjs');
 const { updateError } = require('./catalog.cjs');
+const { parseSemver } = require('./semver.cjs');
 
 function operationId(value) {
   const result = String(value || '');
@@ -18,12 +19,15 @@ function createUpdatePlan(input) {
   if (!path.isAbsolute(installRoot) || !path.isAbsolute(updateRoot) || installRoot === path.parse(installRoot).root || updateRoot === path.parse(updateRoot).root) throw updateError('UPDATE_PLAN_PATH', 'Update plan root path is invalid.');
   const catalog = input.catalog;
   if (!catalog?.release?.payload?.file_name) throw updateError('UPDATE_PLAN_CATALOG', 'Verified catalog is unavailable for the update plan.');
+  const fromVersion = String(input.fromVersion || '');
+  parseSemver(fromVersion);
   const now = input.now instanceof Date ? input.now : new Date(input.now || Date.now());
   if (Number.isNaN(now.getTime())) throw updateError('UPDATE_PLAN_TIME', 'Update plan clock is invalid.');
   const plan = {
     schema_version: 1,
     product_id: 'justfun-logistics',
     operation_id: id,
+    from_version: fromVersion,
     created_at: now.toISOString(),
     expires_at: new Date(now.getTime() + 15 * 60 * 1000).toISOString(),
     source_pid: Number.isSafeInteger(input.sourcePid) && input.sourcePid >= 0 ? input.sourcePid : process.pid,

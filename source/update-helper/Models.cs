@@ -28,8 +28,18 @@ internal sealed class UpdateCatalog
     [JsonPropertyName("catalog_sequence")] public required long CatalogSequence { get; init; }
     [JsonPropertyName("generated_at")] public required string GeneratedAt { get; init; }
     [JsonPropertyName("expires_at")] public required string ExpiresAt { get; init; }
+    [JsonPropertyName("directive")] public required CatalogDirective Directive { get; init; }
     [JsonPropertyName("release")] public required CatalogRelease Release { get; init; }
     [JsonPropertyName("signature")] public required CatalogSignature Signature { get; init; }
+}
+
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
+internal sealed class CatalogDirective
+{
+    [JsonPropertyName("mode")] public required string Mode { get; init; }
+    [JsonPropertyName("withdrawn_build_ids")] public required List<string> WithdrawnBuildIds { get; init; }
+    [JsonPropertyName("rollback_from_versions")] public required List<string> RollbackFromVersions { get; init; }
+    [JsonPropertyName("message")] public string? Message { get; init; }
 }
 
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
@@ -42,6 +52,7 @@ internal sealed class CatalogRelease
     [JsonPropertyName("minimum_supported_version")] public required string MinimumSupportedVersion { get; init; }
     [JsonPropertyName("mandatory_after")] public string? MandatoryAfter { get; init; }
     [JsonPropertyName("rollout_percent")] public required int RolloutPercent { get; init; }
+    [JsonPropertyName("summary")] public required string Summary { get; init; }
     [JsonPropertyName("release_notes_url")] public required string ReleaseNotesUrl { get; init; }
     [JsonPropertyName("required_contracts")] public required Dictionary<string, int> RequiredContracts { get; init; }
     [JsonPropertyName("payload")] public required CatalogPayload Payload { get; init; }
@@ -73,6 +84,7 @@ internal sealed class UpdatePlan
     [JsonPropertyName("schema_version")] public required int SchemaVersion { get; init; }
     [JsonPropertyName("product_id")] public required string ProductId { get; init; }
     [JsonPropertyName("operation_id")] public required string OperationId { get; init; }
+    [JsonPropertyName("from_version")] public required string FromVersion { get; init; }
     [JsonPropertyName("created_at")] public required string CreatedAt { get; init; }
     [JsonPropertyName("expires_at")] public required string ExpiresAt { get; init; }
     [JsonPropertyName("source_pid")] public required int SourcePid { get; init; }

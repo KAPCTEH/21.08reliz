@@ -50,6 +50,7 @@ function unsignedCatalog() {
     catalog_sequence: 41,
     generated_at: '2026-08-22T11:00:00.000Z',
     expires_at: '2026-08-29T11:00:00.000Z',
+    directive: { mode: 'release', withdrawn_build_ids: [], rollback_from_versions: [], message: null },
     release: {
       version: '7.9.0',
       build_id: 'jf-7.9.0-0123456789abcdef0123456789abcdef01234567',
@@ -58,6 +59,7 @@ function unsignedCatalog() {
       minimum_supported_version: '7.8.3',
       mandatory_after: null,
       rollout_percent: 100,
+      summary: 'Улучшена надёжность обновления.',
       release_notes_url: 'https://releases.justfun.invalid/7.9.0',
       required_contracts: { reg_api: 3, license_auth: 4, telegram_broker: 1, storage_protocol: 3 },
       payload: {
@@ -93,6 +95,8 @@ const valid = signedCatalog();
 const validation = validateSignedCatalog(valid, options);
 checked(() => assert.equal(validation.updateAvailable, true));
 checked(() => assert.equal(validation.rolloutEligible, true));
+checked(() => assert.equal(validation.directive.mode, 'release'));
+checked(() => assert.equal(validation.rollbackRecommended, false));
 checked(() => assert.equal(validation.keyId, 'unit-release-key'));
 checked(() => assert.equal(validation.canonical.equals(canonicalBytes(signingDocument(valid))), true));
 
@@ -112,6 +116,12 @@ expectCode('UPDATE_URL_HOST', () => validateSignedCatalog(signedCatalog(c => { c
 expectCode('UPDATE_CONTRACT_MISMATCH', () => validateSignedCatalog(signedCatalog(c => { c.release.required_contracts.reg_api = 4; }), options));
 expectCode('UPDATE_CONTRACT_FORMAT', () => validateSignedCatalog(signedCatalog(c => { delete c.release.required_contracts.storage_protocol; }), options));
 expectCode('UPDATE_DOWNGRADE_REJECTED', () => validateSignedCatalog(signedCatalog(c => { c.release.version = '7.8.2'; c.release.build_id = 'jf-7.8.2-0123456789abcdef0123456789abcdef01234567'; }), options));
+expectCode('UPDATE_HALT_INVALID', () => validateSignedCatalog(signedCatalog(c => { c.directive.mode = 'halt'; }), options));
+expectCode('UPDATE_ROLLBACK_VERSIONS', () => validateSignedCatalog(signedCatalog(c => { c.directive.rollback_from_versions = ['7.9.0']; }), options));
+expectCode('UPDATE_ROLLBACK_NOT_APPLICABLE', () => validateSignedCatalog(signedCatalog(c => { c.directive.mode = 'rollback'; c.directive.rollback_from_versions = ['8.0.0']; c.release.version = '7.8.2'; c.release.build_id = 'jf-7.8.2-0123456789abcdef0123456789abcdef01234567'; }), options));
+const rollback = validateSignedCatalog(signedCatalog(c => { c.directive.mode = 'rollback'; c.directive.rollback_from_versions = ['7.9.0']; c.release.version = '7.8.3'; c.release.build_id = 'jf-7.8.3-0123456789abcdef0123456789abcdef01234567'; }), { ...options, currentVersion: '7.9.0' });
+checked(() => assert.equal(rollback.updateAvailable, true));
+checked(() => assert.equal(rollback.rollbackRecommended, true));
 expectCode('UPDATE_SEQUENCE_REGRESSION', () => validateSignedCatalog(signedCatalog(c => { c.catalog_sequence = 39; }), options));
 expectCode('UPDATE_SEQUENCE_REPLACED', () => validateSignedCatalog(valid, { ...options, previousSequence: 41, previousDigest: 'b'.repeat(64) }));
 checked(() => assert.equal(rolloutBucket('device-a', 'build-a'), rolloutBucket('device-a', 'build-a')));

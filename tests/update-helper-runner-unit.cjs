@@ -29,10 +29,11 @@ function checked(action) { action(); checks += 1; }
 
     const operation = 'operation-00000001';
     const catalog = { release: { payload: { file_name: 'JustFun-7.9.0-win-x64.zip' } }, signature: { algorithm: 'Ed25519', key_id: 'test', value: 'x' } };
-    const created = createUpdatePlan({ operationId: operation, installRoot, updateRoot, catalog, sourcePid: 0, healthTimeoutSeconds: 120, now: new Date('2026-08-22T12:00:00.000Z') });
+    const created = createUpdatePlan({ operationId: operation, fromVersion: '7.8.3', installRoot, updateRoot, catalog, sourcePid: 0, healthTimeoutSeconds: 120, now: new Date('2026-08-22T12:00:00.000Z') });
     checked(() => assert.equal(created.plan.staging_root, `${path.resolve(installRoot)}.__justfun_update_stage__`));
     checked(() => assert.equal(created.plan.previous_root, `${path.resolve(installRoot)}.__justfun_update_previous__`));
     checked(() => assert.equal(created.plan.archive_path, path.join(path.resolve(updateRoot), 'downloads', 'JustFun-7.9.0-win-x64.zip')));
+    checked(() => assert.equal(created.plan.from_version, '7.8.3'));
     checked(() => assert.equal(JSON.parse(fs.readFileSync(created.planFile, 'utf8')).operation_id, operation));
 
     const calls = [];

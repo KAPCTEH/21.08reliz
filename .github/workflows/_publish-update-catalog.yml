@@ -1,0 +1,180 @@
+name: Reusable publish update catalog
+
+on:
+  workflow_call:
+    inputs:
+      channel:
+        required: true
+        type: string
+      catalog_path:
+        required: true
+        type: string
+      wrangler_environment:
+        required: true
+        type: string
+      protected_environment:
+        required: true
+        type: string
+      required_directive:
+        required: true
+        type: string
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ${{ inputs.protected_environment }}
+    concurrency:
+      group: update-catalog-${{ inputs.channel }}
+      cancel-in-progress: false
+    env:
+      CATALOG_CHANNEL: ${{ inputs.channel }}
+      CATALOG_PATH: ${{ inputs.catalog_path }}
+      WRANGLER_ENVIRONMENT: ${{ inputs.wrangler_environment }}
+      REQUIRED_DIRECTIVE: ${{ inputs.required_directive }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout exact approved revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: source/update-catalog-service/package-lock.json
+
+      - name: Install exact catalog service dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund --prefix source/update-catalog-service
+
+      - name: Validate requested catalog source
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$CATALOG_PATH" in
+            release/catalogs/*.json) ;;
+            *) echo "Catalog path must be inside release/catalogs." >&2; exit 2 ;;
+          esac
+          requested="$GITHUB_WORKSPACE/$CATALOG_PATH"
+          test -f "$requested"
+          target="$(realpath "$requested")"
+          catalog_root="$(realpath "$GITHUB_WORKSPACE/release/catalogs")"
+          case "$target" in
+            "$catalog_root"/*.json) ;;
+            *) echo "Resolved catalog path escapes release/catalogs." >&2; exit 2 ;;
+          esac
+          node tools/release/update-catalog-ops.mjs verify \
+            --catalog "$target" \
+            --trust-store source/application/update/trusted-keys.json \
+            > .release-catalog-verification.json
+          actual_channel="$(node -p "require('./.release-catalog-verification.json').channel")"
+          test "$actual_channel" = "$CATALOG_CHANNEL"
+
+      - name: Validate Worker package without deployment
+        run: npm run check --prefix source/update-catalog-service
+
+      - name: Read and preserve the current catalog
+        id: current
+        working-directory: source/update-catalog-service
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$GITHUB_WORKSPACE/.release-current-catalog.json"
+          ./node_modules/.bin/wrangler kv key get "catalog:$CATALOG_CHANNEL" \
+            --binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT" --text > "$current"
+          if grep -qx "Value not found" "$current"; then
+            : > "$current"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            node -e "JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8'))" "$current"
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build immutable publication plan
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(plan --catalog "$GITHUB_WORKSPACE/$CATALOG_PATH" --trust-store source/application/update/trusted-keys.json --output .release-catalog-plan.json)
+          if [[ -s .release-current-catalog.json ]]; then args+=(--current .release-current-catalog.json); fi
+          node tools/release/update-catalog-ops.mjs "${args[@]}" > .release-catalog-plan-output.json
+          directive="$(node -p "require('./.release-catalog-plan.json').directive")"
+          if [[ "$REQUIRED_DIRECTIVE" = "release" ]]; then test "$directive" = "release"; fi
+          if [[ "$REQUIRED_DIRECTIVE" = "halt-or-rollback" ]]; then [[ "$directive" = "halt" || "$directive" = "rollback" ]]; fi
+          echo "active_key=$(node -p "require('./.release-catalog-plan.json').active_key")" >> "$GITHUB_OUTPUT"
+          echo "immutable_key=$(node -p "require('./.release-catalog-plan.json').immutable_key")" >> "$GITHUB_OUTPUT"
+          echo "previous_key=$(node -p "require('./.release-catalog-plan.json').previous?.immutable_key || ''")" >> "$GITHUB_OUTPUT"
+
+      - name: Write immutable backup and candidate, then activate
+        working-directory: source/update-catalog-service
+        shell: bash
+        env:
+          ACTIVE_KEY: ${{ steps.plan.outputs.active_key }}
+          IMMUTABLE_KEY: ${{ steps.plan.outputs.immutable_key }}
+          PREVIOUS_KEY: ${{ steps.plan.outputs.previous_key }}
+        run: |
+          set -euo pipefail
+          wrangler=(./node_modules/.bin/wrangler kv key)
+          common=(--binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT")
+          ensure_immutable() {
+            local key="$1" file="$2" existing="$GITHUB_WORKSPACE/.release-existing.json"
+            "${wrangler[@]}" get "$key" "${common[@]}" --text > "$existing"
+            if grep -qx "Value not found" "$existing"; then
+              "${wrangler[@]}" put "$key" "${common[@]}" --path "$file"
+            else
+              cmp --silent "$file" "$existing" || { echo "Immutable history key already contains different bytes." >&2; exit 3; }
+            fi
+          }
+          if [[ -n "$PREVIOUS_KEY" ]]; then ensure_immutable "$PREVIOUS_KEY" "$GITHUB_WORKSPACE/.release-current-catalog.json"; fi
+          ensure_immutable "$IMMUTABLE_KEY" "$GITHUB_WORKSPACE/$CATALOG_PATH"
+          "${wrangler[@]}" put "$ACTIVE_KEY" "${common[@]}" --path "$GITHUB_WORKSPACE/$CATALOG_PATH"
+
+      - name: Confirm published bytes after KV propagation
+        working-directory: source/update-catalog-service
+        shell: bash
+        env:
+          ACTIVE_KEY: ${{ steps.plan.outputs.active_key }}
+        run: |
+          set -euo pipefail
+          verified=false
+          for attempt in 1 2 3 4 5 6 7; do
+            ./node_modules/.bin/wrangler kv key get "$ACTIVE_KEY" \
+              --binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT" --text \
+              > "$GITHUB_WORKSPACE/.release-published-catalog.json"
+            if cmp --silent "$GITHUB_WORKSPACE/$CATALOG_PATH" "$GITHUB_WORKSPACE/.release-published-catalog.json"; then verified=true; break; fi
+            sleep 10
+          done
+          test "$verified" = true
+          node "$GITHUB_WORKSPACE/tools/release/update-catalog-ops.mjs" verify \
+            --catalog "$GITHUB_WORKSPACE/.release-published-catalog.json" \
+            --trust-store "$GITHUB_WORKSPACE/source/application/update/trusted-keys.json" \
+            > "$GITHUB_WORKSPACE/.release-publication-evidence.json"
+
+      - name: Upload publication and backup evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: update-catalog-${{ inputs.channel }}-${{ github.run_id }}
+          path: |
+            .release-catalog-verification.json
+            .release-catalog-plan.json
+            .release-catalog-plan-output.json
+            .release-current-catalog.json
+            .release-published-catalog.json
+            .release-publication-evidence.json
+          if-no-files-found: warn
+          retention-days: 90

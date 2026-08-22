@@ -28,6 +28,8 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
     check: () => ipcRenderer.invoke('desktop:update-check'),
     download: () => ipcRenderer.invoke('desktop:update-download'),
     apply: () => ipcRenderer.invoke('desktop:update-apply'),
+    afterClose: () => ipcRenderer.invoke('desktop:update-after-close'),
+    remindLater: () => ipcRenderer.invoke('desktop:update-remind-later'),
     onStatus: (handler) => {
       if (typeof handler !== 'function') return () => {};
       const listener = (_event, payload) => handler(payload);

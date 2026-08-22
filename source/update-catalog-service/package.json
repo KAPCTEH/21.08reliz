@@ -1,0 +1,14 @@
+{
+  "name": "justfun-update-catalog-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check worker.mjs && wrangler types --include-runtime=false --check && wrangler deploy --dry-run --env=production --outdir .wrangler/dry-run",
+    "test": "node ../../tests/update-catalog-worker-unit.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260822.1",
+    "wrangler": "4.125.0"
+  }
+}

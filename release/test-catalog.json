@@ -139,7 +139,9 @@
         "exit_code=0",
         "disabled, current, staged rollout and available-update decisions pass",
         "verified catalog persists and survives controller restart",
-        "download failure is recorded safely and can be retried as a new operation"
+        "download failure is recorded safely and can be retried as a new operation",
+        "signed halt cancels a downloaded build and signed rollback is limited to named installed versions",
+        "after-close and remind-later choices persist without exposing a machine identifier"
       ],
       "timeout_ms": 60000,
       "artifact_paths": [],
@@ -175,13 +177,84 @@
       "expected_outputs": [
         "exit_code=0",
         "disabled, idle, available, downloading, ready, applying and failed states render correctly",
-        "download progress and safe restart confirmation are exercised",
+        "download progress, release summary, size, last check, history and safe diagnostic id are rendered",
+        "restart-now, after-close and remind-later choices are exercised",
         "signature failures are shown in plain language and remain fail-closed"
       ],
       "timeout_ms": 60000,
       "artifact_paths": [],
       "run_rule": "every pull request and release build",
       "invalidation_rule": "invalidate when update UI, preload update bridge, controller status or update settings markup changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CATALOG-WORKER-UNIT",
+      "name": "Update Catalog Worker Unit",
+      "level": "source",
+      "path": "tests/update-catalog-worker-unit.mjs",
+      "command": "node tests/update-catalog-worker-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci"
+      ],
+      "contracts": [
+        "update-catalog-service",
+        "cloudflare-kv-read-only"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "only GET and HEAD catalog routes are accepted",
+        "stored catalog bytes, channel, size and shape are checked before serving",
+        "ETag, revalidation and fail-closed responses are exercised"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and update catalog service deployment",
+      "invalidation_rule": "invalidate when the catalog Worker, KV binding, route or response policy changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CATALOG-OPS-UNIT",
+      "name": "Update Catalog Operations Unit",
+      "level": "source",
+      "path": "tests/update-catalog-ops-unit.mjs",
+      "command": "node tests/update-catalog-ops-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci"
+      ],
+      "contracts": [
+        "update-catalog",
+        "update-catalog-publication",
+        "stable-rollout"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "private and public Ed25519 keys must match",
+        "catalog sequence and immutable backup keys are validated",
+        "stable rollout cannot skip or regress the 5 and 25 percent stages",
+        "halt and rollback directives must identify the currently published release"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and update catalog publication",
+      "invalidation_rule": "invalidate when signing, publication, backup, rollback or rollout policy changes",
       "class": "unit"
     },
     {
@@ -211,7 +284,7 @@
       "expected_outputs": [
         "exit_code=0",
         "installed helper hash is verified before its isolated copy is launched",
-        "operation plan uses fixed download, staging, previous and health paths",
+        "operation plan uses fixed download, staging, previous and health paths and binds the installed source version",
         "helper launch never uses a shell or renderer-supplied command"
       ],
       "timeout_ms": 60000,
@@ -253,6 +326,7 @@
         "exit_code=0",
         "canonical JSON and Ed25519 self-test pass",
         "tamper, path traversal, atomic state and SHA-256 self-tests pass",
+        "transactional file replacement and simulated health-confirmation rollback restore the previous version",
         "publish emits a self-contained single-file Windows helper"
       ],
       "timeout_ms": 600000,

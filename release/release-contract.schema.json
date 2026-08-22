@@ -49,13 +49,14 @@
     "service_versions": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["desktop", "reg_api", "license_api", "telegram_worker", "company_telegram_broker"],
+      "required": ["desktop", "reg_api", "license_api", "telegram_worker", "company_telegram_broker", "update_catalog_service"],
       "properties": {
         "desktop": { "type": "string" },
         "reg_api": { "type": "string" },
         "license_api": { "type": "string" },
         "telegram_worker": { "type": "string" },
-        "company_telegram_broker": { "type": "string" }
+        "company_telegram_broker": { "type": "string" },
+        "update_catalog_service": { "type": "string" }
       }
     },
     "windows": {

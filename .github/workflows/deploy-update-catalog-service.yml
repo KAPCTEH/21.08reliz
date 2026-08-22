@@ -1,0 +1,84 @@
+name: Deploy update catalog service
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Cloudflare environment
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-update-catalog-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: ${{ inputs.target == 'production' && 'update-production' || 'update-staging' }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      WRANGLER_ENVIRONMENT: ${{ inputs.target }}
+    steps:
+      - name: Checkout exact approved revision
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: source/update-catalog-service/package-lock.json
+
+      - name: Install exact dependencies and validate
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund --prefix source/update-catalog-service
+          npm run check --prefix source/update-catalog-service
+
+      - name: Capture currently deployed versions
+        working-directory: source/update-catalog-service
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! ./node_modules/.bin/wrangler versions list --env="$WRANGLER_ENVIRONMENT" --json > "$GITHUB_WORKSPACE/.worker-versions-before.json" 2> "$GITHUB_WORKSPACE/.worker-versions-before.error"; then
+            if grep -q "code: 10007" "$GITHUB_WORKSPACE/.worker-versions-before.error"; then
+              node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({schema_version:1,available:false,reason:'worker was not deployed before this operation'},null,2)+'\n')" "$GITHUB_WORKSPACE/.worker-versions-before.json"
+            else
+              cat "$GITHUB_WORKSPACE/.worker-versions-before.error" >&2
+              exit 1
+            fi
+          fi
+
+      - name: Deploy exact Worker revision
+        working-directory: source/update-catalog-service
+        shell: bash
+        run: ./node_modules/.bin/wrangler deploy --env="$WRANGLER_ENVIRONMENT"
+
+      - name: Capture deployed versions
+        working-directory: source/update-catalog-service
+        shell: bash
+        run: ./node_modules/.bin/wrangler versions list --env="$WRANGLER_ENVIRONMENT" --json > "$GITHUB_WORKSPACE/.worker-versions-after.json"
+
+      - name: Upload deployment rollback evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: update-catalog-worker-${{ inputs.target }}-${{ github.run_id }}
+          path: |
+            .worker-versions-before.json
+            .worker-versions-after.json
+          if-no-files-found: warn
+          retention-days: 90
