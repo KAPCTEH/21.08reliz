@@ -12,10 +12,11 @@
     "line": 30
   },
   "first_seen_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "last_verified_commit": "f8e12ecee3e9371dea23c76913302db24050160d",
-  "fact": "Тест извлекает фрагмент до initialServerSeedChanges, куда теперь входит экспорт window.JustFunServerStorageV3, но VM-контекст не определяет window. Выполнение падает с ReferenceError до проверяемых assertions.",
+  "last_verified_commit": "c517545832ad41b20405cfb6376a6c3c0f4c1392",
+  "fact": "На baseline commit тест извлекал фрагмент до initialServerSeedChanges, куда входит экспорт window.JustFunServerStorageV3, но VM-контекст не определял window и падал с ReferenceError до assertions. В Draft PR 14 добавлен изолированный window stub, отдельные assertions browser-export и обязательный запуск теста в Windows CI. Server-wins merge, удаление устаревших локальных записей и полный Windows gate прошли на exact head commit; исправление ещё не слито в protected main.",
   "evidence": [
-    "JF-EVID-0002"
+    "JF-EVID-0002",
+    "JF-EVID-0014"
   ],
   "impact": "Регрессия merge/bootstrap фактически не проверяется и даёт ложный красный результат, скрывая возможные реальные дефекты за ошибкой harness.",
   "reproduction": [
@@ -28,7 +29,9 @@
     "изменение соседнего browser export не ломает harness"
   ],
   "fingerprint": "sha256:bfaf9fc200a64df72cc311072db147803d2c0a8cd4598a30e1c80a4f214ccfd9",
-  "related": [],
+  "related": [
+    "https://github.com/KAPCTEH/21.08reliz/pull/14"
+  ],
   "owner": "@KAPCTEH",
-  "status": "OPEN"
+  "status": "FIXED_PENDING_VERIFY"
 }

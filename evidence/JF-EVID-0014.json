@@ -1,0 +1,30 @@
+{
+  "id": "JF-EVID-0014",
+  "type": "github-windows-verification",
+  "commit": "c517545832ad41b20405cfb6376a6c3c0f4c1392",
+  "subject": "PR 14 entity bootstrap merge harness repair and complete Windows release gate",
+  "input_digests": {
+    "base_commit": "git:6b7d16c07c4991fdeec255bfe35c69487432198a",
+    "target_commit": "git:c517545832ad41b20405cfb6376a6c3c0f4c1392",
+    "windows_artifact": "sha256:2348892891fb2388353585a6fcdd871cac394d5860ee7bfcb2040c54b10e04f3"
+  },
+  "tool": "GitHub Actions windows-native-783",
+  "tool_version": "workflow run 32567429964, run number 15",
+  "command": "pull_request event for PR 14 at exact head SHA c517545832ad41b20405cfb6376a6c3c0f4c1392",
+  "cwd": "GitHub-hosted Windows runner",
+  "timestamp_utc": "2026-08-22T10:31:53Z",
+  "exit_code": 0,
+  "normalized_result": "{\"pull_request\":14,\"workflow_run_id\":32567429964,\"job_id\":97018001239,\"job\":\"build-and-accept\",\"conclusion\":\"success\",\"successful_steps\":22,\"failed_steps\":0,\"entity_bootstrap_merge_unit\":{\"status\":\"PASS\",\"server_wins\":true,\"stale_local_records_removed\":true,\"browser_export_asserted\":true},\"full_installer_acceptance\":\"PASS\",\"artifact\":{\"id\":9474548536,\"name\":\"justfun-7.8.3-windows-e8e247d9cd2e401a39e3d3c3e9d802d4a9593071\",\"bytes\":184502339,\"expires_at\":\"2026-09-05T10:31:41Z\"}}",
+  "artifact_sha256": "2348892891fb2388353585a6fcdd871cac394d5860ee7bfcb2040c54b10e04f3",
+  "location": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32567429964",
+  "retention": "permanent normalized metadata; GitHub artifact retained until 2026-09-05T10:31:41Z",
+  "status": "TEST_CONFIRMED",
+  "findings": [
+    "JF-AUDIT-0002"
+  ],
+  "tests": [
+    "JF-TEST-ENTITY-BOOTSTRAP-MERGE-UNIT",
+    "JF-TEST-REG-ENTITY-SOURCE-CONTRACT",
+    "JF-TEST-WINDOWS-NATIVE-783"
+  ]
+}

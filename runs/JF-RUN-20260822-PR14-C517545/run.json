@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "run_id": "JF-RUN-20260822-PR14-C517545",
+  "audit_type": "verify",
+  "budget_mode": "STANDARD",
+  "base_commit": "6b7d16c07c4991fdeec255bfe35c69487432198a",
+  "target_commit": "c517545832ad41b20405cfb6376a6c3c0f4c1392",
+  "state": "COMPLETE",
+  "started_at_utc": "2026-08-22T10:22:18Z",
+  "completed_at_utc": "2026-08-22T10:31:53Z",
+  "changed_files": [
+    ".github/workflows/windows-native-783.yml",
+    "tests/entity-bootstrap-merge-unit.cjs"
+  ],
+  "impact_set": [
+    "tests",
+    "ci",
+    "release"
+  ],
+  "tests_selected": [
+    "entity-bootstrap-merge-unit",
+    "reg-entity-source-contract",
+    "background-cloud-sync-failure-regression-v783",
+    "current-cycle-regression-v783",
+    "static-audit-regression-v783",
+    "security-audit",
+    "windows-native-783 complete build-and-accept"
+  ],
+  "tests_skipped": [
+    {
+      "id": "live-vps-bootstrap",
+      "reason": "The finding is isolated to the VM test harness; no production source or live data path changed"
+    }
+  ],
+  "evidence_reused": [
+    "JF-EVID-0002"
+  ],
+  "finding_delta": {
+    "opened": [],
+    "closed": [],
+    "updated": [
+      "JF-AUDIT-0002"
+    ],
+    "status_changes": {
+      "JF-AUDIT-0002": "OPEN -> FIXED_PENDING_VERIFY"
+    }
+  },
+  "verdict": "NO_GO",
+  "limitations": [
+    "PR 14 is a stacked Draft based on PR 13 and is not merged into protected main",
+    "JF-AUDIT-0002 cannot be closed until dependent commits are merged and rechecked on main",
+    "The active baseline remains null and the baseline tag has not been created",
+    "Authenticated Cloudflare and Telegram acceptance remains incomplete",
+    "Three P2 findings remain open"
+  ]
+}
