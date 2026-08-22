@@ -221,11 +221,23 @@ jobs:
             if ($app.HasExited -or $app.MainWindowHandle -eq 0) { throw 'Installed application did not open a main window.' }
 
             $lockedLog = Join-Path $evidence 'uninstall-locked.log'
-            $lockedExit = Invoke-Native $uninstaller @('/S', "/LOG=$lockedLog")
+            Remove-Item -LiteralPath $lockedLog -Force -ErrorAction SilentlyContinue
+            $lockedLaunchExit = Invoke-Native $uninstaller @('/S', "/LOG=$lockedLog")
+            if ($lockedLaunchExit -notin @(0, 30)) { throw "Running-application uninstaller launcher returned unexpected code $lockedLaunchExit." }
+            $deadline = (Get-Date).AddSeconds(30)
+            $lockedResult = ''
+            do {
+              if (Test-Path -LiteralPath $lockedLog -PathType Leaf) {
+                $lockedResult = Get-Content -LiteralPath $lockedLog -Raw
+              }
+              if (-not $lockedResult.Contains('FAIL application is running')) { Start-Sleep -Milliseconds 250 }
+            } while (-not $lockedResult.Contains('FAIL application is running') -and (Get-Date) -lt $deadline)
             if (Test-Path -LiteralPath $lockedLog -PathType Leaf) {
-              Write-Output "Running-application uninstall log:`n$(Get-Content -LiteralPath $lockedLog -Raw)"
+              Write-Output "Running-application uninstall log:`n$lockedResult"
             }
-            if ($lockedExit -ne 30) { throw "Running-application uninstall returned $lockedExit instead of 30." }
+            if (-not $lockedResult.Contains('FAIL application is running')) {
+              throw "Running-application uninstall refusal was not recorded (launcher exit $lockedLaunchExit)."
+            }
             if (-not (Test-Path -LiteralPath $exe -PathType Leaf) -or -not (Test-Path -LiteralPath $data -PathType Container)) {
               throw 'Running-application uninstall changed protected state.'
             }
