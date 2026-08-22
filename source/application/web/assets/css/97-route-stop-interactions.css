@@ -10,13 +10,13 @@
 .route-stops .stop[data-route-stop-v597]:hover{background:#f8fbfa}
 .route-stops .stop[data-route-stop-v597]:focus-visible{outline:3px solid rgba(23,105,170,.25);outline-offset:2px}
 .route-stop-drag-handle-v597{position:absolute;right:3px;top:7px;width:27px;height:32px;display:grid;place-items:center;border:0;border-radius:8px;background:transparent;color:#7f96a2;font-size:20px;font-weight:900;cursor:grab;line-height:1;touch-action:none;user-select:none;-webkit-user-select:none}
-.route-stop-drag-handle-v597:hover,.route-stop-drag-handle-v597:focus-visible{background:#eaf7f0;color:#168a55;outline:none}
+.route-stop-drag-handle-v597:hover,.route-stop-drag-handle-v597:focus-visible{background:#eaf7f0;color:var(--jf-color-brand-500);outline:none}
 .route-stop-order-actions-v597{display:flex;gap:7px;justify-content:flex-end;margin-top:2px;padding-top:7px;border-top:1px solid #e4ece7}
 .route-stop-order-actions-v597 button{min-height:30px;padding:5px 9px;border:1px solid #cbdde9;border-radius:8px;background:#f7fbfd;color:#28536d;font-size:10px;font-weight:850;cursor:pointer}
 .route-stop-order-actions-v597 button:hover{border-color:#78a9c5;background:#edf7fc}
 .route-stop-expanded-v597{background:#f6fbf8!important;box-shadow:inset 0 0 0 1px #c9e9d7}
-.route-stop-expanded-v597 .route-stop-drag-handle-v597{color:#168a55}
-.route-stop-compact-v597{grid-column:2 / -1;display:grid;gap:6px;margin:8px 0 9px;padding:9px;border:1px solid #d8e7df;border-radius:11px;background:#fff;user-select:text;-webkit-user-select:text}
+.route-stop-expanded-v597 .route-stop-drag-handle-v597{color:var(--jf-color-brand-500)}
+.route-stop-compact-v597{grid-column:2 / -1;display:grid;gap:6px;margin:8px 0 9px;padding:9px;border:1px solid #d8e7df;border-radius:11px;background:var(--jf-color-surface);user-select:text;-webkit-user-select:text}
 .route-stop-compact-v597[hidden]{display:none!important}
 .route-stop-simple-v597{display:grid;grid-template-columns:58px minmax(0,1fr);gap:9px;align-items:start;font-size:11px;line-height:1.4}
 .route-stop-simple-v597>span{color:#71828c;font-weight:750}
@@ -27,8 +27,8 @@
 .route-stop-product-v597 b{font-size:11px;font-weight:850;min-width:0;overflow-wrap:anywhere}
 .route-stop-product-v597 span{white-space:nowrap;color:#315f49;font-weight:850}
 .route-stop-goods-v597 small{color:#71828c}
-.route-stop-dragging-v597{z-index:8;background:#fff!important;border:1px solid #50ae7d!important;box-shadow:0 14px 34px rgba(22,90,56,.22)!important;transform:scale(1.01);cursor:grabbing!important;touch-action:none!important}
-.route-stop-dragging-v597 .route-stop-drag-handle-v597{cursor:grabbing;color:#168a55;background:#eaf7f0}
+.route-stop-dragging-v597{z-index:8;background:var(--jf-color-surface)!important;border:1px solid #50ae7d!important;box-shadow:0 14px 34px rgba(22,90,56,.22)!important;transform:scale(1.01);cursor:grabbing!important;touch-action:none!important}
+.route-stop-dragging-v597 .route-stop-drag-handle-v597{cursor:grabbing;color:var(--jf-color-brand-500);background:#eaf7f0}
 .route-reordering-v597 .stop:not(.route-stop-dragging-v597){transition:transform .12s ease,background .12s ease}
 .route-stop-drag-active-v597{cursor:grabbing!important;user-select:none!important;-webkit-user-select:none!important}
 .route-stop-reorder-locked-v597 .route-stop-drag-handle-v597{display:none}

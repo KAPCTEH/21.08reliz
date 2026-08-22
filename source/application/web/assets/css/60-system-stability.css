@@ -20,7 +20,7 @@ html.route-ui-transaction-v590,html.route-ui-transaction-v590 body{scroll-behavi
 #tripsView .route-map-slot-v590{position:sticky;top:12px;align-self:start}
 #tripsView .route-map-home-v590{display:block;min-width:0}
 #tripsView .route-map-home-v590.route-map-home-empty-v590{display:none!important}
-#tripsView .route-map-wrap{position:relative!important;top:0!important;width:100%!important;max-width:100%!important;margin:0!important;transition:none!important;animation:none!important;contain:layout paint;background:#fff}
+#tripsView .route-map-wrap{position:relative!important;top:0!important;width:100%!important;max-width:100%!important;margin:0!important;transition:none!important;animation:none!important;contain:layout paint;background:var(--jf-color-surface)}
 #tripsView .route-map-wrap.route-map-moving-v590{visibility:hidden!important}
 #tripsView #routesMap{width:100%!important;height:390px!important;min-height:390px!important;max-height:390px!important;transition:none!important;animation:none!important}
 #tripsView .leaflet-container,#tripsView .leaflet-pane,#tripsView .leaflet-tile{transition:none!important;animation:none!important}
