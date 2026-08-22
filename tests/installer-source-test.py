@@ -185,8 +185,8 @@ class NativeInstallerSourceTests(unittest.TestCase):
             "Call un.ValidatePurgeTarget",
             'StrCmp $2 "1" 0 data_not_confirmed',
             "SetErrorLevel 30",
-            "--running-instance-probe",
-            "FAIL application probe returned $0",
+            "--running-instance-probe-output=",
+            "FAIL application probe returned $0 state=$4",
             "Рабочие данные и регистрация не изменены",
             "GetFileAttributesW",
             "0x400",
@@ -198,6 +198,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
             "runRunningInstanceProbe",
             "requestSingleInstanceLock({ mode: 'running-instance-probe' })",
             "releaseSingleInstanceLock()",
+            "acquired ? 'NOT_RUNNING' : 'RUNNING'",
             "acquired ? 0 : 30",
         ):
             self.assertIn(marker, main_source)

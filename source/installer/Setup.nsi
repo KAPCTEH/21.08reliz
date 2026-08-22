@@ -970,12 +970,22 @@ Section "Uninstall"
   Call un.WriteLog
 
   IfFileExists "$INSTDIR\OrdersLogistics.exe" 0 uninstall_window_checks
-  nsExec::ExecToStack /TIMEOUT=15000 '"$INSTDIR\OrdersLogistics.exe" --running-instance-probe'
+  InitPluginsDir
+  StrCpy $2 "$PLUGINSDIR\running-instance.txt"
+  Delete "$2"
+  StrCpy $4 "missing"
+  nsExec::ExecToStack /TIMEOUT=15000 '"$INSTDIR\OrdersLogistics.exe" --running-instance-probe-output="$2"'
   Pop $0
   Pop $1
-  StrCmp $0 "0" uninstall_window_checks
-  StrCmp $0 "30" uninstall_running
-  Push "FAIL application probe returned $0"
+  IfFileExists "$2" 0 uninstall_probe_invalid
+  FileOpen $3 "$2" r
+  FileRead $3 $4
+  FileClose $3
+  StrCmp $4 "RUNNING" uninstall_running
+  StrCmp $4 "NOT_RUNNING" 0 uninstall_probe_invalid
+  StrCmp $0 "0" uninstall_window_checks uninstall_probe_invalid
+uninstall_probe_invalid:
+  Push "FAIL application probe returned $0 state=$4"
   Call un.WriteLog
   Goto uninstall_locked
 uninstall_running:

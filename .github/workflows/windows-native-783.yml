@@ -222,6 +222,9 @@ jobs:
 
             $lockedLog = Join-Path $evidence 'uninstall-locked.log'
             $lockedExit = Invoke-Native $uninstaller @('/S', "/LOG=$lockedLog")
+            if (Test-Path -LiteralPath $lockedLog -PathType Leaf) {
+              Write-Output "Running-application uninstall log:`n$(Get-Content -LiteralPath $lockedLog -Raw)"
+            }
             if ($lockedExit -ne 30) { throw "Running-application uninstall returned $lockedExit instead of 30." }
             if (-not (Test-Path -LiteralPath $exe -PathType Leaf) -or -not (Test-Path -LiteralPath $data -PathType Container)) {
               throw 'Running-application uninstall changed protected state.'

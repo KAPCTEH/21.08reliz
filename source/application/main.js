@@ -3106,9 +3106,10 @@ async function runInstallerSmokeTest() {
   app.exit(result.ok ? 0 : 5);
 }
 
-function runRunningInstanceProbe() {
+function runRunningInstanceProbe(outputPath = '') {
   const acquired = app.requestSingleInstanceLock({ mode: 'running-instance-probe' });
   if (acquired) app.releaseSingleInstanceLock();
+  if (outputPath) fs.writeFileSync(path.resolve(outputPath), acquired ? 'NOT_RUNNING' : 'RUNNING', 'ascii');
   const exitCode = acquired ? 0 : 30;
   app.exit(exitCode);
   return exitCode;
@@ -3133,8 +3134,11 @@ if (DESKTOP_UNIT_TEST_MODE) {
     directOpenStreetMapGeocode, resolveDesktopMapGeocode
   };
 } else {
-  const runningInstanceProbeMode = process.argv.includes('--running-instance-probe');
-  if (runningInstanceProbeMode) runRunningInstanceProbe();
+  const runningInstanceProbeArgument = process.argv.find(value=>String(value).startsWith('--running-instance-probe-output='));
+  const runningInstanceProbeMode = process.argv.includes('--running-instance-probe') || Boolean(runningInstanceProbeArgument);
+  if (runningInstanceProbeMode) {
+    runRunningInstanceProbe(runningInstanceProbeArgument ? String(runningInstanceProbeArgument).slice('--running-instance-probe-output='.length) : '');
+  }
   const installerSmokeMode = process.argv.includes('--installer-smoke-test');
   const selfTestMode = process.argv.includes('--self-test');
   const visualQaMode = process.argv.some(value=>String(value).startsWith('--visual-qa-output='));
