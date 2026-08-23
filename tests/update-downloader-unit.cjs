@@ -15,14 +15,15 @@ async function expectCode(code, action) {
   await assert.rejects(action, error => error?.code === code, `Expected ${code}`);
   checks += 1;
 }
-function fakeTransport(responses, observedRanges = []) {
+function fakeTransport(responses, observedRanges = [], observedUrls = []) {
   let index = 0;
-  return (_url, requestOptions, callback) => {
+  return (url, requestOptions, callback) => {
     const request = new EventEmitter();
     request.setTimeout = () => {};
     request.destroy = error => request.emit('error', error);
     request.end = () => {
       const spec = responses[index++];
+      observedUrls.push(String(url));
       observedRanges.push(requestOptions.headers.Range || null);
       queueMicrotask(() => {
         if (spec.error) return request.emit('error', spec.error);
@@ -71,6 +72,39 @@ function fakeTransport(responses, observedRanges = []) {
       requestImpl: () => { throw new Error('network must not be used'); },
     });
     checked(() => assert.equal(reused.reused, true));
+
+    const redirectedDestination = path.join(directory, 'redirected.zip');
+    const redirectUrls = [];
+    const redirected = await downloadVerifiedPayload({
+      url: 'https://github.com/KAPCTEH/21.08reliz/releases/download/v7.9.0/redirected.zip',
+      allowedHosts: ['github.com', 'release-assets.githubusercontent.com'],
+      destination: redirectedDestination,
+      expectedBytes: body.length,
+      expectedSha256: sha256,
+      maxAttempts: 1,
+      requestImpl: fakeTransport([
+        { status: 302, headers: { location: 'https://release-assets.githubusercontent.com/github-production-release-asset/file.zip?token=temporary' }, body: Buffer.alloc(0) },
+        { status: 200, headers: { 'content-length': String(body.length) }, body },
+      ], [], redirectUrls),
+    });
+    checked(() => assert.equal(redirected.attempts, 1));
+    checked(() => assert.deepEqual(redirectUrls, [
+      'https://github.com/KAPCTEH/21.08reliz/releases/download/v7.9.0/redirected.zip',
+      'https://release-assets.githubusercontent.com/github-production-release-asset/file.zip?token=temporary',
+    ]));
+    checked(() => assert.deepEqual(fs.readFileSync(redirectedDestination), body));
+
+    await expectCode('UPDATE_URL_HOST', () => downloadVerifiedPayload({
+      url: 'https://github.com/KAPCTEH/21.08reliz/releases/download/v7.9.0/blocked.zip',
+      allowedHosts: ['github.com', 'release-assets.githubusercontent.com'],
+      destination: path.join(directory, 'blocked-redirect.zip'),
+      expectedBytes: body.length,
+      expectedSha256: sha256,
+      maxAttempts: 1,
+      requestImpl: fakeTransport([
+        { status: 302, headers: { location: 'https://attacker.invalid/payload.zip' }, body: Buffer.alloc(0) },
+      ]),
+    }));
 
     const resumedDestination = path.join(directory, 'complete-part.zip');
     fs.writeFileSync(`${resumedDestination}.part`, body);
