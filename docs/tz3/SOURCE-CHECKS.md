@@ -71,3 +71,17 @@
 Зафиксированный source commit: `ad4136d` (`feat: add scoped on-demand address search`).
 
 Не проверено: реальный DaData API, production VPS, фактические лимиты тарифа, точность живых ответов и Windows UI. Ключ в исходный код не добавлялся.
+
+## Инкремент загрузки обновлений `bdce184`
+
+| Проверка | Результат | Подтверждение |
+|---|---|---|
+| Update downloader | PASS | 19 проверок, включая разрешённый GitHub redirect и запрет перехода на чужой домен |
+| Update core / controller / UI | PASS | 44 / 48 / 58 |
+| Update Helper runner | PASS | 16 |
+| Catalog Worker / operations | PASS | 23 / 15 |
+| Cloudflare source check | PASS | Wrangler `4.125.0`, types актуальны, production dry-run успешен |
+| Live public Worker health | PASS | staging и production HTTP 200; каталоги ожидаемо `CATALOG_NOT_PUBLISHED` |
+| Release contract / security | PASS | 80 тестов; 173 файла, 0 findings |
+
+Всего в update/catalog наборе: 223 успешные проверки. Production-обновление остаётся выключенным: доверенный приватный/публичный Ed25519-ключ отсутствует, каталог и реальный payload не опубликованы.

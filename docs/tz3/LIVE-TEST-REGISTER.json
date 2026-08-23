@@ -219,6 +219,43 @@
         "production VPS not checked",
         "installed Windows UI not checked"
       ]
+    },
+    {
+      "step_id": "JF3-S0018",
+      "stage": 1,
+      "action": "verify update trust, live catalog service and GitHub Release download path",
+      "result": "PARTIAL PASS",
+      "commit": "bdce184",
+      "github_issue": "https://github.com/KAPCTEH/21.08reliz/issues/25",
+      "confirmed": [
+        "no original Ed25519 signing key in the allowed workspace or matching environment variables",
+        "staging Worker health HTTP 200 version 1.0.0",
+        "production Worker health HTTP 200 version 1.0.0",
+        "staging and stable catalogs return CATALOG_NOT_PUBLISHED",
+        "policy contains the verified catalog endpoints and exact host allowlists",
+        "GitHub Release redirect is accepted only through allowlisted HTTPS hosts",
+        "payload size and SHA-256 verification remain mandatory"
+      ],
+      "tests": {
+        "update_core": 44,
+        "update_downloader": 19,
+        "update_controller": 48,
+        "update_ui": 58,
+        "update_helper_runner": 16,
+        "catalog_worker": 23,
+        "catalog_operations": 15,
+        "total": 223,
+        "release_contract": 80,
+        "security_findings": 0
+      },
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-001",
+      "limitations": [
+        "original update signing key is absent",
+        "trust store is empty",
+        "updater remains disabled",
+        "no signed staging catalog or live Windows update"
+      ]
     }
   ],
   "current_gate": "stage-1/address-live-provider-pending",

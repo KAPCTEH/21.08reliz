@@ -189,6 +189,17 @@
 - Current cycle, experience, release, visual и design-token регрессии: `PASS`.
 - Результат: `SOURCE PASS`; реальный поставщик, production VPS и установленная Windows-программа не проверены.
 
+### JF3-S0018 — Доверие обновлений и реальный путь GitHub Release
+
+- В разрешённой рабочей области и среди имён переменных окружения оригинальный Ed25519-ключ не найден; значения секретов не читались и не выводились.
+- Staging Worker `1.0.0`: `/health` HTTP 200; staging-каталог ожидаемо отвечает `CATALOG_NOT_PUBLISHED`.
+- Production Worker `1.0.0`: `/health` HTTP 200; stable-каталог ожидаемо отвечает `CATALOG_NOT_PUBLISHED`.
+- В update policy записаны проверенные endpoints и точные allowlist-домены; updater остаётся `enabled=false` до появления доверенного ключа.
+- Найден дефект: GitHub Release Assets может вернуть redirect, а загрузчик запрещал все redirect. GitHub Issue: https://github.com/KAPCTEH/21.08reliz/issues/25.
+- Исправление `bdce184`: максимум три HTTPS-перехода, каждый домен из allowlist; посторонний домен отклоняется; размер и SHA-256 обязательны.
+- Проверки update/catalog: 223 успешных; release contract 80; security audit 0 находок; Cloudflare dry-run успешен.
+- Результат: `PARTIAL PASS`; `JF3-BLOCKER-001` остаётся `OPEN` из-за отсутствующего корневого ключа и живого подписанного обновления.
+
 ## Текущее решение
 
 - Stage 0: `PASS`.
