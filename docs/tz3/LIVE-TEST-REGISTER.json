@@ -812,6 +812,33 @@
         "verify VPS provisioning, TLS, schema V3, backup, restore and idempotent reinstall",
         "continue the remaining TZ3 blockers and acceptance matrix"
       ]
+    },
+    {
+      "step_id": "JF3-S0041",
+      "stage": 4,
+      "action": "repair the confirmed priority-region address typo without adding a local address archive",
+      "result": "KNOWN TYPO SOURCE PASS / ADDRESS BLOCKER REMAINS OPEN",
+      "commit": "8cf881a",
+      "input": "санкт петербуг невский 28",
+      "normalized_query": "санкт петербург невский 28",
+      "evidence": [
+        "address intelligence unit passed",
+        "main unit passed",
+        "release regression passed",
+        "security regression passed",
+        "source hygiene passed",
+        "the real public Nominatim contract returned three results and ranked Дом Зингера, 28, Невский проспект, Санкт-Петербург first"
+      ],
+      "safety": {
+        "local_address_database_added": false,
+        "automatic_public_autocomplete_enabled": false,
+        "maximum_returned_candidates_unchanged": 3
+      },
+      "pending": [
+        "rebuild and repeat the same query in the installed application",
+        "configure and prove the production address provider",
+        "run the approved large reference corpus and priority-region acceptance"
+      ]
     }
   ],
   "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
