@@ -3,13 +3,13 @@
   "branch": "audit-ledger",
   "orphan_history_required": true,
   "baseline_id": "baseline-20260822-8fc993e",
-  "generated_at_utc": "2026-08-23T06:58:37.1817053Z",
+  "generated_at_utc": "2026-08-23T07:16:50.4323498Z",
   "raw_sensitive_evidence_published": false,
   "exclusions": [
     "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
   ],
   "file_count": 179,
-  "total_bytes": 5608900,
+  "total_bytes": 5608881,
   "files": [
     {
       "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
@@ -788,8 +788,8 @@
     },
     {
       "path": "github-config/workflows/audit-incremental.yml",
-      "bytes": 5380,
-      "sha256": "50f83a48c16baff13d976929076a4df8dcb5c0703fa33c5cab2462633051e92e"
+      "bytes": 5361,
+      "sha256": "206e679d3aac854e2208f55b6088a592c5eeabbab752e725e3214e01de71d17a"
     },
     {
       "path": "github-config/workflows/audit-verify-finding.yml",
