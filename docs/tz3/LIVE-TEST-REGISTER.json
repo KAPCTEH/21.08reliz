@@ -703,6 +703,71 @@
         "historical migration matrix is not yet proven",
         "no product source, database or external infrastructure was changed in this step"
       ]
+    },
+    {
+      "step_id": "JF3-S0039",
+      "stage": 3,
+      "action": "complete the first discovery pass of the installed JustFun 7.8.3 application and correlate UI, logs, source, packaging, and local backup evidence",
+      "result": "DISCOVERY PASS WITH 5 OPEN BLOCKERS / RELEASE REMAINS NO-GO",
+      "live_scope": {
+        "demo_dataset": {
+          "orders": 70,
+          "products": 62,
+          "drivers": 18,
+          "working_trips": 17
+        },
+        "passed": [
+          "order search, status filter, pagination and detail card",
+          "exact Saint Petersburg address search and administrative parsing",
+          "product search and product detail",
+          "inventory movement form and live preview before save",
+          "driver and aggregator cards",
+          "weekly report recalculation for 2026-08-17 through 2026-08-23",
+          "route card, map, stop sequence, driver and lifecycle presentation",
+          "route, program, company, warehouse, backup, integration and OSM settings traversal",
+          "backup export, safety backup, restore and semantic reread",
+          "built-in database diagnostics 17 of 17 with zero warnings and zero critical errors",
+          "QA JSON export"
+        ],
+        "failed_or_blocked": [
+          "demo order save requires a working VPS",
+          "demo inventory movement save requires a working VPS",
+          "demo exposes live user invitation and live warehouse creation actions",
+          "address query with a simple typo was not found",
+          "route lifecycle filter is overwritten by pagination",
+          "VPS installer shell script fails with CRLF line endings",
+          "Telegram Bot API verification timed out",
+          "signed live update catalog is not configured"
+        ]
+      },
+      "log_evidence": [
+        "protected ASAR integrity and runtime hardening passed",
+        "Telegram company profile is missing or damaged and bindings are not configured",
+        "Telegram bot verification timed out at 149.154.166.110:443",
+        "public Nominatim fallback was used because the managed provider was not configured",
+        "all backup and QA downloads completed",
+        "one OpenStreetMap tile request reported net::ERR_FAILED with HTTP 200",
+        "no new application crash or renderer-fatal event was recorded"
+      ],
+      "new_findings": [
+        "JF3-BLOCKER-004",
+        "JF3-BLOCKER-005",
+        "JF3-DEFECT-004",
+        "JF3-DEFECT-005"
+      ],
+      "safety": {
+        "real_business_data_changed": false,
+        "warehouse_creation_submitted": false,
+        "user_invitation_submitted": false,
+        "ssh_fingerprint_bypass_used": false,
+        "secret_values_copied_to_register": false
+      },
+      "pending": [
+        "batch repair confirmed root causes",
+        "build and install one controlled replacement build",
+        "repeat complete live business regression",
+        "verify VPS, Telegram, second warehouse, second user, second PC, updater and database migration matrix"
+      ]
     }
   ],
   "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
