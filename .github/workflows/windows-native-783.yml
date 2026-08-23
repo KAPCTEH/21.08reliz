@@ -5,6 +5,8 @@ on:
   push:
     branches: [main, "agent/**"]
   pull_request:
+    paths-ignore:
+      - "docs/tz3/**"
 
 permissions:
   contents: read

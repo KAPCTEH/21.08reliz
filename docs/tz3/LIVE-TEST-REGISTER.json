@@ -471,6 +471,30 @@
         "LevelDB values were not disclosed",
         "server cross-company isolation requires a second account and device"
       ]
+    },
+    {
+      "step_id": "JF3-S0030",
+      "stage": 3,
+      "action": "prevent Windows rebuilds for pull-request changes limited to TZ3 documentation",
+      "result": "PASS",
+      "evidence_commit": "61174ef73c4f989b9b4c12db9d0bfa7302e580bb",
+      "audit_run": {
+        "id": 32629199929,
+        "conclusion": "success"
+      },
+      "cancelled_windows_run": 32629199936,
+      "workflow_change": "pull_request paths-ignore docs/tz3/**",
+      "tests": {
+        "release_contract": "82 PASS",
+        "release_regression": "PASS",
+        "installer_source": "20/20 PASS",
+        "security_scan": "20 files, 0 findings"
+      },
+      "preserved": [
+        "workflow_dispatch",
+        "push main release gate",
+        "pull-request gate when any non-docs/tz3 path changes"
+      ]
     }
   ],
   "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
