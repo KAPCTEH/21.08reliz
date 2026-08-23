@@ -40,6 +40,79 @@
       "class": "contract"
     },
     {
+      "id": "JF-TEST-AUDIT-TOOLS-UNIT",
+      "name": "Audit Tools Unit",
+      "level": "source",
+      "path": "tests/audit-tools-unit.mjs",
+      "command": "node tests/audit-tools-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24",
+        "git"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "audit-registry",
+        "ci",
+        "repository-wide"
+      ],
+      "contracts": [
+        "incremental-impact",
+        "test-runner-policy",
+        "environment-isolation"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "unmapped paths select the full safe test set",
+        "zero runnable tests fail closed",
+        "per-test cwd, timeout and JF environment allowlist are enforced"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request that changes audit selection, the test runner, the catalog or CI",
+      "invalidation_rule": "invalidate when impact mapping, runner policy, catalog metadata or workflow environment changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CATALOG-SERVICE-CHECK",
+      "name": "Update Catalog Service Check",
+      "level": "source",
+      "path": "source/update-catalog-service/package.json",
+      "command": "npm run check",
+      "cwd": "source/update-catalog-service",
+      "prerequisites": [
+        "node-24",
+        "npm-ci"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci",
+        "update-catalog-service"
+      ],
+      "contracts": [
+        "update-catalog-service",
+        "cloudflare-worker-build",
+        "production-dry-run"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "worker syntax and generated binding types agree",
+        "production Worker dry-run bundle succeeds without deployment"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and update catalog service deployment",
+      "invalidation_rule": "invalidate when the catalog Worker, Wrangler configuration, dependencies or production bindings change",
+      "class": "contract"
+    },
+    {
       "id": "JF-TEST-UPDATE-CORE-UNIT",
       "name": "Update Core Unit",
       "level": "source",
@@ -1965,9 +2038,14 @@
       "command": "python tests/reg-storage-v3-integration.py",
       "cwd": ".",
       "prerequisites": [
-        "python"
+        "python",
+        "PostgreSQL 16"
       ],
-      "env_allowlist": [],
+      "env_allowlist": [
+        "JF_REQUIRE_POSTGRES_TESTS",
+        "JF_TEST_POSTGRES_ADMIN_DSN",
+        "JF_TEST_POSTGRES_DSN"
+      ],
       "network_allowed": false,
       "executable_allowed": false,
       "requires_explicit_live_authorization": false,
@@ -2054,10 +2132,10 @@
     },
     {
       "id": "JF-TEST-RUNTIME-BUTTON-MATRIX",
-      "name": "Runtime Button Matrix",
+      "name": "Runtime UI Inventory",
       "level": "source",
       "path": "tests/runtime-button-matrix.py",
-      "command": "python tests/runtime-button-matrix.py source/application/web --edition full --report <evidence-report.json>",
+      "command": "python tests/runtime-button-matrix.py source/application/web --edition full --list-only --report artifacts/ui-control-inventory-full.json",
       "cwd": ".",
       "prerequisites": [
         "python"
@@ -2083,11 +2161,11 @@
       ],
       "timeout_ms": 900000,
       "artifact_paths": [
-        "<evidence-report.json>"
+        "artifacts/ui-control-inventory-full.json"
       ],
       "run_rule": "FULL baseline and when any mapped module or contract changes",
       "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
-      "class": "visual"
+      "class": "source-inventory"
     },
     {
       "id": "JF-TEST-RUNTIME-OVERRIDES-REGRESSION-V783",

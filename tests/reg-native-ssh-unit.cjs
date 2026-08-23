@@ -22,17 +22,26 @@ const valid = native.validateOptions({
   port: 22,
   password: 'not-a-real-password',
   installationId: 'company_1234567890',
-  apiKey: 'A'.repeat(64)
+  apiKey: 'A'.repeat(64),
+  attestationSecret: `jfvps_${'B'.repeat(48)}`
 });
 assert.strictEqual(valid.host, '203.0.113.10');
 assert.strictEqual(valid.username, 'root');
 assert.throws(() => native.validateOptions({...valid, password:'line\nbreak'}), /SSH-пароль/);
 assert.throws(() => native.validateOptions({...valid, username:'Root!'}), /SSH-пользователя/);
 assert.throws(() => native.validateOptions({...valid, port:70000}), /SSH-порт/);
+assert.throws(() => native.validateOptions({...valid, attestationSecret:'jfvps_short'}), /подтверждения VPS/);
 
-for (const token of ['powershell.exe', 'pwsh.exe', 'cmd.exe', '.ps1', '.bat', '.cmd']) {
-  assert(!mainSource.toLowerCase().includes(token), `main.js contains forbidden script host: ${token}`);
-  assert(!nativeSource.toLowerCase().includes(token), `native-ssh.cjs contains forbidden script host: ${token}`);
+for (const [label, pattern] of [
+  ['powershell.exe', /powershell\.exe/i],
+  ['pwsh.exe', /pwsh\.exe/i],
+  ['cmd.exe', /cmd\.exe/i],
+  ['.ps1', /\.ps1(?![a-z0-9])/i],
+  ['.bat', /\.bat(?![a-z0-9])/i],
+  ['.cmd', /\.cmd(?![a-z0-9])/i]
+]) {
+  assert(!pattern.test(mainSource), `main.js contains forbidden script host: ${label}`);
+  assert(!pattern.test(nativeSource), `native-ssh.cjs contains forbidden script host: ${label}`);
 }
 assert(!fs.existsSync(path.join(application, 'integrations', 'reg-vps', 'setup-reg-vps.ps1')));
 assert(mainSource.includes('confirmRegVpsFingerprint'));
@@ -41,6 +50,8 @@ assert(mainSource.includes('openRegVpsPasswordWindow'));
 assert(nativeSource.includes('hostVerifier'));
 assert(nativeSource.includes('sudo -S -p'));
 assert(nativeSource.includes('mode: 0o600'));
+assert(nativeSource.includes('VPS_ATTESTATION_SECRET_B64='));
+assert(mainSource.includes('attestation_secret:attestationSecret'));
 assert(installerSource.includes("<<'EOF_NGINX'"));
 assert(installerSource.includes('proxy_set_header Host $host;'));
 assert(installerSource.includes('rollback_installation()'));

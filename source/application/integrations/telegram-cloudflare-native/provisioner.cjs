@@ -9,7 +9,7 @@ const RELEASE = require('../../release.json');
 const CLOUDFLARE_HOST = 'api.cloudflare.com';
 const TELEGRAM_HOST = 'api.telegram.org';
 const DEPLOYMENT_VERSION = RELEASE.version;
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const DEFAULT_WORKER_NAME = 'justfun-logistics-bot';
 const DEFAULT_DATABASE_NAME = 'justfun-logistics-bot-db';
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -284,8 +284,36 @@ async function ensureDatabase(token, accountId, existingState, defaultDatabaseNa
 }
 
 function splitSql(sql) {
-  const withoutComments = String(sql || '').replace(/^\s*--.*$/gm, '').trim();
-  return withoutComments.split(';').map(statement => statement.trim()).filter(Boolean);
+  const withoutComments = String(sql || '').replace(/^\s*--.*$/gm, '');
+  const statements = [];
+  let ordinary = [];
+  let trigger = [];
+
+  const flushOrdinary = () => {
+    const source = ordinary.join('\n');
+    ordinary = [];
+    statements.push(...source.split(';').map(statement => statement.trim()).filter(Boolean));
+  };
+
+  for (const line of withoutComments.split(/\r?\n/)) {
+    if (trigger.length) {
+      trigger.push(line);
+      if (/^\s*END\s*;\s*$/i.test(line)) {
+        statements.push(trigger.join('\n').trim().replace(/;\s*$/, ''));
+        trigger = [];
+      }
+      continue;
+    }
+    if (/^\s*CREATE\s+TRIGGER\b/i.test(line)) {
+      flushOrdinary();
+      trigger = [line];
+      continue;
+    }
+    ordinary.push(line);
+  }
+  if (trigger.length) throw new Error('Незавершённый CREATE TRIGGER в D1-миграции');
+  flushOrdinary();
+  return statements;
 }
 
 async function d1Query(token, accountId, databaseId, sql, params = []) {
@@ -626,7 +654,11 @@ async function provision(options) {
   const migrationFiles = Array.from(new Set(
     (Array.isArray(options?.migrationFiles) && options.migrationFiles.length
       ? options.migrationFiles
-      : [migrationFile, path.join(path.dirname(migrationFile), '0002_shared_installations.sql')])
+      : [
+          migrationFile,
+          path.join(path.dirname(migrationFile), '0002_shared_installations.sql'),
+          path.join(path.dirname(migrationFile), '0003_deprovision.sql')
+        ])
       .map(file => path.resolve(String(file || '')))
   ));
   if (!/^[A-Za-z0-9_\-.]{20,300}$/.test(token)) throw new ProvisioningError('token_input', 'CF-TOKEN-FORMAT', 'Проверьте формат Cloudflare API-токена.');

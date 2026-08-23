@@ -36,7 +36,7 @@ const options = {
   allowedPayloadHosts: ['downloads.justfun.invalid'],
   allowedReleaseNotesHosts: ['releases.justfun.invalid'],
   trustStore,
-  availableContracts: { reg_api: 3, license_auth: 4, telegram_broker: 1, storage_protocol: 3, address_search: 1 },
+  availableContracts: { reg_api: 3, license_auth: 4, telegram_broker: 4, storage_protocol: 3, address_search: 1, warehouse_delete_prepare: 1, warehouse_delete_lease: 3, telegram_broker_deprovision: 3, telegram_native_deprovision: 1, vps_attestation: 1, warehouse_delete_release_outbox: 1 },
   currentVersion: '7.8.3',
   previousSequence: 40,
   installationId: 'unit-installation-01',
@@ -61,7 +61,7 @@ function unsignedCatalog() {
       rollout_percent: 100,
       summary: 'Улучшена надёжность обновления.',
       release_notes_url: 'https://releases.justfun.invalid/7.9.0',
-      required_contracts: { reg_api: 3, license_auth: 4, telegram_broker: 1, storage_protocol: 3, address_search: 1 },
+      required_contracts: { reg_api: 3, license_auth: 4, telegram_broker: 4, storage_protocol: 3, address_search: 1, warehouse_delete_prepare: 1, warehouse_delete_lease: 3, telegram_broker_deprovision: 3, telegram_native_deprovision: 1, vps_attestation: 1, warehouse_delete_release_outbox: 1 },
       payload: {
         file_name: 'JustFun-7.9.0-win-x64.zip',
         url: 'https://downloads.justfun.invalid/JustFun-7.9.0-win-x64.zip',

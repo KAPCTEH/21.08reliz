@@ -10,6 +10,7 @@ const warehouses=read('source/application/web/assets/js/100-multi-warehouse-v600
 const routeMap=read('source/application/web/assets/js/95-route-map-loading.js');
 const mapReliability=read('source/application/web/assets/js/105-map-reliability-v772.js');
 const smartRoutes=read('source/application/web/assets/js/98-smart-automation-v598.js');
+const desktopPlatform=read('source/application/web/assets/js/110-desktop-platform-v750.js');
 
 assert(main.includes("String(active.id)===String(primary.id)&&active.catalogMode==='catalog'"));
 assert(warehouses.includes("write(PRODUCTS_KEY,[])"));
@@ -20,6 +21,57 @@ assert(warehouses.includes('const persisted=await ordersPersistChain'));
 assert(warehouses.indexOf('const persisted=await ordersPersistChain')<warehouses.indexOf('B.setActive(id);'));
 assert(warehouses.includes('await window.JustFunEntitySyncV783.flushAndConfirm()'));
 assert(warehouses.indexOf('await window.JustFunEntitySyncV783.flushAndConfirm()')<warehouses.indexOf('B.setActive(id);'));
+
+const saveWarehouseBlock=warehouses.slice(warehouses.indexOf('window.saveWarehouseEditorV600=async function'),warehouses.indexOf('window.switchWarehouseV600=async function'));
+const archiveWarehouseBlock=warehouses.slice(warehouses.indexOf('window.toggleWarehouseArchiveV600=async function'),warehouses.indexOf('window.deleteWarehouseV760=async function'));
+const deleteWarehouseBlock=warehouses.slice(warehouses.indexOf('window.deleteWarehouseV760=async function'),warehouses.indexOf('function decoratePrintedDocument'));
+assert(warehouses.includes('let warehouseLifecycleBusyV760=false'));
+assert(warehouses.includes('function canCreateWarehouseV760()'));
+assert(warehouses.includes("if(!id&&!canCreateWarehouseV760())"));
+assert(warehouses.includes('async function withWarehouseLifecycleLockV760(action)'));
+assert(warehouses.includes('warehouseLifecycleBusyV760=true'));
+assert(warehouses.includes('finally{warehouseLifecycleBusyV760=false}'));
+assert(saveWarehouseBlock.includes('withWarehouseLifecycleLockV760(async()=>'));
+assert(archiveWarehouseBlock.includes('withWarehouseLifecycleLockV760(async()=>'));
+assert(deleteWarehouseBlock.includes('withWarehouseLifecycleLockV760(async()=>'));
+assert(saveWarehouseBlock.includes('await persistWarehouseRegistryV760(next)'));
+assert(saveWarehouseBlock.includes('serverWrite=await persistWarehouseRegistryV760(w,{initialSettings,initialCompany:initialSettings.company})'));
+assert(saveWarehouseBlock.indexOf('await persistWarehouseRegistryV760(next)')<saveWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('изменение склада'"));
+assert(!saveWarehouseBlock.includes('Object.assign(w,next);B.saveRegistry(r)'));
+assert(saveWarehouseBlock.indexOf('serverWrite=await persistWarehouseRegistryV760(w,{initialSettings,initialCompany:initialSettings.company})')<saveWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('создание склада'"));
+assert(saveWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('создание склада'")<saveWarehouseBlock.indexOf('B.setActive(w.id)'));
+assert(!saveWarehouseBlock.includes("const rollbackWarehouse={...w,status:'archived'}"));
+assert(archiveWarehouseBlock.indexOf('await persistWarehouseRegistryV760(next)')<archiveWarehouseBlock.indexOf('refreshAuthoritativeWarehouseRegistryV760(action'));
+assert(!archiveWarehouseBlock.includes('Object.assign(w,next);B.saveRegistry(r)'));
+assert(!deleteWarehouseBlock.includes('assertWarehouseDeletionAssignments'));
+assert(deleteWarehouseBlock.indexOf('await persistWarehouseRegistryV760(w,{deleted:true})')<deleteWarehouseBlock.indexOf('B.raw.remove(key)'));
+assert(deleteWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('удаление склада'")<deleteWarehouseBlock.indexOf('B.raw.remove(key)'));
+assert(!deleteWarehouseBlock.includes('B.saveRegistry(r)'));
+assert(!desktopPlatform.includes("!byId.has(String(item.id))&&String(item.origin||'local')!=='server'"));
+assert(desktopPlatform.includes('revision:Number(item?.entity_version??item?.revision)||0'));
+assert(desktopPlatform.includes("activeEnvironment()===WAREHOUSE_REGISTRY_ENVIRONMENT&&id===activeWarehouseId()&&cloudSyncState.scope===entityScope()"));
+assert(desktopPlatform.includes("if(activeEnvironment()===WAREHOUSE_REGISTRY_ENVIRONMENT)add('warehouse',warehouseId,warehouse)"));
+assert(desktopPlatform.includes("warehouses?.({environment:'live'})"));
+assert(desktopPlatform.includes("environment:WAREHOUSE_REGISTRY_ENVIRONMENT,commandId:newEntityCommandId(),changes"));
+assert(desktopPlatform.includes("const WAREHOUSE_REGISTRY_ENVIRONMENT='live'"));
+assert(desktopPlatform.includes("nextWarehouseRegistryRefreshAtV783=now+30000"));
+assert(desktopPlatform.includes("blockWorkspaceAfterWarehouseChange('Список складов изменился, но безопасная автоматическая перезагрузка была остановлена."));
+
+const lifecycleLockSource=warehouses.match(/let warehouseLifecycleBusyV760=false;[\s\S]*?async function withWarehouseLifecycleLockV760\(action\)\{[\s\S]*?\n\}/)?.[0];
+assert(lifecycleLockSource,'warehouse lifecycle lock source is available');
+let lockAlerts=0;
+const lockContext={alert(){lockAlerts++}};
+vm.createContext(lockContext);
+vm.runInContext(`${lifecycleLockSource}\nglobalThis.__withWarehouseLifecycleLock=withWarehouseLifecycleLockV760;`,lockContext);
+let releaseFirst,actions=0;
+const firstWarehouseAction=lockContext.__withWarehouseLifecycleLock(async()=>{actions++;return new Promise(resolve=>{releaseFirst=resolve})});
+assert.equal(await lockContext.__withWarehouseLifecycleLock(async()=>{actions++;return'overlap'}),false);
+assert.equal(actions,1,'a second warehouse mutation must not start while the first one is pending');
+assert.equal(lockAlerts,1);
+releaseFirst('confirmed');
+assert.equal(await firstWarehouseAction,'confirmed');
+await assert.rejects(lockContext.__withWarehouseLifecycleLock(async()=>{throw new Error('expected failure')}),/expected failure/);
+assert.equal(await lockContext.__withWarehouseLifecycleLock(async()=>{actions++;return'next'}),'next','the lifecycle lock must always reset after success or failure');
 
 assert.equal((routeMap.match(/new ResizeObserver/g)||[]).length,0);
 assert.equal((mapReliability.match(/new ResizeObserver/g)||[]).length,1);
@@ -57,4 +109,4 @@ assert(!main.includes('persistSettings();routePlans={};persistRoutes();renderWar
 assert(!main.includes('persistSettings();routePlans={};persistRoutes();renderSettings();ensureWarehouseMap()'));
 assert(smartRoutes.includes("typeof window.invalidateMutableRoutePlansV783==='function'"));
 
-console.log(JSON.stringify({ok:true,warehouseCatalogIsolation:true,warehouseSwitchPersistence:true,singleMapResizeObserver:true,deferredMapInitialization:true,moscowDistrictFallback:true,spbMunicipalDistrictFallback:true,driverAssignmentRequiresPlan:true,activeRoutePlanProtection:true}));
+console.log(JSON.stringify({ok:true,warehouseCatalogIsolation:true,warehouseSwitchPersistence:true,warehouseServerFirstMutations:true,serverDeletedWarehousesNotMerged:true,singleMapResizeObserver:true,deferredMapInitialization:true,moscowDistrictFallback:true,spbMunicipalDistrictFallback:true,driverAssignmentRequiresPlan:true,activeRoutePlanProtection:true}));

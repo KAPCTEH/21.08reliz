@@ -67,6 +67,7 @@ function roleFor(user=currentUser){return user?.role||'viewer'}
 function normalizePermissionList(value){const result=[];for(const permission of Array.isArray(value)?value.map(String):[]){if(!result.includes(permission))result.push(permission);for(const expanded of LEGACY_PERMISSION_EXPANSIONS[permission]||[]){if(!result.includes(expanded))result.push(expanded)}}return result}
 function permissionList(user=currentUser){if(!user)return[];if(desktopSession?.edition==='demo'||!user.serverRole)return normalizePermissionList(LOCAL_ROLE_PERMISSIONS[roleFor(user)]||LOCAL_ROLE_PERMISSIONS.viewer);return normalizePermissionList(user.permissions)}
 function hasPermission(name,user=currentUser){const list=permissionList(user);if(user?.role==='owner'||list.includes('*'))return true;const domain=String(name||'').split('.')[0];return list.includes(name)||list.includes(domain+'.*')}
+window.JustFunWarehouseAccessV783=Object.freeze({canCreate:()=>hasPermission('warehouses.manage')&&currentUser?.allWarehouses===true,canDelete:()=>hasPermission('warehouses.manage')&&currentUser?.allWarehouses===true});
 function resolvedFunctionPermission(name,fallback,args=[]){
   if(name==='openOrderModal'||name==='openPickupModal')return args[0]?'orders.update':'orders.create';
   if(name==='saveOrder'||name==='savePickup')return q('#editingOrderId')?.value?'orders.update':'orders.create';
@@ -84,7 +85,7 @@ function allowedTabs(user=currentUser){
   if(hasPermission('drivers.read',user))tabs.push('drivers');
   if(hasPermission('reports.read',user))tabs.push('reports');
   if(hasPermission('routes.settings',user))tabs.push('settings');
-  if(hasPermission('users.read',user)||hasPermission('devices.manage',user))tabs.push('programSettings');
+  if(['warehouses.manage','company.update','integrations.manage','users.read','users.create','users.update','devices.manage'].some(permission=>hasPermission(permission,user)))tabs.push('programSettings');
   return [...new Set(tabs)];
 }
 function setSession(user){memorySession={userId:user.id,startedAt:new Date().toISOString()};try{sessionStorage.setItem(SESSION_KEY,JSON.stringify(memorySession))}catch{}}
@@ -172,9 +173,43 @@ function renderCloudInvitation(){authFrame(`<h2>Подключение сотр�
 function createAuthRoot(){let root=q('#jfAuthRoot');if(root)return root;root=document.createElement('div');root.id='jfAuthRoot';document.body.prepend(root);return root}
 function status(text,error=false){const el=q('#jfAuthStatus');if(el){el.textContent=text||'';el.className='jf-auth-status'+(error?' error':'')}}
 function authFrame(content,subtitle='Безопасный доступ'){createAuthRoot().innerHTML=`<section class="jf-auth-card"><aside class="jf-auth-brand"><div><div class="jf-auth-logo" role="img" aria-label="Официальный логотип JustFun"></div><h1>JustFun</h1><p>Заказы, склады и маршруты в едином рабочем пространстве.</p></div><div class="jf-auth-meta"><b>${esc(subtitle)}</b><br>Лицензия и права проверяются сервером.<br>Telegram: @KAPCTEH<br>VK: k_a_p_c_t_e_n<br>Email: pw-fanat@mail.ru<br>JustFun Логистика · ${VERSION}</div></aside><main class="jf-auth-main">${content}<div class="jf-auth-status" id="jfAuthStatus" aria-live="polite"></div></main></section>`}
-function renderNoWarehouse(message='Для вашей учётной записи не назначено ни одного доступного склада. Обратитесь к владельцу или администратору.'){authFrame(`<div class="jf-no-access"><h2>Склад не назначен</h2><p id="jfNoWarehouseMessage">${esc(message)}</p></div><div class="jf-auth-actions"><button class="jf-auth-button secondary" id="jfRetry">Повторить проверку</button><button class="jf-auth-button" id="jfLogout">Выйти</button></div>`,'Доступ ограничен');q('#jfRetry').onclick=retryWorkspaceAccess;q('#jfLogout').onclick=logout}
+function canCreateWarehouseFromNoAccessV783(){return !activeWarehouseId()&&currentUser?.allWarehouses===true&&hasPermission('warehouses.manage')}
+function renderNoWarehouse(message='Для вашей учётной записи не назначено ни одного доступного склада. Обратитесь к владельцу или администратору.'){
+  const canCreate=canCreateWarehouseFromNoAccessV783(),first=registry().serverAuthoritativeEmpty===true,createLabel=first?'Создать первый склад':'Создать новый склад';
+  authFrame(`<div class="jf-no-access"><h2>${canCreate?(first?'Складов пока нет':'Нет активного склада'):'Склад не назначен'}</h2><p id="jfNoWarehouseMessage">${esc(canCreate?(first?'Сервер подтвердил пустой реестр компании. Создайте первый склад — локальный склад по умолчанию восстановлен не будет.':'Все склады сейчас находятся в архиве. Создайте новый склад или обратитесь к владельцу.'):message)}</p></div><div class="jf-auth-actions">${canCreate?`<button class="jf-auth-button" id="jfCreateFirstWarehouse">${createLabel}</button>`:''}<button class="jf-auth-button secondary" id="jfRetry">Повторить проверку</button><button class="jf-auth-button${canCreate?' secondary':''}" id="jfLogout">Выйти</button></div>`,'Доступ ограничен');
+  if(canCreate)q('#jfCreateFirstWarehouse').onclick=()=>window.openWarehouseCreatorV600?.();q('#jfRetry').onclick=retryWorkspaceAccess;q('#jfLogout').onclick=logout
+}
 function renderWarehouseLoading(){authFrame('<div class="jf-no-access"><h2>Подготавливаем рабочее пространство</h2><p>Получаем разрешённые склады и выбираем активный склад. Заказы, Telegram и синхронизация ещё не запущены.</p></div>','Безопасный запуск')}
 function workspaceReloadKey(){return`jf_workspace_reload_guard_v783:${String(desktopSession?.auth?.company?.id||'unknown')}`}
+let pendingActiveWarehouseMetadataChangeV783=null;
+function canonicalWarehouseMetadataV783(item){
+  const lat=item?.lat==null?null:Number(item.lat),lon=item?.lon==null?null:Number(item.lon);
+  return{id:String(item?.id||''),name:String(item?.name||'Склад'),code:String(item?.code||'СКЛ'),address:String(item?.address||''),lat:Number.isFinite(lat)?lat:null,lon:Number.isFinite(lon)?lon:null,timezone:String(item?.timezone||'Europe/Moscow'),status:item?.status==='archived'?'archived':'active',revision:Number(item?.revision)||0,digest:String(item?.digest||'')}
+}
+function canonicalWarehouseMetadataSignatureV783(item){return JSON.stringify(canonicalWarehouseMetadataV783(item))}
+function activeWarehouseSettingsMatchV783(item){
+  const canonical=canonicalWarehouseMetadataV783(item),point=asObject(settings?.warehouse),profile=asObject(settings?.warehouseProfile),lat=point.lat==null?null:Number(point.lat),lon=point.lon==null?null:Number(point.lon);
+  return String(point.address||'')===canonical.address&&(Number.isFinite(lat)?lat:null)===canonical.lat&&(Number.isFinite(lon)?lon:null)===canonical.lon&&String(profile.id||'')===canonical.id&&String(profile.code||'')===canonical.code&&String(profile.name||'')===canonical.name&&String(profile.timezone||'Europe/Moscow')===canonical.timezone
+}
+function stageActiveWarehouseMetadataChangeV783(before,after){pendingActiveWarehouseMetadataChangeV783={warehouseId:String(after?.id||''),before:canonicalWarehouseMetadataV783(before),after:canonicalWarehouseMetadataV783(after),detectedAt:new Date().toISOString()}}
+function suspendWorkspaceForWarehouseMetadataFailureV783(message){
+  clearTimeout(cloudSyncState?.uploadTimer);clearInterval(cloudSyncState?.pollTimer);if(cloudSyncState){cloudSyncState.uploadTimer=null;cloudSyncState.pollTimer=null}document.documentElement.classList.remove('jf-authenticated');renderNoWarehouse(message)
+}
+function applyCanonicalActiveWarehouseMetadataV783(){
+  const change=pendingActiveWarehouseMetadataChangeV783,current=activeWarehouseId();if(!change||String(change.warehouseId)!==current)return false;
+  const record=registry().warehouses.find(item=>String(item.id)===current);if(!record)return false;
+  const previousSettings=cloneValue(settings),previousDirty=cloudSyncState.dirty,previousSerial=cloudSyncState.serial,canonical=canonicalWarehouseMetadataV783(record),point={address:canonical.address,lat:canonical.lat,lon:canonical.lon};
+  try{
+    settings.warehouse=point;settings.warehouseProfile={...asObject(settings.warehouseProfile),id:canonical.id,code:canonical.code,name:canonical.name,timezone:canonical.timezone,routeStartConfigured:Boolean(point.address.trim())&&Number.isFinite(point.lat)&&point.lat>=-90&&point.lat<=90&&Number.isFinite(point.lon)&&point.lon>=-180&&point.lon<=180};
+    if(!safeSaveJson(SETTINGS_KEY,settings))throw new Error('Не удалось сохранить канонические настройки активного склада.');
+    cloudSyncState.dirty=previousDirty;cloudSyncState.serial=previousSerial;pendingActiveWarehouseMetadataChangeV783=null;
+    window.__jfWarehouseMetadataEpochV783=Number(window.__jfWarehouseMetadataEpochV783||0)+1;
+    if(window.__JF_TEST_NO_RELOAD)window.__jfActiveWarehouseMetadataV783={warehouseId:canonical.id,environment:activeEnvironment(),address:point.address,lat:point.lat,lon:point.lon,revision:canonical.revision,digest:canonical.digest};
+  }catch(error){
+    settings=previousSettings;cloudSyncState.dirty=previousDirty;cloudSyncState.serial=previousSerial;audit('active_warehouse_metadata_refresh_failed',{warehouseId:current,error:String(error?.message||error)});suspendWorkspaceForWarehouseMetadataFailureV783('Сервер изменил адрес или координаты открытого склада, но локальные настройки не удалось безопасно обновить. Рабочее пространство заблокировано; повторите проверку.');return false
+  }
+  try{window.TeplitsaWarehouseV600?.applyBranding?.()}catch(error){console.error('Не удалось обновить подписи активного склада',error)}audit('active_warehouse_metadata_refreshed',{warehouseId:canonical.id,environment:activeEnvironment(),revision:canonical.revision,digest:canonical.digest});return true
+}
 function guardedWorkspaceReload(reason,targetWarehouseId=''){
   const key=workspaceReloadKey(),now=Date.now();let previous={};try{previous=JSON.parse(sessionStorage.getItem(key)||'{}')}catch{}
   const same=String(previous.targetWarehouseId||'')===String(targetWarehouseId||'')&&String(previous.reason||'')===String(reason||'');
@@ -182,10 +217,21 @@ function guardedWorkspaceReload(reason,targetWarehouseId=''){
   try{sessionStorage.setItem(key,JSON.stringify({reason:String(reason||''),targetWarehouseId:String(targetWarehouseId||''),at:now}))}catch{}
   setSession(currentUser);setTimeout(()=>location.reload(),350);return true
 }
+function pendingWarehouseDeleteId(){return String(registry().pendingServerDeleteWarehouseId||'')}
+function markPendingWarehouseDelete(warehouseId){const B=window.TeplitsaWarehouseBootstrap;if(!B)return;const next=B.getRegistry();next.pendingServerDeleteWarehouseId=String(warehouseId||'');B.saveRegistry(next)}
+function freezeWorkspaceForWarehouseTransition(){clearTimeout(cloudSyncState?.uploadTimer);clearInterval(cloudSyncState?.pollTimer);if(cloudSyncState){cloudSyncState.uploadTimer=null;cloudSyncState.pollTimer=null;cloudSyncState.dirty=false}document.documentElement.classList.remove('jf-authenticated')}
+function blockWorkspaceAfterWarehouseChange(message){freezeWorkspaceForWarehouseTransition();renderNoWarehouse(message)}
+function applyWarehouseRegistryTransition(previousWarehouseId,reason){
+  const current=activeWarehouseId(),allowed=allowedWarehouseIds(),pending=pendingWarehouseDeleteId();
+  if(current===previousWarehouseId&&allowed.includes(previousWarehouseId)&&!pending&&pendingActiveWarehouseMetadataChangeV783?.warehouseId===current){applyCanonicalActiveWarehouseMetadataV783();return true}
+  if(current===previousWarehouseId&&allowed.includes(previousWarehouseId)&&!pending)return false;
+  if(current&&current!==previousWarehouseId&&allowed.includes(current)&&!pending){freezeWorkspaceForWarehouseTransition();renderWarehouseLoading();if(window.__JF_TEST_NO_RELOAD){window.__jfRemoteWarehouseReplacementV783=current;return true}if(guardedWorkspaceReload(reason,current))return true;blockWorkspaceAfterWarehouseChange('Список складов изменился, но безопасная автоматическая перезагрузка была остановлена. Нажмите «Повторить проверку».');return true}
+  blockWorkspaceAfterWarehouseChange(pending?'Открытый склад удалён на другом компьютере. Локальный кэш заблокирован до подтверждения нового списка складов.':'Доступ к открытому складу отозван. Локальный кэш заблокирован и не будет отправлен на сервер.');return true
+}
 function clearWorkspaceReloadGuard(){try{sessionStorage.removeItem(workspaceReloadKey())}catch{}}
 async function retryWorkspaceAccess(){
   const button=q('#jfRetry'),message=q('#jfNoWarehouseMessage');if(button)button.disabled=true;if(message)message.textContent='Проверяем назначения складов на сервере…';
-  try{const activeChanged=await synchronizeCompanyWarehouseRegistry(),allowed=allowedWarehouseIds();if(!allowed.length){if(message)message.textContent='Сервер подтвердил: вашей учётной записи пока не назначен склад.';return false}const before=activeWarehouseId(),target=allowed.includes(before)?before:allowed[0],selectionChanged=target!==before;if(selectionChanged)window.TeplitsaWarehouseBootstrap.setActive(target);if(activeChanged||selectionChanged){guardedWorkspaceReload('warehouse-assignment-retry',target);return true}await confirmActiveWarehouseContext();mountWorkspace();return true}catch(error){if(message)message.textContent=`Проверка не выполнена: ${cloudResultError({error:error?.message||String(error)})}`;return false}finally{if(button)button.disabled=false}
+  try{const before=activeWarehouseId();await synchronizeCompanyWarehouseRegistry();const allowed=allowedWarehouseIds();if(pendingWarehouseDeleteId()){if(message)message.textContent='Сервер ещё не подтвердил новый список после удаления склада.';return false}if(!allowed.length){if(message)message.textContent='Сервер подтвердил: вашей учётной записи пока не назначен склад.';return false}const target=allowed.includes(activeWarehouseId())?activeWarehouseId():allowed[0];if(target!==activeWarehouseId())window.TeplitsaWarehouseBootstrap.setActive(target);if(applyWarehouseRegistryTransition(before,'warehouse-assignment-retry'))return true;await confirmActiveWarehouseContext();mountWorkspace();return true}catch(error){if(message)message.textContent=`Проверка не выполнена: ${cloudResultError({error:error?.message||String(error)})}`;return false}finally{if(button)button.disabled=false}
 }
 function addDesktopStrip(){let strip=q('#jfDesktopStrip');if(!strip){strip=document.createElement('div');strip.id='jfDesktopStrip';strip.className='jf-desktop-strip';document.body.prepend(strip)}const role=ROLE_LABELS[roleFor()]||'Пользователь',wh=window.TeplitsaWarehouseBootstrap?.activeWarehouse?.()?.name||'Склад',demo=desktopSession?.edition==='demo',offline=!!desktopSession?.auth?.offline;strip.innerHTML=`<div class="jf-license-banner">${demo?'<span class="jf-edition demo">DEMO 72 ЧАСА</span>':''}${offline?'<span class="jf-license-time">Автономный доступ</span>':''}${demo?`<span class="jf-license-time" id="jfDemoTime"></span>`:''}</div><div class="jf-userbar"><span>${esc(currentUser.fullName)} · ${esc(role)} · ${esc(wh)}</span><button id="jfProfileBtn">Профиль</button><button id="jfLogoutBtn">Выйти</button></div>`;q('#jfProfileBtn').onclick=openProfile;q('#jfLogoutBtn').onclick=logout;updateDemoTime(desktopSession?.demoRemainingMs)}
 function updateDemoTime(ms){const el=q('#jfDemoTime');if(!el||ms==null)return;const s=Math.max(0,Math.floor(ms/1000)),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);el.textContent=`Осталось ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
@@ -242,32 +288,53 @@ function normalizedServerWarehouse(item){
   const id=String(item?.id||''),code=String(item?.code||'СКЛ').toUpperCase().replace(/[^A-ZА-ЯЁ0-9]/g,'').slice(0,3)||'СКЛ';
   if(!/^[A-Za-z0-9_-]{1,120}$/.test(id))return null;
   const lat=item?.lat==null?null:Number(item.lat),lon=item?.lon==null?null:Number(item.lon);
-  return{id,name:String(item?.name||'Склад').slice(0,160),code,address:String(item?.address||'').slice(0,500),lat:Number.isFinite(lat)&&lat>=-90&&lat<=90?lat:null,lon:Number.isFinite(lon)&&lon>=-180&&lon<=180?lon:null,timezone:String(item?.timezone||'Europe/Moscow').slice(0,80),status:item?.status==='archived'?'archived':'active',catalogMode:'catalog',origin:'server',revision:Number(item?.revision)||0,digest:String(item?.digest_sha256||''),updatedAt:String(item?.updated_at||new Date().toISOString())};
+  return{id,name:String(item?.name||'Склад').slice(0,160),code,address:String(item?.address||'').slice(0,500),lat:Number.isFinite(lat)&&lat>=-90&&lat<=90?lat:null,lon:Number.isFinite(lon)&&lon>=-180&&lon<=180?lon:null,timezone:String(item?.timezone||'Europe/Moscow').slice(0,80),status:item?.status==='archived'?'archived':'active',catalogMode:'catalog',origin:'server',revision:Number(item?.entity_version??item?.revision)||0,digest:String(item?.digest_sha256||''),updatedAt:String(item?.updated_at||new Date().toISOString())};
 }
 async function synchronizeCompanyWarehouseRegistry(){
   const B=window.TeplitsaWarehouseBootstrap;
   if(!B||desktopSession?.edition==='demo'||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
-  const response=await window.JustFunDesktop?.regVps?.warehouses?.({environment:activeEnvironment()});
-  if(!response?.ok){audit('company_warehouse_registry_unavailable',{code:response?.code||'',error:response?.error||''});return false}
+  const response=await window.JustFunDesktop?.regVps?.warehouses?.({environment:'live'});
+  if(!response?.ok||response.configured!==true){
+    audit('company_warehouse_registry_unavailable',{code:response?.code||'',error:response?.error||'',configured:response?.configured===true});
+    throw Object.assign(new Error(response?.error||'Серверный реестр складов недоступен.'),{code:response?.code||'WAREHOUSE_REGISTRY_UNAVAILABLE'})
+  }
   const remote=(response.warehouses||[]).map(normalizedServerWarehouse).filter(Boolean);
-  if(!remote.length)return false;
-  const local=B.getRegistry(),counts=window.TeplitsaWarehouseV600?.counts?.()||{},businessCount=Number(counts.orders||0)+Number(counts.movements||0)+Number(counts.routes||0)+Number(counts.executions||0)+Number(counts.archives||0);
-  const replaceGenerated=businessCount===0&&local.warehouses.length===1&&String(local.warehouses[0]?.origin||'')==='local-default';
-  const byId=new Map(remote.map(item=>[String(item.id),item]));
-  if(!replaceGenerated){for(const item of local.warehouses){if(!byId.has(String(item.id)))byId.set(String(item.id),item)}}
-  const warehouses=[...byId.values()],remoteIds=new Set(remote.map(item=>String(item.id)));
+  const local=B.getRegistry(),companyId=String(desktopSession.auth.company.id||'');
+  if(!remote.length){
+    pendingActiveWarehouseMetadataChangeV783=null;
+    currentUser=cloudUserToLocal(desktopSession.auth.user,desktopSession.auth.company,desktopSession.auth);users=[currentUser];
+    if(typeof response.registryInitialized!=='boolean'){
+      audit('company_warehouse_registry_state_unknown',{workspaceId:companyId});
+      throw Object.assign(new Error('Сервер не подтвердил состояние пустого реестра складов.'),{code:'WAREHOUSE_REGISTRY_CONTRACT_MISMATCH'})
+    }
+    const counts=window.TeplitsaWarehouseV600?.counts?.()||{},businessCount=Number(counts.orders||0)+Number(counts.movements||0)+Number(counts.routes||0)+Number(counts.executions||0)+Number(counts.archives||0);
+    const freshGenerated=businessCount===0&&local.warehouses.length===1&&String(local.warehouses[0]?.origin||'')==='local-default';
+    const mayBootstrapFirstWarehouse=response.registryInitialized===false&&freshGenerated&&currentUser?.allWarehouses===true&&hasPermission('warehouses.manage');
+    if(mayBootstrapFirstWarehouse){
+      const changed=String(local.serverWorkspaceId||'')!==companyId||local.serverRegistryInitialized!==false;
+      if(changed)B.saveRegistry({...local,serverWorkspaceId:companyId,serverRegistryInitialized:false,serverHydratedAt:new Date().toISOString()});
+      return false
+    }
+    const changed=local.warehouses.length>0||local.activeWarehouseId!==''||local.serverAuthoritativeEmpty!==true||String(local.serverWorkspaceId||'')!==companyId||local.serverRegistryInitialized!==response.registryInitialized;
+    if(changed)B.saveRegistry({...local,warehouses:[],activeWarehouseId:'',pendingServerDeleteWarehouseId:'',serverAuthoritativeEmpty:true,serverRegistryInitialized:response.registryInitialized,serverHydratedAt:new Date().toISOString(),serverWorkspaceId:companyId});
+    return changed
+  }
+  const warehouses=remote,remoteIds=new Set(remote.map(item=>String(item.id)));
   let active=String(local.activeWarehouseId||'');
-  if(replaceGenerated||!warehouses.some(item=>String(item.id)===active&&item.status!=='archived'))active=remote.find(item=>item.status!=='archived')?.id||warehouses[0].id;
-  const next={...local,warehouses,activeWarehouseId:active,serverHydratedAt:new Date().toISOString(),serverWorkspaceId:String(desktopSession.auth.company.id||'')};
-  const signature=value=>JSON.stringify({activeWarehouseId:value.activeWarehouseId,warehouses:value.warehouses.map(item=>({id:item.id,code:item.code,name:item.name,address:item.address,status:item.status,origin:item.origin,revision:item.revision,digest:item.digest}))});
+  if(!warehouses.some(item=>String(item.id)===active&&item.status!=='archived'))active=remote.find(item=>item.status!=='archived')?.id||'';
+  const pending=String(local.pendingServerDeleteWarehouseId||''),next={...local,warehouses,activeWarehouseId:active,pendingServerDeleteWarehouseId:pending&&warehouses.some(item=>String(item.id)===pending)?pending:'',serverAuthoritativeEmpty:false,serverRegistryInitialized:true,serverHydratedAt:new Date().toISOString(),serverWorkspaceId:companyId};
+  const signature=value=>JSON.stringify({activeWarehouseId:value.activeWarehouseId,warehouses:value.warehouses.map(item=>({id:item.id,code:item.code,name:item.name,address:item.address,lat:item.lat,lon:item.lon,timezone:item.timezone,status:item.status,origin:item.origin,revision:item.revision,digest:item.digest}))});
   const changed=signature(local)!==signature(next);
   if(changed)B.saveRegistry(next);
   currentUser=cloudUserToLocal(desktopSession.auth.user,desktopSession.auth.company,desktopSession.auth);users=[currentUser];
-  return changed&&String(local.activeWarehouseId)!==String(active)&&remoteIds.has(String(active));
+  const previousActive=local.warehouses.find(item=>String(item.id)===String(local.activeWarehouseId)),nextActive=warehouses.find(item=>String(item.id)===String(active)),activeSelectionChanged=changed&&String(local.activeWarehouseId)!==String(active),activeMetadataChanged=!activeSelectionChanged&&String(active)===String(local.activeWarehouseId)&&remoteIds.has(String(active))&&(canonicalWarehouseMetadataSignatureV783(previousActive)!==canonicalWarehouseMetadataSignatureV783(nextActive)||!activeWarehouseSettingsMatchV783(nextActive));
+  if(activeSelectionChanged)pendingActiveWarehouseMetadataChangeV783=null;else if(activeMetadataChanged)stageActiveWarehouseMetadataChangeV783(previousActive,nextActive);
+  return activeSelectionChanged||pendingActiveWarehouseMetadataChangeV783?.warehouseId===String(active);
 }
+window.JustFunWarehouseRegistryV783=Object.freeze({refresh:synchronizeCompanyWarehouseRegistry,showNoWarehouse:renderNoWarehouse});
 function requiresAuthoritativeWarehouseRegistry(){
   if(desktopSession?.edition==='demo'||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
-  const companyId=String(desktopSession?.auth?.company?.id||'');return !companyId||String(registry().serverWorkspaceId||'')!==companyId
+  const companyId=String(desktopSession?.auth?.company?.id||''),pending=pendingWarehouseDeleteId();return !companyId||String(registry().serverWorkspaceId||'')!==companyId||Boolean(pending&&registry().warehouses.some(item=>String(item.id)===pending))
 }
 async function restoreFreshComputerWorkspace(){
   if(desktopSession?.edition==='demo'||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
@@ -293,10 +360,10 @@ async function synchronizeWorkspaceInBackground(){
   if(backgroundWorkspaceSyncStarted||desktopSession?.edition==='demo'||desktopSession?.auth?.offline)return;
   backgroundWorkspaceSyncStarted=true;
   try{
-    const before=activeWarehouseId(),reloadRequired=await synchronizeCompanyWarehouseRegistry(),allowed=allowedWarehouseIds();
-    if(reloadRequired||!allowed.includes(before)){
-      const target=allowed.includes(activeWarehouseId())?activeWarehouseId():allowed[0];if(target&&target!==activeWarehouseId())window.TeplitsaWarehouseBootstrap.setActive(target);if(!guardedWorkspaceReload('warehouse-registry-changed',target)){renderNoWarehouse('Список складов изменился, но повторная автоматическая перезагрузка остановлена. Нажмите «Повторить проверку».')}return
-    }
+    const before=activeWarehouseId();await synchronizeCompanyWarehouseRegistry();const allowed=allowedWarehouseIds();
+    if(!allowed.includes(before)){const target=allowed.includes(activeWarehouseId())?activeWarehouseId():allowed[0];if(target&&target!==activeWarehouseId())window.TeplitsaWarehouseBootstrap.setActive(target)}
+    if(applyWarehouseRegistryTransition(before,'warehouse-registry-changed'))return;
+    if(pendingWarehouseDeleteId()){renderNoWarehouse('Удаление склада подтверждено событием сервера, но новый список складов ещё не получен. Повторите проверку.');return}
     if(!document.documentElement.classList.contains('jf-authenticated')&&allowed.length){mountWorkspace();return}
     const restored=await restoreFreshComputerWorkspace();
     if(restored){window.renderAll?.();toast('Свежая защищённая копия склада восстановлена с сервера.')}
@@ -304,6 +371,7 @@ async function synchronizeWorkspaceInBackground(){
 }
 async function enterWorkspace(){
   const allowed=allowedWarehouseIds(),current=activeWarehouseId();
+  if(pendingWarehouseDeleteId()){renderNoWarehouse('Сервер сообщил об удалении открытого склада. Подключитесь к сети и нажмите «Повторить проверку», чтобы получить новый список складов.');return false}
   if(requiresAuthoritativeWarehouseRegistry()){renderWarehouseLoading();setTimeout(()=>synchronizeWorkspaceInBackground(),0);return false}
   if(!allowed.length){renderNoWarehouse();setTimeout(()=>synchronizeWorkspaceInBackground(),0);return false}
   if(!allowed.includes(current)){window.TeplitsaWarehouseBootstrap.setActive(allowed[0]);if(!guardedWorkspaceReload('warehouse-selection',allowed[0]))renderNoWarehouse('Назначение склада получено, но повторная перезагрузка остановлена. Нажмите «Повторить проверку».');return false}
@@ -408,6 +476,10 @@ async function configureRegVps(){
 const ENTITY_ARRAY_SECTIONS=['orders','products','inventoryMovements','drivers','routeArchives'];
 const ENTITY_MAP_SECTIONS=['routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides','routeExecutions','warehouseReservations','manualRouteSequences'];
 const ENTITY_SINGLETON_SECTIONS=['settings','reportingData','company'];
+const WAREHOUSE_REGISTRY_ENVIRONMENT='live';
+const ENTITY_SETTINGS_WAREHOUSE_FIELDS=['warehouse'];
+const ENTITY_SETTINGS_ROUTE_FIELDS=['routeStartTime','serviceMinutes','serviceMinMinutes','serviceMaxMinutes','minRouteHours','maxRouteHours','maxRoundKm','maxStops','routeMode','returnToDepot','routeProfile','routeHintsEnabled','driverPayment','deliveryPricing','driverRatePerKm','loadingStartTime','loadingBayCount','loadingMinutes','loadingIntervalMinutes','driverArrivalLeadMinutes','arrivalWindowMinutes','loadingPriority'];
+const ENTITY_SETTINGS_INTEGRATION_FIELDS=['nominatimUrl','osrmUrl','tileUrl'];
 const ENTITY_UPDATE_PERMISSION={warehouse:['warehouses.manage'],orders:['orders.create','orders.update','orders.status','orders.payment','orders.pricing','orders.delete'],products:['inventory.catalog','inventory.stock','inventory.pricing','inventory.delete'],inventoryMovements:['inventory.stock'],drivers:['drivers.update','drivers.delete'],settings:['warehouses.manage','routes.settings','integrations.manage'],company:['company.update'],reportingData:['reports.settings','reports.expenses'],routePlans:['routes.plan','routes.approve','routes.pick','routes.start','routes.return','routes.close','routes.cancel'],routeAssignments:['routes.plan','routes.cancel'],routeCatalog:['routes.plan','routes.cancel'],routeDriverAssignments:['drivers.assign','routes.cancel'],routeLocks:['routes.plan','routes.approve','routes.cancel'],routeOverrides:['routes.settings','routes.cancel'],routeExecutions:['routes.start','routes.return','routes.close'],routeArchives:['routes.close'],warehouseReservations:['inventory.pick','routes.close'],manualRouteSequences:['routes.plan','routes.cancel']};
 const cloudSyncState={installed:false,bootstrapped:false,bootstrapPromise:null,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,inFlight:false,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set()};
 function stableEntityValue(value){if(Array.isArray(value))return value.map(stableEntityValue);if(value&&typeof value==='object'){const out={};for(const key of Object.keys(value).sort())out[key]=stableEntityValue(value[key]);return out}return value}
@@ -443,13 +515,19 @@ function canonicalServerEntity(entity){
   if(!payload.createdAt&&(item.created_at||item.createdAt))payload.createdAt=String(item.created_at||item.createdAt);
   return{...item,payload}
 }
+function serverSettingsPayload(value,{initial=false}={}){
+  const source=asObject(value),keys=[...ENTITY_SETTINGS_WAREHOUSE_FIELDS];
+  if(!initial||hasPermission('routes.settings'))keys.push(...ENTITY_SETTINGS_ROUTE_FIELDS);
+  if(!initial||hasPermission('integrations.manage'))keys.push(...ENTITY_SETTINGS_INTEGRATION_FIELDS);
+  const payload={};for(const key of keys)if(Object.prototype.hasOwnProperty.call(source,key))payload[key]=cloneValue(source[key]);return payload
+}
 function splitEntitySnapshot(snapshot){
   const map=new Map(),data=asObject(snapshot?.data),warehouse=asObject(snapshot?.warehouse),warehouseId=activeWarehouseId();
   // Unassigned automatic routes are render-time previews, not server entities.
   const referencedRouteIds=new Set([...Object.values(asObject(data.routeAssignments)),...Object.values(asObject(data.routeLocks)),...Object.keys(asObject(data.routePlans)),...Object.keys(asObject(data.routeDriverAssignments)),...Object.keys(asObject(data.routeOverrides)),...Object.keys(asObject(data.routeExecutions))].map(String).filter(id=>id&&id!=='__unassigned__'));
   const add=(type,id,payload)=>{id=String(id||'');if(!/^[A-Za-z0-9_-]{1,160}$/.test(id))throw new Error(`Раздел ${type} содержит запись без безопасного идентификатора.`);map.set(entityKey(type,id),{type,id,payload:wrappedEntityPayload(payload),fingerprint:entityFingerprint(wrappedEntityPayload(payload))})};
-  add('warehouse',warehouseId,warehouse);
-  for(const type of ENTITY_SINGLETON_SECTIONS){const value=data[type];if(value&&typeof value==='object'&&!Array.isArray(value))add(type,type,value)}
+  if(activeEnvironment()===WAREHOUSE_REGISTRY_ENVIRONMENT)add('warehouse',warehouseId,warehouse);
+  for(const type of ENTITY_SINGLETON_SECTIONS){const value=data[type];if(value&&typeof value==='object'&&!Array.isArray(value))add(type,type,type==='settings'?serverSettingsPayload(value):value)}
   for(const type of ENTITY_ARRAY_SECTIONS){for(const value of asArray(data[type])){const fallback=type==='routeArchives'?(value?.routeId||value?.executionId):'';add(type,value?.id||fallback,value)}}
   for(const type of ENTITY_MAP_SECTIONS){for(const[id,value]of Object.entries(asObject(data[type]))){if(type==='routeCatalog'&&value?.custom!==true&&!referencedRouteIds.has(String(id)))continue;add(type,id,value)}}
   return map;
@@ -480,16 +558,21 @@ function knownWarehouseVersion(record){
   const id=String(record?.id||''),known=cloudSyncState.scope===entityScope()?cloudSyncState.known.get(entityKey('warehouse',id)):null,stored=Number(record?.revision||0);
   return Number.isSafeInteger(Number(known?.version))?Number(known.version):(Number.isSafeInteger(stored)&&stored>=0?stored:0)
 }
-async function writeAuthoritativeWarehouse(record,{deleted=false,baseVersion}={}){
+async function writeAuthoritativeWarehouse(record,{deleted=false,baseVersion,initialSettings=null,initialCompany=null}={}){
   if(desktopSession?.edition==='demo')return{ok:true,skipped:true,version:Number(baseVersion)||0};
   if(desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.writeWarehouse)throw new Error('Изменение склада требует рабочего VPS. Локальный кэш открыт только для чтения.');
   const id=String(record?.id||'');if(!id)throw new Error('Идентификатор склада не определён.');
-  const version=baseVersion==null?knownWarehouseVersion(record):Number(baseVersion),payload=deleted?null:{...cloneValue(record),id,environment:activeEnvironment()};
+  const version=baseVersion==null?knownWarehouseVersion(record):Number(baseVersion),payload=deleted?null:{...cloneValue(record),id,environment:WAREHOUSE_REGISTRY_ENVIRONMENT};
   if(payload){delete payload.revision;delete payload.digest;delete payload.updated_at}
-  const result=await window.JustFunDesktop.regVps.writeWarehouse({warehouseId:id,environment:activeEnvironment(),commandId:newEntityCommandId(),changes:[{type:'warehouse',id,baseVersion:version,deleted,payload}]});
+  const changes=[{type:'warehouse',id,baseVersion:version,deleted,payload}];
+  if(!deleted&&version===0&&initialSettings&&typeof initialSettings==='object'&&!Array.isArray(initialSettings)){
+    const settingsPayload=serverSettingsPayload(initialSettings,{initial:true});if(Object.keys(settingsPayload).length)changes.push({type:'settings',id:'settings',baseVersion:0,deleted:false,payload:settingsPayload});
+    if(hasPermission('company.update')&&initialCompany&&typeof initialCompany==='object'&&!Array.isArray(initialCompany)&&Object.keys(initialCompany).length)changes.push({type:'company',id:'company',baseVersion:0,deleted:false,payload:cloneValue(initialCompany)})
+  }
+  const result=await window.JustFunDesktop.regVps.writeWarehouse({warehouseId:id,warehouseCode:String(record?.code||''),environment:WAREHOUSE_REGISTRY_ENVIRONMENT,commandId:newEntityCommandId(),changes});
   if(!result?.ok)throw Object.assign(new Error(result?.error||'VPS не подтвердил изменение склада.'),{code:result?.code||'WAREHOUSE_WRITE_FAILED',details:result?.details||{}});
   const confirmed=result.entities?.find(item=>item.type==='warehouse'&&item.id===id),confirmedVersion=Number(confirmed?.version)||version;
-  if(cloudSyncState.scope===entityScope()){if(deleted)cloudSyncState.known.set(entityKey('warehouse',id),{version:confirmedVersion,digest:String(confirmed?.digest||''),fingerprint:'',deleted:true,eventId:Number(confirmed?.eventId)||0});else cloudSyncState.known.set(entityKey('warehouse',id),{version:confirmedVersion,digest:String(confirmed?.digest||''),fingerprint:entityFingerprint(payload),deleted:false,eventId:Number(confirmed?.eventId)||0});saveEntitySyncState()}
+  if(activeEnvironment()===WAREHOUSE_REGISTRY_ENVIRONMENT&&id===activeWarehouseId()&&cloudSyncState.scope===entityScope()){if(deleted)cloudSyncState.known.set(entityKey('warehouse',id),{version:confirmedVersion,digest:String(confirmed?.digest||''),fingerprint:'',deleted:true,eventId:Number(confirmed?.eventId)||0});else cloudSyncState.known.set(entityKey('warehouse',id),{version:confirmedVersion,digest:String(confirmed?.digest||''),fingerprint:entityFingerprint(payload),deleted:false,eventId:Number(confirmed?.eventId)||0});saveEntitySyncState()}
   return{...result,version:confirmedVersion}
 }
 window.JustFunServerStorageV3=Object.freeze({writeWarehouse:writeAuthoritativeWarehouse,deleteWarehouse:(record,options={})=>writeAuthoritativeWarehouse(record,{...options,deleted:true})});
@@ -509,7 +592,7 @@ async function bootstrapEntitySync(force=false){
     const warehouseId=activeWarehouseId(),environment=activeEnvironment(),localSnapshot=buildBackupPayload();let result=await window.JustFunDesktop.regVps.bootstrapEntities({warehouseId,environment});
     if(!result?.ok)throw Object.assign(new Error(result?.error||'VPS не вернул сущности склада.'),{code:result?.code||'ENTITY_BOOTSTRAP_FAILED'});
     let entities=asArray(result.entities).map(canonicalServerEntity);
-    if(!entities.some(entity=>entity.type==='warehouse'&&entity.id===warehouseId)){
+    if(environment===WAREHOUSE_REGISTRY_ENVIRONMENT&&!entities.some(entity=>entity.type==='warehouse'&&entity.id===warehouseId)){
       if(!canWriteEntity('warehouse'))throw Object.assign(new Error('Склад ещё не зарегистрирован на VPS и у пользователя нет права его создать.'),{code:'WAREHOUSE_NOT_REGISTERED'});
       const seed=initialServerSeedChanges(localSnapshot),created=await window.JustFunDesktop.regVps.syncEntities({warehouseId,environment,commandId:newEntityCommandId(),changes:seed});
       if(!created?.ok)throw Object.assign(new Error(created?.error||'VPS не зарегистрировал склад.'),{code:created?.code||'WAREHOUSE_CREATE_FAILED',details:created?.details||{}});
@@ -633,22 +716,29 @@ async function flushEntitySyncBeforeContextChange(){
   return true
 }
 window.JustFunEntitySyncV783=Object.freeze({flushAndConfirm:flushEntitySyncBeforeContextChange,status:()=>({bootstrapped:cloudSyncState.bootstrapped,dirty:cloudSyncState.dirty,inFlight:cloudSyncState.inFlight,conflicts:cloudSyncState.conflicts.size,scope:cloudSyncState.scope,cursor:cloudSyncState.cursor})});
+let nextWarehouseRegistryRefreshAtV783=0;
+async function refreshWarehouseRegistryDuringPollingV783(force=false,reason='warehouse-registry-periodic'){
+  const now=Date.now();if(!force&&now<nextWarehouseRegistryRefreshAtV783)return false;nextWarehouseRegistryRefreshAtV783=now+30000;
+  const before=activeWarehouseId();await synchronizeCompanyWarehouseRegistry();return applyWarehouseRegistryTransition(before,reason)
+}
 async function pollCloudRevision(){
   if(cloudSyncState.inFlight||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
-  const now=Date.now();if(now<cloudSyncState.nextPollAt)return;await bootstrapEntitySync();if(!cloudSyncState.bootstrapped)return;
+  const now=Date.now();if(now<cloudSyncState.nextPollAt)return;if(await refreshWarehouseRegistryDuringPollingV783(false))return;await bootstrapEntitySync();if(!cloudSyncState.bootstrapped)return;
   const warehouseId=activeWarehouseId(),environment=activeEnvironment();if(!warehouseId)return;cloudSyncState.inFlight=true;
   try{
-    let more=true,rounds=0,applied=0,workingSnapshot=null,current=null;
+    let more=true,rounds=0,applied=0,workingSnapshot=null,current=null,activeWarehouseDeleted=false;
     while(more&&rounds++<8){
-      const result=await window.JustFunDesktop?.regVps?.entityChanges?.({warehouseId,environment,afterEventId:cloudSyncState.cursor,limit:250});if(!result?.ok)throw Object.assign(new Error(result?.error||'Лента изменений VPS недоступна.'),{code:result?.code||'ENTITY_CHANGES_FAILED'});
+      const result=await window.JustFunDesktop?.regVps?.entityChanges?.({warehouseId,environment,afterEventId:cloudSyncState.cursor,limit:250});if(!result?.ok){const code=String(result?.code||'ENTITY_CHANGES_FAILED');if(code.toLowerCase()==='warehouse_access_denied'){if(await refreshWarehouseRegistryDuringPollingV783(true,'warehouse-access-revoked'))return;blockWorkspaceAfterWarehouseChange('Сервер отозвал доступ к открытому складу. Локальный кэш заблокирован до повторной проверки.');return}throw Object.assign(new Error(result?.error||'Лента изменений VPS недоступна.'),{code})}
       if(entityTypeSetSignature(result.readableTypes)!==entityTypeSetSignature([...cloudSyncState.readableTypes])){cloudSyncState.bootstrapped=false;await bootstrapEntitySync(true);workingSnapshot=null;current=null;applied=0;more=false;break}
       if(!asArray(result.events).length){cloudSyncState.cursor=Math.max(cloudSyncState.cursor,Number(result.cursor)||0);more=false;break}
       workingSnapshot=workingSnapshot||buildBackupPayload();current=current||splitEntitySnapshot(workingSnapshot);
       for(const rawEvent of result.events){const event=canonicalServerEntity(rawEvent),key=entityKey(event.type,event.id),known=cloudSyncState.known.get(key),local=current.get(key),localDirty=local?(!known||known.deleted||local.fingerprint!==known.fingerprint):Boolean(known&&!known.deleted);if(Number(event.version)<=Number(known?.version||0))continue;
+        if(event.type==='warehouse'&&event.id===warehouseId&&event.operation==='delete'){activeWarehouseDeleted=true;current.delete(key);cloudSyncState.known.set(key,{version:Number(event.version)||0,digest:String(event.digest||''),fingerprint:'',deleted:true,eventId:Number(event.eventId)||0});applied++;continue}
         if(localDirty){cloudSyncState.conflicts.set(key,{type:event.type,id:event.id,remoteVersion:event.version,remotePayload:event.payload,operation:event.operation,eventId:event.eventId,detectedAt:new Date().toISOString()});integrationBadge('jfRegBadge','Нужно решить конфликт','error');continue}
         applyEntityToSnapshot(workingSnapshot,event,event.operation==='delete');if(event.operation==='delete')current.delete(key);else current.set(key,{type:event.type,id:event.id,payload:event.payload,fingerprint:entityFingerprint(event.payload)});cloudSyncState.known.set(key,{version:Number(event.version)||0,digest:String(event.digest||''),fingerprint:event.operation==='delete'?'':entityFingerprint(event.payload),deleted:event.operation==='delete',eventId:Number(event.eventId)||0});applied++}
       cloudSyncState.cursor=Math.max(cloudSyncState.cursor,Number(result.cursor)||0);more=result.hasMore===true;
     }
+    if(activeWarehouseDeleted){markPendingWarehouseDelete(warehouseId);cloudSyncState.dirty=false;cloudSyncState.conflicts=new Map();saveEntitySyncState();try{await synchronizeCompanyWarehouseRegistry()}catch(error){applyWarehouseRegistryTransition(warehouseId,'active-warehouse-delete-pending');throw error}audit('active_warehouse_deleted_remotely',{warehouseId,replacement:activeWarehouseId()});applyWarehouseRegistryTransition(warehouseId,'active-warehouse-deleted');return}
     if(applied&&workingSnapshot){cloudSyncState.suspended++;try{await window.TeplitsaWarehouseV600?.importServerSnapshot?.(workingSnapshot)}finally{cloudSyncState.suspended--}integrationBadge('jfRegBadge','Получены изменения','ready');integrationStatus('jfRegStatus',`Применено ${applied} изменений отдельных записей с других компьютеров.`,'ok')}
     if(cloudSyncState.conflicts.size)integrationStatus('jfRegStatus',`Обнаружено конфликтов: ${cloudSyncState.conflicts.size}. Локальные данные не перезаписаны; требуется выбрать версию.`,'error');
     cloudSyncState.pollFailures=0;cloudSyncState.nextPollAt=0;saveEntitySyncState();
@@ -1087,8 +1177,18 @@ function confirmStartupReady(surface){
   if(startupReadySent)return;startupReadySent=true;
   window.JustFunDesktop?.startupReady?.({surface,readyState:document.readyState,warehouseId:activeWarehouseId()}).catch?.(error=>console.error('Startup ready confirmation failed',error));
 }
+function handleDesktopAppEvent(event){
+  const type=String(event?.type||''),message=String(event?.message||'').trim();
+  if(type==='warning'&&message){toast(message,'error');return}
+  if(type==='warehouse-delete-resume'&&message){toast(message,event?.status==='completed'?'ok':'error');return}
+  if(type==='warehouse-delete-refresh'){
+    if(message)toast(message,event?.status==='completed-elsewhere'?'ok':'error');
+    const before=activeWarehouseId();
+    synchronizeCompanyWarehouseRegistry().then(()=>applyWarehouseRegistryTransition(before,'warehouse-delete-server-refresh')).catch(error=>{toast(error?.message||'Не удалось обновить список складов с VPS.','error');audit('warehouse_delete_registry_refresh_failed',{code:error?.code||'',warehouseId:String(event?.warehouseId||'')})});
+  }
+}
 async function init(){
-  modernAlert();installDesktopDialogAccessibility();window.JustFunDesktop?.startupStage?.('access-init','Проверяем редакцию и Cloudflare-сессию');desktopSession=await window.JustFunDesktop?.getSession?.()||{edition:'full'};
+  modernAlert();installDesktopDialogAccessibility();window.JustFunDesktop?.onAppEvent?.(handleDesktopAppEvent);window.JustFunDesktop?.startupStage?.('access-init','Проверяем редакцию и Cloudflare-сессию');desktopSession=await window.JustFunDesktop?.getSession?.()||{edition:'full'};
   window.JustFunDesktop?.onDemoTick?.(x=>{desktopSession.demoRemainingMs=x.remainingMs;updateDemoTime(x.remainingMs)});
   if(desktopSession.edition==='demo'){
     if(!window.TeplitsaWarehouseBootstrap?.isDemo?.())throw new Error('DEMO-среда не была выбрана до чтения данных');

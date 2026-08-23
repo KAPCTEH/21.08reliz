@@ -39,11 +39,13 @@
   }
   function normalizeRegistry(value){
     const list=Array.isArray(value?.warehouses)?value.warehouses.filter(x=>x&&x.id):[];
+    const serverAuthoritative=value?.serverRegistryInitialized===true||value?.serverAuthoritativeEmpty===true;
+    if(!list.length&&serverAuthoritative)return{...value,version:2,activeWarehouseId:'',warehouses:[],serverAuthoritativeEmpty:true};
     if(!list.length){const first=legacyWarehouse();return{version:2,activeWarehouseId:first.id,warehouses:[first],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()}}
     const warehouses=list.map((x,index)=>({...x,id:String(x.id),name:String(x.name||'Склад'),code:safeCode(x.code),status:x.status==='archived'?'archived':'active',catalogMode:x.catalogMode==='catalog'?'catalog':x.catalogMode==='empty'?'empty':index===0?'catalog':'empty',origin:String(x.origin||'local')}));
-    if(!warehouses.some(x=>x.status!=='archived'))warehouses[0].status='active';
-    let active=String(value.activeWarehouseId||'');if(!warehouses.some(x=>x.id===active&&x.status!=='archived'))active=warehouses.find(x=>x.status!=='archived').id;
-    return{...value,version:2,activeWarehouseId:active,warehouses};
+    if(!serverAuthoritative&&!warehouses.some(x=>x.status!=='archived'))warehouses[0].status='active';
+    let active=String(value.activeWarehouseId||'');if(!warehouses.some(x=>x.id===active&&x.status!=='archived'))active=warehouses.find(x=>x.status!=='archived')?.id||'';
+    return{...value,version:2,activeWarehouseId:active,warehouses,serverAuthoritativeEmpty:false};
   }
   function migrateLegacyCompanyScope(){
     if(DESKTOP_DEMO||!COMPANY_ID||raw.get(REGISTRY_KEY)!==null)return;

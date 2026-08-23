@@ -231,6 +231,47 @@ assert.equal(main.companyWorkspaceId(repaired),'cmp_company_1234567890');
 assert.equal(main.canConfigureCompanyServer(repaired),true);
 assert.equal(main.canConfigureCompanyServer({user:{role:'manager',permissions:['integrations.manage']}}),true);
 assert.equal(main.canConfigureCompanyServer({user:{role:'manager',permissions:['users.read']}}),false);
+assert.equal(main.canManageCompanyWarehouses(repaired),true);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage']}}),true);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['warehouses.*']}}),true);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['integrations.manage']}}),false);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['company.update']}}),false);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['users.read']}}),false);
+assert.equal(main.canCreateCompanyWarehouses(repaired),true);
+assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:*']}}),true);
+assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:warehouse_1234567890']}}),false);
+assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage']}}),false);
+assert.equal(main.canDeleteCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:*']}}),true);
+assert.equal(main.canDeleteCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:warehouse_1234567890']}}),false);
+assert.equal(main.validateWarehouseCode('СПБ'),'СПБ');
+assert.throws(()=>main.validateWarehouseCode('spb'),error=>error?.code==='WAREHOUSE_CODE_INVALID');
+const validDeleteLease={ok:true,active:true,prepared:false,status:'active',lease:{id:'wdl_1234567890abcdef',company_id:'cmp_company_1234567890',warehouse_id:'warehouse_1234567890',warehouse_code:'СПБ',status:'active',expires_at:new Date(Date.now()+120_000).toISOString()},lease_token:`jfdl_${'a'.repeat(43)}`,remaining_seconds:120};
+assert.equal(main.validateWarehouseDeleteLease(validDeleteLease,'warehouse_1234567890','СПБ',repaired).token,validDeleteLease.lease_token);
+const recoveredPreparedDeleteLease={...validDeleteLease,prepared:true,status:'prepared',recovered:true,lease:{...validDeleteLease.lease,status:'prepared',expires_at:null},remaining_seconds:null};
+assert.deepEqual(main.validateWarehouseDeleteLease(recoveredPreparedDeleteLease,'warehouse_1234567890','СПБ',repaired),{token:validDeleteLease.lease_token,leaseId:'wdl_1234567890abcdef',expiresAt:null,remainingSeconds:null,status:'prepared',prepared:true});
+assert.throws(()=>main.validateWarehouseDeleteLease({...recoveredPreparedDeleteLease,remaining_seconds:0},'warehouse_1234567890','СПБ',repaired),error=>error?.code==='WAREHOUSE_DELETE_LEASE_INVALID');
+assert.throws(()=>main.validateWarehouseDeleteLease({...validDeleteLease,lease:{...validDeleteLease.lease,company_id:'cmp_other_1234567890'}},'warehouse_1234567890','СПБ',repaired),error=>error?.code==='WAREHOUSE_DELETE_LEASE_INVALID');
+assert.throws(()=>main.validateWarehouseDeleteLease({...validDeleteLease,remaining_seconds:10},'warehouse_1234567890','СПБ',repaired),error=>error?.code==='WAREHOUSE_DELETE_LEASE_INVALID');
+assert.match(main.warehouseDeleteLeaseSecretName('cmp_company_1234567890','warehouse_1234567890','usr_owner_1234567890'),/^warehouseDeleteLease:[0-9a-f]{32}$/);
+assert.notEqual(main.warehouseDeleteLeaseSecretName('cmp_company_1234567890','warehouse_1234567890','usr_owner_1234567890'),main.warehouseDeleteLeaseSecretName('cmp_company_1234567890','warehouse_1234567890','usr_other_1234567890'));
+assert.equal(main.warehouseDeletePrepareFailureAction('WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED','confirmed'),'reacquire');
+assert.equal(main.warehouseDeletePrepareFailureAction('WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED','vps_prepared'),'superseded');
+assert.equal(main.warehouseDeletePrepareFailureAction('warehouse_delete_lease_superseded','confirmed'),'superseded');
+assert.equal(main.warehouseDeletePrepareFailureAction('entity_version_conflict','confirmed'),'propagate');
+assert.equal(main.regVpsAttestationSecretName('cmp_company_1234567890'),'regVpsAttestation:cmp_company_1234567890');
+assert.equal(main.regWarehouseDeletePreparePath({workspace_id:'cmp_company_1234567890'},'warehouse_1234567890'),'/v1/workspaces/cmp_company_1234567890/warehouses/warehouse_1234567890/delete-prepare');
+const validTelegramDeprovision={ok:true,deprovisioned:true,company_id:'cmp_company_1234567890',warehouse_id:'warehouse_1234567890',installation_id:'tg_installation_1234567890',already_deprovisioned:false};
+assert.equal(main.validateTelegramDeprovisionResult(validTelegramDeprovision,'warehouse_1234567890',{installationId:'tg_installation_1234567890'}).installationId,'tg_installation_1234567890');
+assert.throws(()=>main.validateTelegramDeprovisionResult({...validTelegramDeprovision,warehouse_id:'warehouse_other_1234567890'},'warehouse_1234567890'),error=>error?.code==='TELEGRAM_DEPROVISION_UNCONFIRMED');
+assert.throws(()=>main.validateTelegramDeprovisionResult({...validTelegramDeprovision,installation_id:'tg_other_1234567890'},'warehouse_1234567890',{installationId:'tg_installation_1234567890'}),error=>error?.code==='TELEGRAM_DEPROVISION_UNCONFIRMED');
+assert.throws(()=>main.validateTelegramDeprovisionResult({...validTelegramDeprovision,company_id:'cmp_other_1234567890'},'warehouse_1234567890',{expectedCompanyId:'cmp_company_1234567890'}),error=>error?.code==='TELEGRAM_DEPROVISION_UNCONFIRMED');
+const proofBoundTelegramDeprovision={...validTelegramDeprovision,warehouse_code:'СПБ',delete_command_id:'client:test:warehouse:delete:proof',delete_base_version:2};
+assert.equal(main.validateTelegramDeprovisionResult(proofBoundTelegramDeprovision,'warehouse_1234567890',{expectedWarehouseCode:'СПБ',expectedDeleteCommandId:'client:test:warehouse:delete:proof',expectedDeleteBaseVersion:2}).warehouseId,'warehouse_1234567890');
+assert.throws(()=>main.validateTelegramDeprovisionResult({...proofBoundTelegramDeprovision,delete_base_version:3},'warehouse_1234567890',{expectedWarehouseCode:'СПБ',expectedDeleteCommandId:'client:test:warehouse:delete:proof',expectedDeleteBaseVersion:2}),error=>error?.code==='TELEGRAM_DEPROVISION_UNCONFIRMED');
+const storedDeleteBatch=main.normalizeWarehouseDeleteBatch({command_id:'client:test:warehouse:delete:journal',changes:[{type:'warehouse',id:'warehouse_1234567890',base_version:2,deleted:true,payload:null}],intent:null},'warehouse_1234567890');
+assert.equal(storedDeleteBatch.command_id,'client:test:warehouse:delete:journal');
+assert.equal(storedDeleteBatch.changes[0].base_version,2);
+assert.equal(storedDeleteBatch.changes[0].deleted,true);
 assert.equal(main.normalizeCloudUser({id:'usr_custom_role_1234',role:'Старший кладовщик',permissions:['inventory.read']},{},{},{auth_context_verified:true,user_id:'usr_custom_role_1234'}).role,'Старший кладовщик');
 assert.equal(main.regDiagnosticStage({code:'ENOTFOUND'}),'dns');
 assert.equal(main.regDiagnosticStage({code:'ECONNRESET'}),'connection');
@@ -262,6 +303,7 @@ assert.equal(registerHandler.includes('/v1/license/check'), false);
 assert.equal(registerHandler.includes('/v1/owner/register'), true);
 assert.equal(source.includes('--jf-company-id='), true);
 assert.equal(source.includes('/v1/warehouses?environment='), true);
+assert.equal(source.includes("typeof result.registry_initialized==='boolean'?result.registry_initialized:null"), true);
 assert.equal(source.includes("cloudAuthenticatedRequest('PUT','/v1/company/data-service'"), true);
 assert.equal(source.includes('desktop:auth-user-access'), true);
 assert.equal(source.includes('/access`'), true);
@@ -283,6 +325,21 @@ assert.match(main.telegramCompanyPublishPendingMessage('TELEGRAM_UPSTREAM_INVALI
 assert.match(main.friendlyCloudNetworkError({code:'ECONNRESET',message:'socket reset'}).message,/сетью или VPN/);
 
 (async()=>{
+let unlockFirstDelete;
+const deleteLockEvents=[];
+const firstDelete=main.withWarehouseDeleteOperationLock('cmp_company_1234567890','warehouse_1234567890',async()=>{
+  deleteLockEvents.push('first:start');
+  await new Promise(resolve=>{unlockFirstDelete=resolve});
+  deleteLockEvents.push('first:end');
+  return'first';
+});
+await new Promise(resolve=>setImmediate(resolve));
+const secondDelete=main.withWarehouseDeleteOperationLock('cmp_company_1234567890','warehouse_1234567890',async()=>{deleteLockEvents.push('second:start');return'second'});
+await new Promise(resolve=>setImmediate(resolve));
+assert.deepEqual(deleteLockEvents,['first:start']);
+unlockFirstDelete();
+assert.deepEqual(await Promise.all([firstDelete,secondDelete]),['first','second']);
+assert.deepEqual(deleteLockEvents,['first:start','first:end','second:start']);
 let retryCalls=0,retryEvents=0;
 const retryResult=await main.withCloudNetworkRetry(async()=>{
   retryCalls++;
@@ -382,5 +439,7 @@ console.log(JSON.stringify({
   addressProviderServerFirst: true,
   autocompleteDoesNotUsePublicNominatim: true,
   releasedAddressRequiresVps: true,
+  warehouseDeleteJournalReplay: true,
+  telegramDeprovisionValidation: true,
 }));
 })().catch(error=>{console.error(error);process.exitCode=1});

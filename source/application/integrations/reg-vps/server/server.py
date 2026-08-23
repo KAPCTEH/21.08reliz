@@ -10,6 +10,7 @@ import logging
 import math
 import os
 import re
+import secrets
 import threading
 import time
 import unicodedata
@@ -34,6 +35,13 @@ MAX_BODY = int(os.environ.get("JF_MAX_BODY", str(30 * 1024 * 1024)))
 AUTH_ORIGIN = os.environ.get(
     "JF_AUTH_ORIGIN", "https://justfun-license-api.l2maloy47rus.workers.dev"
 ).rstrip("/")
+TELEGRAM_BROKER_ORIGIN = os.environ.get(
+    "JF_TELEGRAM_BROKER_ORIGIN", "https://justfun-company-telegram.l2maloy47rus.workers.dev"
+).rstrip("/")
+VPS_ATTESTATION_SECRET_RE = re.compile(r"^jfvps_[A-Za-z0-9_-]{43,120}$")
+VPS_ATTESTATION_CONTRACT = 1
+WAREHOUSE_DELETE_RELEASE_OUTBOX_CONTRACT = 1
+WAREHOUSE_DELETE_RELEASE_RETRY_SECONDS = 30
 AUTH_CACHE_SECONDS = max(5, min(60, int(os.environ.get("JF_AUTH_CACHE_SECONDS", "20"))))
 NOMINATIM_ORIGIN = os.environ.get("JF_NOMINATIM_ORIGIN", "https://nominatim.openstreetmap.org").rstrip("/")
 OSRM_ORIGIN = os.environ.get("JF_OSRM_ORIGIN", "https://router.project-osrm.org").rstrip("/")
@@ -52,6 +60,9 @@ ENTITY_COLLECTION_PATH_RE = re.compile(
 ENTITY_BATCH_PATH_RE = re.compile(
     r"^/v1/workspaces/([A-Za-z0-9_-]{16,80})/warehouses/([A-Za-z0-9_-]{1,120})/entities/(live|demo)/batch$"
 )
+WAREHOUSE_DELETE_PREPARE_PATH_RE = re.compile(
+    r"^/v1/workspaces/([A-Za-z0-9_-]{16,80})/warehouses/([A-Za-z0-9_-]{1,120})/delete-prepare$"
+)
 ENTITY_CHANGES_PATH_RE = re.compile(
     r"^/v1/workspaces/([A-Za-z0-9_-]{16,80})/warehouses/([A-Za-z0-9_-]{1,120})/changes/(live|demo)$"
 )
@@ -61,6 +72,12 @@ ADDRESS_SEARCH_PATH_RE = re.compile(
 ENTITY_TYPE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 ENTITY_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,160}$")
 COMMAND_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{16,180}$")
+WAREHOUSE_CODE_RE = re.compile(r"^[A-ZА-ЯЁ0-9]{1,3}$")
+WAREHOUSE_DELETE_LEASE_TOKEN_RE = re.compile(r"^jfdl_[A-Za-z0-9_-]{32,220}$")
+TELEGRAM_INSTALLATION_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{8,160}$")
+WAREHOUSE_DELETE_LEASE_MIN_REMAINING = 30
+WAREHOUSE_DELETE_PREPARE_CONTRACT = 1
+WAREHOUSE_CODE_UNIQUE_INDEX = "business_records_v3_live_warehouse_code_uidx"
 ENTITY_ARRAYS = ("orders", "products", "inventoryMovements", "drivers", "routeArchives")
 ENTITY_SECTIONS = {
     "warehouse",
@@ -246,15 +263,68 @@ def db_connect():
     return DatabaseLease()
 
 
+def canonical_warehouse_code_permissions(auth: dict) -> set[str]:
+    """Return only syntactically valid warehouse codes from trusted auth data."""
+    codes: set[str] = set()
+    for value in auth.get("permissions", set()):
+        permission = str(value)
+        if not permission.startswith("jf.warehouse-code:"):
+            continue
+        code = permission.partition("jf.warehouse-code:")[2].strip().upper()
+        if WAREHOUSE_CODE_RE.fullmatch(code):
+            codes.add(code)
+    return codes
+
+
 def set_database_scope(cur, workspace_id: str, environment: str, auth: dict) -> None:
-    """Applies transaction-local RLS context; it cannot leak through the pool."""
+    """Apply the final transaction-local RLS context without leaking through the pool.
+
+    Legacy code permissions are resolved only against the active LIVE registry in
+    the authenticated workspace. The temporary resolver context is immediately
+    replaced with the caller's real environment and warehouse IDs before this
+    function returns, so no business query runs with elevated scope.
+    """
+    if not WORKSPACE_RE.fullmatch(workspace_id) or environment not in {"live", "demo"}:
+        raise ApiError(400, "invalid_scope", "Некорректная область данных")
+    if not hmac.compare_digest(str(auth.get("company_id", "")), workspace_id):
+        raise ApiError(403, "workspace_mismatch", "Данные другой компании недоступны")
+
     permissions = {str(value) for value in auth.get("permissions", set())}
     owner = auth.get("role") == "owner" or "*" in permissions or "jf.warehouse:*" in permissions
     allowed = {
-        value.partition("jf.warehouse:")[2]
+        warehouse_id
         for value in permissions
-        if value.startswith("jf.warehouse:") and value.partition("jf.warehouse:")[2]
+        if value.startswith("jf.warehouse:")
+        for warehouse_id in (value.partition("jf.warehouse:")[2],)
+        if WAREHOUSE_RE.fullmatch(warehouse_id)
     }
+    code_permissions = canonical_warehouse_code_permissions(auth)
+    if not owner and code_permissions:
+        # RLS otherwise hides the registry row required to translate the legacy
+        # code permission. This resolver scope is limited twice: by transaction-
+        # local RLS settings and by exact predicates in the query itself.
+        cur.execute(
+            """
+            SELECT set_config('jf.workspace_id', %s, true),
+                   set_config('jf.environment', 'live', true),
+                   set_config('jf.owner', '1', true),
+                   set_config('jf.allowed_warehouses', '', true)
+            """,
+            (workspace_id,),
+        )
+        cur.execute(
+            """
+            SELECT warehouse_id
+            FROM business_records_v3
+            WHERE workspace_id=%s AND environment='live'
+              AND entity_type='warehouse' AND is_deleted=false
+              AND COALESCE(NULLIF(lower(btrim(payload->>'status')), ''), 'active')='active'
+              AND upper(btrim(payload->>'code'))=ANY(%s::text[])
+            """,
+            (workspace_id, sorted(code_permissions)),
+        )
+        allowed.update(str(row[0]) for row in cur.fetchall() if WAREHOUSE_RE.fullmatch(str(row[0])))
+
     cur.execute(
         """
         SELECT set_config('jf.workspace_id', %s, true),
@@ -264,6 +334,67 @@ def set_database_scope(cur, workspace_id: str, environment: str, auth: dict) -> 
         """,
         (workspace_id, environment, "1" if owner else "0", ",".join(sorted(allowed))),
     )
+
+
+def ensure_warehouse_code_unique_index(cur) -> None:
+    """Enforce the same trim+uppercase warehouse-code key used by writes."""
+    cur.execute(
+        """
+        SELECT workspace_id, upper(btrim(payload->>'code')) AS canonical_code, COUNT(*)
+        FROM business_records_v3
+        WHERE environment='live' AND entity_type='warehouse' AND is_deleted=false
+          AND payload->>'code' IS NOT NULL
+        GROUP BY workspace_id, upper(btrim(payload->>'code'))
+        HAVING COUNT(*) > 1
+        ORDER BY COUNT(*) DESC, workspace_id, canonical_code
+        LIMIT 10
+        """
+    )
+    duplicates = cur.fetchall()
+    if duplicates:
+        samples = [
+            {
+                "workspace_id": str(workspace_id),
+                "code": str(code),
+                "count": int(count),
+            }
+            for workspace_id, code, count in duplicates
+        ]
+        raise RuntimeError(
+            "warehouse_code_duplicate_preflight: canonical duplicate live warehouse codes must be resolved before startup; "
+            + json.dumps(samples, ensure_ascii=False, separators=(",", ":"))
+        )
+
+    cur.execute(
+        """
+        SELECT pg_get_expr(indexes.indexprs, indexes.indrelid), indexes.indisunique
+        FROM pg_index AS indexes
+        JOIN pg_class AS index_class ON index_class.oid=indexes.indexrelid
+        JOIN pg_namespace AS index_schema ON index_schema.oid=index_class.relnamespace
+        WHERE index_schema.nspname=current_schema() AND index_class.relname=%s
+        """,
+        (WAREHOUSE_CODE_UNIQUE_INDEX,),
+    )
+    existing = cur.fetchone()
+    if existing:
+        expression = re.sub(r"\s+", "", str(existing[0] or "")).lower()
+        if not bool(existing[1]) or "upper(btrim(" not in expression:
+            cur.execute(f"DROP INDEX {WAREHOUSE_CODE_UNIQUE_INDEX}")
+
+    try:
+        cur.execute(
+            f"""
+            CREATE UNIQUE INDEX IF NOT EXISTS {WAREHOUSE_CODE_UNIQUE_INDEX}
+            ON business_records_v3(workspace_id, (upper(btrim(payload->>'code'))))
+            WHERE environment='live' AND entity_type='warehouse' AND is_deleted=false
+            """
+        )
+    except Exception as exc:
+        if str(getattr(exc, "pgcode", "") or "") == "23505":
+            raise RuntimeError(
+                "warehouse_code_duplicate_preflight: canonical duplicate live warehouse codes must be resolved before startup"
+            ) from exc
+        raise
 
 
 def init_schema() -> None:
@@ -341,6 +472,7 @@ def init_schema() -> None:
             ON business_events_v3(workspace_id, warehouse_id, environment, event_id)
             """
         )
+        ensure_warehouse_code_unique_index(cur)
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS business_commands_v3 (
@@ -355,6 +487,70 @@ def init_schema() -> None:
               created_at timestamptz NOT NULL DEFAULT now(),
               PRIMARY KEY (workspace_id, warehouse_id, environment, command_id)
             )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS warehouse_delete_operations_v3 (
+              workspace_id varchar(80) NOT NULL,
+              warehouse_id varchar(120) NOT NULL,
+              environment varchar(8) NOT NULL DEFAULT 'live' CHECK (environment = 'live'),
+              command_id varchar(180) NOT NULL,
+              warehouse_code varchar(3) NOT NULL,
+              base_version bigint NOT NULL CHECK (base_version > 0),
+              status varchar(16) NOT NULL CHECK (status IN ('prepared','completed')),
+              actor_id varchar(160) NOT NULL,
+              device_id varchar(200) NOT NULL DEFAULT '',
+              prepared_at timestamptz NOT NULL DEFAULT now(),
+              completed_at timestamptz,
+              result jsonb,
+              PRIMARY KEY (workspace_id, warehouse_id),
+              UNIQUE (workspace_id, warehouse_id, command_id),
+              CHECK (
+                (status = 'prepared' AND completed_at IS NULL AND result IS NULL)
+                OR (status = 'completed' AND completed_at IS NOT NULL AND result IS NOT NULL)
+              )
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS warehouse_delete_operations_v3_status_idx
+            ON warehouse_delete_operations_v3(workspace_id, status, prepared_at DESC)
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS warehouse_delete_release_outbox_v3 (
+              outbox_id bigserial PRIMARY KEY,
+              workspace_id varchar(80) NOT NULL,
+              warehouse_id varchar(120) NOT NULL,
+              environment varchar(8) NOT NULL DEFAULT 'live' CHECK (environment = 'live'),
+              warehouse_code varchar(3) NOT NULL,
+              command_id varchar(180) NOT NULL,
+              base_version bigint NOT NULL CHECK (base_version > 0),
+              status varchar(16) NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending','processing','retry','delivered')),
+              attempts integer NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+              next_attempt_at timestamptz NOT NULL DEFAULT now(),
+              last_attempt_at timestamptz,
+              last_error varchar(120),
+              created_at timestamptz NOT NULL DEFAULT now(),
+              updated_at timestamptz NOT NULL DEFAULT now(),
+              delivered_at timestamptz,
+              UNIQUE (workspace_id, warehouse_id, command_id),
+              CHECK (
+                (status = 'delivered' AND delivered_at IS NOT NULL AND last_error IS NULL)
+                OR (status <> 'delivered' AND delivered_at IS NULL)
+              )
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS warehouse_delete_release_outbox_v3_due_idx
+            ON warehouse_delete_release_outbox_v3(status, next_attempt_at, outbox_id)
+            WHERE status IN ('pending','processing','retry')
             """
         )
         cur.execute(
@@ -392,6 +588,8 @@ def init_schema() -> None:
             "business_records_v3",
             "business_events_v3",
             "business_commands_v3",
+            "warehouse_delete_operations_v3",
+            "warehouse_delete_release_outbox_v3",
             "business_audit_v3",
         ):
             cur.execute(f"ALTER TABLE {table_name} ENABLE ROW LEVEL SECURITY")
@@ -400,10 +598,35 @@ def init_schema() -> None:
             cur.execute(
                 f"CREATE POLICY jf_scope_isolation ON {table_name} FOR ALL USING ({scope_policy}) WITH CHECK ({scope_policy})"
             )
+        cur.execute("DROP POLICY IF EXISTS jf_system_outbox ON warehouse_delete_release_outbox_v3")
+        cur.execute(
+            """
+            CREATE POLICY jf_system_outbox ON warehouse_delete_release_outbox_v3
+            FOR ALL
+            USING (current_setting('jf.system_worker', true) = 'warehouse-delete-release')
+            WITH CHECK (current_setting('jf.system_worker', true) = 'warehouse-delete-release')
+            """
+        )
+        cur.execute("REVOKE ALL ON warehouse_delete_release_outbox_v3 FROM PUBLIC")
+        cur.execute("REVOKE ALL ON SEQUENCE warehouse_delete_release_outbox_v3_outbox_id_seq FROM PUBLIC")
         cur.execute(
             """
             INSERT INTO schema_migrations(version, name)
             VALUES (300, 'server authoritative business storage v3')
+            ON CONFLICT (version) DO NOTHING
+            """
+        )
+        cur.execute(
+            """
+            INSERT INTO schema_migrations(version, name)
+            VALUES (301, 'durable warehouse delete prepare gate')
+            ON CONFLICT (version) DO NOTHING
+            """
+        )
+        cur.execute(
+            """
+            INSERT INTO schema_migrations(version, name)
+            VALUES (302, 'durable warehouse delete lease release outbox')
             ON CONFLICT (version) DO NOTHING
             """
         )
@@ -501,9 +724,713 @@ def authenticate_request(value: str) -> dict:
     return context
 
 
+def _warehouse_delete_lease_error(status: int, code: str) -> ApiError:
+    messages = {
+        "WAREHOUSE_ASSIGNED": "Склад назначен сотрудникам или есть в действующем приглашении",
+        "WAREHOUSE_DELETE_LEASE_ACTIVE": "Удаление этого склада уже выполняется",
+        "WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED": "Защитное разрешение на удаление недействительно или устарело",
+        "WAREHOUSE_DELETE_LEASE_REACQUIRE_REQUIRED": "Защитное разрешение скоро истечёт; повторите удаление",
+        "ACCESS_BLOCKED": "Нет права удалять склады",
+    }
+    safe_code = str(code or "WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED")[:120]
+    return ApiError(status, safe_code, messages.get(safe_code, "Сервер входа не подтвердил безопасное удаление склада"))
+
+
+def _warehouse_delete_lease_request(
+    action: str,
+    authorization: str,
+    warehouse_id: str,
+    warehouse_code: str,
+    lease_token: str,
+) -> dict:
+    if action not in {"prepare", "verify", "release"}:
+        raise ValueError("invalid warehouse delete lease action")
+    if not authorization.startswith("Bearer ") or not WAREHOUSE_DELETE_LEASE_TOKEN_RE.fullmatch(lease_token):
+        raise _warehouse_delete_lease_error(409, "WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED")
+    code = str(warehouse_code).strip().upper()
+    if not WAREHOUSE_RE.fullmatch(warehouse_id) or not WAREHOUSE_CODE_RE.fullmatch(code):
+        raise _warehouse_delete_lease_error(409, "WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED")
+    encoded = json.dumps(
+        {"warehouse_id": warehouse_id, "warehouse_code": code, "lease_token": lease_token},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    request = Request(
+        f"{AUTH_ORIGIN}/v1/warehouse-delete-leases/{action}",
+        data=encoded,
+        headers={
+            "Authorization": authorization,
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "User-Agent": f"JustFun-Orders-Logistics/{VERSION}",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=10) as response:
+            raw = response.read(256 * 1024)
+        payload = json.loads(raw.decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read(256 * 1024).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            payload = {}
+        raise _warehouse_delete_lease_error(int(exc.code), str(payload.get("error", ""))) from exc
+    except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ApiError(503, "warehouse_delete_lease_service_unavailable", "Сервер входа недоступен; удаление остановлено") from exc
+    if not isinstance(payload, dict) or payload.get("ok") is not True:
+        raise ApiError(503, "warehouse_delete_lease_service_invalid", "Сервер входа вернул неподтверждённый ответ; удаление остановлено")
+    return payload
+
+
+def verify_warehouse_delete_lease(
+    authorization: str,
+    workspace_id: str,
+    warehouse_id: str,
+    warehouse_code: str,
+    lease_token: str,
+    require_prepared: bool = False,
+) -> dict:
+    payload = _warehouse_delete_lease_request("verify", authorization, warehouse_id, warehouse_code, lease_token)
+    lease = payload.get("lease")
+    remaining = payload.get("remaining_seconds")
+    prepared_confirmed = payload.get("prepared") is True and str(payload.get("status", "")) == "prepared"
+    finite_remaining_valid = (
+        isinstance(remaining, int)
+        and not isinstance(remaining, bool)
+        and remaining >= WAREHOUSE_DELETE_LEASE_MIN_REMAINING
+    )
+    remaining_valid = finite_remaining_valid or (require_prepared and prepared_confirmed and remaining is None)
+    if (
+        payload.get("active") is not True
+        or not isinstance(lease, dict)
+        or not hmac.compare_digest(str(lease.get("company_id", "")), workspace_id)
+        or not hmac.compare_digest(str(lease.get("warehouse_id", "")), warehouse_id)
+        or not hmac.compare_digest(
+            str(lease.get("warehouse_code", "")).encode("utf-8"),
+            warehouse_code.encode("utf-8"),
+        )
+        or not remaining_valid
+        or (require_prepared and not prepared_confirmed)
+    ):
+        raise ApiError(503, "warehouse_delete_lease_service_invalid", "Сервер входа не подтвердил область и срок защитного разрешения")
+    return payload
+
+
+def prepare_warehouse_delete_lease(
+    authorization: str,
+    workspace_id: str,
+    warehouse_id: str,
+    warehouse_code: str,
+    lease_token: str,
+) -> dict:
+    payload = _warehouse_delete_lease_request("prepare", authorization, warehouse_id, warehouse_code, lease_token)
+    lease = payload.get("lease")
+    if (
+        payload.get("active") is not True
+        or payload.get("prepared") is not True
+        or str(payload.get("status", "")) != "prepared"
+        or not isinstance(lease, dict)
+        or not hmac.compare_digest(str(lease.get("company_id", "")), workspace_id)
+        or not hmac.compare_digest(str(lease.get("warehouse_id", "")), warehouse_id)
+        or not hmac.compare_digest(
+            str(lease.get("warehouse_code", "")).encode("utf-8"),
+            warehouse_code.encode("utf-8"),
+        )
+    ):
+        raise ApiError(503, "warehouse_delete_lease_service_invalid", "Сервер входа не подтвердил подготовку защитного разрешения")
+    return payload
+
+
+def release_warehouse_delete_lease(
+    authorization: str,
+    warehouse_id: str,
+    warehouse_code: str,
+    lease_token: str,
+) -> None:
+    try:
+        _warehouse_delete_lease_request("release", authorization, warehouse_id, warehouse_code, lease_token)
+    except Exception as exc:
+        LOG.warning("warehouse delete lease release failed code=%s", str(getattr(exc, "code", "release_failed"))[:120])
+
+
+def _require_vps_attestation_secret() -> str:
+    secret = os.environ.get("JF_VPS_ATTESTATION_SECRET", "").strip()
+    if not VPS_ATTESTATION_SECRET_RE.fullmatch(secret):
+        raise ApiError(
+            500,
+            "vps_attestation_configuration_invalid",
+            "Секрет подтверждения VPS не настроен",
+        )
+    return secret
+
+
+def _validated_https_origin(origin: str, error_code: str, message: str) -> str:
+    parsed = urlparse(origin)
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        raise ApiError(500, error_code, message)
+    return origin.rstrip("/")
+
+
+def _vps_attestation_headers(
+    workspace_id: str,
+    warehouse_id: str,
+    warehouse_code: str,
+    command_id: str,
+    base_version: int,
+    lease_token: str = "",
+) -> dict[str, str]:
+    if (
+        not WORKSPACE_RE.fullmatch(workspace_id)
+        or not WAREHOUSE_RE.fullmatch(warehouse_id)
+        or not WAREHOUSE_CODE_RE.fullmatch(warehouse_code)
+        or not COMMAND_ID_RE.fullmatch(command_id)
+        or not isinstance(base_version, int)
+        or isinstance(base_version, bool)
+        or base_version < 1
+        or (lease_token != "" and not WAREHOUSE_DELETE_LEASE_TOKEN_RE.fullmatch(lease_token))
+    ):
+        raise ApiError(409, "vps_attestation_payload_invalid", "Подтверждение VPS повреждено")
+    timestamp = str(int(time.time()))
+    nonce = secrets.token_urlsafe(24)
+    token_sha256 = hashlib.sha256(lease_token.encode("utf-8")).hexdigest()
+    canonical = "\n".join(
+        (
+            "justfun-vps-telegram-deprovision-v1",
+            workspace_id,
+            warehouse_id,
+            warehouse_code,
+            command_id,
+            str(base_version),
+            token_sha256,
+            timestamp,
+            nonce,
+        )
+    )
+    signature = hmac.new(
+        _require_vps_attestation_secret().encode("utf-8"),
+        canonical.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return {
+        "x-justfun-vps-timestamp": timestamp,
+        "x-justfun-vps-nonce": nonce,
+        "x-justfun-vps-signature": f"v1={signature}",
+    }
+
+
+def confirm_warehouse_telegram_deprovision(
+    authorization: str,
+    workspace_id: str,
+    warehouse_id: str,
+    warehouse_code: str,
+    lease_token: str,
+    command_id: str,
+    base_version: int,
+) -> dict:
+    delete_command_id = command_id
+    broker_origin = _validated_https_origin(
+        TELEGRAM_BROKER_ORIGIN,
+        "telegram_broker_configuration_invalid",
+        "Адрес Telegram-broker настроен неверно",
+    )
+    if (
+        not authorization.startswith("Bearer ")
+        or not WORKSPACE_RE.fullmatch(workspace_id)
+        or not WAREHOUSE_RE.fullmatch(warehouse_id)
+        or not WAREHOUSE_CODE_RE.fullmatch(warehouse_code)
+        or not WAREHOUSE_DELETE_LEASE_TOKEN_RE.fullmatch(lease_token)
+        or not COMMAND_ID_RE.fullmatch(delete_command_id)
+        or not isinstance(base_version, int)
+        or isinstance(base_version, bool)
+        or base_version < 1
+    ):
+        raise ApiError(409, "telegram_deprovision_proof_invalid", "Подтверждение отключения Telegram повреждено")
+    encoded = json.dumps(
+        {
+            "warehouse_id": warehouse_id,
+            "warehouse_code": warehouse_code,
+            "warehouse_delete_lease_token": lease_token,
+            "delete_command_id": delete_command_id,
+            "delete_base_version": base_version,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    attestation_headers = _vps_attestation_headers(
+        workspace_id,
+        warehouse_id,
+        warehouse_code,
+        delete_command_id,
+        base_version,
+        lease_token,
+    )
+    request = Request(
+        f"{broker_origin}/v1/company/telegram-service/deprovision",
+        data=encoded,
+        headers={
+            "Authorization": authorization,
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "User-Agent": f"JustFunVPS/{VERSION}",
+            **attestation_headers,
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=30) as response:
+            raw = response.read(256 * 1024)
+        payload = json.loads(raw.decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read(256 * 1024).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        safe_code = str(payload.get("error", "telegram_deprovision_rejected"))[:120]
+        raise ApiError(int(exc.code), safe_code, "Telegram-broker не подтвердил отключение склада") from exc
+    except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ApiError(503, "telegram_broker_unavailable", "Telegram-broker временно недоступен; удаление остановлено") from exc
+    installation_id = str(payload.get("installation_id", "")) if isinstance(payload, dict) else ""
+    if (
+        not isinstance(payload, dict)
+        or payload.get("ok") is not True
+        or payload.get("deprovisioned") is not True
+        or not hmac.compare_digest(str(payload.get("warehouse_id", "")), warehouse_id)
+        or not hmac.compare_digest(str(payload.get("warehouse_code", "")).encode("utf-8"), warehouse_code.encode("utf-8"))
+        or not hmac.compare_digest(str(payload.get("delete_command_id", "")), delete_command_id)
+        or not isinstance(payload.get("delete_base_version"), int)
+        or isinstance(payload.get("delete_base_version"), bool)
+        or payload.get("delete_base_version") != base_version
+        or (installation_id != "" and not TELEGRAM_INSTALLATION_ID_RE.fullmatch(installation_id))
+    ):
+        raise ApiError(503, "telegram_deprovision_confirmation_invalid", "Telegram-broker вернул неподтверждённый результат")
+    return {
+        "deprovisioned": True,
+        "already_deprovisioned": payload.get("already_deprovisioned") is True,
+        "installation_id": installation_id,
+    }
+
+
+def _set_warehouse_delete_release_worker_scope(cur) -> None:
+    cur.execute(
+        "SELECT set_config('jf.system_worker', 'warehouse-delete-release', true)"
+    )
+
+
+def _claim_warehouse_delete_release_outbox(
+    limit: int = 10,
+    exact_key: tuple[str, str, str] | None = None,
+) -> list[dict]:
+    safe_limit = max(1, min(50, int(limit)))
+    exact_workspace, exact_warehouse, exact_command = exact_key or (None, None, None)
+    with db_connect() as conn, conn.cursor() as cur:
+        _set_warehouse_delete_release_worker_scope(cur)
+        cur.execute(
+            """
+            WITH candidates AS (
+              SELECT outbox_id
+              FROM warehouse_delete_release_outbox_v3
+              WHERE (
+                (status IN ('pending','retry') AND next_attempt_at <= now())
+                OR (status='processing' AND updated_at <= now() - interval '5 minutes')
+              )
+                AND (
+                  %s::text IS NULL
+                  OR (workspace_id=%s AND warehouse_id=%s AND command_id=%s)
+                )
+              ORDER BY next_attempt_at, outbox_id
+              FOR UPDATE SKIP LOCKED
+              LIMIT %s
+            )
+            UPDATE warehouse_delete_release_outbox_v3 AS outbox
+            SET status='processing', attempts=outbox.attempts + 1,
+                last_attempt_at=now(), updated_at=now(), last_error=NULL
+            FROM candidates
+            WHERE outbox.outbox_id=candidates.outbox_id
+            RETURNING outbox.outbox_id, outbox.workspace_id, outbox.warehouse_id,
+                      outbox.warehouse_code, outbox.command_id, outbox.base_version,
+                      outbox.attempts
+            """,
+            (
+                exact_workspace,
+                exact_workspace,
+                exact_warehouse,
+                exact_command,
+                safe_limit,
+            ),
+        )
+        rows = cur.fetchall()
+    return [
+        {
+            "outbox_id": int(row[0]),
+            "workspace_id": str(row[1]),
+            "warehouse_id": str(row[2]),
+            "warehouse_code": str(row[3]),
+            "command_id": str(row[4]),
+            "base_version": int(row[5]),
+            "attempts": int(row[6]),
+        }
+        for row in rows
+    ]
+
+
+def _deliver_warehouse_delete_release(item: dict) -> dict:
+    auth_origin = _validated_https_origin(
+        AUTH_ORIGIN,
+        "auth_service_configuration_invalid",
+        "Адрес сервера входа настроен неверно",
+    )
+    workspace_id = str(item.get("workspace_id", ""))
+    warehouse_id = str(item.get("warehouse_id", ""))
+    warehouse_code = str(item.get("warehouse_code", ""))
+    command_id = str(item.get("command_id", ""))
+    base_version = item.get("base_version")
+    attestation_headers = _vps_attestation_headers(
+        workspace_id,
+        warehouse_id,
+        warehouse_code,
+        command_id,
+        base_version,
+        "",
+    )
+    encoded = json.dumps(
+        {
+            "company_id": workspace_id,
+            "warehouse_id": warehouse_id,
+            "warehouse_code": warehouse_code,
+            "delete_command_id": command_id,
+            "delete_base_version": base_version,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    request = Request(
+        f"{auth_origin}/v1/vps-attestations/release-warehouse-delete",
+        data=encoded,
+        headers={
+            "Content-Type": "application/json; charset=utf-8",
+            "Accept": "application/json",
+            "User-Agent": f"JustFunVPS/{VERSION}",
+            **attestation_headers,
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=12) as response:
+            raw = response.read(256 * 1024)
+        payload = json.loads(raw.decode("utf-8"))
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read(256 * 1024).decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        safe_code = re.sub(r"[^A-Za-z0-9_.:-]", "_", str(payload.get("error", "release_rejected")))[:120]
+        raise ApiError(int(exc.code), safe_code or "release_rejected", "Сервер входа не снял защитную блокировку") from exc
+    except (URLError, TimeoutError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ApiError(503, "warehouse_delete_release_service_unavailable", "Сервер входа временно недоступен") from exc
+    if (
+        not isinstance(payload, dict)
+        or payload.get("ok") is not True
+        or payload.get("released") is not True
+        or str(payload.get("status", "")) != "released"
+        or not hmac.compare_digest(str(payload.get("company_id", "")), workspace_id)
+        or not hmac.compare_digest(str(payload.get("warehouse_id", "")), warehouse_id)
+        or not hmac.compare_digest(
+            str(payload.get("warehouse_code", "")).encode("utf-8"),
+            warehouse_code.encode("utf-8"),
+        )
+        or not hmac.compare_digest(str(payload.get("delete_command_id", "")), command_id)
+        or not isinstance(payload.get("delete_base_version"), int)
+        or isinstance(payload.get("delete_base_version"), bool)
+        or payload.get("delete_base_version") != base_version
+    ):
+        raise ApiError(503, "warehouse_delete_release_service_invalid", "Сервер входа вернул неподтверждённый ответ")
+    return payload
+
+
+def _finish_warehouse_delete_release_outbox(item: dict, delivered: bool, error_code: str = "") -> None:
+    outbox_id = int(item["outbox_id"])
+    if delivered:
+        with db_connect() as conn, conn.cursor() as cur:
+            _set_warehouse_delete_release_worker_scope(cur)
+            cur.execute(
+                """
+                UPDATE warehouse_delete_release_outbox_v3
+                SET status='delivered', delivered_at=now(), updated_at=now(),
+                    next_attempt_at=now(), last_error=NULL
+                WHERE outbox_id=%s AND status='processing'
+                """,
+                (outbox_id,),
+            )
+        return
+    attempts = max(1, int(item.get("attempts", 1)))
+    retry_seconds = min(3600, 5 * (2 ** min(attempts - 1, 10)))
+    safe_error = re.sub(r"[^A-Za-z0-9_.:-]", "_", str(error_code or "release_failed"))[:120]
+    with db_connect() as conn, conn.cursor() as cur:
+        _set_warehouse_delete_release_worker_scope(cur)
+        cur.execute(
+            """
+            UPDATE warehouse_delete_release_outbox_v3
+            SET status='retry', next_attempt_at=now() + (%s * interval '1 second'),
+                updated_at=now(), last_error=%s
+            WHERE outbox_id=%s AND status='processing'
+            """,
+            (retry_seconds, safe_error or "release_failed", outbox_id),
+        )
+
+
+def process_warehouse_delete_release_outbox(
+    limit: int = 10,
+    exact_key: tuple[str, str, str] | None = None,
+) -> dict:
+    claimed = _claim_warehouse_delete_release_outbox(limit, exact_key)
+    delivered = 0
+    retried = 0
+    for item in claimed:
+        try:
+            _deliver_warehouse_delete_release(item)
+        except Exception as exc:
+            error_code = str(getattr(exc, "code", exc.__class__.__name__))
+            _finish_warehouse_delete_release_outbox(item, False, error_code)
+            retried += 1
+            LOG.warning(
+                "warehouse delete release deferred outbox_id=%s attempt=%s code=%s",
+                item["outbox_id"],
+                item["attempts"],
+                re.sub(r"[^A-Za-z0-9_.:-]", "_", error_code)[:120],
+            )
+        else:
+            _finish_warehouse_delete_release_outbox(item, True)
+            delivered += 1
+    return {"claimed": len(claimed), "delivered": delivered, "retried": retried}
+
+
+def _warehouse_delete_release_worker() -> None:
+    while True:
+        try:
+            process_warehouse_delete_release_outbox()
+        except Exception:
+            LOG.exception("warehouse delete release outbox worker failure")
+        time.sleep(WAREHOUSE_DELETE_RELEASE_RETRY_SECONDS)
+
+
+def start_warehouse_delete_release_worker() -> threading.Thread:
+    worker = threading.Thread(
+        target=_warehouse_delete_release_worker,
+        name="warehouse-delete-release-outbox",
+        daemon=True,
+    )
+    worker.start()
+    return worker
+
+
+def _lock_warehouse_delete_scopes(cur, workspace_id: str, warehouse_id: str) -> None:
+    for environment in ("demo", "live"):
+        cur.execute(
+            "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+            (f"{workspace_id}:{warehouse_id}:{environment}", "entity-write-scope"),
+        )
+
+
+def _select_warehouse_delete_operation(cur, workspace_id: str, warehouse_id: str):
+    cur.execute(
+        """
+        SELECT command_id, warehouse_code, base_version, status, actor_id, device_id,
+               prepared_at, completed_at, result
+        FROM warehouse_delete_operations_v3
+        WHERE workspace_id=%s AND warehouse_id=%s AND environment='live'
+        FOR UPDATE
+        """,
+        (workspace_id, warehouse_id),
+    )
+    return cur.fetchone()
+
+
+def _warehouse_delete_prepare_result(row, replayed: bool, recovered_existing: bool = False) -> dict:
+    command_id, warehouse_code, base_version, status, _actor_id, _device_id, prepared_at, completed_at, result = row
+    prepared_iso = prepared_at.isoformat() if hasattr(prepared_at, "isoformat") else str(prepared_at)
+    completed_iso = completed_at.isoformat() if hasattr(completed_at, "isoformat") else None
+    return {
+        "delete_prepare_contract": WAREHOUSE_DELETE_PREPARE_CONTRACT,
+        "operation": "warehouse_delete",
+        "status": str(status),
+        "command_id": str(command_id),
+        "warehouse_code": str(warehouse_code),
+        "base_version": int(base_version),
+        "prepared_at": prepared_iso,
+        "completed_at": completed_iso,
+        "replayed": bool(replayed),
+        "recovered_existing": bool(recovered_existing),
+        "final_result": result if str(status) == "completed" and isinstance(result, dict) else None,
+    }
+
+
+def prepare_warehouse_delete(
+    workspace_id: str,
+    warehouse_id: str,
+    request: dict,
+    auth: dict,
+    authorization: str,
+) -> dict:
+    allowed_fields = {
+        "command_id",
+        "base_version",
+        "warehouse_code",
+        "warehouse_delete_lease_token",
+    }
+    if set(request) - allowed_fields:
+        raise ApiError(400, "warehouse_delete_prepare_invalid", "Запрос подготовки удаления содержит неизвестные поля")
+    command_id = str(request.get("command_id", ""))
+    raw_code = request.get("warehouse_code")
+    warehouse_code = str(raw_code or "")
+    base_version = request.get("base_version")
+    lease_token = str(request.get("warehouse_delete_lease_token", ""))
+    if not COMMAND_ID_RE.fullmatch(command_id):
+        raise ApiError(400, "command_id_required", "Для удаления требуется безопасный уникальный command_id")
+    if not isinstance(base_version, int) or isinstance(base_version, bool) or base_version < 1:
+        raise ApiError(400, "warehouse_delete_base_version_invalid", "Версия удаляемого склада повреждена")
+    if warehouse_code != warehouse_code.strip().upper() or not WAREHOUSE_CODE_RE.fullmatch(warehouse_code):
+        raise ApiError(400, "invalid_warehouse_code", "Код удаляемого склада должен быть передан точно")
+    if not WAREHOUSE_DELETE_LEASE_TOKEN_RE.fullmatch(lease_token):
+        raise _warehouse_delete_lease_error(409, "WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED")
+
+    require_workspace(auth, workspace_id)
+    require_global_warehouse_delete_access(auth)
+    actor_id = str(auth.get("user_id", ""))[:160] or "unknown-user"
+    device_id = str(auth.get("device_id", ""))[:200]
+
+    with db_connect() as conn, conn.cursor() as cur:
+        set_database_scope(cur, workspace_id, "live", auth)
+        _lock_warehouse_delete_scopes(cur, workspace_id, warehouse_id)
+        operation = _select_warehouse_delete_operation(cur, workspace_id, warehouse_id)
+        if operation:
+            same_command = hmac.compare_digest(str(operation[0]), command_id)
+            same_code = hmac.compare_digest(str(operation[1]).encode("utf-8"), warehouse_code.encode("utf-8"))
+            same_version = int(operation[2]) == base_version
+            same_actor = hmac.compare_digest(str(operation[4]), actor_id)
+            if str(operation[3]) == "completed":
+                if same_command and same_code and same_version:
+                    return _warehouse_delete_prepare_result(operation, True)
+                if same_actor and same_code:
+                    return _warehouse_delete_prepare_result(operation, True, True)
+                raise ApiError(409, "warehouse_delete_completed", "Удаление склада уже завершено; повторная подготовка запрещена")
+            if not same_code:
+                raise ApiError(409, "warehouse_delete_prepare_mismatch", "Параметры подготовленного удаления не совпадают")
+            try:
+                prepare_warehouse_delete_lease(authorization, workspace_id, warehouse_id, warehouse_code, lease_token)
+            except ApiError as exc:
+                if str(exc.code).upper() in {
+                    "WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED",
+                    "WAREHOUSE_DELETE_LEASE_REACQUIRE_REQUIRED",
+                }:
+                    raise ApiError(
+                        409,
+                        "warehouse_delete_lease_superseded",
+                        "Подготовленное удаление уже принадлежит другому защитному разрешению",
+                    ) from exc
+                raise
+            recovered_existing = not (same_actor and same_command and same_version)
+            if not same_actor:
+                cur.execute(
+                    """
+                    UPDATE warehouse_delete_operations_v3
+                    SET actor_id=%s, device_id=%s
+                    WHERE workspace_id=%s AND warehouse_id=%s AND environment='live' AND status='prepared'
+                    RETURNING command_id, warehouse_code, base_version, status, actor_id, device_id,
+                              prepared_at, completed_at, result
+                    """,
+                    (actor_id, device_id, workspace_id, warehouse_id),
+                )
+                operation = cur.fetchone()
+                if not operation:
+                    raise ApiError(409, "warehouse_delete_in_progress", "Подготовленное удаление изменилось во время восстановления")
+            return _warehouse_delete_prepare_result(operation, True, recovered_existing)
+
+        cur.execute(
+            """
+            SELECT result, request_sha256
+            FROM business_commands_v3
+            WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s AND command_id=%s
+            FOR UPDATE
+            """,
+            (workspace_id, warehouse_id, "live", command_id),
+        )
+        if cur.fetchone():
+            raise ApiError(409, "command_id_reused", "Идентификатор команды уже использован для другой операции")
+
+        cur.execute(
+            """
+            SELECT version, payload, is_deleted
+            FROM business_records_v3
+            WHERE workspace_id=%s AND warehouse_id=%s AND environment='live'
+              AND entity_type='warehouse' AND entity_id=%s
+            FOR UPDATE
+            """,
+            (workspace_id, warehouse_id, warehouse_id),
+        )
+        warehouse_row = cur.fetchone()
+        if not warehouse_row or bool(warehouse_row[2]):
+            raise ApiError(409, "warehouse_deleted", "Склад уже удалён или отсутствует в реестре")
+        current_version = int(warehouse_row[0])
+        payload = warehouse_row[1] if isinstance(warehouse_row[1], dict) else {}
+        if current_version != base_version:
+            raise ApiError(
+                409,
+                "entity_version_conflict",
+                "Версия склада изменилась до подготовки удаления",
+                {"entity_type": "warehouse", "entity_id": warehouse_id, "current_version": current_version},
+            )
+        if payload.get("status") != "archived":
+            raise ApiError(409, "warehouse_delete_requires_archived", "Активный склад удалить нельзя: сначала переведите его в архив")
+        current_code = str(payload.get("code", "")).strip().upper()
+        if not WAREHOUSE_CODE_RE.fullmatch(current_code) or not hmac.compare_digest(
+            current_code.encode("utf-8"), warehouse_code.encode("utf-8")
+        ):
+            raise ApiError(409, "warehouse_delete_prepare_mismatch", "Код склада изменился до подготовки удаления")
+
+        prepare_warehouse_delete_lease(authorization, workspace_id, warehouse_id, warehouse_code, lease_token)
+        if operation:
+            return _warehouse_delete_prepare_result(operation, True)
+
+        cur.execute(
+            """
+            INSERT INTO warehouse_delete_operations_v3
+              (workspace_id, warehouse_id, environment, command_id, warehouse_code,
+               base_version, status, actor_id, device_id)
+            VALUES (%s,%s,'live',%s,%s,%s,'prepared',%s,%s)
+            RETURNING prepared_at
+            """,
+            (workspace_id, warehouse_id, command_id, warehouse_code, base_version, actor_id, device_id),
+        )
+        prepared_at = cur.fetchone()[0]
+        return _warehouse_delete_prepare_result(
+            (command_id, warehouse_code, base_version, "prepared", actor_id, device_id, prepared_at, None, None),
+            False,
+        )
+
+
 def require_workspace(auth: dict, workspace_id: str) -> None:
     if not hmac.compare_digest(str(auth["company_id"]), workspace_id):
         raise ApiError(403, "workspace_mismatch", "Данные другой компании недоступны")
+
+
+def require_global_warehouse_delete_access(auth: dict) -> None:
+    permissions = {str(value) for value in auth.get("permissions", set())}
+    global_access = auth.get("role") == "owner" or "*" in permissions or "jf.warehouse:*" in permissions
+    if not global_access or not permission_allowed(auth, "warehouses.manage"):
+        raise ApiError(403, "warehouse_delete_access_denied", "Нет глобального права удалять склады")
 
 
 def warehouse_allowed(auth: dict, warehouse_id: str, snapshot: dict) -> bool:
@@ -514,7 +1441,7 @@ def warehouse_allowed(auth: dict, warehouse_id: str, snapshot: dict) -> bool:
         return True
     warehouse = snapshot.get("warehouse", {}) if isinstance(snapshot, dict) else {}
     code = str(warehouse.get("code", "")).strip().upper()
-    return bool(code) and f"jf.warehouse-code:{code}" in permissions
+    return bool(WAREHOUSE_CODE_RE.fullmatch(code)) and code in canonical_warehouse_code_permissions(auth)
 
 
 def permission_allowed(auth: dict, permission: str) -> bool:
@@ -857,6 +1784,16 @@ def validate_entity_change(change: object, warehouse_id: str, environment: str) 
         declared_environment = str(payload.get("environment", "")).lower()
         if declared_environment and declared_environment != environment:
             raise ApiError(409, "environment_mismatch", "Сущность относится к другой среде")
+    if entity_type == "warehouse" and not deleted:
+        warehouse_code = str(payload.get("code", "")).strip().upper()
+        if not WAREHOUSE_CODE_RE.fullmatch(warehouse_code):
+            raise ApiError(
+                400,
+                "invalid_warehouse_code",
+                "Код склада должен содержать от 1 до 3 заглавных букв или цифр",
+            )
+        payload = dict(payload)
+        payload["code"] = warehouse_code
     payload = canonical_entity_payload(entity_type, entity_id, payload, warehouse_id, environment)
     return {
         "type": entity_type,
@@ -868,9 +1805,9 @@ def validate_entity_change(change: object, warehouse_id: str, environment: str) 
     }
 
 
-def list_warehouses(workspace_id: str, environment: str, auth: dict) -> list[dict]:
+def warehouse_registry_snapshot(workspace_id: str, environment: str, auth: dict) -> dict:
     with db_connect() as conn, conn.cursor() as cur:
-        set_database_scope(cur, workspace_id, environment, auth)
+        set_database_scope(cur, workspace_id, "live", auth)
         cur.execute(
             """
             SELECT warehouse_id, version, payload_sha256, payload, last_event_id, updated_at
@@ -879,9 +1816,20 @@ def list_warehouses(workspace_id: str, environment: str, auth: dict) -> list[dic
               AND entity_type='warehouse' AND is_deleted=false
             ORDER BY updated_at DESC
             """,
-            (workspace_id, environment),
+            (workspace_id, "live"),
         )
         entity_rows = cur.fetchall()
+        cur.execute(
+            """
+            SELECT EXISTS(
+              SELECT 1
+              FROM business_records_v3
+              WHERE workspace_id=%s AND environment='live' AND entity_type='warehouse'
+            )
+            """,
+            (workspace_id,),
+        )
+        registry_initialized = bool(cur.fetchone()[0])
     warehouses = []
     for warehouse_id, version, digest, meta, event_id, updated_at in entity_rows:
         warehouse_id = str(warehouse_id)
@@ -906,24 +1854,35 @@ def list_warehouses(workspace_id: str, environment: str, auth: dict) -> list[dic
                 "sync_mode": "server_authoritative_v3",
             }
         )
-    return sorted(warehouses, key=lambda item: item["updated_at"], reverse=True)
+    return {
+        "warehouses": sorted(warehouses, key=lambda item: item["updated_at"], reverse=True),
+        "registry_initialized": registry_initialized,
+    }
+
+
+def list_warehouses(workspace_id: str, environment: str, auth: dict) -> list[dict]:
+    return warehouse_registry_snapshot(workspace_id, environment, auth)["warehouses"]
 
 
 def load_entity_access_snapshot(workspace_id: str, warehouse_id: str, environment: str, auth: dict) -> dict | None:
     with db_connect() as conn, conn.cursor() as cur:
-        set_database_scope(cur, workspace_id, environment, auth)
+        set_database_scope(cur, workspace_id, "live", auth)
         cur.execute(
             """
-            SELECT payload
+            SELECT payload, is_deleted
             FROM business_records_v3
             WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s
-              AND entity_type='warehouse' AND entity_id=%s AND is_deleted=false
+              AND entity_type='warehouse' AND entity_id=%s
             """,
-            (workspace_id, warehouse_id, environment, warehouse_id),
+            (workspace_id, warehouse_id, "live", warehouse_id),
         )
         row = cur.fetchone()
-        if row and isinstance(row[0], dict):
-            return {"warehouse": row[0], "data": {"warehouseId": warehouse_id}}
+        if row:
+            return {
+                "warehouse": row[0] if isinstance(row[0], dict) else {},
+                "data": {"warehouseId": warehouse_id},
+                "deleted": bool(row[1]),
+            }
     return None
 
 
@@ -1391,15 +2350,26 @@ def require_entity_scope_access(
     warehouse_id: str,
     environment: str,
     proposed_warehouse: dict | None = None,
+    allow_missing: bool = False,
 ) -> None:
     snapshot = load_entity_access_snapshot(workspace_id, warehouse_id, environment, auth)
+    if snapshot is not None and snapshot.get("deleted") is True:
+        if allow_missing:
+            return
+        raise ApiError(409, "warehouse_deleted", "Склад удалён или отсутствует в реестре")
     if snapshot is None and isinstance(proposed_warehouse, dict):
-        snapshot = {"warehouse": proposed_warehouse, "data": {"warehouseId": warehouse_id}}
+        permissions = {str(value) for value in auth.get("permissions", set())}
+        can_address_new_id = (
+            auth.get("role") == "owner"
+            or "*" in permissions
+            or "jf.warehouse:*" in permissions
+        )
+        if can_address_new_id:
+            snapshot = {"warehouse": proposed_warehouse, "data": {"warehouseId": warehouse_id}}
     if snapshot is None:
-        snapshot = {
-            "warehouse": {"id": warehouse_id, "code": "", "environment": environment},
-            "data": {"warehouseId": warehouse_id},
-        }
+        if allow_missing:
+            return
+        raise ApiError(403, "warehouse_access_denied", "Нет доступа к этому складу")
     if not warehouse_allowed(auth, warehouse_id, snapshot):
         raise ApiError(403, "warehouse_access_denied", "Нет доступа к этому складу")
 
@@ -1410,6 +2380,7 @@ def save_entity_batch(
     environment: str,
     request: dict,
     auth: dict,
+    authorization: str = "",
 ) -> dict:
     from psycopg2.extras import Json
 
@@ -1424,12 +2395,41 @@ def save_entity_batch(
     keys = [(item["type"], item["id"]) for item in changes]
     if len(keys) != len(set(keys)):
         raise ApiError(400, "duplicate_entity", "Одна сущность указана в команде несколько раз")
+    warehouse_changes = [item for item in changes if item["type"] == "warehouse"]
+    if warehouse_changes and environment != "live":
+        raise ApiError(
+            400,
+            "warehouse_registry_live_only",
+            "Реестр складов изменяется только в рабочей среде live",
+        )
+    warehouse_delete = any(item["type"] == "warehouse" and item["deleted"] for item in changes)
+    warehouse_delete_lease_token = str(request.get("warehouse_delete_lease_token", ""))
+    warehouse_delete_declared_code = str(request.get("warehouse_delete_warehouse_code", ""))
+    if warehouse_delete and (
+        not WAREHOUSE_DELETE_LEASE_TOKEN_RE.fullmatch(warehouse_delete_lease_token)
+        or warehouse_delete_declared_code != warehouse_delete_declared_code.strip().upper()
+        or not WAREHOUSE_CODE_RE.fullmatch(warehouse_delete_declared_code)
+    ):
+        raise _warehouse_delete_lease_error(409, "WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED")
+    if warehouse_delete and (len(changes) != 1 or changes[0]["type"] != "warehouse"):
+        raise ApiError(
+            400,
+            "warehouse_delete_must_be_single_change",
+            "Удаление склада должно быть отдельной командой",
+        )
     intent = validate_entity_intent(request.get("intent"), changes)
     proposed_warehouse = next(
         (item["payload"] for item in changes if item["type"] == "warehouse" and not item["deleted"]),
         None,
     )
-    require_entity_scope_access(auth, workspace_id, warehouse_id, environment, proposed_warehouse)
+    require_entity_scope_access(
+        auth,
+        workspace_id,
+        warehouse_id,
+        environment,
+        proposed_warehouse,
+        allow_missing=warehouse_delete,
+    )
     intent_types: set[str] = set()
     if intent:
         required_permission = ENTITY_INTENT_PERMISSIONS[intent["kind"]]
@@ -1442,14 +2442,90 @@ def save_entity_batch(
 
     actor_id = str(auth.get("user_id", ""))[:160] or "unknown-user"
     device_id = str(auth.get("device_id", ""))[:200]
+    request_without_transport_secrets = {
+        key: value
+        for key, value in request.items()
+        if key not in {"warehouse_delete_lease_token", "warehouse_delete_warehouse_code"}
+    }
     request_sha256 = hashlib.sha256(
-        json.dumps(request, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        json.dumps(request_without_transport_secrets, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()
     scope_lock = f"{workspace_id}:{warehouse_id}:{environment}"
     outcomes: list[dict] = []
+    cascade_deleted = 0
+    cascade_by_environment = {"live": 0, "demo": 0}
+    cascade_types: list[str] = []
+    cascade_cursors: dict[str, int] = {}
+    history_payloads_redacted = 0
+    telegram_deprovision = None
+    release_outbox_exact_key: tuple[str, str, str] | None = None
     with db_connect() as conn, conn.cursor() as cur:
         set_database_scope(cur, workspace_id, environment, auth)
-        cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))", (scope_lock, command_id))
+        # Every registry mutation owns both environments in a stable order.
+        # Ordinary writes own their environment, so archive/delete is ordered
+        # before or after every LIVE/DEMO business mutation without deadlocks.
+        lock_environments = ("demo", "live") if warehouse_changes else (environment,)
+        for lock_environment in lock_environments:
+            lock_scope = f"{workspace_id}:{warehouse_id}:{lock_environment}"
+            cur.execute(
+                "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+                (lock_scope, "entity-write-scope"),
+            )
+        set_database_scope(cur, workspace_id, "live", auth)
+        delete_operation = _select_warehouse_delete_operation(cur, workspace_id, warehouse_id)
+        set_database_scope(cur, workspace_id, environment, auth)
+        if delete_operation:
+            operation_command = str(delete_operation[0])
+            operation_code = str(delete_operation[1])
+            operation_version = int(delete_operation[2])
+            operation_status = str(delete_operation[3])
+            exact_final_delete = (
+                warehouse_delete
+                and environment == "live"
+                and hmac.compare_digest(operation_command, command_id)
+                and hmac.compare_digest(operation_code.encode("utf-8"), warehouse_delete_declared_code.encode("utf-8"))
+                and changes[0]["base_version"] == operation_version
+            )
+            if operation_status == "completed":
+                if exact_final_delete:
+                    cur.execute(
+                        """
+                        SELECT result, request_sha256
+                        FROM business_commands_v3
+                        WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s AND command_id=%s
+                        FOR UPDATE
+                        """,
+                        (workspace_id, warehouse_id, "live", command_id),
+                    )
+                    completed_command = cur.fetchone()
+                    if completed_command and hmac.compare_digest(str(completed_command[1]), request_sha256):
+                        stored_result = completed_command[0] if isinstance(completed_command[0], dict) else delete_operation[8]
+                        if isinstance(stored_result, dict):
+                            return {**stored_result, "replayed": True}
+                    raise ApiError(409, "command_id_reused", "Идентификатор команды уже использован для другой операции")
+                raise ApiError(409, "warehouse_delete_completed", "Удаление склада уже завершено; новые записи запрещены")
+            if not exact_final_delete:
+                raise ApiError(
+                    409,
+                    "warehouse_delete_prepared",
+                    "Удаление склада подготовлено; разрешена только точная завершающая команда",
+                    {"command_id": operation_command, "status": "prepared"},
+                )
+            telegram_deprovision = confirm_warehouse_telegram_deprovision(
+                authorization,
+                workspace_id,
+                warehouse_id,
+                operation_code,
+                warehouse_delete_lease_token,
+                operation_command,
+                operation_version,
+            )
+        elif warehouse_delete:
+            raise ApiError(
+                409,
+                "warehouse_delete_not_prepared",
+                "Сначала зафиксируйте подготовку удаления склада на VPS",
+            )
         cur.execute(
             """
             SELECT result, request_sha256
@@ -1465,6 +2541,64 @@ def save_entity_batch(
                 raise ApiError(409, "command_id_reused", "Идентификатор команды уже использован для другой операции")
             stored = replay[0] if isinstance(replay[0], dict) else {}
             return {**stored, "replayed": True}
+
+        set_database_scope(cur, workspace_id, "live", auth)
+        cur.execute(
+            """
+            SELECT version, payload, is_deleted
+            FROM business_records_v3
+            WHERE workspace_id=%s AND warehouse_id=%s AND environment='live'
+              AND entity_type='warehouse' AND entity_id=%s
+            FOR UPDATE
+            """,
+            (workspace_id, warehouse_id, warehouse_id),
+        )
+        warehouse_row = cur.fetchone()
+        set_database_scope(cur, workspace_id, environment, auth)
+        warehouse_payload = warehouse_row[1] if warehouse_row and isinstance(warehouse_row[1], dict) else None
+        warehouse_is_deleted = bool(warehouse_row[2]) if warehouse_row else False
+        if warehouse_changes:
+            warehouse_change = warehouse_changes[0]
+            if warehouse_change["deleted"]:
+                if warehouse_row and not warehouse_is_deleted and (warehouse_payload or {}).get("status") != "archived":
+                    raise ApiError(
+                        409,
+                        "warehouse_delete_requires_archived",
+                        "Активный склад удалить нельзя: сначала переведите его в архив",
+                    )
+                if not warehouse_row or warehouse_is_deleted:
+                    raise ApiError(409, "warehouse_deleted", "Склад уже удалён или отсутствует в реестре")
+                warehouse_code = str((warehouse_payload or {}).get("code", "")).strip().upper()
+                if not WAREHOUSE_CODE_RE.fullmatch(warehouse_code):
+                    raise ApiError(409, "invalid_warehouse_code", "Код удаляемого склада повреждён")
+                if not hmac.compare_digest(
+                    warehouse_code.encode("utf-8"),
+                    warehouse_delete_declared_code.encode("utf-8"),
+                ):
+                    raise _warehouse_delete_lease_error(409, "WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED")
+                verify_warehouse_delete_lease(
+                    authorization,
+                    workspace_id,
+                    warehouse_id,
+                    warehouse_code,
+                    warehouse_delete_lease_token,
+                    require_prepared=True,
+                )
+            elif warehouse_row and warehouse_is_deleted:
+                raise ApiError(409, "warehouse_deleted", "Удалённый склад нельзя восстановить записью поверх tombstone")
+            elif warehouse_row:
+                current_code = str((warehouse_payload or {}).get("code", "")).strip().upper()
+                proposed_code = str((warehouse_change.get("payload") or {}).get("code", "")).strip().upper()
+                if not hmac.compare_digest(current_code.encode("utf-8"), proposed_code.encode("utf-8")):
+                    raise ApiError(
+                        409,
+                        "warehouse_code_immutable",
+                        "Код существующего склада нельзя изменять: он защищает права доступа",
+                    )
+        elif not warehouse_row or warehouse_is_deleted:
+            raise ApiError(409, "warehouse_deleted", "Склад удалён или отсутствует в реестре")
+        elif (warehouse_payload or {}).get("status") == "archived":
+            raise ApiError(409, "warehouse_archived", "Архивный склад закрыт для изменения бизнес-данных")
 
         validate_entity_intent_current(cur, workspace_id, warehouse_id, environment, intent, changes, auth)
         validate_entity_inventory_current(cur, workspace_id, warehouse_id, environment, changes, intent)
@@ -1571,56 +2705,72 @@ def save_entity_batch(
                 ),
             )
             event_id, created_at = cur.fetchone()
-            if current:
-                cur.execute(
-                    """
-                    UPDATE business_records_v3
-                    SET version=%s, payload_sha256=%s, payload=%s, is_deleted=%s,
-                        last_event_id=%s, updated_by=%s, device_id=%s, updated_at=now(),
-                        deleted_at=CASE WHEN %s THEN now() ELSE NULL END
-                    WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s
-                      AND entity_type=%s AND entity_id=%s
-                    """,
-                    (
-                        new_version,
-                        item["digest_sha256"],
-                        None if item["deleted"] else Json(item["payload"]),
-                        item["deleted"],
-                        event_id,
-                        actor_id,
-                        device_id,
-                        item["deleted"],
-                        workspace_id,
-                        warehouse_id,
-                        environment,
-                        item["type"],
-                        item["id"],
-                    ),
-                )
-            else:
-                cur.execute(
-                    """
-                    INSERT INTO business_records_v3
-                      (workspace_id, warehouse_id, environment, entity_type, entity_id,
-                       version, payload_sha256, payload, is_deleted, last_event_id,
-                       created_by, updated_by, device_id)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,false,%s,%s,%s,%s)
-                    """,
-                    (
-                        workspace_id,
-                        warehouse_id,
-                        environment,
-                        item["type"],
-                        item["id"],
-                        new_version,
-                        item["digest_sha256"],
-                        Json(item["payload"]),
-                        event_id,
-                        actor_id,
-                        actor_id,
-                        device_id,
-                    ),
-                )
+            try:
+                if current:
+                    cur.execute(
+                        """
+                        UPDATE business_records_v3
+                        SET version=%s, payload_sha256=%s, payload=%s, is_deleted=%s,
+                            last_event_id=%s, updated_by=%s, device_id=%s, updated_at=now(),
+                            deleted_at=CASE WHEN %s THEN now() ELSE NULL END
+                        WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s
+                          AND entity_type=%s AND entity_id=%s
+                        """,
+                        (
+                            new_version,
+                            item["digest_sha256"],
+                            None if item["deleted"] else Json(item["payload"]),
+                            item["deleted"],
+                            event_id,
+                            actor_id,
+                            device_id,
+                            item["deleted"],
+                            workspace_id,
+                            warehouse_id,
+                            environment,
+                            item["type"],
+                            item["id"],
+                        ),
+                    )
+                else:
+                    cur.execute(
+                        """
+                        INSERT INTO business_records_v3
+                          (workspace_id, warehouse_id, environment, entity_type, entity_id,
+                           version, payload_sha256, payload, is_deleted, last_event_id,
+                           created_by, updated_by, device_id)
+                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,false,%s,%s,%s,%s)
+                        """,
+                        (
+                            workspace_id,
+                            warehouse_id,
+                            environment,
+                            item["type"],
+                            item["id"],
+                            new_version,
+                            item["digest_sha256"],
+                            Json(item["payload"]),
+                            event_id,
+                            actor_id,
+                            actor_id,
+                            device_id,
+                        ),
+                    )
+            except Exception as exc:
+                constraint_name = str(getattr(getattr(exc, "diag", None), "constraint_name", "") or "")
+                if (
+                    item["type"] == "warehouse"
+                    and not item["deleted"]
+                    and str(getattr(exc, "pgcode", "") or "") == "23505"
+                    and constraint_name == WAREHOUSE_CODE_UNIQUE_INDEX
+                ):
+                    raise ApiError(
+                        409,
+                        "warehouse_code_conflict",
+                        "Этот код уже используется другим складом",
+                        {"code": str((item.get("payload") or {}).get("code", ""))},
+                    ) from exc
+                raise
             outcomes.append(
                 {
                     "type": item["type"],
@@ -1632,6 +2782,113 @@ def save_entity_batch(
                     "changed_at": created_at.isoformat(),
                     "unchanged": False,
                 }
+            )
+
+        if warehouse_delete:
+            delete_digest = entity_payload_digest(None, True)
+            all_cascaded: list[tuple] = []
+            for cascade_environment in ("live", "demo"):
+                set_database_scope(cur, workspace_id, cascade_environment, auth)
+                cur.execute(
+                    """
+                    WITH targets AS (
+                      SELECT entity_type, entity_id, version + 1 AS entity_version
+                      FROM business_records_v3
+                      WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s
+                        AND is_deleted=false
+                      ORDER BY entity_type, entity_id
+                      FOR UPDATE
+                    ), inserted_events AS (
+                      INSERT INTO business_events_v3
+                        (workspace_id, warehouse_id, environment, entity_type, entity_id,
+                         entity_version, operation, payload_sha256, payload,
+                         changed_by, device_id, command_id)
+                      SELECT %s, %s, %s, entity_type, entity_id,
+                             entity_version, 'delete', %s, NULL, %s, %s, %s
+                      FROM targets
+                      RETURNING event_id, entity_type, entity_id, entity_version
+                    ), updated_records AS (
+                      UPDATE business_records_v3 AS records
+                      SET version=events.entity_version,
+                          payload_sha256=%s,
+                          payload=NULL,
+                          is_deleted=true,
+                          last_event_id=events.event_id,
+                          updated_by=%s,
+                          device_id=%s,
+                          updated_at=now(),
+                          deleted_at=now()
+                      FROM inserted_events AS events
+                      WHERE records.workspace_id=%s
+                        AND records.warehouse_id=%s
+                        AND records.environment=%s
+                        AND records.entity_type=events.entity_type
+                        AND records.entity_id=events.entity_id
+                      RETURNING records.entity_type, records.entity_id,
+                                records.version, records.last_event_id
+                    )
+                    SELECT entity_type, entity_id, version, last_event_id
+                    FROM updated_records
+                    ORDER BY entity_type, entity_id
+                    """,
+                    (
+                        workspace_id,
+                        warehouse_id,
+                        cascade_environment,
+                        workspace_id,
+                        warehouse_id,
+                        cascade_environment,
+                        delete_digest,
+                        actor_id,
+                        device_id,
+                        command_id,
+                        delete_digest,
+                        actor_id,
+                        device_id,
+                        workspace_id,
+                        warehouse_id,
+                        cascade_environment,
+                    ),
+                )
+                environment_cascaded = cur.fetchall()
+                cascade_by_environment[cascade_environment] = len(environment_cascaded)
+                all_cascaded.extend(environment_cascaded)
+                # Keep the append-only security metadata, but remove all old
+                # business payloads so a deleted warehouse cannot be rebuilt
+                # from GET /changes or from the live event table.
+                cur.execute(
+                    """
+                    UPDATE business_events_v3
+                    SET payload=NULL
+                    WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s
+                      AND payload IS NOT NULL
+                    """,
+                    (workspace_id, warehouse_id, cascade_environment),
+                )
+                history_payloads_redacted += max(0, int(cur.rowcount or 0))
+                cur.execute(
+                    """
+                    SELECT COALESCE(MAX(event_id), 0)
+                    FROM business_events_v3
+                    WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s
+                    """,
+                    (workspace_id, warehouse_id, cascade_environment),
+                )
+                cascade_cursors[cascade_environment] = int(cur.fetchone()[0])
+            cascade_deleted = len(all_cascaded)
+            cascade_types = sorted({str(row[0]) for row in all_cascaded})
+            set_database_scope(cur, workspace_id, "live", auth)
+
+            # The external lease can expire while a large warehouse is being
+            # purged. Revalidate immediately before the transaction is allowed
+            # to commit; any failure rolls the whole deletion back.
+            verify_warehouse_delete_lease(
+                authorization,
+                workspace_id,
+                warehouse_id,
+                warehouse_code,
+                warehouse_delete_lease_token,
+                require_prepared=True,
             )
 
         cur.execute(
@@ -1648,8 +2905,62 @@ def save_entity_batch(
             "cursor": cursor,
             "entities": outcomes,
             "intent": intent,
+            "cascade_deleted": cascade_deleted,
+            "cascade_by_environment": cascade_by_environment,
+            "history_payloads_redacted": history_payloads_redacted,
             "replayed": False,
         }
+        if warehouse_delete:
+            result.update(
+                {
+                    "delete_prepare_contract": WAREHOUSE_DELETE_PREPARE_CONTRACT,
+                    "delete_operation_status": "completed",
+                    "delete_operation_completed": True,
+                    "delete_operation_base_version": int(changes[0]["base_version"]),
+                    "delete_operation_warehouse_code": warehouse_code,
+                    "telegram_deprovisioned": telegram_deprovision.get("deprovisioned") is True,
+                    "telegram_already_deprovisioned": telegram_deprovision.get("already_deprovisioned") is True,
+                    "telegram_installation_id": str(telegram_deprovision.get("installation_id", "")),
+                }
+            )
+            cur.execute(
+                """
+                UPDATE warehouse_delete_operations_v3
+                SET status='completed', completed_at=now(), result=%s
+                WHERE workspace_id=%s AND warehouse_id=%s AND environment='live'
+                  AND command_id=%s AND warehouse_code=%s AND base_version=%s
+                  AND status='prepared'
+                RETURNING completed_at
+                """,
+                (
+                    Json(result),
+                    workspace_id,
+                    warehouse_id,
+                    command_id,
+                    warehouse_code,
+                    int(changes[0]["base_version"]),
+                ),
+            )
+            completed_row = cur.fetchone()
+            if not completed_row:
+                raise ApiError(409, "warehouse_delete_prepare_lost", "Подготовленная операция удаления больше не подтверждена")
+            cur.execute(
+                """
+                INSERT INTO warehouse_delete_release_outbox_v3
+                  (workspace_id, warehouse_id, environment, warehouse_code,
+                   command_id, base_version, status)
+                VALUES (%s,%s,'live',%s,%s,%s,'pending')
+                ON CONFLICT (workspace_id, warehouse_id, command_id) DO NOTHING
+                """,
+                (
+                    workspace_id,
+                    warehouse_id,
+                    warehouse_code,
+                    command_id,
+                    int(changes[0]["base_version"]),
+                ),
+            )
+            release_outbox_exact_key = (workspace_id, warehouse_id, command_id)
         cur.execute(
             """
             INSERT INTO business_commands_v3
@@ -1672,19 +2983,47 @@ def save_entity_batch(
                 actor_id,
                 device_id,
                 command_id,
-                str(intent.get("kind") if intent else "entity_batch"),
-                len(outcomes),
-                Json({"types": sorted({item["type"] for item in changes}), "cursor": cursor}),
+                "warehouse_delete_cascade" if warehouse_delete else str(intent.get("kind") if intent else "entity_batch"),
+                len(outcomes) + cascade_deleted,
+                Json(
+                    {
+                        "types": sorted({item["type"] for item in changes}),
+                        "cursor": cursor,
+                        "cascade_deleted": cascade_deleted,
+                        "cascade_by_environment": cascade_by_environment,
+                        "cascade_types": cascade_types,
+                        "history_payloads_redacted": history_payloads_redacted,
+                    }
+                ),
             ),
         )
-        cur.execute(
-            "SELECT pg_notify('jf_business_events', %s)",
-            (json.dumps({"workspace": workspace_id, "warehouse": warehouse_id, "environment": environment, "cursor": cursor}),),
-        )
+        notify_environments = cascade_cursors if warehouse_delete else {environment: cursor}
+        for notify_environment, notify_cursor in notify_environments.items():
+            cur.execute(
+                "SELECT pg_notify('jf_business_events', %s)",
+                (
+                    json.dumps(
+                        {
+                            "workspace": workspace_id,
+                            "warehouse": warehouse_id,
+                            "environment": notify_environment,
+                            "cursor": notify_cursor,
+                        }
+                    ),
+                ),
+            )
+    if release_outbox_exact_key:
+        try:
+            process_warehouse_delete_release_outbox(1, release_outbox_exact_key)
+        except Exception:
+            # The deletion is already committed atomically with its durable
+            # outbox record. The daemon will retry without a client secret.
+            LOG.exception("warehouse delete release opportunistic attempt failed")
     return result
 
 
 def load_current_entities(workspace_id: str, warehouse_id: str, environment: str, auth: dict) -> dict:
+    require_entity_scope_access(auth, workspace_id, warehouse_id, environment)
     with db_connect() as conn, conn.cursor() as cur:
         set_database_scope(cur, workspace_id, environment, auth)
         cur.execute(
@@ -1709,6 +3048,8 @@ def load_current_entities(workspace_id: str, warehouse_id: str, environment: str
         rows = cur.fetchall()
     entities = []
     for entity_type, entity_id, version, digest, payload, event_id, created_at, updated_at in rows:
+        if environment != "live" and str(entity_type) == "warehouse":
+            continue
         if not entity_permission_allowed(auth, str(entity_type), write=False):
             continue
         entities.append(
@@ -1723,7 +3064,12 @@ def load_current_entities(workspace_id: str, warehouse_id: str, environment: str
                 "updated_at": updated_at.isoformat(),
             }
         )
-    readable_types = sorted(entity_type for entity_type in ENTITY_SECTIONS if entity_permission_allowed(auth, entity_type, write=False))
+    readable_types = sorted(
+        entity_type
+        for entity_type in ENTITY_SECTIONS
+        if (environment == "live" or entity_type != "warehouse")
+        and entity_permission_allowed(auth, entity_type, write=False)
+    )
     return {"cursor": cursor, "entities": entities, "readable_types": readable_types}
 
 
@@ -1735,6 +3081,7 @@ def load_entity_changes(
     limit: int,
     auth: dict,
 ) -> dict:
+    require_entity_scope_access(auth, workspace_id, warehouse_id, environment)
     with db_connect() as conn, conn.cursor() as cur:
         set_database_scope(cur, workspace_id, environment, auth)
         cur.execute(
@@ -1752,6 +3099,8 @@ def load_entity_changes(
     events = []
     for row in rows:
         event_id, entity_type, entity_id, version, operation, digest, payload, actor_id, device_id, command_id, created_at = row
+        if environment != "live" and str(entity_type) == "warehouse":
+            continue
         if not entity_permission_allowed(auth, str(entity_type), write=False):
             continue
         events.append(
@@ -1773,7 +3122,8 @@ def load_entity_changes(
     readable_types = sorted(
         entity_type
         for entity_type in ENTITY_SECTIONS
-        if entity_permission_allowed(auth, entity_type, write=False)
+        if (environment == "live" or entity_type != "warehouse")
+        and entity_permission_allowed(auth, entity_type, write=False)
     )
     return {
         "cursor": cursor,
@@ -2433,6 +3783,9 @@ class Handler(BaseHTTPRequestHandler):
                         "database": "ready",
                         "api_contract": API_CONTRACT,
                         "address_contract": ADDRESS_API_CONTRACT,
+                        "warehouse_delete_prepare_contract": WAREHOUSE_DELETE_PREPARE_CONTRACT,
+                        "warehouse_delete_release_outbox_contract": WAREHOUSE_DELETE_RELEASE_OUTBOX_CONTRACT,
+                        "vps_attestation_contract": VPS_ATTESTATION_CONTRACT,
                         "address_provider": "dadata" if DADATA_API_KEY else "nominatim-explicit-only",
                         "address_autocomplete": bool(DADATA_API_KEY),
                         "address_storage": "transient-memory-cache",
@@ -2453,6 +3806,9 @@ class Handler(BaseHTTPRequestHandler):
                         "database": "unavailable",
                         "api_contract": API_CONTRACT,
                         "address_contract": ADDRESS_API_CONTRACT,
+                        "warehouse_delete_prepare_contract": WAREHOUSE_DELETE_PREPARE_CONTRACT,
+                        "warehouse_delete_release_outbox_contract": WAREHOUSE_DELETE_RELEASE_OUTBOX_CONTRACT,
+                        "vps_attestation_contract": VPS_ATTESTATION_CONTRACT,
                         "minimum_client_version": MIN_CLIENT_VERSION,
                     },
                 )
@@ -2468,6 +3824,9 @@ class Handler(BaseHTTPRequestHandler):
                     "version": VERSION,
                     "api_contract": API_CONTRACT,
                     "address_contract": ADDRESS_API_CONTRACT,
+                    "warehouse_delete_prepare_contract": WAREHOUSE_DELETE_PREPARE_CONTRACT,
+                    "warehouse_delete_release_outbox_contract": WAREHOUSE_DELETE_RELEASE_OUTBOX_CONTRACT,
+                    "vps_attestation_contract": VPS_ATTESTATION_CONTRACT,
                     "address_provider": "dadata" if DADATA_API_KEY else "nominatim-explicit-only",
                     "address_autocomplete": bool(DADATA_API_KEY),
                     "minimum_client_version": MIN_CLIENT_VERSION,
@@ -2493,17 +3852,41 @@ class Handler(BaseHTTPRequestHandler):
             if environment not in ("live", "demo"):
                 raise ApiError(400, "invalid_environment", "Среда должна быть LIVE или DEMO")
             workspace_id = str(auth["company_id"])
+            registry = warehouse_registry_snapshot(workspace_id, environment, auth)
             self.send_json(
                 200,
                 {
                     "ok": True,
                     "workspace_id": workspace_id,
                     "environment": environment,
-                    "warehouses": list_warehouses(workspace_id, environment, auth),
+                    **registry,
                 },
             )
             return
         decoded_path = unquote(target.path)
+        delete_prepare_match = WAREHOUSE_DELETE_PREPARE_PATH_RE.fullmatch(decoded_path)
+        if delete_prepare_match:
+            if self.command != "POST":
+                raise ApiError(405, "method_not_allowed", "Подготовка удаления склада требует POST")
+            workspace_id, warehouse_id = delete_prepare_match.groups()
+            require_workspace(auth, workspace_id)
+            result = prepare_warehouse_delete(
+                workspace_id,
+                warehouse_id,
+                self.read_json(),
+                auth,
+                self.headers.get("Authorization", ""),
+            )
+            self.send_json(
+                200,
+                {
+                    "ok": True,
+                    "workspace_id": workspace_id,
+                    "warehouse_id": warehouse_id,
+                    **result,
+                },
+            )
+            return
         address_match = ADDRESS_SEARCH_PATH_RE.fullmatch(decoded_path)
         if address_match:
             if self.command != "POST":
@@ -2535,7 +3918,15 @@ class Handler(BaseHTTPRequestHandler):
                 if self.command != "POST":
                     raise ApiError(405, "method_not_allowed", "Для пакетной записи требуется POST")
                 request = self.read_json()
-                result = save_entity_batch(workspace_id, warehouse_id, environment, request, auth)
+                authorization = self.headers.get("Authorization", "")
+                result = save_entity_batch(
+                    workspace_id,
+                    warehouse_id,
+                    environment,
+                    request,
+                    auth,
+                    authorization,
+                )
                 self.send_json(
                     200,
                     {
@@ -2547,7 +3938,6 @@ class Handler(BaseHTTPRequestHandler):
                     },
                 )
                 return
-            require_entity_scope_access(auth, workspace_id, warehouse_id, environment)
             if collection_match:
                 if self.command != "GET":
                     raise ApiError(405, "method_not_allowed", "Коллекция сущностей доступна только для чтения")
@@ -2620,11 +4010,16 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    required = ("JF_DB_DSN", "JF_API_KEY_SHA256", "JF_INSTALLATION_ID")
+    required = ("JF_DB_DSN", "JF_API_KEY_SHA256", "JF_INSTALLATION_ID", "JF_VPS_ATTESTATION_SECRET")
     missing = [name for name in required if not os.environ.get(name)]
     if missing:
         raise SystemExit("Missing required configuration: " + ", ".join(missing))
+    try:
+        _require_vps_attestation_secret()
+    except ApiError as exc:
+        raise SystemExit("Invalid JF_VPS_ATTESTATION_SECRET configuration") from exc
     init_schema()
+    start_warehouse_delete_release_worker()
     host = os.environ.get("JF_LISTEN_HOST", "127.0.0.1")
     port = int(os.environ.get("JF_LISTEN_PORT", "8792"))
     server = ThreadingHTTPServer((host, port), Handler)

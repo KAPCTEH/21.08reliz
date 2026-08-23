@@ -69,7 +69,9 @@ const { window } = dom;
 window.structuredClone = value => structuredClone(value);
 window.__JF_RUNTIME_TEST__ = true;
 window.__JF_RUNTIME_TRACE__ = runtimeTrace;
+const interactiveSelector = 'button,input:not([type="hidden"]),select,textarea,a[href],area[href],summary,[contenteditable="true"],[role="button"],[role="link"],[role="checkbox"],[role="radio"],[role="switch"],[role="tab"],[tabindex]:not([tabindex="-1"]),[data-jf-onclick]:not(button)';
 const originalButtons = new Set(window.document.querySelectorAll('button'));
+const originalControls = listButtons ? new Set(window.document.querySelectorAll(interactiveSelector)) : new Set();
 
 window.alert = message => { window.__alerts.push(String(message)); };
 window.confirm = message => { window.__confirms.push(String(message)); return false; };
@@ -164,7 +166,7 @@ window.JustFunDesktop = {
   },
   regVps: {
     status: async () => ({ configured: false }),
-    warehouses: async () => ({ ok: true, configured: true, warehouses: [] }),
+    warehouses: async () => ({ ok: true, configured: true, registryInitialized: false, warehouses: [] }),
     configure: async () => ({ canceled: true }),
     syncWarehouse: async payload => {
       window.__bridgeCalls.push(`reg.sync:${payload?.warehouseId || ''}:${payload?.environment || ''}`);
@@ -970,7 +972,7 @@ if (accessibilityMode) {
 
 const buttonResults = [];
 const buttons = [...window.document.querySelectorAll('button')];
-const unsafeButtonPattern = /удалить|сформировать|пересчит|рассчитать|построить|сбросить|очистить|закрыть рейс|запустить демонстрацию заново|восстановить активный склад/i;
+const unsafeButtonPattern = /удалить|сформировать|пересчит|рассчитать|построить|сбросить|очистить|закрыть рейс|запустить|восстановить|вернуть стандартные|убрать назначение|провести операцию|применить к заказам|повторить доставку|\b(?:delete|remove|clear|reset|restore|recalculate|calculate|build|commit|cancel|archive|start|mark|resolve|apply|import|configure|bind|sync|retry)[A-Z0-9_$]*\s*\(/i;
 const seenButtonHooks = new Set();
 const normalizedButtonHook = button => {
   const inline = String(button.getAttribute('data-jf-onclick') || button.getAttribute('onclick') || '').trim();
@@ -980,6 +982,7 @@ const normalizedButtonHook = button => {
     .replace(/\s+/g, ' ');
   return button.id || button.textContent.replace(/\s+/g, ' ').trim();
 };
+const unsafeButton = button => unsafeButtonPattern.test(`${button.textContent.replace(/\s+/g, ' ').trim()} ${normalizedButtonHook(button)} ${button.id || ''}`);
 const allClickCandidates = buttons.filter(button => {
   if (!clickButtons && !listButtons) return false;
   if (!clickDynamicButtons && !listButtons && !originalButtons.has(button)) return false;
@@ -988,8 +991,77 @@ const allClickCandidates = buttons.filter(button => {
   const hook = normalizedButtonHook(button) || label;
   if (seenButtonHooks.has(hook)) return false;
   seenButtonHooks.add(hook);
-  return hasStableHook && !unsafeButtonPattern.test(label);
+  return hasStableHook && !unsafeButton(button);
 });
+const safeCandidateButtons = new Set(allClickCandidates);
+const inventoryScope = element => {
+  const scope = element.closest('[role="dialog"],dialog,.modal,[id$="View"],[id$="Modal"],main,nav,header,footer,section');
+  return scope ? {
+    tag: scope.tagName.toLowerCase(),
+    id: scope.id || null,
+    role: scope.getAttribute('role') || null
+  } : null;
+};
+const inventoryContainerId = element => element.parentElement?.closest('[id]')?.id || null;
+const buttonInventory = listButtons ? buttons.map((button, index) => {
+  const label = button.textContent.replace(/\s+/g, ' ').trim();
+  return {
+    index,
+    id: button.id || null,
+    label,
+    hook: normalizedButtonHook(button),
+    type: button.getAttribute('type') || 'submit',
+    dynamic: !originalButtons.has(button),
+    safeCandidate: safeCandidateButtons.has(button),
+    destructiveOrExpensive: unsafeButton(button),
+    disabled: button.disabled,
+    hidden: button.hidden,
+    display: button.style.display || null,
+    ariaLabel: button.getAttribute('aria-label') || null,
+    title: button.getAttribute('title') || null,
+    scope: inventoryScope(button),
+    containerId: inventoryContainerId(button)
+  };
+}) : [];
+const controls = listButtons ? [...window.document.querySelectorAll(interactiveSelector)] : [];
+const labelsByControlId = listButtons ? new Map(
+  [...window.document.querySelectorAll('label[for]')]
+    .map(label => [label.getAttribute('for'), String(label.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 240)])
+    .filter(([id]) => Boolean(id))
+) : new Map();
+const controlInventory = listButtons ? controls.map((control, index) => {
+  const inlineHook = ['data-jf-onclick', 'onclick', 'onchange', 'oninput', 'onsubmit']
+    .map(attribute => String(control.getAttribute(attribute) || '').trim())
+    .find(Boolean) || null;
+  const label = String(
+    control.getAttribute('aria-label')
+      || labelsByControlId.get(control.id)
+      || control.getAttribute('placeholder')
+      || control.getAttribute('title')
+      || (['BUTTON', 'A'].includes(control.tagName) ? control.textContent : '')
+      || control.getAttribute('name')
+      || control.id
+      || ''
+  ).replace(/\s+/g, ' ').trim().slice(0, 240);
+  return {
+    index,
+    tag: control.tagName.toLowerCase(),
+    type: String(control.type || control.tagName || '').toLowerCase() || null,
+    id: control.id || null,
+    name: control.getAttribute('name') || null,
+    label,
+    hook: inlineHook || control.id || control.getAttribute('name') || null,
+    href: control.tagName === 'A' ? control.getAttribute('href') : null,
+    dynamic: !originalControls.has(control),
+    disabled: Boolean(control.disabled),
+    required: Boolean(control.required),
+    hidden: Boolean(control.hidden),
+    display: control.style.display || null,
+    optionCount: control.tagName === 'SELECT' ? control.options.length : null,
+    scope: inventoryScope(control),
+    containerId: inventoryContainerId(control)
+  };
+}) : [];
 const clickOffset = Math.max(0, Number(process.env.JF_CLICK_OFFSET) || 0);
 const clickLimit = Math.max(1, Number(process.env.JF_CLICK_LIMIT) || allClickCandidates.length || 1);
 const clickCandidates = listButtons ? [] : allClickCandidates.slice(clickOffset, clickOffset + clickLimit);
@@ -1039,6 +1111,7 @@ const result = {
     scripts: scriptResults.length,
     scriptsFailed: scriptResults.filter(item => !item.ok).length,
     buttons: buttons.length,
+    controls: controls.length,
     buttonCandidates: allClickCandidates.length,
     buttonBatchOffset: clickOffset,
     buttonBatchLimit: clickLimit,
@@ -1063,6 +1136,8 @@ const result = {
     disabled: button.disabled,
     hidden: button.hidden
   })),
+  buttonInventory,
+  controlInventory,
   buttons: buttonResults,
   stress5000: stressResult,
   deepBusiness: deepBusinessResult,

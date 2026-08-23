@@ -18,16 +18,22 @@
     "reg_api": 3,
     "license_auth": 4,
     "license_auth_context": 2,
-    "telegram_broker": 1,
+    "telegram_broker": 4,
     "storage_protocol": 3,
-    "address_search": 1
+    "address_search": 1,
+    "warehouse_delete_prepare": 1,
+    "warehouse_delete_lease": 3,
+    "telegram_broker_deprovision": 3,
+    "telegram_native_deprovision": 1,
+    "vps_attestation": 1,
+    "warehouse_delete_release_outbox": 1
   },
   "service_versions": {
     "desktop": "7.8.3",
     "reg_api": "7.8.3",
     "license_api": "7.8.3",
     "telegram_worker": "7.8.3",
-    "company_telegram_broker": "1.0.2",
+    "company_telegram_broker": "1.3.0",
     "update_catalog_service": "1.0.0"
   },
   "windows": {

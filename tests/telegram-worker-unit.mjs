@@ -21,6 +21,7 @@ const db = {
     return {
       bind(...values) {
         return {
+          async first() { return null; },
           async all() {
             assert.match(sql, /FROM chat_bindings_v2/);
             assert.deepEqual(values.slice(0, 3), ['inst-warehouse-01', 'company_01', 'live--warehouse_01']);
@@ -41,6 +42,10 @@ const env = {
   COMPANY_ID: 'company_01',
   WAREHOUSE_ID: 'live--warehouse_01'
 };
+
+const healthResponse = await dispatch(new Request('https://worker.test/health'), env);
+assert.equal(healthResponse.status, 200);
+assert.equal((await healthResponse.json()).telegram_deprovision_contract, 1);
 
 await assert.rejects(
   dispatch(new Request('https://worker.test/v1/bindings?warehouse_id=live--warehouse_01'), env),
@@ -215,6 +220,174 @@ try {
   globalThis.fetch = originalFetch;
 }
 
+function createDeprovisionDb({ legacyConflict = false } = {}) {
+  let marker = null;
+  const rows = {
+    chat_bindings_v2: 2,
+    link_codes_v2: 1,
+    notifications_v2: 3,
+    events_v2: 4,
+    telegram_updates_v2: 5,
+    chat_bindings: 6,
+    link_codes: 7,
+    notifications: 8,
+    events: 9,
+    telegram_updates: 10,
+    telegram_provisioning_operations: 1,
+  };
+  function statement(sql, values = []) {
+    const source = String(sql);
+    return {
+      bind(...nextValues) { return statement(source, nextValues); },
+      async first() {
+        if (source.includes('FROM telegram_deprovision_markers')) return marker;
+        if (source.includes('SELECT 1 AS conflict')) return legacyConflict ? { conflict: 1 } : null;
+        return null;
+      },
+      async run() {
+        if (source.includes('INSERT INTO telegram_deprovision_markers')) {
+          if (!marker) {
+            marker = {
+              installation_id: values[0], company_id: values[1], warehouse_id: values[2],
+              status: 'deprovisioning', attempt_count: 1, last_error_code: '',
+              requested_at: values[3], deprovisioned_at: null, updated_at: values[3],
+            };
+          } else if (marker.status === 'deprovisioning') {
+            marker = { ...marker, attempt_count: marker.attempt_count + 1, last_error_code: '', updated_at: values[3] };
+          }
+          return { meta: { changes: 1 } };
+        }
+        if (source.includes('SET last_error_code=')) {
+          marker = { ...marker, last_error_code: values[0], updated_at: values[1] };
+          return { meta: { changes: 1 } };
+        }
+        if (source.includes("SET status='deprovisioned'")) {
+          marker = { ...marker, status: 'deprovisioned', last_error_code: '', deprovisioned_at: values[0], updated_at: values[0] };
+          return { meta: { changes: 1 } };
+        }
+        for (const table of Object.keys(rows)) {
+          if (source.includes(`DELETE FROM ${table}`)) {
+            const changes = rows[table];
+            rows[table] = 0;
+            return { meta: { changes } };
+          }
+        }
+        return { meta: { changes: 0 } };
+      },
+    };
+  }
+  return {
+    prepare: sql => statement(sql),
+    async batch(statements) { return Promise.all(statements.map(item => item.run())); },
+    state: () => ({ marker, rows: { ...rows } }),
+  };
+}
+
+const ambiguousLegacyDb = createDeprovisionDb({ legacyConflict: true });
+let ambiguousLegacyFetchCalls = 0;
+try {
+  globalThis.fetch = async () => {
+    ambiguousLegacyFetchCalls += 1;
+    throw new Error('deleteWebhook must not run for ambiguous legacy ownership');
+  };
+  await assert.rejects(
+    dispatch(new Request('https://worker.test/v1/deprovision', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${clientKey}` },
+    }), { ...env, DB: ambiguousLegacyDb }),
+    error => error?.status === 409 && error?.code === 'telegram_legacy_ownership_ambiguous',
+  );
+  assert.equal(ambiguousLegacyFetchCalls, 0);
+  assert.equal(ambiguousLegacyDb.state().marker.last_error_code, 'telegram_legacy_ownership_ambiguous');
+  assert.equal(ambiguousLegacyDb.state().rows.chat_bindings, 6);
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+const unconfirmedDeprovisionDb = createDeprovisionDb();
+try {
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: true, result: false }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+  await assert.rejects(
+    dispatch(new Request('https://worker.test/v1/deprovision', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${clientKey}` },
+    }), { ...env, DB: unconfirmedDeprovisionDb }),
+    error => error?.status === 502 && error?.code === 'telegram_disconnect_unconfirmed',
+  );
+  assert.equal(unconfirmedDeprovisionDb.state().marker.status, 'deprovisioning');
+  assert.equal(unconfirmedDeprovisionDb.state().marker.last_error_code, 'telegram_disconnect_unconfirmed');
+  assert.equal(unconfirmedDeprovisionDb.state().rows.chat_bindings_v2, 2);
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
+const deprovisionDb = createDeprovisionDb();
+const deprovisionEnv = { ...env, DB: deprovisionDb };
+let deleteWebhookCalls = 0;
+try {
+  globalThis.fetch = async (url, options) => {
+    assert.match(String(url), /\/deleteWebhook$/);
+    assert.equal(JSON.parse(String(options?.body || '{}')).drop_pending_updates, true);
+    deleteWebhookCalls += 1;
+    return new Response(JSON.stringify({ ok: true, result: true }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  await assert.rejects(
+    dispatch(new Request('https://worker.test/v1/deprovision', { method: 'POST' }), deprovisionEnv),
+    error => error?.status === 401 && error?.code === 'unauthorized',
+  );
+  const firstDeprovision = await dispatch(new Request('https://worker.test/v1/deprovision', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${clientKey}` },
+  }), deprovisionEnv);
+  const firstDeprovisionPayload = await firstDeprovision.json();
+  assert.equal(firstDeprovisionPayload.deprovisioned, true);
+  assert.equal(firstDeprovisionPayload.already_deprovisioned, false);
+  assert.equal(firstDeprovisionPayload.installation_id, env.INSTALLATION_ID);
+  assert.equal(firstDeprovisionPayload.company_id, env.COMPANY_ID);
+  assert.equal(firstDeprovisionPayload.warehouse_id, env.WAREHOUSE_ID);
+  assert.deepEqual(firstDeprovisionPayload.purged, {
+    bindings: 2, link_codes: 1, notifications: 3, events: 4, updates: 5,
+    legacy_bindings: 6, legacy_link_codes: 7, legacy_notifications: 8,
+    legacy_events: 9, legacy_updates: 10, provisioning_operations: 1,
+  });
+  assert.equal(deleteWebhookCalls, 1);
+  assert.deepEqual(deprovisionDb.state().rows, {
+    chat_bindings_v2: 0, link_codes_v2: 0, notifications_v2: 0, events_v2: 0, telegram_updates_v2: 0,
+    chat_bindings: 0, link_codes: 0, notifications: 0, events: 0, telegram_updates: 0,
+    telegram_provisioning_operations: 0,
+  });
+
+  const repeatedDeprovision = await dispatch(new Request('https://worker.test/v1/deprovision', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${clientKey}` },
+  }), deprovisionEnv);
+  assert.equal((await repeatedDeprovision.json()).already_deprovisioned, true);
+  assert.equal(deleteWebhookCalls, 1);
+  await assert.rejects(
+    dispatch(sendRequest(), deprovisionEnv),
+    error => error?.status === 410 && error?.code === 'installation_deprovisioned',
+  );
+  await assert.rejects(
+    dispatch(new Request('https://worker.test/telegram', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-telegram-bot-api-secret-token': env.WEBHOOK_SECRET,
+      },
+      body: JSON.stringify({ update_id: 999, message: { text: '/help' } }),
+    }), deprovisionEnv),
+    error => error?.status === 410 && error?.code === 'installation_deprovisioned',
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
 console.log(JSON.stringify({
   ok: true,
   authenticatedBindings: true,
@@ -224,5 +397,10 @@ console.log(JSON.stringify({
   driverDeepLinkCommand: true,
   driverAndWarehouseTransitions: true,
   unboundSendRejected: true,
-  telegramDeliveryConfirmed: true
+  telegramDeliveryConfirmed: true,
+  deprovisionContract: true,
+  ambiguousLegacyOwnershipFailsClosed: true,
+  deprovisionRequiresWebhookConfirmation: true,
+  deprovisionRetrySafe: true,
+  deprovisionBlocksRuntime: true
 }));

@@ -1,6 +1,18 @@
 import { constantTimeEqual, randomId, randomLinkCode, sha256Hex } from './crypto.js';
 import { HttpError, bearerToken, corsPreflight, errorResponse, json, readJson, requireString, requireWarehouseId, routeParts, withCors } from './http.js';
-import { claimTelegramUpdate, cleanupExpiredData, completeTelegramUpdate, failTelegramUpdate, insertEvent, resolveChatBinding } from './db.js';
+import {
+  beginInstallationDeprovision,
+  claimTelegramUpdate,
+  cleanupExpiredData,
+  completeInstallationDeprovision,
+  completeTelegramUpdate,
+  failTelegramUpdate,
+  getInstallationDeprovisionMarker,
+  hasLegacyWarehouseOwnershipConflict,
+  insertEvent,
+  recordInstallationDeprovisionFailure,
+  resolveChatBinding
+} from './db.js';
 import { canTransition, nextKeyboard, parseStatusCallback, STATUS_LABELS } from './status.js';
 import { answerCallbackQuery, deleteWebhook, editMessageReplyMarkup, getMe, getWebhookInfo, sendMessage } from './telegram.js';
 
@@ -35,6 +47,65 @@ function serviceScope(env) {
     companyId: String(env.COMPANY_ID),
     warehouseId: requireWarehouseId(env.WAREHOUSE_ID)
   };
+}
+
+function deprovisionBlockedError(marker) {
+  const complete = marker?.status === 'deprovisioned';
+  return new HttpError(
+    410,
+    complete ? 'Telegram-установка удалена' : 'Telegram-установка отключается',
+    complete ? 'installation_deprovisioned' : 'installation_deprovisioning'
+  );
+}
+
+async function requireInstallationActive(env) {
+  const scope = serviceScope(env);
+  const marker = await getInstallationDeprovisionMarker(env.DB, scope);
+  if (marker) throw deprovisionBlockedError(marker);
+  return scope;
+}
+
+function publicDeprovisionResult(scope, alreadyDeprovisioned, purged = null) {
+  return {
+    ok: true,
+    deprovisioned: true,
+    already_deprovisioned: alreadyDeprovisioned === true,
+    installation_id: scope.installationId,
+    company_id: scope.companyId,
+    warehouse_id: scope.warehouseId,
+    ...(purged ? { purged } : {})
+  };
+}
+
+async function handleDeprovision(request, env) {
+  requireApiAccess(request, env);
+  const scope = serviceScope(env);
+  const existing = await getInstallationDeprovisionMarker(env.DB, scope);
+  if (existing?.status === 'deprovisioned') {
+    return json(publicDeprovisionResult(scope, true));
+  }
+  const marker = await beginInstallationDeprovision(env.DB, scope);
+  if (marker.status === 'deprovisioned') {
+    return json(publicDeprovisionResult(scope, true));
+  }
+  try {
+    if (await hasLegacyWarehouseOwnershipConflict(env.DB, scope)) {
+      throw new HttpError(
+        409,
+        'Legacy Telegram-данные этого склада имеют неоднозначного владельца',
+        'telegram_legacy_ownership_ambiguous'
+      );
+    }
+    const webhookDeleted = await deleteWebhook(env, { dropPendingUpdates: true });
+    if (webhookDeleted !== true) {
+      throw new HttpError(502, 'Telegram не подтвердил удаление webhook', 'telegram_disconnect_unconfirmed');
+    }
+    const result = await completeInstallationDeprovision(env.DB, scope);
+    return json(publicDeprovisionResult(scope, result.alreadyDeprovisioned, result.purged));
+  } catch (error) {
+    await recordInstallationDeprovisionFailure(env.DB, scope, error?.code || 'telegram_deprovision_failed');
+    throw error;
+  }
 }
 
 function requireScopedWarehouse(value, env) {
@@ -84,6 +155,7 @@ function publicNotification(row) {
 
 async function handleStatus(request, env) {
   requireApiAccess(request, env);
+  await requireInstallationActive(env);
   const [bot, webhook] = await Promise.all([getMe(env), getWebhookInfo(env)]);
   return json({
     ok: true,
@@ -100,13 +172,14 @@ async function handleStatus(request, env) {
 
 async function handleDisconnect(request, env) {
   requireApiAccess(request, env);
+  await requireInstallationActive(env);
   await deleteWebhook(env);
   return json({ ok: true, disconnected: true });
 }
 
 async function handleLinkCode(request, env) {
   requireApiAccess(request, env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const body = await readJson(request);
   const entityType = requireString(body.entity_type, 'entity_type', { max: 20 });
   if (!['driver', 'warehouse'].includes(entityType)) {
@@ -282,7 +355,7 @@ async function acquireNotification(env, data) {
 
 async function handleSend(request, env) {
   requireApiAccess(request, env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const body = await readJson(request, 512 * 1024);
   const actor = requireString(body.actor || 'system', 'actor', { max: 20 });
   if (!['driver', 'warehouse', 'system'].includes(actor)) {
@@ -391,7 +464,7 @@ async function handleSend(request, env) {
 
 async function handleEvents(request, env) {
   requireApiAccess(request, env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const url = new URL(request.url);
   const warehouseId = requireScopedWarehouse(url.searchParams.get('warehouse_id'), env);
   const rawAfter = Number(url.searchParams.get('after_id') || 0);
@@ -421,7 +494,7 @@ async function handleEvents(request, env) {
 
 async function handleBindings(request, env) {
   requireApiAccess(request, env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const url = new URL(request.url);
   const warehouseId = requireScopedWarehouse(url.searchParams.get('warehouse_id'), env);
   const entityType = String(url.searchParams.get('entity_type') || '').trim();
@@ -562,7 +635,7 @@ async function handleMessage(env, message) {
 
 async function handleTelegramWebhook(request, env) {
   requireServiceConfig(env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const supplied = request.headers.get('x-telegram-bot-api-secret-token') || '';
   if (!supplied || !constantTimeEqual(supplied, env.WEBHOOK_SECRET)) {
     throw new HttpError(403, 'Неверная подпись Telegram webhook', 'webhook_forbidden');
@@ -593,6 +666,7 @@ async function dispatch(request, env) {
       ok: true,
       service: env.SERVICE_NAME || 'Orders & Logistics Telegram',
       configured: serviceConfigOk(env),
+      telegram_deprovision_contract: 1,
       installation_id: env.INSTALLATION_ID || '',
       version: env.DEPLOYMENT_VERSION || '7.8.3',
       time: nowIso()
@@ -600,6 +674,7 @@ async function dispatch(request, env) {
   }
   if (method === 'POST' && parts.length === 1 && parts[0] === 'telegram') return handleTelegramWebhook(request, env);
   if (parts.length === 2 && parts[0] === 'v1') {
+    if (method === 'POST' && parts[1] === 'deprovision') return handleDeprovision(request, env);
     if (method === 'GET' && parts[1] === 'status') return handleStatus(request, env);
     if (method === 'POST' && parts[1] === 'disconnect') return handleDisconnect(request, env);
     if (method === 'POST' && parts[1] === 'link-code') return handleLinkCode(request, env);

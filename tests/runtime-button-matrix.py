@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures
+import hashlib
 import json
 import os
 import subprocess
@@ -15,6 +16,47 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME = ROOT / "tests" / "runtime-smoke.mjs"
+
+
+def source_manifest(web_root: Path) -> dict:
+    files = sorted(path for path in web_root.rglob("*") if path.is_file())
+    files.extend([RUNTIME, Path(__file__).resolve()])
+    entries = []
+    for path in sorted(set(files)):
+        content = path.read_bytes()
+        entries.append({
+            "path": path.relative_to(ROOT).as_posix(),
+            "bytes": len(content),
+            "sha256": hashlib.sha256(content).hexdigest(),
+        })
+    encoded = "\n".join(f"{item['path']}\0{item['bytes']}\0{item['sha256']}" for item in entries).encode("utf-8")
+    commit = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=False
+    )
+    relative_root = web_root.relative_to(ROOT).as_posix()
+    status = subprocess.run(
+        ["git", "status", "--porcelain=v1", "--", relative_root],
+        cwd=ROOT, capture_output=True, text=True, encoding="utf-8", check=False,
+    )
+    diff = subprocess.run(
+        ["git", "diff", "--binary", "HEAD", "--", relative_root],
+        cwd=ROOT, capture_output=True, check=False,
+    )
+    dirty_files = []
+    if status.returncode == 0:
+        dirty_files = sorted(
+            line[3:].replace("\\", "/")
+            for line in status.stdout.splitlines()
+            if len(line) > 3
+        )
+    return {
+        "repositoryCommit": commit.stdout.strip() if commit.returncode == 0 else None,
+        "sourceTreeDirty": bool(dirty_files),
+        "sourceDirtyFiles": dirty_files,
+        "sourceDiffSha256": hashlib.sha256(diff.stdout).hexdigest() if diff.returncode == 0 else None,
+        "sourceTreeSha256": hashlib.sha256(encoded).hexdigest(),
+        "sourceFiles": entries,
+    }
 
 
 def run_runtime(web_root: Path, mode: str, edition: str, offset: int | None = None, timeout: int = 60) -> tuple[subprocess.CompletedProcess[str], dict]:
@@ -122,13 +164,50 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=60)
     parser.add_argument("--indices", default="", help="Candidate indexes/ranges, for example 0-4,8,10-12")
     parser.add_argument("--report", type=Path, help="Atomically update a JSON report after every completed candidate")
+    parser.add_argument("--list-only", action="store_true", help="Write the full source UI control inventory without clicking controls")
     args = parser.parse_args()
     web_root = args.web_root.resolve()
+    try:
+        web_root_label = web_root.relative_to(ROOT).as_posix()
+    except ValueError as error:
+        raise RuntimeError("web_root must be inside the canonical repository") from error
 
     listed_process, listed = run_runtime(web_root, "list-buttons", args.edition, timeout=max(args.timeout, 90))
     if listed_process.returncode != 0 or listed.get("errors"):
         raise RuntimeError(f"Cannot enumerate buttons: {listed.get('errors') or listed_process.stderr}")
     candidates = listed.get("buttonCandidates") or []
+    if args.list_only:
+        inventory = listed.get("buttonInventory") or []
+        controls = listed.get("controlInventory") or []
+        report = {
+            "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "edition": args.edition,
+            "webRoot": web_root_label,
+            "mode": "source-inventory",
+            "complete": True,
+            **source_manifest(web_root),
+            "summary": {
+                "renderedButtons": len(inventory),
+                "renderedControls": len(controls),
+                "uniqueSafeCandidates": len(candidates),
+                "destructiveOrExpensive": sum(bool(item.get("destructiveOrExpensive")) for item in inventory),
+                "dynamic": sum(bool(item.get("dynamic")) for item in inventory),
+                "disabled": sum(bool(item.get("disabled")) for item in inventory),
+                "hidden": sum(bool(item.get("hidden")) for item in inventory),
+                "controlsWithoutStableHook": sum(not bool(item.get("hook")) for item in controls),
+                "controlsWithoutContainer": sum(
+                    not bool((item.get("scope") or {}).get("id")) and not bool(item.get("containerId"))
+                    for item in controls
+                ),
+            },
+            "buttonInventory": inventory,
+            "controlInventory": controls,
+            "buttonCandidates": candidates,
+        }
+        if args.report:
+            write_report_atomic(args.report.resolve(), report)
+        print(json.dumps(report, ensure_ascii=False, indent=2))
+        return 0
     if args.indices.strip():
         selected = parse_indices(args.indices)
         candidates = [item for item in candidates if int(item["index"]) in selected]
@@ -143,7 +222,7 @@ def main() -> int:
             partial = {
                 "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "edition": args.edition,
-                "webRoot": str(web_root),
+                "webRoot": web_root_label,
                 "complete": len(results) == len(candidates),
                 "summary": {
                     "selected": len(candidates),
@@ -163,7 +242,7 @@ def main() -> int:
     report = {
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "edition": args.edition,
-        "webRoot": str(web_root),
+        "webRoot": web_root_label,
         "summary": {
             "candidates": len(results),
             "passed": sum(item["status"] == "passed" for item in results),

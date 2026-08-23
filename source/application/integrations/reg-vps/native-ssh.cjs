@@ -20,13 +20,15 @@ function validateOptions(options) {
   const password = String(options?.password || '');
   const installationId = String(options?.installationId || '');
   const apiKey = String(options?.apiKey || '');
+  const attestationSecret = String(options?.attestationSecret || '');
   if (!host) throw new Error('Не указан адрес VPS.');
   if (!/^[a-z_][a-z0-9_-]{0,31}$/.test(username)) throw new Error('Проверьте имя SSH-пользователя.');
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('Проверьте SSH-порт.');
   if (!password || password.length > 1024 || /[\r\n\0]/.test(password)) throw new Error('Введите SSH-пароль.');
   if (!/^[A-Za-z0-9_-]{16,80}$/.test(installationId)) throw new Error('Идентификатор компании повреждён.');
   if (!/^[A-Za-z0-9_-]{40,120}$/.test(apiKey)) throw new Error('Временный ключ подключения повреждён.');
-  return { host, username, port, password, installationId, apiKey };
+  if (!/^jfvps_[A-Za-z0-9_-]{43,120}$/.test(attestationSecret)) throw new Error('Ключ подтверждения VPS повреждён.');
+  return { host, username, port, password, installationId, apiKey, attestationSecret };
 }
 
 function b64(value) {
@@ -157,6 +159,7 @@ async function installRegVps(rawOptions) {
   const bootstrapName = `bootstrap-${nonce}.env`;
   const bootstrap = [
     `API_KEY_B64=${b64(options.apiKey)}`,
+    `VPS_ATTESTATION_SECRET_B64=${b64(options.attestationSecret)}`,
     `INSTALLATION_ID_B64=${b64(options.installationId)}`,
     `SERVER_IP_B64=${b64(options.host)}`,
     `SSH_PORT_B64=${b64(String(options.port))}`,
@@ -204,6 +207,7 @@ async function installRegVps(rawOptions) {
     }
     options.password = '';
     options.apiKey = '';
+    options.attestationSecret = '';
   }
 }
 

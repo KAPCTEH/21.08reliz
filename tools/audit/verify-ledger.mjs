@@ -41,9 +41,10 @@ const index = await json(path.join(ledger, "index.json"));
 const scope = await json(path.join(ledger, "scope.yml"));
 const moduleMap = await json(path.join(ledger, "module-map.yml"));
 const testMap = await json(path.join(ledger, "test-map.yml"));
+const canonicalTestCatalog = await json(path.join(repository, "release", "test-catalog.json"));
 const publishManifest = await json(path.join(ledger, "publish-manifest.json"));
 const secretScan = await json(path.join(ledger, "publish-secret-scan.json"));
-if (!index || !scope || !moduleMap || !testMap || !publishManifest || !secretScan) process.exitCode = 1;
+if (!index || !scope || !moduleMap || !testMap || !canonicalTestCatalog || !publishManifest || !secretScan) process.exitCode = 1;
 
 if (secretScan?.finding_count !== 0 || secretScan?.findings?.length) failures.push("publish_secret_scan_not_clean");
 if (await stat(path.join(ledger, "baselines", publishManifest?.baseline_id || "missing", "live", "cloudflare-readonly-inventory.json")).then(() => true, () => false)) {
@@ -88,8 +89,18 @@ for (const item of evidence) {
 if (JSON.stringify(severityCounts) !== JSON.stringify(index?.open_findings_by_severity)) failures.push("index_severity_counts_mismatch");
 if (!Array.isArray(moduleMap?.modules) || !moduleMap.modules.every(module => module.id && module.owner && module.globs?.length && module.required_checks?.length)) failures.push("incomplete_module_map");
 if (!Array.isArray(testMap?.tests) || !testMap.tests.every(test => test.id && test.path && test.command && test.modules?.length && typeof test.network_allowed === "boolean")) failures.push("incomplete_test_map");
+if (JSON.stringify(testMap) !== JSON.stringify(canonicalTestCatalog)) failures.push("test_map_catalog_mismatch");
 for (const test of testMap?.tests || []) {
   if ((test.network_allowed || test.executable_allowed) && !test.requires_explicit_live_authorization) failures.push(`dangerous_test_not_gated:${test.id}`);
+}
+try {
+  const [ledgerWorkflow, repositoryWorkflow] = await Promise.all([
+    readFile(path.join(ledger, "github-config", "workflows", "audit-incremental.yml")),
+    readFile(path.join(repository, ".github", "workflows", "audit-incremental.yml")),
+  ]);
+  if (sha256(ledgerWorkflow) !== sha256(repositoryWorkflow)) failures.push("audit_workflow_mirror_mismatch");
+} catch (error) {
+  failures.push(`audit_workflow_mirror_unreadable:${error.message}`);
 }
 
 const baselineId = publishManifest?.baseline_id;

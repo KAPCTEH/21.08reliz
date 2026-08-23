@@ -15,6 +15,7 @@ if [[ -z "$BOOTSTRAP_FILE" || ! -f "$BOOTSTRAP_FILE" ]]; then
 fi
 cleanup_bootstrap() {
   API_KEY=""
+  VPS_ATTESTATION_SECRET=""
   if command -v shred >/dev/null 2>&1; then shred -u -- "$BOOTSTRAP_FILE" 2>/dev/null || rm -f -- "$BOOTSTRAP_FILE"
   else rm -f -- "$BOOTSTRAP_FILE"
   fi
@@ -84,10 +85,12 @@ read_value() {
 }
 
 API_KEY="$(read_value API_KEY_B64)"
+VPS_ATTESTATION_SECRET="$(read_value VPS_ATTESTATION_SECRET_B64)"
 INSTALLATION_ID="$(read_value INSTALLATION_ID_B64)"
 SERVER_IP="$(read_value SERVER_IP_B64)"
 SSH_PORT="$(read_value SSH_PORT_B64)"
 [[ "$API_KEY" =~ ^[A-Za-z0-9_-]{40,120}$ ]] || { echo "Invalid API key" >&2; exit 2; }
+[[ "$VPS_ATTESTATION_SECRET" =~ ^jfvps_[A-Za-z0-9_-]{43,120}$ ]] || { echo "Invalid VPS attestation secret" >&2; exit 2; }
 [[ "$INSTALLATION_ID" =~ ^[A-Za-z0-9_-]{16,80}$ ]] || { echo "Invalid installation ID" >&2; exit 2; }
 [[ "$SSH_PORT" =~ ^[0-9]{1,5}$ ]] || { echo "Invalid SSH port" >&2; exit 2; }
 
@@ -159,6 +162,7 @@ cat > /etc/orders-logistics/server.env <<EOF_ENV
 JF_DB_PASSWORD=$DB_PASSWORD
 JF_DB_DSN=dbname=orderslogistics user=orderslogistics password=$DB_PASSWORD host=127.0.0.1 port=5432
 JF_API_KEY_SHA256=$API_KEY_SHA256
+JF_VPS_ATTESTATION_SECRET=$VPS_ATTESTATION_SECRET
 JF_LISTEN_HOST=127.0.0.1
 JF_LISTEN_PORT=8792
 JF_MAX_BODY=31457280
@@ -268,4 +272,4 @@ echo "CERT_SHA256=$CERT_SHA256"
 echo "DATABASE_PORT_EXTERNAL=closed"
 
 INSTALL_FINISHED=1
-unset API_KEY DB_PASSWORD API_KEY_SHA256
+unset API_KEY VPS_ATTESTATION_SECRET DB_PASSWORD API_KEY_SHA256

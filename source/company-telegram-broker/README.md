@@ -27,12 +27,44 @@ HTTPS-адрес остаётся только совместимым резер
    `AUTH_SERVICE` к Worker `justfun-license-api`. `wrangler.toml.example`
    оставлен только для совместимости.
 3. Для новой базы выполнить `schema.sql`. Для существующей базы с одной
-   конфигурацией на компанию выполнить `migrations/0002-warehouse-services.sql`.
+   конфигурацией на компанию выполнить `migrations/0002-warehouse-services.sql`,
+   затем `migrations/0003-telegram-deprovision.sql`.
    Старая запись `warehouse_id='*'` сохраняется только для ручного разбора и
    больше не участвует в отправке. Владелец должен явно переподключить бота
    каждому складу; неоднозначное старое подключение автоматически не назначается.
 4. Установить отдельный случайный `INTEGRATION_SECRET` длиной не менее 32 знаков.
-5. Опубликовать Worker и проверить `/health`, `broker_contract: 1`.
+5. Опубликовать Worker и проверить `/health`: `broker_contract: 4` и
+   `telegram_deprovision_contract: 3`.
+
+## Необратимое отключение Telegram склада
+
+`POST /v1/company/telegram-service/deprovision` принимает точную область
+подготовленной операции: `warehouse_id`, `warehouse_code`,
+`warehouse_delete_lease_token`, `delete_command_id` и `delete_base_version`.
+Кроме bearer-токена запрос обязан содержать созданную VPS аттестацию в
+`x-justfun-vps-timestamp`, `x-justfun-vps-nonce` и
+`x-justfun-vps-signature`. Broker передаёт аттестацию в
+`POST /v1/vps-attestations/verify` license Worker вместе с точной компанией,
+складом, кодом, командой, базовой версией и токеном lease. Только точное
+подтверждение `verified: true` допускает дальнейшую обработку; обычный bearer
+без аттестации всегда отклоняется.
+Запрос разрешён владельцу либо сотруднику с
+правом `warehouses.manage` и глобальным складским доступом `*` или
+`jf.warehouse:*`. Назначение только на конкретный склад недостаточно. До любого
+чтения Telegram-конфигурации broker проверяет через license Worker, что lease
+имеет точный статус `prepared` и относится к тому же пользователю, компании,
+складу и коду. Токен lease, подпись и nonce аттестации не сохраняются, не
+возвращаются и не попадают в аудит. Broker сначала
+фиксирует неизменяемую операцию, связанную с командой VPS, затем вызывает native Telegram Worker,
+а зашифрованную запись сервиса удаляет только после точного подтверждения установки.
+
+Безопасный ответ помимо `ok` содержит только `warehouse_id`, `installation_id`,
+`deprovisioned` и `already_deprovisioned`; URL и ключи не возвращаются. Повтор
+возвращает уже подтверждённый результат без повторного доступа к секретам. Если
+Telegram никогда не подключался и операции ещё нет, endpoint возвращает
+успешный результат с пустым `installation_id` и атомарно создаёт terminal
+tombstone. Поэтому параллельная настройка Telegram после начала удаления уже
+не может вернуть сервис склада.
 
 Флаг `global_fetch_strictly_public` обязателен: broker проверяет отдельный
 Telegram Worker компании по его публичному адресу `*.workers.dev`. Без этого
