@@ -178,9 +178,9 @@
 | Тип | Architecture / offline acceptance blocker |
 | Приоритет | P1 до финального выпуска |
 | Обнаружено | Живое сохранение первого синтетического заказа |
-| Состояние | OPEN |
-| Source status | CONFIRMED |
-| Live status | CONFIRMED |
+| Состояние | SOURCE FIXED / REBUILD AND LIVE MATRIX REQUIRED |
+| Source status | FIXED / AUTOMATED LOCAL-FIRST PASS (`d512f89`) |
+| Live status | CONFIRMED ON PREVIOUS BUILD / NEW BUILD NOT TESTED |
 
 Подтверждённое поведение: в full-редакции guard `commitEntityMutation()` возвращает `false` до локальной мутации, если сессия offline, у компании отсутствует `data_service` или недоступен `regVps.syncEntities`. Поэтому обычный заказ не попадает даже в локальное хранилище, а пользователь получает сообщение о необходимости рабочего VPS.
 
@@ -193,6 +193,8 @@
 3. Не уничтожать локально сохранённое намерение при server-wins bootstrap; конфликт показывать явно.
 4. Оставить fail-closed только для критических общих переходов состояния.
 5. Выполнить полную матрицу [`LOCAL-FIRST-CONNECTIVITY-ACCEPTANCE.md`](LOCAL-FIRST-CONNECTIVITY-ACCEPTANCE.md) до и после подключения VPS/Telegram.
+
+Исправление исходников `d512f89`: обычные изменения сначала сохраняются в изолированной локальной очереди с постоянным `command_id`, company/warehouse/environment scope, исходной версией записи и состояниями `pending/sending/confirmed/conflict/rejected`. Перезапуск возвращает незавершённую отправку в `pending`; server-wins bootstrap накладывает только сохранённые локальные намерения; сетевой повтор использует тот же `command_id`; конфликт и окончательный отказ не удаляют локальные данные. Критические операции маршрутов, выдачи и массовой очистки остаются fail-closed. Автоматические сценарии подтвердили сохранение без VPS, переживание перезапуска, overlay после bootstrap, повтор после обрыва сети, rollback окончательно отклонённой команды и отсутствие VPS-вызовов в DEMO. Блокер не закрыт до сборки, установки и полной живой матрицы на физическом ПК и VPS.
 
 ### JF3-RISK-002 — Общие тестовые VPS/D1 могут содержать legacy-схемы и данные
 

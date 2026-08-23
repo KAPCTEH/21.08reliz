@@ -839,6 +839,33 @@
         "configure and prove the production address provider",
         "run the approved large reference corpus and priority-region acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0042",
+      "stage": 4,
+      "action": "implement a durable local-first entity outbox while keeping critical shared-state transitions fail-closed",
+      "result": "SOURCE PASS / REBUILD AND LIVE CONNECTIVITY MATRIX REQUIRED",
+      "commit": "d512f89",
+      "evidence": [
+        "local outbox unit passed: restart recovery, stable command id, scope isolation, corruption fail-closed and conflict overlay",
+        "full local-first retry runtime passed: local deletion persisted, survived restart and bootstrap, then retried with the same command id and was confirmed",
+        "full offline runtime passed: ordinary deletion persisted while critical workspace clearing remained blocked and preserved data",
+        "demo deep-business runtime passed 69 of 69 with 25 of 25 scripts, zero runtime errors and zero cloud sync uploads",
+        "13 regression tests and the isolated Windows main unit passed"
+      ],
+      "safety": {
+        "ordinary_changes_local_first": true,
+        "critical_transitions_fail_closed": true,
+        "server_bootstrap_preserves_durable_local_intent": true,
+        "corrupt_outbox_overwrite_forbidden": true,
+        "installed_application_replaced": false
+      },
+      "pending": [
+        "build and inspect the protected Windows package and app.asar",
+        "install the replacement build on the physical PC",
+        "repeat the local-only, reconnect, conflict, second-PC and log acceptance matrix",
+        "prove production VPS schema, backup, restore and legacy migration paths"
+      ]
     }
   ],
   "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
