@@ -9,16 +9,17 @@
 - Текущий проверенный product-source commit: `c45eb07242e59fa3df95724bb283ec6d90ad07ae`.
 - Полный исходный UI-инвентарь: [`UI-INVENTORY.md`](UI-INVENTORY.md).
 - Живые результаты: [`LIVE-TEST-REGISTER.md`](LIVE-TEST-REGISTER.md).
-- Текущий релизный статус: `NO-GO`; установка и production-приёмка ещё не выполнены.
+- Полные живые сценарии: [`LIVE-ACCEPTANCE-SCENARIOS.md`](LIVE-ACCEPTANCE-SCENARIOS.md).
+- Текущий релизный статус: `NO-GO`; установка выполнена, живая приёмка на первом ПК находится `IN PROGRESS`, production и multi-PC ещё не приняты.
 
 ## Компоненты
 
 | ID | Компонент | Основной путь | Ответственность | Source-статус | Live-статус |
 |---|---|---|---|---|---|
-| JF3-COMP-001 | Electron/Node приложение | `source/application` | main, preload, renderer, локальный runtime | MAPPED / TESTED PARTIALLY | NOT TESTED |
-| JF3-COMP-002 | WEB-интерфейс | `source/application/web` | окна, формы, карты, бизнес-функции | 302 FULL / 349 DEMO кнопок; 695 / 776 интерактивных элементов | NOT TESTED LIVE |
-| JF3-COMP-003 | Desktop runtime | `source/desktop-runtime` | защищённая упаковка Electron payload | SOURCE + WINDOWS CI PASS | NOT INSTALLED ON USER PC |
-| JF3-COMP-004 | Windows Setup/Recovery | `source/installer` | установка, rollback, repair, uninstall | Windows gate `32624837780` PASS | NOT INSTALLED ON USER PC |
+| JF3-COMP-001 | Electron/Node приложение | `source/application` | main, preload, renderer, локальный runtime | MAPPED / TESTED PARTIALLY | INSTALLED; OWNER LOGIN PASS; UI IN PROGRESS |
+| JF3-COMP-002 | WEB-интерфейс | `source/application/web` | окна, формы, карты, бизнес-функции | 302 FULL / 349 DEMO кнопок; 695 / 776 интерактивных элементов | ORDERS + TRIPS PARTIAL PASS |
+| JF3-COMP-003 | Desktop runtime | `source/desktop-runtime` | защищённая упаковка Electron payload | SOURCE + WINDOWS CI PASS | INSTALLED EXE SHA-256 MATCH |
+| JF3-COMP-004 | Windows Setup/Recovery | `source/installer` | установка, rollback, repair, uninstall | Windows gate `32625667386` PASS | PHYSICAL-PC INSTALL PASS; RECOVERY LIVE PENDING |
 | JF3-COMP-005 | VPS REG API | `source/application/integrations/reg-vps` | бизнес-API, карты, адреса, PostgreSQL V3 | SOURCE TESTED; реальный PostgreSQL 22/22 PASS | CURRENT CHANGE NOT DEPLOYED |
 | JF3-COMP-006 | License server | `source/license-server` | компания, лицензия, вход, роли, пользователи, устройства, lease/attestation | UNIT + SCHEMA TESTED | CURRENT CHANGE NOT DEPLOYED |
 | JF3-COMP-007 | Telegram Worker | `source/application/integrations/telegram-cloudflare-native` | бот, webhook, группа, уведомления, удаление привязки | UNIT + SCHEMA TESTED | CURRENT CHANGE NOT DEPLOYED |

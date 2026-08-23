@@ -495,6 +495,42 @@
         "push main release gate",
         "pull-request gate when any non-docs/tz3 path changes"
       ]
+    },
+    {
+      "step_id": "JF3-S0031",
+      "stage": 3,
+      "action": "restore full pull-request Windows gate after owner removed verification budget limits",
+      "result": "PASS",
+      "owner_decision": "do not economize verification limits; TZ3 live acceptance is the primary stage",
+      "workflow_change": "remove pull_request paths-ignore docs/tz3/**",
+      "tests": {
+        "release_contract": "82 PASS",
+        "release_regression": "PASS",
+        "installer_source": "20/20 PASS",
+        "security_scan": "20 files, 0 findings"
+      }
+    },
+    {
+      "step_id": "JF3-S0032",
+      "stage": 3,
+      "action": "resume installed-app owner UI acceptance",
+      "result": "PARTIAL PASS",
+      "confirmed": [
+        "exactly one installed JustFun 7.8.3 window was targetable",
+        "orders view contains zero records for the new warehouse",
+        "trips view contains zero trips and exposes planning and diagnostic controls",
+        "no business data was changed",
+        "all four Electron processes remained responsive",
+        "desktop log did not grow"
+      ],
+      "log_baseline": {
+        "offset_bytes": 729150,
+        "line": 5598,
+        "last_record_utc": "2026-08-23T08:13:00.101Z"
+      },
+      "scenario_document": "docs/tz3/LIVE-ACCEPTANCE-SCENARIOS.md",
+      "interruption": "window capture timed out after attempting to open Products and again during recovery",
+      "product_defect_confirmed": false
     }
   ],
   "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
