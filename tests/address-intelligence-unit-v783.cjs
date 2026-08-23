@@ -22,7 +22,13 @@ assert.equal(intelligence.normalizeQuery('Д.Н.Т. Озеро'), 'днт озе
 assert.equal(intelligence.normalizeQuery('Д.Н.П. Сосны'), 'днп сосны');
 assert.equal(intelligence.damerauLevenshtein('пскво', 'псков'), 1);
 assert(intelligence.tokenSimilarity('всеволжск', 'всеволожск') >= 0.85);
+assert.equal(
+  intelligence.normalizeQuery('санкт петербуг невский 28'),
+  'санкт петербург невский 28',
+);
+assert.equal(intelligence.normalizeQuery('санкт павловск садовая 5'), 'санкт павловск садовая 5');
 assert.equal(intelligence.requestedRegion('Склад, СПб, Невский район'), 'санкт петербург');
+assert.equal(intelligence.requestedRegion('санкт петербуг невский 28'), 'санкт петербург');
 assert.deepEqual(intelligence.highlightParts('Всеволожск, Ленинградская область', 'Лен. обл.'), [
   { text: 'Всеволожск, ', match: false },
   { text: 'Ленинградская', match: true },
@@ -139,6 +145,7 @@ assert(renderer.includes('Поставьте точку на карте'));
 console.log(JSON.stringify({
   ok: true,
   normalization: true,
+  preferredRegionTypoCorrection: true,
   typoRanking: true,
   houseRanking: true,
   regionalPriority: true,

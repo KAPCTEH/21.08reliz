@@ -16,6 +16,7 @@ const UPDATE_TRUST_STORE = Object.freeze(require('./update/trusted-keys.json'));
 const UPDATE_HELPER_IDENTITY = Object.freeze(require('./update/helper-identity.json'));
 const telegramProvisioner = require('./integrations/telegram-cloudflare-native/provisioner.cjs');
 const regVpsNativeSsh = require('./integrations/reg-vps/native-ssh.cjs');
+const addressIntelligence = require('./web/assets/js/04-address-intelligence-v783.js');
 const RELEASE = Object.freeze(require('./release.json'));
 
 const VERSION = RELEASE.version;
@@ -2153,8 +2154,8 @@ async function resolveDesktopAddressSearch(payload,{state=regState(),server=asyn
   if(input.interaction==='autocomplete')return{ok:false,configured,requestId:input.requestId,code:'ADDRESS_AUTOCOMPLETE_REQUIRES_PROVIDER',error:'Автоподсказки появятся после подключения адресного сервиса. Используйте кнопку поиска.'};
   if(!publicFallbackAllowed)return{ok:false,configured:false,requestId:input.requestId,code:'ADDRESS_VPS_REQUIRED',error:'Для релизной версии требуется подключённый адресный сервис компании.'};
   try{
-    const data=await direct({mode:'search',query:input.query,limit:10,addressOnly:true});
-    appendRecurringLog('Development address search used public fallback',{requestId:input.requestId,configured,serverCode:String(serverError?.code||'')});
+    const normalizedQuery=addressIntelligence.normalizeQuery(input.query)||input.query,data=await direct({mode:'search',query:normalizedQuery,limit:10,addressOnly:true});
+    appendRecurringLog('Development address search used public fallback',{requestId:input.requestId,configured,serverCode:String(serverError?.code||''),queryCorrected:normalizedQuery!==input.query.toLowerCase()});
     return{ok:true,configured,requestId:input.requestId,source:'development-public-nominatim',degraded:true,warning:'Использован временный публичный поиск: результат необходимо проверить.',data};
   }catch(error){
     return{ok:false,configured,requestId:input.requestId,code:String(error?.code||serverError?.code||'ADDRESS_SEARCH_FAILED'),error:configured?`Адресный сервис: ${safeIntegrationError(serverError)}; временный поиск: ${safeIntegrationError(error)}`:safeIntegrationError(error)};

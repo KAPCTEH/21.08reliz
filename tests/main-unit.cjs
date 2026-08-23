@@ -416,13 +416,20 @@ assert.equal(developmentAddressFallback.ok,true);
 assert.equal(developmentAddressFallback.source,'development-public-nominatim');
 assert.equal(developmentAddressFallback.degraded,true);
 assert.equal(publicAddressCalls,1);
+const typoAddressFallback=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-typo',query:'санкт петербуг невский 28',warehouseId:'warehouse_msk',interaction:'explicit'},
+  {state:null,direct:async payload=>{publicAddressCalls++;assert.equal(payload.query,'санкт петербург невский 28');return[{display_name:'28, Невский проспект, Санкт-Петербург',lat:'59.9351',lon:'30.3255'}]},publicFallbackAllowed:true},
+);
+assert.equal(typoAddressFallback.ok,true);
+assert.equal(typoAddressFallback.data.length,1);
+assert.equal(publicAddressCalls,2);
 const autocompleteWithoutProvider=await main.resolveDesktopAddressSearch(
   {requestId:'address-request-auto-3',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'autocomplete'},
   {state:addressState,server:async()=>{throw Object.assign(new Error('autocomplete not configured'),{code:'address_autocomplete_not_configured'})},direct:async()=>{publicAddressCalls++;return[]},publicFallbackAllowed:true},
 );
 assert.equal(autocompleteWithoutProvider.ok,false);
 assert.equal(autocompleteWithoutProvider.code,'address_autocomplete_not_configured');
-assert.equal(publicAddressCalls,1);
+assert.equal(publicAddressCalls,2);
 const releasedAddressWithoutVps=await main.resolveDesktopAddressSearch(
   {requestId:'address-request-3',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'explicit'},
   {state:null,direct:async()=>{throw new Error('must not run')},publicFallbackAllowed:false},

@@ -77,11 +77,12 @@
   }
 
   function normalizeQuery(value) {
-    return expandAliases(value)
+    const normalized = expandAliases(value)
       .replace(/(^|\s)[.-]+(?=\s|$)/g, ' ')
       .replace(/\s*-\s*/g, '-')
       .replace(/\s+/g, ' ')
       .trim();
+    return correctPreferredRegionTypos(normalized);
   }
 
   function tokenize(value, { meaningfulOnly = false } = {}) {
@@ -117,6 +118,40 @@
       }
     }
     return matrix[left.length][right.length];
+  }
+
+  function correctPreferredRegionTypos(value) {
+    const source = basicNormalize(value).replace(/\s*-\s*/g, '-').split(/\s+/).filter(Boolean);
+    if (!source.length) return '';
+    let best = null;
+    for (const region of PREFERRED_REGIONS) {
+      for (const pattern of region.patterns) {
+        const target = basicNormalize(pattern).replaceAll('-', ' ').split(/\s+/).filter(Boolean);
+        if (!target.length || target.some(token => token.length < MIN_FUZZY_TOKEN_LENGTH)) continue;
+        for (let offset = 0; offset + target.length <= source.length; offset += 1) {
+          let distance = 0;
+          let changed = false;
+          let valid = true;
+          for (let index = 0; index < target.length; index += 1) {
+            const actual = source[offset + index].replaceAll('-', '');
+            const expected = target[index].replaceAll('-', '');
+            if (!actual || actual[0] !== expected[0]) { valid = false; break; }
+            const current = damerauLevenshtein(actual, expected);
+            const maximum = Math.max(actual.length, expected.length) >= 9 ? 2 : 1;
+            if (current > maximum) { valid = false; break; }
+            distance += current;
+            changed ||= current > 0;
+          }
+          if (!valid || !changed) continue;
+          const score = distance / target.join('').length;
+          if (!best || score < best.score || (score === best.score && target.length > best.length)) {
+            best = { offset, length: target.length, score, replacement: region.canonical.split(' ') };
+          }
+        }
+      }
+    }
+    if (!best) return source.join(' ');
+    return [...source.slice(0, best.offset), ...best.replacement, ...source.slice(best.offset + best.length)].join(' ');
   }
 
   function tokenSimilarity(left, right) {
@@ -292,6 +327,7 @@
     VERSION,
     MAX_RESULTS,
     normalizeQuery,
+    correctPreferredRegionTypos,
     expandAliases,
     tokenize,
     damerauLevenshtein,
