@@ -62,6 +62,8 @@ assert(desktopPlatform.includes("if(isTrainingEnvironment())return Promise.resol
 assert(desktopPlatform.includes("canCreate:()=>!isTrainingEnvironment()"));
 assert(desktopPlatform.includes("if(isTrainingEnvironment()){boxes.forEach"));
 assert(desktopPlatform.includes("function telegramEnvironment(){return activeEnvironment()}"));
+assert(desktopPlatform.includes("if(typeof window.TeplitsaWarehouseV600?.applyBranding==='function')"));
+assert(desktopPlatform.includes("resultBox.textContent=userVisibleError(error,'Ссылка не создана')"));
 assert(routeWorkspace.includes("const filteredCards=()=>cards().filter"));
 assert(routeWorkspace.includes("all.forEach(card=>{card.hidden=true})"));
 assert(routeWorkspace.includes("jf:route-stage-filter-changed"));

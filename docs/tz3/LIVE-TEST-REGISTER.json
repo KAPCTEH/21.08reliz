@@ -768,6 +768,50 @@
         "repeat complete live business regression",
         "verify VPS, Telegram, second warehouse, second user, second PC, updater and database migration matrix"
       ]
+    },
+    {
+      "step_id": "JF3-S0040",
+      "stage": 4,
+      "action": "implement and verify the first consolidated source repair batch after the installed-application discovery pass",
+      "result": "SOURCE FIX BATCH PASS / WINDOWS REBUILD AND LIVE RETEST REQUIRED / RELEASE REMAINS NO-GO",
+      "commit": "afb1821",
+      "branch": "codex/tz3-execution-baseline",
+      "repairs": [
+        "normalize the VPS install shell payload to UTF-8 LF and remove BOM before SFTP upload",
+        "preserve encrypted cloud authorization during temporary Windows secure-storage or decrypt failures",
+        "separate the active training data environment from the licensed edition",
+        "keep ordinary DEMO mutations local and disable real users, warehouses, VPS and Telegram administration",
+        "combine route lifecycle filtering with pagination",
+        "apply one active branding source across tabs",
+        "remove the JavaScript Error prefix from driver Telegram messages"
+      ],
+      "automated_evidence": {
+        "demo_deep_business": "69/69 PASS, runtime errors 0, cloud sync uploads 0",
+        "demo_bridge_calls": [
+          "local backup download only"
+        ],
+        "full_atomic_mutation": "PASS: confirmed delete submitted; rejected delete rolled back locally",
+        "route_stage_pagination": "PASS: 11 filtered routes across two pages; three-route filter resets to page one",
+        "focused_suites": [
+          "main unit",
+          "REG.RU native SSH unit",
+          "current-cycle regression",
+          "entity/bootstrap reconciliation",
+          "release regression",
+          "REG entity source contract",
+          "source hygiene",
+          "experience regression",
+          "visual QA contract",
+          "security regression"
+        ]
+      },
+      "pending": [
+        "build and inspect the protected Windows package and app.asar",
+        "install the replacement build on the physical PC",
+        "repeat the affected live UI and log paths",
+        "verify VPS provisioning, TLS, schema V3, backup, restore and idempotent reinstall",
+        "continue the remaining TZ3 blockers and acceptance matrix"
+      ]
     }
   ],
   "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
