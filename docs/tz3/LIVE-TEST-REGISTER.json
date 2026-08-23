@@ -531,6 +531,42 @@
       "scenario_document": "docs/tz3/LIVE-ACCEPTANCE-SCENARIOS.md",
       "interruption": "window capture timed out after attempting to open Products and again during recovery",
       "product_defect_confirmed": false
+    },
+    {
+      "step_id": "JF3-S0033",
+      "stage": 3,
+      "action": "install the current full Windows 7.8.3 release candidate on the physical PC",
+      "result": "INSTALL PASS / FIRST LAUNCH PENDING CONFIRMATION",
+      "ci": {
+        "audit_run": 32631434485,
+        "windows_run": 32631434527,
+        "artifact_id": 9491281647,
+        "artifact_digest": "sha256:5a2bcbf1f6b852292998669e0871b1025a07d21e30c8ce81ff5db2ee39e99d40"
+      },
+      "backup": {
+        "path": "C:/Users/zvd1/Desktop/JUSTFUN-AUDIT-WORK-20260821/release-candidates/preinstall-backups/20260823-7.8.3-current",
+        "primary_files": "17/17 hash match",
+        "profile_files": "1/1 hash match",
+        "secret_values_read": false
+      },
+      "installer": {
+        "file": "Orders-Logistics-Setup-7.8.3-Premium.exe",
+        "sha256": "9faa6c163e70377a2bd0ca2c5211e994fc55e798dd71a61ed902d0cefbb3aa1b",
+        "log_result": "SUCCESS"
+      },
+      "installed": {
+        "version": "7.8.3",
+        "mode": "full",
+        "exe_sha256": "d0f2dbed32d57d82dfe2f86347f0c06fbbe32d0045d04599f46ca73e93da3783",
+        "manifest_hash_match": true,
+        "desktop_shortcut": true,
+        "start_menu_shortcut": true
+      },
+      "pending": [
+        "first launch of the newly installed current build",
+        "owner authorization recheck",
+        "resume full live acceptance"
+      ]
     }
   ],
   "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
