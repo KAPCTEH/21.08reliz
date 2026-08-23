@@ -256,6 +256,36 @@ class RevisionTests(unittest.TestCase):
         second = {"status": "new", "warehouseId": self.warehouse_id, "id": "order-1"}
         self.assertEqual(SERVER.entity_payload_digest(first), SERVER.entity_payload_digest(second))
 
+    def test_tombstone_is_not_misclassified_as_immutable_field_mutation(self):
+        current = {
+            "id": "order-delete-1",
+            "warehouseId": self.warehouse_id,
+            "environment": "live",
+            "status": "new",
+        }
+        item = {
+            "type": "orders",
+            "id": "order-delete-1",
+            "deleted": True,
+            "payload": None,
+        }
+        SERVER.validate_entity_field_permissions(
+            {
+                "role": "manager",
+                "permissions": {"orders.delete"},
+            },
+            item,
+            current,
+            False,
+            None,
+        )
+        SERVER.validate_intent_entity_fields(
+            self.owner,
+            {**item, "type": "routePlans"},
+            current,
+            {"kind": "route_cancel"},
+        )
+
     def test_warehouse_code_is_canonicalized_and_validated(self):
         checked = SERVER.validate_entity_change(
             {

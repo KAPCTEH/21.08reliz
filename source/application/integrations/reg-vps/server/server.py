@@ -1530,7 +1530,7 @@ def validate_intent_entity_fields(
 ) -> None:
     kind, entity_type = intent["kind"], item["type"]
     changed = changed_payload_fields(current, item.get("payload"))
-    if current and changed & ENTITY_IMMUTABLE_FIELDS:
+    if not item["deleted"] and current and changed & ENTITY_IMMUTABLE_FIELDS:
         raise ApiError(409, "immutable_entity_field", "Нельзя изменить идентификатор или принадлежность записи")
     if item["deleted"]:
         allowed_deletes = {
@@ -1580,7 +1580,7 @@ def validate_entity_field_permissions(
     entity_type = item["type"]
     current_payload = current if isinstance(current, dict) and not current_deleted else None
     changed = changed_payload_fields(current_payload, item.get("payload"))
-    if current_payload and changed & ENTITY_IMMUTABLE_FIELDS:
+    if not item["deleted"] and current_payload and changed & ENTITY_IMMUTABLE_FIELDS:
         raise ApiError(
             409,
             "immutable_entity_field",
