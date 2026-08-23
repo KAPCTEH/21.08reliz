@@ -388,8 +388,91 @@
         "production services not deployed",
         "multi-PC and live business acceptance not run"
       ]
+    },
+    {
+      "step_id": "JF3-S0025",
+      "stage": 3,
+      "action": "build and download the current pull-request Windows release candidate",
+      "result": "PASS",
+      "branch_head": "965908883996c124c18ce37fe8ff7f4439568128",
+      "audit_run": 32625667383,
+      "windows_run": 32625667386,
+      "build_merge_sha": "ac822fd4e6653496bee58fccc0750be4706d5282",
+      "artifact": {
+        "id": 9489746908,
+        "name": "justfun-windows-ac822fd4e6653496bee58fccc0750be4706d5282",
+        "size_bytes": 1327268715,
+        "digest": "sha256:b21f5e4941fa3f36e5bf9209ba353dd0aac614b7383296faf336bb0fcab79345"
+      }
+    },
+    {
+      "step_id": "JF3-S0026",
+      "stage": 3,
+      "action": "verify physical-PC installation and installed executable provenance",
+      "result": "PASS",
+      "version": "7.8.3",
+      "edition": "full",
+      "installed_exe_sha256": "c7e943e9b100cbb98f1df9565a851e46904a4bc5df10704c902f6c7034e3f163",
+      "manifest_match": true,
+      "electron_processes": 4,
+      "responding_processes": 4
+    },
+    {
+      "step_id": "JF3-S0027",
+      "stage": 3,
+      "action": "verify owner registration, authorization and current-session logs",
+      "result": "PASS",
+      "confirmed": [
+        "old protected auth state was rejected and self-recovered",
+        "new owner registration succeeded",
+        "next boot authorized=true",
+        "release integrity and runtime hardening passed",
+        "no credentials or API secrets found in current-session log lines"
+      ],
+      "pending": [
+        "VPS configuration",
+        "Telegram configuration"
+      ]
+    },
+    {
+      "step_id": "JF3-S0028",
+      "stage": 3,
+      "action": "start installed-app owner UI acceptance",
+      "result": "PARTIAL PASS",
+      "confirmed": [
+        "settings screen renders owner and active warehouse",
+        "VPS is visibly not configured",
+        "orders screen is empty for the new company and warehouse",
+        "create-order, pickup and filter controls are visible",
+        "all Electron processes remained responsive after test-harness timeout",
+        "desktop log received no new application error"
+      ],
+      "interruption": "Windows UI control helper timed out while capturing and reactivating the next screen",
+      "product_defect_confirmed": false
+    },
+    {
+      "step_id": "JF3-S0029",
+      "stage": 3,
+      "action": "verify local company and warehouse scope isolation without reading secrets",
+      "result": "LOCAL PASS / SERVER UNKNOWN",
+      "safe_counts": {
+        "company_scopes": 1,
+        "warehouse_scopes": 1,
+        "live_key_signatures": 4,
+        "system_key_signatures": 1,
+        "entity_count": "UNKNOWN"
+      },
+      "confirmed": [
+        "no prior-company key found in the new desktop profile",
+        "legacy AppData integration metadata is stored under other company and warehouse scopes",
+        "native-secrets.json was not opened"
+      ],
+      "limitations": [
+        "LevelDB values were not disclosed",
+        "server cross-company isolation requires a second account and device"
+      ]
     }
   ],
-  "current_gate": "stage-2/production-and-live-acceptance-pending",
+  "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
   "release_status": "NO-GO"
 }
