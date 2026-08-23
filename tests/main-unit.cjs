@@ -318,6 +318,51 @@ const failedMapResult=await main.resolveDesktopMapGeocode(
 assert.equal(failedMapResult.ok,false);
 assert.equal(failedMapResult.code,'NETWORK_TIMEOUT');
 assert.match(failedMapResult.error,/OpenStreetMap: Error: public unavailable; VPS: Error: VPS unavailable/);
+const addressState={workspace_id:'cmp_company_1234567890'};
+let publicAddressCalls=0;
+const indexedAddressResult=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-1',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'autocomplete'},
+  {state:addressState,server:async(input,state)=>({
+    ok:true,workspace_id:state.workspace_id,warehouse_id:input.warehouseId,environment:input.environment,
+    request_id:input.requestId,address_contract:1,normalized_query:'всеволжск ленинградская область',
+    provider:{name:'dadata',api_version:'4_1',reference:'gar-fias',queried_at:'2026-08-23T00:00:00Z',cache_ttl_seconds:900},
+    results:[{id:'dadata:1',display_name:'Всеволожск, Ленинградская область',components:{region:'Ленинградская область',district:'Всеволожский район',settlement:'Всеволожск'},object_type:'город',coordinates:{lat:60.02,lon:30.64,accuracy:'settlement'},fias_id:'f26b876b-6857-4951-b060-ec6559f04a9a',provider_ids:{dadata:'1'},confidence:'high',match_score:.94,match_reason:['Точное текстовое совпадение'],warnings:[],source:{name:'dadata',version:'suggestions-api-4_1',date:'2026-08-23'}}]
+  }),direct:async()=>{publicAddressCalls++;return[]},publicFallbackAllowed:true},
+);
+assert.equal(indexedAddressResult.ok,true);
+assert.equal(indexedAddressResult.source,'company-address-provider');
+assert.equal(indexedAddressResult.data.length,1);
+assert.equal(indexedAddressResult.data[0].__jfCanonicalAddress.fiasId,'f26b876b-6857-4951-b060-ec6559f04a9a');
+assert.equal(indexedAddressResult.data[0].__jfCanonicalAddress.originalInput,'Всеволжск Лен обл');
+assert.equal(publicAddressCalls,0);
+await assert.rejects(
+  main.resolveDesktopAddressSearch(
+    {requestId:'address-request-bad-provider',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'explicit'},
+    {state:addressState,server:async(input,state)=>({ok:true,workspace_id:state.workspace_id,warehouse_id:input.warehouseId,environment:input.environment,request_id:input.requestId,address_contract:1,normalized_query:'всеволжск',provider:{name:'dadata',api_version:'4_1',reference:'gar-fias',queried_at:'not-a-date',cache_ttl_seconds:900},results:[]}),publicFallbackAllowed:false},
+  ).then(result=>{if(result.ok===false)throw Object.assign(new Error(result.error),{code:result.code});return result}),
+  /источник адресного поиска/,
+);
+const developmentAddressFallback=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-2',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'explicit'},
+  {state:addressState,server:async()=>{throw Object.assign(new Error('provider unavailable'),{code:'ADDRESS_PROVIDER_UNAVAILABLE'})},direct:async payload=>{publicAddressCalls++;assert.equal(payload.limit,10);return[{display_name:'Всеволожск',lat:'60',lon:'30'}]},publicFallbackAllowed:true},
+);
+assert.equal(developmentAddressFallback.ok,true);
+assert.equal(developmentAddressFallback.source,'development-public-nominatim');
+assert.equal(developmentAddressFallback.degraded,true);
+assert.equal(publicAddressCalls,1);
+const autocompleteWithoutProvider=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-auto-3',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'autocomplete'},
+  {state:addressState,server:async()=>{throw Object.assign(new Error('autocomplete not configured'),{code:'address_autocomplete_not_configured'})},direct:async()=>{publicAddressCalls++;return[]},publicFallbackAllowed:true},
+);
+assert.equal(autocompleteWithoutProvider.ok,false);
+assert.equal(autocompleteWithoutProvider.code,'address_autocomplete_not_configured');
+assert.equal(publicAddressCalls,1);
+const releasedAddressWithoutVps=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-3',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'explicit'},
+  {state:null,direct:async()=>{throw new Error('must not run')},publicFallbackAllowed:false},
+);
+assert.equal(releasedAddressWithoutVps.ok,false);
+assert.equal(releasedAddressWithoutVps.code,'ADDRESS_VPS_REQUIRED');
 console.log(JSON.stringify({
   ok: true,
   version: main.VERSION,
@@ -334,5 +379,8 @@ console.log(JSON.stringify({
   transientLoginRetry: true,
   slowNetworkStartupWindow: true,
   mapLookupDirectFirst: true,
+  addressProviderServerFirst: true,
+  autocompleteDoesNotUsePublicNominatim: true,
+  releasedAddressRequiresVps: true,
 }));
 })().catch(error=>{console.error(error);process.exitCode=1});

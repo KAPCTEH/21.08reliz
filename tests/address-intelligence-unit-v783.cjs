@@ -22,6 +22,12 @@ assert.equal(intelligence.normalizeQuery('Д.Н.Т. Озеро'), 'днт озе
 assert.equal(intelligence.normalizeQuery('Д.Н.П. Сосны'), 'днп сосны');
 assert.equal(intelligence.damerauLevenshtein('пскво', 'псков'), 1);
 assert(intelligence.tokenSimilarity('всеволжск', 'всеволожск') >= 0.85);
+assert.equal(intelligence.requestedRegion('Склад, СПб, Невский район'), 'санкт петербург');
+assert.deepEqual(intelligence.highlightParts('Всеволожск, Ленинградская область', 'Лен. обл.'), [
+  { text: 'Всеволожск, ', match: false },
+  { text: 'Ленинградская', match: true },
+  { text: ' область', match: false },
+]);
 
 function candidate({
   id,
@@ -122,6 +128,11 @@ assert(renderer.includes('Показано лучших вариантов: ${li
 assert(renderer.includes('Проверьте адрес перед выбором.'));
 assert(renderer.includes('deliveryAddressSuggestTimer=setTimeout'));
 assert(renderer.includes('searchDeliveryAddress({automatic:true})'));
+assert(renderer.includes("vpsMapRequest('addressSearch'"));
+assert(renderer.includes("interaction:context.automatic?'autocomplete':'explicit'"));
+assert(renderer.includes("if(context.automatic)throw new Error('Автоподсказки требуют подключённый адресный сервис')"));
+assert(renderer.includes('selectAddressSuggestionByKeyboard(event)'));
+assert(renderer.includes('aria-selected="false"'));
 assert(renderer.includes('Введите не менее трёх символов адреса.'));
 assert(renderer.includes('Поставьте точку на карте'));
 
@@ -135,5 +146,7 @@ console.log(JSON.stringify({
   top3: true,
   deterministic: true,
   debouncedSuggestions: true,
+  keyboardSuggestions: true,
+  serverAddressContractPreferred: true,
   manualMapFallbackPreserved: true,
 }));

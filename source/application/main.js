@@ -208,6 +208,7 @@ function getUpdateController() {
       license_auth: RELEASE.contracts.license_auth,
       telegram_broker: RELEASE.contracts.telegram_broker,
       storage_protocol: RELEASE.contracts.storage_protocol,
+      address_search: RELEASE.contracts.address_search,
     },
     policy: UPDATE_POLICY,
     trustStore: UPDATE_TRUST_STORE,
@@ -1523,6 +1524,8 @@ const REG_ENTITY_TYPES=new Set([
 ]);
 const REG_ENTITY_INTENTS=new Set(['route_approve','route_picking','route_cancel','route_start','route_return','route_close','pickup_ready','pickup_collected']);
 const REG_API_CONTRACT=3;
+const ADDRESS_API_CONTRACT=1;
+const ADDRESS_PUBLIC_FALLBACK_ALLOWED=RELEASE.release_status==='development';
 function regEntityPath(state,warehouseId,environment,kind='entities'){
   const workspace=String(state?.workspace_id||'');
   if(!/^[A-Za-z0-9_-]{16,80}$/.test(workspace))throw new Error('Идентификатор подключения VPS повреждён.');
@@ -1531,6 +1534,11 @@ function regEntityPath(state,warehouseId,environment,kind='entities'){
   if(kind==='batch')return`${root}/entities/${env}/batch`;
   if(kind==='changes')return`${root}/changes/${env}`;
   return`${root}/entities/${env}`;
+}
+function regAddressSearchPath(state,warehouseId,environment){
+  const workspace=String(state?.workspace_id||'');
+  if(!/^[A-Za-z0-9_-]{16,80}$/.test(workspace))throw new Error('Идентификатор подключения VPS повреждён.');
+  return`/v1/workspaces/${encodeURIComponent(workspace)}/warehouses/${encodeURIComponent(validateWarehouseId(warehouseId))}/address-search/${validateEnvironment(environment)}`;
 }
 function validateRegEntity(item,warehouseId,{event=false}={}){
   if(!item||typeof item!=='object'||Array.isArray(item))throw new Error('VPS вернул повреждённую сущность.');
@@ -1616,6 +1624,73 @@ function validateDesktopGeocodePayload(payload){
   if(mode==='reverse')return{mode,lat:validateMapCoordinate(payload?.lat,-90,90,'широты'),lon:validateMapCoordinate(payload?.lon,-180,180,'долготы')};
   throw new Error('Неизвестный режим поиска адреса.');
 }
+function validateDesktopAddressSearchPayload(payload){
+  const query=String(payload?.query||'').replace(/\s+/g,' ').trim();
+  if(query.length<3||query.length>300)throw new Error('Введите адрес длиной от 3 до 300 символов.');
+  const requestId=String(payload?.requestId||'');
+  if(!/^[A-Za-z0-9_-]{8,80}$/.test(requestId))throw new Error('Идентификатор адресного запроса повреждён.');
+  const interaction=String(payload?.interaction||'');
+  if(!['autocomplete','explicit'].includes(interaction))throw new Error('Режим адресного поиска повреждён.');
+  const warehouseId=validateWarehouseId(payload?.warehouseId),environment=currentEnvironment();
+  const preferredRegion=String(payload?.preferredRegion||'').replace(/\s+/g,' ').trim().slice(0,160);
+  return{
+    requestId,query,warehouseId,environment,preferredRegion,interaction,
+    requestBody:{request_id:requestId,query,preferred_region:preferredRegion,language:'ru',limit:3,client_version:VERSION,address_contract:ADDRESS_API_CONTRACT,interaction}
+  };
+}
+function addressProviderText(value,max,label,{required=false}={}){
+  if(value===null||value===undefined||value===''){
+    if(required)throw new Error(`VPS не вернул ${label}.`);
+    return'';
+  }
+  if(typeof value!=='string')throw new Error(`VPS вернул повреждённое поле ${label}.`);
+  const text=value.trim();
+  if((required&&!text)||text.length>max||/[\u0000-\u001f\u007f]/.test(text))throw new Error(`VPS вернул повреждённое поле ${label}.`);
+  return text;
+}
+function canonicalAddressToNominatim(item,input,provider){
+  if(!item||typeof item!=='object'||Array.isArray(item))throw new Error('VPS вернул повреждённый вариант адреса.');
+  const id=String(item.id||''),displayName=addressProviderText(item.display_name,1000,'полный адрес',{required:true});
+  if(!/^[A-Za-z0-9_.:-]{1,200}$/.test(id))throw new Error('VPS вернул повреждённый идентификатор адреса.');
+  const components=item.components&&typeof item.components==='object'&&!Array.isArray(item.components)?item.components:{};
+  const coordinates=item.coordinates&&typeof item.coordinates==='object'&&!Array.isArray(item.coordinates)?item.coordinates:{};
+  const optionalCoordinate=(value,min,max)=>{if(value===null||value===undefined||value==='')return null;const number=Number(value);if(!Number.isFinite(number)||number<min||number>max)throw new Error('VPS вернул повреждённые координаты адреса.');return number};
+  const lat=optionalCoordinate(coordinates.lat,-90,90),lon=optionalCoordinate(coordinates.lon,-180,180);
+  if((lat===null)!==(lon===null))throw new Error('VPS вернул неполную пару координат адреса.');
+  const confidence=String(item.confidence||'');
+  if(!['high','medium','low'].includes(confidence))throw new Error('VPS вернул повреждённую оценку адреса.');
+  const score=Number(item.match_score);
+  if(!Number.isFinite(score)||score<0||score>1)throw new Error('VPS вернул повреждённый рейтинг адреса.');
+  const boundedList=(value,label)=>{if(!Array.isArray(value)||value.length>8)throw new Error(`VPS вернул повреждённый список ${label}.`);return value.map(entry=>addressProviderText(entry,180,label,{required:true}))};
+  const reasons=boundedList(item.match_reason,'причин совпадения');
+  const warnings=boundedList(item.warnings,'предупреждений');
+  const source=item.source&&typeof item.source==='object'&&!Array.isArray(item.source)?item.source:{};
+  const providerIds=item.provider_ids&&typeof item.provider_ids==='object'&&!Array.isArray(item.provider_ids)?Object.fromEntries(Object.entries(item.provider_ids).filter(([key,value])=>/^[A-Za-z0-9_.:-]{1,80}$/.test(String(key))&&typeof value==='string'&&value.length>0&&value.length<=160).slice(0,8)):{};
+  const fiasId=addressProviderText(item.fias_id,36,'идентификатор ФИАС');
+  if(fiasId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fiasId))throw new Error('VPS вернул повреждённый идентификатор ФИАС.');
+  const sourceDate=addressProviderText(source.date||provider.queried_at.slice(0,10),10,'дату источника');
+  if(sourceDate&&!/^\d{4}-\d{2}-\d{2}$/.test(sourceDate))throw new Error('VPS вернул повреждённую дату источника.');
+  return{
+    place_id:id,display_name:displayName,lat:lat===null?'':String(lat),lon:lon===null?'':String(lon),importance:score,
+    address:{state:addressProviderText(components.region,160,'регион'),state_district:addressProviderText(components.district,200,'район'),city:addressProviderText(components.settlement,200,'населённый пункт'),allotments:addressProviderText(components.territory,200,'территорию'),road:addressProviderText(components.street,240,'улицу'),house_number:addressProviderText(components.house,80,'дом'),postcode:addressProviderText(components.postal_code,16,'индекс')},
+    __jfAddressMeta:{version:String(provider.api_version||''),confidence,confidencePercent:Math.round(score*100),reasons,warnings},
+    __jfCanonicalAddress:{id,fiasId,providerIds,objectType:addressProviderText(item.object_type,80,'тип адреса'),coordinateAccuracy:addressProviderText(coordinates.accuracy||'unknown',40,'точность координат',{required:true}),sourceName:addressProviderText(source.name||provider.name,80,'название источника',{required:true}),sourceVersion:addressProviderText(source.version||provider.api_version,80,'версию источника',{required:true}),sourceDate,datasetVersion:'',datasetChecksum:'',originalInput:input.query,normalizedInput:String(input.normalizedQuery||''),official:Boolean(fiasId),manual:false}
+  };
+}
+function validateAddressSearchResponse(result,input,state){
+  if(!result||typeof result!=='object'||Array.isArray(result))throw new Error('VPS вернул повреждённый ответ адресного поиска.');
+  if(result.ok!==true)throw new Error('VPS не подтвердил успешный адресный поиск.');
+  if(String(result.workspace_id||'')!==String(state?.workspace_id||'')||String(result.warehouse_id||'')!==input.warehouseId||String(result.environment||'')!==input.environment)throw new Error('VPS вернул адреса другой компании, склада или среды.');
+  if(Number(result.address_contract)!==ADDRESS_API_CONTRACT||String(result.request_id||'')!==input.requestId)throw new Error('VPS вернул ответ другого адресного запроса или договора.');
+  const provider=result.provider&&typeof result.provider==='object'&&!Array.isArray(result.provider)?result.provider:null;
+  const queriedAt=String(provider?.queried_at||''),cacheTtl=Number(provider?.cache_ttl_seconds);
+  if(!provider||!/^[A-Za-z0-9_.:-]{1,80}$/.test(String(provider.name||''))||!/^[A-Za-z0-9_.:-]{1,80}$/.test(String(provider.api_version||''))||!/^[A-Za-z0-9_.:-]{1,80}$/.test(String(provider.reference||''))||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/.test(queriedAt)||Number.isNaN(Date.parse(queriedAt))||!Number.isSafeInteger(cacheTtl)||cacheTtl<60||cacheTtl>86400)throw new Error('VPS не подтвердил источник адресного поиска.');
+  if(!Array.isArray(result.results))throw new Error('VPS вернул повреждённый список адресов.');
+  const source=result.results;
+  if(source.length>3)throw new Error('VPS нарушил лимит адресных вариантов.');
+  input.normalizedQuery=String(result.normalized_query||'').slice(0,500);
+  return source.map(item=>canonicalAddressToNominatim(item,input,provider));
+}
 function validateDesktopRoutePayload(payload){
   const operation=String(payload?.operation||'route'),source=Array.isArray(payload?.points)?payload.points:[];
   if(!['route','table'].includes(operation))throw new Error('Неизвестный режим дорожного расчёта.');
@@ -1643,6 +1718,30 @@ async function directOpenStreetMapRoute(payload){
   const data=await jsonRequest({hostname:'router.project-osrm.org',requestPath,headers:{'User-Agent':`JustFun-OrdersLogistics/${VERSION}`},maxBytes:12*1024*1024,timeoutMs:20000});
   if(!data||data.code!=='Ok'||(input.operation==='route'&&!Array.isArray(data.routes)))throw Object.assign(new Error(String(data?.message||'OSRM не построил маршрут.')),{code:'MAP_PUBLIC_INVALID'});
   return data;
+}
+async function resolveDesktopAddressSearch(payload,{state=regState(),server=async(input,currentState)=>regApiRequest('POST',regAddressSearchPath(currentState,input.warehouseId,input.environment),input.requestBody),direct=directOpenStreetMapGeocode,publicFallbackAllowed=ADDRESS_PUBLIC_FALLBACK_ALLOWED}={}){
+  const input=validateDesktopAddressSearchPayload(payload),configured=!!state;
+  let serverError=null;
+  if(configured){
+    try{
+      const response=await server(input,state),data=validateAddressSearchResponse(response,input,state);
+      appendRecurringLog('Address provider search completed',{requestId:input.requestId,warehouseId:input.warehouseId,environment:input.environment,interaction:input.interaction,results:data.length,provider:String(response?.provider?.name||'')});
+      return{ok:true,configured:true,requestId:input.requestId,source:'company-address-provider',data};
+    }catch(error){
+      serverError=error;
+      appendRecurringLog('Company address provider failed',{requestId:input.requestId,warehouseId:input.warehouseId,interaction:input.interaction,code:String(error?.code||''),error:safeIntegrationError(error)});
+      if(input.interaction==='autocomplete'||!publicFallbackAllowed)return{ok:false,configured:true,requestId:input.requestId,code:String(error?.code||'ADDRESS_PROVIDER_FAILED'),error:safeIntegrationError(error)};
+    }
+  }
+  if(input.interaction==='autocomplete')return{ok:false,configured,requestId:input.requestId,code:'ADDRESS_AUTOCOMPLETE_REQUIRES_PROVIDER',error:'Автоподсказки появятся после подключения адресного сервиса. Используйте кнопку поиска.'};
+  if(!publicFallbackAllowed)return{ok:false,configured:false,requestId:input.requestId,code:'ADDRESS_VPS_REQUIRED',error:'Для релизной версии требуется подключённый адресный сервис компании.'};
+  try{
+    const data=await direct({mode:'search',query:input.query,limit:10,addressOnly:true});
+    appendRecurringLog('Development address search used public fallback',{requestId:input.requestId,configured,serverCode:String(serverError?.code||'')});
+    return{ok:true,configured,requestId:input.requestId,source:'development-public-nominatim',degraded:true,warning:'Использован временный публичный поиск: результат необходимо проверить.',data};
+  }catch(error){
+    return{ok:false,configured,requestId:input.requestId,code:String(error?.code||serverError?.code||'ADDRESS_SEARCH_FAILED'),error:configured?`Адресный сервис: ${safeIntegrationError(serverError)}; временный поиск: ${safeIntegrationError(error)}`:safeIntegrationError(error)};
+  }
 }
 async function resolveDesktopMapGeocode(payload,{configured=!!regState(),direct=directOpenStreetMapGeocode,fallback=async value=>(await regApiRequest('POST','/v1/maps/geocode',value)).data}={}){
   const requestId=String(payload?.requestId||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,80);
@@ -2430,6 +2529,7 @@ function registerIPC(config) {
     const url = map[channel]; if (!url) return false; return shell.openExternal(url).then(() => true, () => false);
   });
   handleMainIPC('desktop:reg-status', async () => getRegStatus());
+  handleMainIPC('desktop:address-search',async(_event,payload)=>resolveDesktopAddressSearch(payload));
   handleMainIPC('desktop:maps-geocode',async(_event,payload)=>resolveDesktopMapGeocode(payload));
   handleMainIPC('desktop:maps-diagnostic',async(_event,payload)=>{
     const requestId=String(payload?.requestId||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,80);
@@ -3239,7 +3339,8 @@ if (DESKTOP_UNIT_TEST_MODE) {
     regStatePath, regApiSecretName, readLocalRegState, regDiagnosticStage,
     installerSmokeOutputPath, setInstallerSmokeSessionDefaults, runInstallerSmokeTest, runRunningInstanceProbe, parseCssColor, contrastRatio,
     appRendererUrl, resolveAppRendererPath, isTrustedAppUrl, verifyPackagedApplicationIntegrity,
-    directOpenStreetMapGeocode, resolveDesktopMapGeocode
+    directOpenStreetMapGeocode, resolveDesktopMapGeocode,
+    validateDesktopAddressSearchPayload, canonicalAddressToNominatim, validateAddressSearchResponse, resolveDesktopAddressSearch, regAddressSearchPath
   };
 } else {
   const runningInstanceProbeArgument = process.argv.find(value=>String(value).startsWith('--running-instance-probe-output='));

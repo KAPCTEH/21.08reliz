@@ -1823,6 +1823,42 @@
       "class": "schema"
     },
     {
+      "id": "JF-TEST-REG-ADDRESS-SEARCH-TEST",
+      "name": "REG Address Search Test",
+      "level": "integration",
+      "path": "tests/reg-address-search-test.py",
+      "command": "python tests/reg-address-search-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "versioned scoped address contract is strictly validated",
+        "remote provider candidates are ranked, deduplicated and limited to Top-3",
+        "autocomplete never falls through to the public Nominatim service"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when address-search server, provider or deployment code changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, provider adapter, installer or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
       "id": "JF-TEST-REG-MAP-PROXY-TEST",
       "name": "Reg Map Proxy Test",
       "level": "integration",

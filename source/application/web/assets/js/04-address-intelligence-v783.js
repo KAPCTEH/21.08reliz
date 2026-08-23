@@ -278,6 +278,16 @@
     return `Нужно проверить · ${Number(meta?.confidencePercent || 0)}%`;
   }
 
+  function highlightParts(value, query) {
+    const text = String(value || '');
+    const terms = [...new Set(tokenize(query, { meaningfulOnly: true }).filter(token => token.length >= 3))]
+      .sort((left, right) => right.length - left.length)
+      .map(token => token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replaceAll('е', '[её]'));
+    if (!text || !terms.length) return [{ text, match: false }];
+    const matcher = new RegExp(`(${terms.join('|')})`, 'giu');
+    return text.split(matcher).map((part, index) => ({ text: part, match: index % 2 === 1 })).filter(part => part.text);
+  }
+
   return Object.freeze({
     VERSION,
     MAX_RESULTS,
@@ -287,7 +297,9 @@
     damerauLevenshtein,
     tokenSimilarity,
     canonicalCandidateKey,
+    requestedRegion,
     rankCandidates,
     confidenceLabel,
+    highlightParts,
   });
 });

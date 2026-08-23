@@ -12,7 +12,10 @@ import os
 import re
 import threading
 import time
+import unicodedata
 from contextlib import AbstractContextManager
+from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urlencode, urlparse
@@ -20,6 +23,11 @@ from urllib.request import Request, urlopen
 
 VERSION = "7.8.3"
 API_CONTRACT = 3
+ADDRESS_API_CONTRACT = 1
+FIAS_UUID_RE = re.compile(
+    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    re.IGNORECASE,
+)
 MIN_CLIENT_VERSION = "7.8.3"
 REQUIRE_API_CONTRACT = os.environ.get("JF_REQUIRE_API_CONTRACT", "0").strip() == "1"
 MAX_BODY = int(os.environ.get("JF_MAX_BODY", str(30 * 1024 * 1024)))
@@ -29,11 +37,15 @@ AUTH_ORIGIN = os.environ.get(
 AUTH_CACHE_SECONDS = max(5, min(60, int(os.environ.get("JF_AUTH_CACHE_SECONDS", "20"))))
 NOMINATIM_ORIGIN = os.environ.get("JF_NOMINATIM_ORIGIN", "https://nominatim.openstreetmap.org").rstrip("/")
 OSRM_ORIGIN = os.environ.get("JF_OSRM_ORIGIN", "https://router.project-osrm.org").rstrip("/")
+DADATA_ORIGIN = os.environ.get("JF_DADATA_ORIGIN", "https://suggestions.dadata.ru").rstrip("/")
+DADATA_API_KEY = os.environ.get("JF_DADATA_API_KEY", "").strip()
 MAP_CONTACT = os.environ.get("JF_MAP_CONTACT", "").strip()[:160]
 MAP_CACHE_LIMIT = max(100, min(10000, int(os.environ.get("JF_MAP_CACHE_LIMIT", "2000"))))
 MAP_RATE_PER_MINUTE = max(30, min(1000, int(os.environ.get("JF_MAP_RATE_PER_MINUTE", "180"))))
+ADDRESS_CACHE_SECONDS = max(60, min(86400, int(os.environ.get("JF_ADDRESS_CACHE_SECONDS", "900"))))
 WORKSPACE_RE = re.compile(r"^[A-Za-z0-9_-]{16,80}$")
 WAREHOUSE_RE = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
+ADDRESS_REQUEST_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,80}$")
 ENTITY_COLLECTION_PATH_RE = re.compile(
     r"^/v1/workspaces/([A-Za-z0-9_-]{16,80})/warehouses/([A-Za-z0-9_-]{1,120})/entities/(live|demo)$"
 )
@@ -42,6 +54,9 @@ ENTITY_BATCH_PATH_RE = re.compile(
 )
 ENTITY_CHANGES_PATH_RE = re.compile(
     r"^/v1/workspaces/([A-Za-z0-9_-]{16,80})/warehouses/([A-Za-z0-9_-]{1,120})/changes/(live|demo)$"
+)
+ADDRESS_SEARCH_PATH_RE = re.compile(
+    r"^/v1/workspaces/([A-Za-z0-9_-]{16,80})/warehouses/([A-Za-z0-9_-]{1,120})/address-search/(live|demo)$"
 )
 ENTITY_TYPE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 ENTITY_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,160}$")
@@ -1887,6 +1902,395 @@ def map_points(value: object) -> list[tuple[float, float]]:
     return result
 
 
+ADDRESS_NORMALIZATION_RULES = (
+    (r"\bлен\s+обл\b", "ленинградская область"),
+    (r"\bмос\s+обл\b", "московская область"),
+    (r"\bобл\b", "область"),
+    (r"\bр\s*-?\s*н\b|\bр-он\b", "район"),
+    (r"\bм\s+о\b", "муниципальный округ"),
+    (r"\bг\s+о\b", "городской округ"),
+    (r"\bспб\b", "санкт петербург"),
+    (r"\bс\s*н\s*т\b|\bсадоводство\b|\bсадоводческое\s+товарищество\b", "снт"),
+    (r"\bд\s*н\s*т\b", "днт"),
+    (r"\bд\s*н\s*п\b", "днп"),
+    (r"\bк\s*п\b", "коттеджный поселок"),
+    (r"\bпр\s*-?\s*д\s*", "проезд "),
+    (r"\bг\s+(?=[а-я])", "город "),
+    (r"\bдер\s*", "деревня "),
+    (r"\bд\s+(?=[а-я])", "деревня "),
+    (r"\bпгт\s*", "поселок городского типа "),
+    (r"\bпос\s*", "поселок "),
+    (r"\bп\s+(?=[а-я])", "поселок "),
+    (r"\bс\s+(?=[а-я])", "село "),
+    (r"\bхут\s*", "хутор "),
+    (r"\bст-?ца\s*", "станица "),
+    (r"\bсл\s+(?=[а-я])", "слобода "),
+    (r"\bтер\s*", "территория "),
+    (r"\bкв-?л\s*", "квартал "),
+    (r"\bмкр\s*", "микрорайон "),
+    (r"\bпромзона\b", "промышленная зона"),
+    (r"\bул\s*", "улица "),
+    (r"\bпр\s*-?\s*кт\s*|\bпросп\s*", "проспект "),
+    (r"\bпер\s*", "переулок "),
+    (r"\bш\s+(?=[а-я])", "шоссе "),
+    (r"\bнаб\s*", "набережная "),
+    (r"\bлин\s*", "линия "),
+    (r"\bалл\s*", "аллея "),
+    (r"\bд\s*(?=\d)", "дом "),
+    (r"\bдомовл\s*|\bвлад\s*", "владение "),
+    (r"\bкорп\s*", "корпус "),
+    (r"\bстр\s*", "строение "),
+    (r"\bлит\s*", "литера "),
+    (r"\bпом\s*", "помещение "),
+    (r"\bуч\s*", "участок "),
+)
+
+
+def normalize_address_text(value: object) -> str:
+    text = unicodedata.normalize("NFKC", str(value or "")).casefold().replace("ё", "е")
+    text = re.sub(r"[.\\/|,;:()\[\]{}«»„“”\"'`]", " ", text)
+    text = re.sub(r"[–—−]", "-", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    text = f" {text} "
+    for pattern, replacement in ADDRESS_NORMALIZATION_RULES:
+        text = re.sub(pattern, f" {replacement} ", text)
+    text = re.sub(r"[^0-9a-zа-я-]+", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def validate_address_search_payload(payload: object) -> dict:
+    if not isinstance(payload, dict):
+        raise ApiError(400, "invalid_address_request", "Запрос адреса должен быть объектом")
+    original_query = " ".join(str(payload.get("query", "")).split())
+    if len(original_query) < 3 or len(original_query) > 300:
+        raise ApiError(400, "invalid_address_query", "Введите адрес длиной от 3 до 300 символов")
+    normalized_query = normalize_address_text(original_query)
+    if len(normalized_query) < 3:
+        raise ApiError(400, "invalid_address_query", "Адрес не содержит символов для поиска")
+    request_id = str(payload.get("request_id", ""))
+    if not ADDRESS_REQUEST_ID_RE.fullmatch(request_id):
+        raise ApiError(400, "invalid_address_request_id", "Идентификатор адресного запроса повреждён")
+    if payload.get("limit") != 3:
+        raise ApiError(400, "invalid_address_limit", "Адресный контракт возвращает не более трёх вариантов")
+    if payload.get("address_contract") != ADDRESS_API_CONTRACT:
+        raise ApiError(426, "address_client_upgrade_required", "Версия адресного договора несовместима", {"address_contract": ADDRESS_API_CONTRACT})
+    language = str(payload.get("language", "ru")).lower()
+    if language != "ru":
+        raise ApiError(400, "invalid_address_language", "Адресный поиск поддерживает русский язык")
+    client_version = str(payload.get("client_version", ""))
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?", client_version):
+        raise ApiError(400, "invalid_address_client_version", "Версия клиента адресного поиска повреждена")
+    interaction = str(payload.get("interaction", ""))
+    if interaction not in {"autocomplete", "explicit"}:
+        raise ApiError(400, "invalid_address_interaction", "Режим адресного поиска повреждён")
+    preferred_region = " ".join(str(payload.get("preferred_region", "")).split())[:160]
+    return {
+        "request_id": request_id,
+        "original_query": original_query,
+        "normalized_query": normalized_query,
+        "preferred_region": preferred_region,
+        "normalized_region": normalize_address_text(preferred_region),
+        "language": language,
+        "limit": 3,
+        "client_version": client_version,
+        "address_contract": ADDRESS_API_CONTRACT,
+        "interaction": interaction,
+    }
+
+
+def address_row_key(row: dict) -> str:
+    fias_id = str(row.get("fias_id") or "")
+    if fias_id:
+        return f"fias:{fias_id}"
+    lat = row.get("latitude")
+    lon = row.get("longitude")
+    coordinates = ""
+    if lat is not None and lon is not None:
+        coordinates = f"{float(lat):.5f}:{float(lon):.5f}"
+    return f"text:{normalize_address_text(row.get('display_name'))}|{coordinates}"
+
+
+def rank_address_rows(rows: list[dict], request: dict) -> list[dict]:
+    preferred_region = request["normalized_region"]
+    ranked: list[tuple[float, str, str, dict]] = []
+    for row in rows:
+        text_score = max(0.0, min(1.0, float(row.get("text_score") or 0.0)))
+        region_match = bool(preferred_region) and preferred_region in normalize_address_text(row.get("region"))
+        has_coordinates = row.get("latitude") is not None and row.get("longitude") is not None
+        has_fias = bool(row.get("fias_id"))
+        score = text_score * 0.84
+        score += 0.08 if region_match else 0.0
+        score += 0.03 if row.get("official_status") else 0.0
+        score += 0.03 if has_fias else 0.0
+        score += 0.02 if has_coordinates else 0.0
+        score = max(0.0, min(1.0, score))
+        if score < 0.42:
+            continue
+        confidence = "high" if score >= 0.82 else "medium" if score >= 0.62 else "low"
+        reasons = ["Нечёткое совпадение адреса" if text_score < 0.92 else "Точное текстовое совпадение"]
+        if region_match:
+            reasons.append("Совпадает приоритетный регион")
+        if has_fias:
+            reasons.append("Есть официальный идентификатор ГАР/ФИАС")
+        warnings = [str(value)[:180] for value in row.get("provider_warnings", []) if str(value).strip()][:8]
+        if confidence == "low":
+            warnings.append("Совпадение требует ручной проверки")
+        if not has_coordinates:
+            warnings.append("Координаты не подтверждены")
+        if not has_fias:
+            warnings.append("Идентификатор ГАР/ФИАС отсутствует")
+        source_date = row.get("source_date")
+        result = {
+            "id": str(row.get("internal_id", "")),
+            "display_name": str(row.get("display_name", "")),
+            "components": {
+                "region": str(row.get("region", "")),
+                "district": str(row.get("district", "")),
+                "settlement": str(row.get("settlement", "")),
+                "territory": str(row.get("territory", "")),
+                "street": str(row.get("street", "")),
+                "house": str(row.get("house", "")),
+                "postal_code": str(row.get("postal_code", "")),
+            },
+            "object_type": str(row.get("object_type", "")),
+            "coordinates": {
+                "lat": float(row["latitude"]) if row.get("latitude") is not None else None,
+                "lon": float(row["longitude"]) if row.get("longitude") is not None else None,
+                "accuracy": str(row.get("coordinate_accuracy", "unknown")),
+            },
+            "fias_id": str(row.get("fias_id") or ""),
+            "provider_ids": {str(row.get("source_name", "unknown")): str(row.get("source_id", ""))},
+            "confidence": confidence,
+            "match_score": round(score, 4),
+            "match_reason": reasons,
+            "warnings": warnings,
+            "source": {
+                "name": str(row.get("source_name", "")),
+                "version": str(row.get("source_version", "")),
+                "date": source_date.isoformat() if hasattr(source_date, "isoformat") else str(source_date or ""),
+            },
+        }
+        ranked.append((score, result["id"], address_row_key(row), result))
+    ranked.sort(key=lambda item: (-item[0], item[1]))
+    deduplicated: list[dict] = []
+    by_key: dict[str, dict] = {}
+    for _score, _internal_id, key, result in ranked:
+        existing = by_key.get(key)
+        if existing is not None:
+            existing["provider_ids"].update(result["provider_ids"])
+            existing["match_reason"] = list(dict.fromkeys(existing["match_reason"] + result["match_reason"]))
+            existing["warnings"] = list(dict.fromkeys(existing["warnings"] + result["warnings"]))
+            continue
+        if len(deduplicated) >= 3:
+            continue
+        by_key[key] = result
+        deduplicated.append(result)
+    return deduplicated
+
+
+def provider_coordinate(value: object, minimum: float, maximum: float) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) and minimum <= number <= maximum else None
+
+
+def provider_ratio(value: object) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(1.0, number)) if math.isfinite(number) else 0.0
+
+
+def provider_text(value: object, limit: int) -> str:
+    if value is None or isinstance(value, (dict, list, tuple, set, bool)):
+        return ""
+    return " ".join(str(value).split())[:limit]
+
+
+def address_text_similarity(query: str, candidate: str) -> float:
+    left = normalize_address_text(query)
+    right = normalize_address_text(candidate)
+    if not left or not right:
+        return 0.0
+    sequence = SequenceMatcher(None, left, right).ratio()
+    query_tokens = {token for token in left.split() if len(token) > 1}
+    candidate_tokens = {token for token in right.split() if len(token) > 1}
+    overlap = len(query_tokens & candidate_tokens) / max(1, len(query_tokens))
+    return max(sequence, overlap)
+
+
+def dadata_house(data: dict) -> str:
+    parts = []
+    if data.get("stead"):
+        parts.append(f"{provider_text(data.get('stead_type'), 20) or 'уч'} {provider_text(data['stead'], 50)}")
+    if data.get("house"):
+        parts.append(f"{provider_text(data.get('house_type'), 20) or 'д'} {provider_text(data['house'], 50)}")
+    if data.get("block"):
+        parts.append(f"{provider_text(data.get('block_type'), 20) or 'корп'} {provider_text(data['block'], 50)}")
+    return " ".join(str(value).strip() for value in parts if str(value).strip())[:80]
+
+
+def dadata_object_type(data: dict) -> str:
+    return {
+        "1": "region", "3": "district", "4": "city", "5": "city_district",
+        "6": "settlement", "7": "street", "8": "house", "9": "room",
+        "65": "planning_structure", "75": "land_plot",
+    }.get(str(data.get("fias_level") or ""), "address")
+
+
+def dadata_rows(suggestions: object, request: dict, queried_at: datetime) -> list[dict]:
+    if not isinstance(suggestions, list):
+        raise ApiError(502, "address_provider_invalid_response", "Сервис адресов вернул неверный список подсказок")
+    rows = []
+    for index, suggestion in enumerate(suggestions[:20]):
+        if not isinstance(suggestion, dict) or not isinstance(suggestion.get("data"), dict):
+            continue
+        data = suggestion["data"]
+        display_name = provider_text(suggestion.get("unrestricted_value") or suggestion.get("value"), 1000)
+        if not display_name:
+            continue
+        fias_id = provider_text(data.get("fias_id"), 80).lower()
+        if fias_id and not FIAS_UUID_RE.fullmatch(fias_id):
+            fias_id = ""
+        source_id = fias_id or hashlib.sha256(display_name.encode("utf-8")).hexdigest()[:32]
+        actuality = str(data.get("fias_actuality_state") or "")
+        warnings = []
+        if actuality and actuality != "0":
+            warnings.append("Поставщик сообщает, что адрес в ГАР/ФИАС был изменён")
+        rows.append({
+            "internal_id": f"dadata:{source_id}",
+            "display_name": display_name,
+            "object_type": dadata_object_type(data),
+            "region": provider_text(data.get("region_with_type") or data.get("region"), 160),
+            "district": provider_text(data.get("area_with_type") or data.get("city_district_with_type"), 200),
+            "settlement": provider_text(data.get("settlement_with_type") or data.get("city_with_type"), 200),
+            "territory": provider_text(data.get("planning_structure_with_type"), 200),
+            "street": provider_text(data.get("street_with_type"), 240),
+            "house": dadata_house(data),
+            "postal_code": provider_text(data.get("postal_code"), 16),
+            "latitude": provider_coordinate(data.get("geo_lat"), -90, 90),
+            "longitude": provider_coordinate(data.get("geo_lon"), -180, 180),
+            "coordinate_accuracy": {"0": "building", "1": "nearest_building", "2": "street", "3": "settlement", "4": "city", "5": "unknown"}.get(str(data.get("qc_geo") or ""), "unknown"),
+            "fias_id": fias_id,
+            "source_name": "dadata",
+            "source_id": source_id,
+            "source_version": "suggestions-api-4_1",
+            "source_date": queried_at.date(),
+            "official_status": bool(fias_id) and actuality in {"", "0"},
+            "provider_warnings": warnings,
+            "text_score": max(address_text_similarity(request["normalized_query"], display_name), max(0.55, 0.82 - index * 0.04)),
+        })
+    return rows
+
+
+def nominatim_rows(suggestions: object, request: dict, queried_at: datetime) -> list[dict]:
+    if not isinstance(suggestions, list):
+        raise ApiError(502, "address_provider_invalid_response", "Сервис адресов вернул неверный список результатов")
+    rows = []
+    for index, item in enumerate(suggestions[:10]):
+        if not isinstance(item, dict):
+            continue
+        address = item.get("address") if isinstance(item.get("address"), dict) else {}
+        display_name = provider_text(item.get("display_name"), 1000)
+        if not display_name:
+            continue
+        osm_type = re.sub(r"[^A-Za-z0-9_-]", "", str(item.get("osm_type") or "place"))[:30] or "place"
+        osm_id = re.sub(r"[^A-Za-z0-9_-]", "", str(item.get("osm_id") or item.get("place_id") or ""))[:80]
+        if not osm_id:
+            osm_id = hashlib.sha256(display_name.encode("utf-8")).hexdigest()[:32]
+        importance = provider_ratio(item.get("importance"))
+        rows.append({
+            "internal_id": f"nominatim:{osm_type}:{osm_id}",
+            "display_name": display_name,
+            "object_type": provider_text(item.get("type") or item.get("class") or "address", 80),
+            "region": provider_text(address.get("state") or address.get("region") or address.get("province"), 160),
+            "district": provider_text(address.get("state_district") or address.get("county") or address.get("city_district"), 200),
+            "settlement": provider_text(address.get("city") or address.get("town") or address.get("village") or address.get("hamlet") or address.get("locality"), 200),
+            "territory": provider_text(address.get("allotments") or address.get("quarter") or address.get("suburb"), 200),
+            "street": provider_text(address.get("road") or address.get("pedestrian") or address.get("residential"), 240),
+            "house": provider_text(address.get("house_number") or address.get("plot"), 80),
+            "postal_code": provider_text(address.get("postcode"), 16),
+            "latitude": provider_coordinate(item.get("lat"), -90, 90),
+            "longitude": provider_coordinate(item.get("lon"), -180, 180),
+            "coordinate_accuracy": "provider",
+            "fias_id": "",
+            "source_name": "nominatim",
+            "source_id": f"{osm_type}:{osm_id}",
+            "source_version": "search-jsonv2",
+            "source_date": queried_at.date(),
+            "official_status": False,
+            "provider_warnings": ["Официальный идентификатор ГАР/ФИАС отсутствует"],
+            "text_score": max(address_text_similarity(request["normalized_query"], display_name), min(0.78, importance + 0.25), max(0.48, 0.68 - index * 0.03)),
+        })
+    return rows
+
+
+def fetch_dadata_suggestions(request: dict) -> object:
+    if not re.fullmatch(r"[A-Za-z0-9._-]{16,240}", DADATA_API_KEY):
+        raise ApiError(503, "address_autocomplete_not_configured", "Автоподсказки адресов ещё не подключены. Нажмите кнопку поиска")
+    origin = validated_provider_origin(DADATA_ORIGIN, "подсказок адресов")
+    body = json.dumps({"query": request["original_query"], "count": 10, "language": "ru", "division": "administrative"}, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    cache_key = "address:dadata:" + hashlib.sha256(body).hexdigest()
+    cached = map_cache_get(cache_key)
+    if cached is not None:
+        return cached
+    upstream = Request(
+        f"{origin}/suggestions/api/4_1/rs/suggest/address",
+        data=body,
+        headers={"Accept": "application/json", "Content-Type": "application/json; charset=utf-8", "Authorization": f"Token {DADATA_API_KEY}", "User-Agent": f"JustFun-Orders-Logistics/{VERSION}"},
+        method="POST",
+    )
+    try:
+        with urlopen(upstream, timeout=20) as response:
+            raw = response.read(2 * 1024 * 1024 + 1)
+        if len(raw) > 2 * 1024 * 1024:
+            raise ApiError(502, "address_provider_payload_too_large", "Сервис адресов вернул слишком большой ответ")
+        value = json.loads(raw.decode("utf-8"))
+    except HTTPError as exc:
+        if exc.code in {401, 403}:
+            raise ApiError(503, "address_provider_auth_failed", "Ключ сервиса адресов не принят") from exc
+        if exc.code == 429:
+            raise ApiError(429, "address_provider_rate_limited", "Лимит сервиса адресов временно исчерпан") from exc
+        raise ApiError(502, "address_provider_http_error", f"Сервис адресов ответил HTTP {exc.code}", {"status": exc.code}) from exc
+    except (URLError, TimeoutError) as exc:
+        raise ApiError(503, "address_provider_unavailable", "Сервис адресов временно недоступен") from exc
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ApiError(502, "address_provider_invalid_response", "Сервис адресов вернул повреждённый ответ") from exc
+    if not isinstance(value, dict) or not isinstance(value.get("suggestions"), list):
+        raise ApiError(502, "address_provider_invalid_response", "Сервис адресов вернул неверный формат")
+    map_cache_put(cache_key, value["suggestions"], ADDRESS_CACHE_SECONDS)
+    return value["suggestions"]
+
+
+def search_address_providers(payload: object) -> dict:
+    request = validate_address_search_payload(payload)
+    queried_at = datetime.now(timezone.utc)
+    if DADATA_API_KEY:
+        rows = dadata_rows(fetch_dadata_suggestions(request), request, queried_at)
+        provider = {"name": "dadata", "api_version": "4_1", "reference": "gar-fias", "queried_at": queried_at.isoformat().replace("+00:00", "Z"), "cache_ttl_seconds": ADDRESS_CACHE_SECONDS}
+    elif request["interaction"] == "explicit":
+        rows = nominatim_rows(proxy_geocode({"mode": "search", "query": request["original_query"], "limit": 10, "addressOnly": True}), request, queried_at)
+        provider = {"name": "nominatim", "api_version": "search-jsonv2", "reference": "openstreetmap", "queried_at": queried_at.isoformat().replace("+00:00", "Z"), "cache_ttl_seconds": 24 * 60 * 60}
+    else:
+        raise ApiError(503, "address_autocomplete_not_configured", "Автоподсказки адресов ещё не подключены. Нажмите кнопку поиска")
+    results = rank_address_rows(rows, request)
+    LOG.info(
+        "address search request=%s interaction=%s query_sha256=%s candidates=%d results=%d provider=%s",
+        request["request_id"], request["interaction"], hashlib.sha256(request["normalized_query"].encode("utf-8")).hexdigest()[:16], len(rows), len(results), provider["name"],
+    )
+    return {
+        "request_id": request["request_id"],
+        "address_contract": ADDRESS_API_CONTRACT,
+        "query": request["original_query"],
+        "normalized_query": request["normalized_query"],
+        "provider": provider,
+        "results": results,
+    }
+
+
 def proxy_geocode(payload: dict) -> object:
     origin = validated_provider_origin(NOMINATIM_ORIGIN, "поиска адресов")
     mode = str(payload.get("mode", "search"))
@@ -1958,6 +2362,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
         self.send_header("X-JustFun-API-Contract", str(API_CONTRACT))
+        self.send_header("X-JustFun-Address-Contract", str(ADDRESS_API_CONTRACT))
         self.send_header("X-JustFun-Min-Client-Version", MIN_CLIENT_VERSION)
         self.end_headers()
         if self.command != "HEAD":
@@ -2027,6 +2432,10 @@ class Handler(BaseHTTPRequestHandler):
                         "version": VERSION,
                         "database": "ready",
                         "api_contract": API_CONTRACT,
+                        "address_contract": ADDRESS_API_CONTRACT,
+                        "address_provider": "dadata" if DADATA_API_KEY else "nominatim-explicit-only",
+                        "address_autocomplete": bool(DADATA_API_KEY),
+                        "address_storage": "transient-memory-cache",
                         "storage_mode": "server_authoritative_v3",
                         "database_pool_max": DB_POOL_MAX,
                         "minimum_client_version": MIN_CLIENT_VERSION,
@@ -2043,6 +2452,7 @@ class Handler(BaseHTTPRequestHandler):
                         "version": VERSION,
                         "database": "unavailable",
                         "api_contract": API_CONTRACT,
+                        "address_contract": ADDRESS_API_CONTRACT,
                         "minimum_client_version": MIN_CLIENT_VERSION,
                     },
                 )
@@ -2057,6 +2467,9 @@ class Handler(BaseHTTPRequestHandler):
                     "service": "orders-logistics-reg-vps",
                     "version": VERSION,
                     "api_contract": API_CONTRACT,
+                    "address_contract": ADDRESS_API_CONTRACT,
+                    "address_provider": "dadata" if DADATA_API_KEY else "nominatim-explicit-only",
+                    "address_autocomplete": bool(DADATA_API_KEY),
                     "minimum_client_version": MIN_CLIENT_VERSION,
                     "workspace_id": auth["company_id"],
                 },
@@ -2091,6 +2504,26 @@ class Handler(BaseHTTPRequestHandler):
             )
             return
         decoded_path = unquote(target.path)
+        address_match = ADDRESS_SEARCH_PATH_RE.fullmatch(decoded_path)
+        if address_match:
+            if self.command != "POST":
+                raise ApiError(405, "method_not_allowed", "Адресный поиск требует POST")
+            workspace_id, warehouse_id, environment = address_match.groups()
+            require_workspace(auth, workspace_id)
+            require_entity_scope_access(auth, workspace_id, warehouse_id, environment)
+            enforce_map_rate(f"{workspace_id}:{warehouse_id}:address")
+            result = search_address_providers(self.read_json())
+            self.send_json(
+                200,
+                {
+                    "ok": True,
+                    "workspace_id": workspace_id,
+                    "warehouse_id": warehouse_id,
+                    "environment": environment,
+                    **result,
+                },
+            )
+            return
         batch_match = ENTITY_BATCH_PATH_RE.fullmatch(decoded_path)
         collection_match = ENTITY_COLLECTION_PATH_RE.fullmatch(decoded_path)
         changes_match = ENTITY_CHANGES_PATH_RE.fullmatch(decoded_path)

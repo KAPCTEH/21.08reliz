@@ -403,14 +403,14 @@
 <div class="field"><label>Статус оплаты</label><select id="paymentStatus"><option value="pending">Ожидает оплаты</option><option value="paid">Оплата произведена</option></select></div>
 </div>
 <div class="section-title"><h2>Адрес доставки</h2></div>
-<div class="field"><textarea id="deliveryAddress" placeholder="Область, район, населённый пункт, улица, дом; для СНТ — название, линия и участок" required="" data-jf-oninput="invalidateDeliveryAddressSearch()"></textarea></div>
+<div class="field"><textarea aria-autocomplete="list" aria-controls="geoResults" id="deliveryAddress" placeholder="Область, район, населённый пункт, улица, дом; для СНТ — название, линия и участок" required="" data-jf-oninput="invalidateDeliveryAddressSearch()" data-jf-onkeydown="selectAddressSuggestionByKeyboard(event)"></textarea></div>
 <div class="geo-panel">
 <div class="geo-controls">
 <button class="btn-primary" id="addressSearchBtn" data-jf-onclick="searchDeliveryAddress()" type="button">🔎 Найти адрес и район</button>
 <button class="btn-gray" data-jf-onclick="clearSelectedPoint()" type="button">Сбросить точку</button>
 </div>
 <div class="notice notice-info" id="geoStatus" style="margin-top:10px">Введите адрес и нажмите поиск. Также можно поставить точку непосредственно кликом по карте или перетащить маркер.</div>
-<div class="geo-results" id="geoResults"></div>
+<div aria-label="Варианты адреса" class="geo-results" id="geoResults" role="listbox"></div>
 <div class="selected-address" id="selectedAddress">
 <div class="notice notice-ok"><b id="selectedFullAddress">Адрес выбран</b></div>
 <div class="address-grid">

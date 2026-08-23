@@ -31,6 +31,7 @@
 /* Address results are proper accessible buttons. */
 .geo-result{display:block;width:100%;font:inherit;color:inherit;border:1px solid #d7e5de;background:var(--jf-color-surface);text-align:left;cursor:pointer}
 .geo-result:hover,.geo-result:focus-visible{border-color:#15945b;background:#f2faf6;outline:3px solid rgba(21,148,91,.12)}
+.geo-result mark{border-radius:var(--jf-radius-control);background:var(--jf-color-gold-300);color:inherit;padding:0 .08em}
 
 /* REG.RU and Telegram are independent full-width services. */
 #jfRegIntegrationsBox .jf-integration-card,#jfTelegramIntegrationsBox .jf-integration-card{width:100%}

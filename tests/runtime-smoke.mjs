@@ -65,6 +65,8 @@ const dom = new JSDOM(htmlWithoutScripts, {
   virtualConsole
 });
 const { window } = dom;
+// Electron/Chromium exposes structuredClone; jsdom does not currently mirror it on Window.
+window.structuredClone = value => structuredClone(value);
 window.__JF_RUNTIME_TEST__ = true;
 window.__JF_RUNTIME_TRACE__ = runtimeTrace;
 const originalButtons = new Set(window.document.querySelectorAll('button'));

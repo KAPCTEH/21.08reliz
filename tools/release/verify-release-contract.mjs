@@ -75,7 +75,7 @@ checked('release-contract-shape', () => {
 
 checked('contract-versions', () => {
   const contracts = release?.contracts || {};
-  for (const name of ['update_manifest', 'reg_api', 'license_auth', 'license_auth_context', 'telegram_broker', 'storage_protocol']) {
+  for (const name of ['update_manifest', 'reg_api', 'license_auth', 'license_auth_context', 'telegram_broker', 'storage_protocol', 'address_search']) {
     assert(Number.isInteger(contracts[name]) && contracts[name] > 0, `release contract ${name} is invalid`);
   }
   const main = readText('source/application/main.js');
@@ -84,6 +84,9 @@ checked('contract-versions', () => {
   const broker = readText('source/company-telegram-broker/worker.mjs');
   assert(main.includes(`const REG_API_CONTRACT=${contracts.reg_api};`), 'desktop REG API contract differs from release.json');
   assert(server.includes(`API_CONTRACT = ${contracts.reg_api}`), 'VPS API contract differs from release.json');
+  assert(main.includes(`const ADDRESS_API_CONTRACT=${contracts.address_search};`), 'desktop address API contract differs from release.json');
+  assert(server.includes(`ADDRESS_API_CONTRACT = ${contracts.address_search}`), 'VPS address API contract differs from release.json');
+  assert(main.includes('address_search: RELEASE.contracts.address_search'), 'desktop updater does not advertise the address search contract');
   assert(license.includes(`auth_contract: ${contracts.license_auth}`), 'license auth contract differs from release.json');
   assert(license.includes(`auth_context_version: ${contracts.license_auth_context}`), 'license auth context differs from release.json');
   assert(broker.includes(`broker_contract: ${contracts.telegram_broker}`), 'Telegram broker contract differs from release.json');
@@ -205,6 +208,7 @@ checked('release-formats-and-compatibility', () => {
   assert(JSON.stringify(updateCatalogSchema?.properties?.directive?.properties?.mode?.enum) === JSON.stringify(['release', 'halt', 'rollback']), 'update catalog directive modes are invalid');
   for (const field of ['mode', 'withdrawn_build_ids', 'rollback_from_versions', 'message']) assert(updateCatalogSchema?.properties?.directive?.required?.includes(field), `signed update directive field is missing: ${field}`);
   for (const field of ['unpacked_bytes', 'file_count', 'file_manifest_sha256']) assert(updateCatalogSchema?.properties?.release?.properties?.payload?.required?.includes(field), `signed update payload constraint is missing: ${field}`);
+  assert(updateCatalogSchema?.properties?.release?.properties?.required_contracts?.required?.includes('address_search'), 'signed update catalog does not require the address search contract');
   assert(updateCatalogSchema?.properties?.release?.required?.includes('summary'), 'signed release summary is missing');
   assert(updatePlanSchema?.required?.includes('from_version'), 'update plan must bind the installed source version');
   assert(compatibility?.schema_version === 1, 'compatibility policy schema_version must be 1');

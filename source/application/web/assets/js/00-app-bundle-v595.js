@@ -173,6 +173,7 @@ const geocodeCache=new Map();
 let deliveryAddressSearchSerial=0;
 let deliveryAddressAbortController=null;
 let deliveryAddressSuggestTimer=null;
+let geoResultActiveIndex=-1;
 const renderTimers=new Map();
 const smartClusterCache=new Map();
 let appErrorCount=0;
@@ -317,6 +318,7 @@ async function vpsMapRequest(kind,payload){
   if(typeof method!=='function')return{used:false,data:null};
   const result=await method(payload);
   if(result?.ok===true){if(result.degraded)console.warn(String(result.warning||'Картографический запрос выполнен через резервный канал.'));return{used:true,data:result.data,source:String(result.source||''),degraded:!!result.degraded,warning:String(result.warning||'')}}
+  if(['ADDRESS_VPS_REQUIRED','ADDRESS_AUTOCOMPLETE_REQUIRES_PROVIDER','address_autocomplete_not_configured'].includes(String(result?.code||'')))throw new Error(String(result.error||'Для адресного поиска требуется сервис компании'));
   if(result?.configured===false)return{used:false,data:null};
   throw new Error(String(result?.error||'VPS компании не выполнил картографический запрос'));
 }
@@ -763,13 +765,29 @@ function invalidateDeliveryAddressSearch(scheduleSuggestion=true){
   deliveryAddressSearchSerial++;
   deliveryAddressAbortController?.abort();deliveryAddressAbortController=null;
   clearTimeout(deliveryAddressSuggestTimer);deliveryAddressSuggestTimer=null;
-  window.__geoCandidates=[];$('geoResults').innerHTML='';
+  window.__geoCandidates=[];geoResultActiveIndex=-1;$('geoResults').innerHTML='';$('deliveryAddress').removeAttribute('aria-activedescendant');
   const btn=$('addressSearchBtn');if(btn)btn.disabled=false;
   if(!scheduleSuggestion)return;
   const q=$('deliveryAddress').value.trim();
   if(q.replace(/[^0-9a-zа-я]/gi,'').length<3){setGeoStatus('Введите не менее трёх символов адреса. Точку также можно выбрать на карте.','info');return}
   setGeoStatus('Подсказки появятся после короткой паузы…','info');
   deliveryAddressSuggestTimer=setTimeout(()=>{deliveryAddressSuggestTimer=null;searchDeliveryAddress({automatic:true})},700)
+}
+function focusAddressSuggestion(index){
+  const buttons=[...$('geoResults').querySelectorAll('.geo-result')];if(!buttons.length)return;
+  geoResultActiveIndex=(index+buttons.length)%buttons.length;
+  buttons.forEach((button,buttonIndex)=>button.setAttribute('aria-selected',buttonIndex===geoResultActiveIndex?'true':'false'));
+  const active=buttons[geoResultActiveIndex];$('deliveryAddress').setAttribute('aria-activedescendant',active.id);active.focus()
+}
+function selectAddressSuggestionByKeyboard(event){
+  const buttons=[...$('geoResults').querySelectorAll('.geo-result')];
+  if(event.key==='Escape'&&buttons.length){event.preventDefault();invalidateDeliveryAddressSearch(false);setGeoStatus('Подсказки закрыты. Можно уточнить адрес или выбрать точку на карте.','info');$('deliveryAddress').focus();return}
+  if(!buttons.length)return;
+  const current=Number(event.currentTarget?.dataset?.geoIndex);
+  if(Number.isInteger(current)&&current>=0)geoResultActiveIndex=current;
+  if(event.key==='ArrowDown'){event.preventDefault();focusAddressSuggestion(geoResultActiveIndex+1);return}
+  if(event.key==='ArrowUp'){event.preventDefault();focusAddressSuggestion(geoResultActiveIndex<0?buttons.length-1:geoResultActiveIndex-1);return}
+  if(event.key==='Enter'&&event.currentTarget?.id==='deliveryAddress'&&geoResultActiveIndex>=0){event.preventDefault();selectSearchResult(geoResultActiveIndex)}
 }
 async function searchDeliveryAddress({automatic=false}={}){
   clearTimeout(deliveryAddressSuggestTimer);deliveryAddressSuggestTimer=null;
@@ -781,7 +799,7 @@ async function searchDeliveryAddress({automatic=false}={}){
   const requestSerial=++deliveryAddressSearchSerial,requestId=mapRequestId(),btn=$('addressSearchBtn');
   btn.disabled=true;setGeoStatus('Ищу адрес…','warn');$('geoResults').innerHTML='';
   try{
-    const list=await geocodeSearch(q,{requestId,signal:controller.signal});
+    const list=await geocodeSearch(q,{requestId,signal:controller.signal,automatic});
     if(requestSerial!==deliveryAddressSearchSerial||controller.signal.aborted)return;
     if(!list.length){setGeoStatus('Точного совпадения нет. Уточните адрес или поставьте точку вручную на карте.','warn');return}
     window.__geoCandidates=list;
@@ -790,10 +808,13 @@ async function searchDeliveryAddress({automatic=false}={}){
       const g=parseNominatimResult(r,'Nominatim'),meta=r.__jfAddressMeta||{};
       const match=intelligence?.confidenceLabel?.(meta)||'';
       const warning=Array.isArray(meta.warnings)?meta.warnings[0]||'':'';
-      const details=[g.region,g.district,g.settlement].filter(Boolean).join(' · ')||'Административные данные неполные';
+      const details=[g.objectType,g.region,g.district,g.settlement].filter(Boolean).join(' · ')||'Административные данные неполные';
+      const coordinates=Number.isFinite(g.lat)&&Number.isFinite(g.lon)?`${g.lat.toFixed(6)}, ${g.lon.toFixed(6)}`:'Координаты не подтверждены';
       const quality=[match,warning].filter(Boolean).join(' · ');
-      return `<button class="geo-result" type="button" data-jf-onclick="selectSearchResult(${i})"><div class="geo-result-title">${escapeHtml(g.displayName)}</div><div class="geo-result-meta">${escapeHtml(details)} · ${Number(g.lat).toFixed(6)}, ${Number(g.lon).toFixed(6)}</div>${quality?`<div class="geo-result-meta">${escapeHtml(quality)}</div>`:''}</button>`
+      const title=(intelligence?.highlightParts?.(g.displayName,q)||[{text:g.displayName,match:false}]).map(part=>part.match?`<mark>${escapeHtml(part.text)}</mark>`:escapeHtml(part.text)).join('');
+      return `<button aria-selected="false" class="geo-result" data-geo-index="${i}" id="geoResult-${i}" role="option" type="button" data-jf-onclick="selectSearchResult(${i})" data-jf-onkeydown="selectAddressSuggestionByKeyboard(event)"><div class="geo-result-title">${title}</div><div class="geo-result-meta">${escapeHtml(details)} · ${escapeHtml(coordinates)}</div>${quality?`<div class="geo-result-meta">${escapeHtml(quality)}</div>`:''}</button>`
     }).join('');
+    geoResultActiveIndex=-1;
     setGeoStatus(`Показано лучших вариантов: ${list.length}. Проверьте адрес перед выбором.`,'info')
   }catch(err){
     if(err?.name!=='AbortError'&&requestSerial===deliveryAddressSearchSerial)setGeoStatus(automatic?'Автоподсказки временно недоступны. Нажмите кнопку поиска или поставьте точку на карте.':'Поиск адреса недоступен: '+err.message+'. Поставьте точку на карте или проверьте адрес сервиса в настройках.',automatic?'warn':'danger')
@@ -803,6 +824,10 @@ async function searchDeliveryAddress({automatic=false}={}){
   }
 }
 async function geocodeSearch(q,context={}){
+  const intelligence=globalThis.JustFunAddressIntelligenceV783;
+  const managed=await vpsMapRequest('addressSearch',{requestId:context.requestId,query:q,warehouseId:currentWarehouseIdV560(),preferredRegion:intelligence?.requestedRegion?.(settings.warehouse?.address||'')||'',interaction:context.automatic?'autocomplete':'explicit'});
+  if(managed.used){const data=Array.isArray(managed.data)?managed.data:[];return managed.source==='company-address-provider'?data.slice(0,3):rankGeocodeResults(data,q)}
+  if(context.automatic)throw new Error('Автоподсказки требуют подключённый адресный сервис');
   const expanded=expandAddressQuery(q),params={q:expanded,format:'jsonv2',addressdetails:'1',namedetails:'1',limit:'10',countrycodes:'ru','accept-language':'ru',viewbox:'27.0,61.5,35.0,57.2',bounded:'0',layer:'address',dedupe:'1'};
   let list=await nominatimFetch('/search',params,context);
   if(!list.length){const fallback={...params};delete fallback.layer;list=await nominatimFetch('/search',fallback,context)}
@@ -812,9 +837,9 @@ async function geocodeSearch(q,context={}){
 function expandAddressQuery(q){const intelligence=globalThis.JustFunAddressIntelligenceV783;if(intelligence?.normalizeQuery)return intelligence.normalizeQuery(q);return String(q||'').replace(/\bдер\.?\s+/gi,'деревня ').replace(/\bд\.\s+/gi,'деревня ').replace(/\bпос\.?\s+/gi,'посёлок ').replace(/\bуч\.?\s*/gi,'участок ').replace(/\s+/g,' ').trim()}
 function rankGeocodeResults(list,q){const intelligence=globalThis.JustFunAddressIntelligenceV783;if(intelligence?.rankCandidates)return intelligence.rankCandidates(list,q,{limit:3});const nq=normalizeText(q),terms=nq.split(' ').filter(x=>x.length>2),house=(nq.match(/(?:дом|д|участок|уч)\s*([0-9]+[а-яa-z-]*)/i)||[])[1]||'';return [...list].map(r=>{const text=normalizeText(r.display_name),a=r.address||{};let score=Number(r.importance||0)*10;for(const t of terms)if(text.includes(t))score+=2;if(house){const rh=normalizeText(a.house_number||a.plot||'');score+=rh===normalizeText(house)?12:rh? -8:0}if(detectRegion(a,r.display_name))score+=2;if(detectDistrict(a,r.display_name,detectRegion(a,r.display_name)))score+=3;return{r,score}}).sort((a,b)=>b.score-a.score).slice(0,3).map(x=>x.r)}
 async function reverseGeocode(lat,lon){return await nominatimFetch('/reverse',{lat:String(lat),lon:String(lon),format:'jsonv2',addressdetails:'1',zoom:'18','accept-language':'ru',layer:'address'})}
-async function selectSearchResult(i){let r=window.__geoCandidates?.[i];if(!r)return;let g=parseNominatimResult(r,'Nominatim');setSelectedGeo(g,true);if(!g.district||!g.region){setGeoStatus('Точка выбрана. Уточняю административный район…','warn');try{const rev=await reverseGeocode(g.lat,g.lon);g=mergeGeo(g,parseNominatimResult(rev,'Nominatim reverse'));setSelectedGeo(g,true)}catch{setGeoStatus('Точка выбрана, но район не подтверждён. Заполните область и район вручную.','warn')}}}
+async function selectSearchResult(i){let r=window.__geoCandidates?.[i];if(!r)return;let g=parseNominatimResult(r,'Nominatim');g.originalInput=g.originalInput||$('deliveryAddress').value.trim();g.normalizedInput=g.normalizedInput||expandAddressQuery(g.originalInput);if(!Number.isFinite(g.lat)||!Number.isFinite(g.lon)){setGeoStatus('Адрес найден, но координаты не подтверждены. Уточните запрос или поставьте точку вручную на карте.','warn');return}setSelectedGeo(g,true);if(!g.district||!g.region){setGeoStatus('Точка выбрана. Уточняю административный район…','warn');try{const rev=await reverseGeocode(g.lat,g.lon);g=mergeGeo(g,parseNominatimResult(rev,'Nominatim reverse'));setSelectedGeo(g,true)}catch{setGeoStatus('Точка выбрана, но район не подтверждён. Заполните область и район вручную.','warn')}}}
 function mergeGeo(a,b){return{...a,...Object.fromEntries(Object.entries(b).filter(([,v])=>v!==''&&v!==null&&v!==undefined)),lat:a.lat,lon:a.lon,displayName:a.displayName||b.displayName}}
-function parseNominatimResult(r,source){const a=r.address||{},display=r.display_name||r.name||'';const region=detectRegion(a,display),district=detectDistrict(a,display,region),settlement=a.city||a.town||a.village||a.municipality||a.hamlet||a.locality||a.suburb||'',road=a.road||a.pedestrian||a.residential||a.path||a.footway||a.cycleway||a.quarter||'',house=a.house_number||a.allotments||a.plot||'',parsed={lat:Number(r.lat),lon:Number(r.lon),displayName:display||[road,house,settlement,district,region].filter(Boolean).join(', '),region,district,settlement,road,house,postcode:a.postcode||'',osmType:r.osm_type||'',osmId:r.osm_id||'',source};recordGeocodeDiagnostic(r,parsed,source);return parsed}
+function parseNominatimResult(r,source){const a=r.address||{},canonical=r.__jfCanonicalAddress||{},display=r.display_name||r.name||'';const region=detectRegion(a,display),district=detectDistrict(a,display,region),settlement=a.city||a.town||a.village||a.municipality||a.hamlet||a.locality||a.suburb||'',road=a.road||a.pedestrian||a.residential||a.path||a.footway||a.cycleway||a.quarter||'',house=a.house_number||a.allotments||a.plot||'',coordinate=value=>value===null||value===undefined||value===''?NaN:Number(value),manual=canonical.manual===true||/клик|перемещение/i.test(String(source||'')),parsed={lat:coordinate(r.lat),lon:coordinate(r.lon),displayName:display||[road,house,settlement,district,region].filter(Boolean).join(', '),region,district,settlement,road,house,postcode:a.postcode||'',osmType:r.osm_type||'',osmId:r.osm_id||'',source:canonical.sourceName||source,addressId:String(canonical.id||''),fiasId:String(canonical.fiasId||''),providerIds:canonical.providerIds&&typeof canonical.providerIds==='object'?structuredClone(canonical.providerIds):{},objectType:String(canonical.objectType||''),coordinateAccuracy:String(canonical.coordinateAccuracy||''),sourceVersion:String(canonical.sourceVersion||''),sourceDate:String(canonical.sourceDate||''),datasetVersion:String(canonical.datasetVersion||''),datasetChecksum:String(canonical.datasetChecksum||''),originalInput:String(canonical.originalInput||''),normalizedInput:String(canonical.normalizedInput||''),official:canonical.official===true,manual};recordGeocodeDiagnostic(r,parsed,source);return parsed}
 function detectRegion(a,display){const text=normalizeText(display);if(normalizeText(a.state).includes('ленинград')||text.includes('ленинградская область'))return 'Ленинградская область';if(normalizeText(a.state).includes('санкт')||normalizeText(a.city).includes('санкт')||text.includes('санкт петербург'))return 'Санкт-Петербург';return a.state||a.region||a.province||''}
 function detectDistrict(a,display,region){
   const candidates=[a.city_district,a.borough,a.state_district,a.county,a.district,a.municipal_district,a.municipality,a.township,a.suburb,a.quarter].map(value=>String(value||'').trim()).filter(Boolean),text=normalizeText([display,...candidates].join(' '));
@@ -831,7 +856,7 @@ function detectDistrict(a,display,region){
   return direct||''
 }
 function samePlace(a,b){return normalizeText(a)===normalizeText(b)}
-function setSelectedGeo(g,moveMap=true,recalculateDelivery=true){selectedGeo={...g};geoDirty=false;$('deliveryAddress').value=$('deliveryAddress').value.trim()||g.displayName;renderSelectedGeo();placeOrderMarker(g.lat,g.lon);if(moveMap&&orderMap){orderMap.setView([g.lat,g.lon],16)}$('geoResults').innerHTML='';setGeoStatus(g.region&&g.district?'Адрес подтверждён. Область и район определены — доставка рассчитывается автоматически.':'Координаты выбраны, но область или район не определены. Заполните их вручную. ',g.region&&g.district?'ok':'warn');if(recalculateDelivery)calculateDeliveryForGeo(selectedGeo)}
+function setSelectedGeo(g,moveMap=true,recalculateDelivery=true){const originalInput=String(g.originalInput||$('deliveryAddress').value||g.displayName||'').trim(),normalizedInput=String(g.normalizedInput||expandAddressQuery(originalInput));selectedGeo={...g,originalInput,normalizedInput};geoDirty=false;$('deliveryAddress').value=$('deliveryAddress').value.trim()||g.displayName;renderSelectedGeo();placeOrderMarker(g.lat,g.lon);if(moveMap&&orderMap){orderMap.setView([g.lat,g.lon],16)}$('geoResults').innerHTML='';setGeoStatus(g.region&&g.district?'Адрес подтверждён. Область и район определены — доставка рассчитывается автоматически.':'Координаты выбраны, но область или район не определены. Заполните их вручную. ',g.region&&g.district?'ok':'warn');if(recalculateDelivery)calculateDeliveryForGeo(selectedGeo)}
 function renderSelectedGeo(){const g=selectedGeo;if(!g)return;$('selectedAddress').classList.add('show');$('selectedFullAddress').textContent=g.displayName||$('deliveryAddress').value;$('selectedRegion').textContent=g.region||'Не определена';$('selectedDistrict').textContent=g.district||'Не определён';$('selectedSettlement').textContent=g.settlement||'—';$('selectedRoad').textContent=g.road||'—';$('selectedHouse').textContent=g.house||'—';$('selectedCoords').textContent=`${Number(g.lat).toFixed(6)}, ${Number(g.lon).toFixed(6)}`;$('manualRegion').value=g.region||'';$('manualDistrict').value=g.district||''}
 function osmPointUrl(g){if(g?.lat&&g?.lon)return `https://www.openstreetmap.org/?mlat=${encodeURIComponent(g.lat)}&mlon=${encodeURIComponent(g.lon)}#map=17/${encodeURIComponent(g.lat)}/${encodeURIComponent(g.lon)}`;return 'https://www.openstreetmap.org'}
 
@@ -1305,7 +1330,7 @@ function normalizeOrder__baseV595(raw={}){
   const items=asArray(raw.items).filter(i=>i&&typeof i==='object').map(normalizeOrderItem);
   const goodsTotal=Number(raw.goodsTotal??raw.productsTotal??raw.total??items.reduce((s,i)=>s+i.total,0)),deliveryDistanceKm=Math.max(0,Number(raw.deliveryDistanceKm||0)),deliveryRate=Math.max(0,Number(raw.deliveryRate||DELIVERY_RATE_PER_KM)),deliveryCost=raw.orderType==='pickup'?0:Math.max(0,Number(raw.deliveryCost||0));
   const deliveryManualMode=raw.deliveryManualMode==='fixed'||raw.deliveryCostManual?'fixed':'auto';
-  return{id:raw.id||uuid(),number:raw.number||nextOrderNumber(),createdAt:raw.createdAt||new Date().toISOString(),updatedAt:raw.updatedAt||raw.createdAt||new Date().toISOString(),orderType:raw.orderType==='pickup'?'pickup':'delivery',contactName:raw.contactName||'',contactMethod:raw.contactMethod||'',deliveryDate:raw.deliveryDate||todayISO(),driverNote:raw.driverNote||raw.note||'',deliveryAddress:raw.deliveryAddress||'',geo:{lat:numOrNull(geo.lat),lon:numOrNull(geo.lon),displayName:geo.displayName||geo.fullAddress||geo.title||raw.deliveryAddress||'',region:legacyRegion,district:legacyDistrict,settlement:geo.settlement||geo.city||geo.town||geo.village||'',road:geo.road||geo.street||'',house:geo.house||geo.houseNumber||'',postcode:geo.postcode||'',osmType:geo.osmType||geo.osm_type||'',osmId:geo.osmId||geo.osm_id||'',source:geo.source||geo.searchSource||'legacy'},items,total:goodsTotal,goodsTotal,deliveryDistanceKm,deliveryRate,deliveryCost,deliveryAutoCost:Math.max(0,Number(raw.deliveryAutoCost??Math.round(deliveryDistanceKm*deliveryRate))),deliveryCostManual:deliveryManualMode==='fixed',deliveryDistanceManual:false,deliveryManualMode,deliveryBasePricingMode:['per_km','fixed','radius'].includes(raw.deliveryBasePricingMode)?raw.deliveryBasePricingMode:'per_km',deliveryRadiusKm:Math.max(0,Number(raw.deliveryRadiusKm||0)),deliveryCalcSource:raw.deliveryCalcSource||'',deliveryWarehouseKey:raw.deliveryWarehouseKey||'',grandTotal:Number(raw.grandTotal??goodsTotal+deliveryCost),warehouseId:String(raw.warehouseId||raw.warehouseKey||'')}
+  return{id:raw.id||uuid(),number:raw.number||nextOrderNumber(),createdAt:raw.createdAt||new Date().toISOString(),updatedAt:raw.updatedAt||raw.createdAt||new Date().toISOString(),orderType:raw.orderType==='pickup'?'pickup':'delivery',contactName:raw.contactName||'',contactMethod:raw.contactMethod||'',deliveryDate:raw.deliveryDate||todayISO(),driverNote:raw.driverNote||raw.note||'',deliveryAddress:raw.deliveryAddress||'',geo:{lat:numOrNull(geo.lat),lon:numOrNull(geo.lon),displayName:geo.displayName||geo.fullAddress||geo.title||raw.deliveryAddress||'',region:legacyRegion,district:legacyDistrict,settlement:geo.settlement||geo.city||geo.town||geo.village||'',road:geo.road||geo.street||'',house:geo.house||geo.houseNumber||'',postcode:geo.postcode||'',osmType:geo.osmType||geo.osm_type||'',osmId:geo.osmId||geo.osm_id||'',source:geo.source||geo.searchSource||'legacy',addressId:String(geo.addressId||''),fiasId:String(geo.fiasId||''),providerIds:geo.providerIds&&typeof geo.providerIds==='object'&&!Array.isArray(geo.providerIds)?structuredClone(geo.providerIds):{},objectType:String(geo.objectType||''),coordinateAccuracy:String(geo.coordinateAccuracy||''),sourceVersion:String(geo.sourceVersion||''),sourceDate:String(geo.sourceDate||''),datasetVersion:String(geo.datasetVersion||''),datasetChecksum:String(geo.datasetChecksum||''),originalInput:String(geo.originalInput||raw.deliveryAddress||''),normalizedInput:String(geo.normalizedInput||''),official:geo.official===true,manual:geo.manual===true},items,total:goodsTotal,goodsTotal,deliveryDistanceKm,deliveryRate,deliveryCost,deliveryAutoCost:Math.max(0,Number(raw.deliveryAutoCost??Math.round(deliveryDistanceKm*deliveryRate))),deliveryCostManual:deliveryManualMode==='fixed',deliveryDistanceManual:false,deliveryManualMode,deliveryBasePricingMode:['per_km','fixed','radius'].includes(raw.deliveryBasePricingMode)?raw.deliveryBasePricingMode:'per_km',deliveryRadiusKm:Math.max(0,Number(raw.deliveryRadiusKm||0)),deliveryCalcSource:raw.deliveryCalcSource||'',deliveryWarehouseKey:raw.deliveryWarehouseKey||'',grandTotal:Number(raw.grandTotal??goodsTotal+deliveryCost),warehouseId:String(raw.warehouseId||raw.warehouseKey||'')}
 }
 
 function normalizeProduct(raw={}){

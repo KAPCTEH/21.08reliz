@@ -124,10 +124,16 @@ fi
 BACKUP_READY=1
 
 DB_PASSWORD=""
+DADATA_API_KEY=""
 if [[ -f /etc/orders-logistics/server.env ]]; then
   DB_PASSWORD="$(sed -n 's/^JF_DB_PASSWORD=//p' /etc/orders-logistics/server.env | tail -n 1 || true)"
+  DADATA_API_KEY="$(sed -n 's/^JF_DADATA_API_KEY=//p' /etc/orders-logistics/server.env | tail -n 1 || true)"
 fi
 if [[ ! "$DB_PASSWORD" =~ ^[a-f0-9]{64}$ ]]; then DB_PASSWORD="$(openssl rand -hex 32)"; fi
+if [[ -n "$DADATA_API_KEY" && ! "$DADATA_API_KEY" =~ ^[A-Za-z0-9._-]{16,240}$ ]]; then
+  echo "Existing address provider key has an invalid format; refusing to overwrite server.env" >&2
+  exit 2
+fi
 
 sudo -u postgres psql --set=ON_ERROR_STOP=1 --set=db_password="$DB_PASSWORD" <<'SQL'
 DO $body$
@@ -143,7 +149,6 @@ if [[ "$EXISTING_DB" != 1 ]]; then
   sudo -u postgres createdb --owner=orderslogistics orderslogistics
   CREATED_DB=1
 fi
-
 install -o orderslogistics -g orderslogistics -m 0640 "$(dirname "$0")/server.py" /opt/justfun/orders-logistics/server.py
 chown root:orderslogistics /opt/justfun
 chmod 0750 /opt/justfun
@@ -160,6 +165,9 @@ JF_MAX_BODY=31457280
 JF_DB_POOL_MIN=4
 JF_DB_POOL_MAX=48
 JF_INSTALLATION_ID=$INSTALLATION_ID
+JF_DADATA_ORIGIN=https://suggestions.dadata.ru
+JF_DADATA_API_KEY=$DADATA_API_KEY
+JF_ADDRESS_CACHE_SECONDS=900
 EOF_ENV
 chmod 0600 /etc/orders-logistics/server.env
 

@@ -60,6 +60,7 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
     writeWarehouse: (payload) => ipcRenderer.invoke('desktop:reg-warehouse-write', payload||{})
   }),
   maps: Object.freeze({
+    addressSearch: (payload) => ipcRenderer.invoke('desktop:address-search', payload||{}),
     geocode: (payload) => ipcRenderer.invoke('desktop:maps-geocode', payload||{}),
     route: (payload) => ipcRenderer.invoke('desktop:maps-route', payload||{}),
     diagnostic: (payload) => ipcRenderer.invoke('desktop:maps-diagnostic', payload||{})

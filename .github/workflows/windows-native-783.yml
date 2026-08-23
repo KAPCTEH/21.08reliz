@@ -146,6 +146,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Current-cycle regression failed.' }
           node tests/address-intelligence-unit-v783.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Address intelligence regression failed.' }
+          python tests/reg-address-search-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'REG address search contract failed.' }
           node tests/design-token-regression-v783.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Design-token regression failed.' }
           node tests/product-drawer-accessibility-v783.cjs

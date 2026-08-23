@@ -32,7 +32,7 @@ try {
         version, build_id: `jf-${version}-0123456789abcdef0123456789abcdef01234567`, commit_sha: '0123456789abcdef0123456789abcdef01234567',
         published_at: '2026-08-22T09:00:00.000Z', minimum_supported_version: '7.8.3', mandatory_after: null, rollout_percent: rollout, summary: `Изменения версии ${version}.`,
         release_notes_url: `https://releases.justfun.invalid/${version}`,
-        required_contracts: { reg_api: 3, license_auth: 4, telegram_broker: 1, storage_protocol: 3 },
+        required_contracts: { reg_api: 3, license_auth: 4, telegram_broker: 1, storage_protocol: 3, address_search: 1 },
         payload: { file_name: `JustFun-${version}-win-x64.zip`, url: `https://downloads.justfun.invalid/JustFun-${version}-win-x64.zip`, bytes: 123, sha256: 'a'.repeat(64), unpacked_bytes: 456, file_count: 7, file_manifest_sha256: 'b'.repeat(64) },
       },
       signature: { algorithm: 'Ed25519', key_id: 'unit-key', value: '' },

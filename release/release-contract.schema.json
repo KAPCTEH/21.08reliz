@@ -36,14 +36,15 @@
     "contracts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["update_manifest", "reg_api", "license_auth", "license_auth_context", "telegram_broker", "storage_protocol"],
+      "required": ["update_manifest", "reg_api", "license_auth", "license_auth_context", "telegram_broker", "storage_protocol", "address_search"],
       "properties": {
         "update_manifest": { "type": "integer", "minimum": 1 },
         "reg_api": { "type": "integer", "minimum": 1 },
         "license_auth": { "type": "integer", "minimum": 1 },
         "license_auth_context": { "type": "integer", "minimum": 1 },
         "telegram_broker": { "type": "integer", "minimum": 1 },
-        "storage_protocol": { "type": "integer", "minimum": 1 }
+        "storage_protocol": { "type": "integer", "minimum": 1 },
+        "address_search": { "type": "integer", "minimum": 1 }
       }
     },
     "service_versions": {

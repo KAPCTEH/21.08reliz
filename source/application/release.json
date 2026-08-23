@@ -19,7 +19,8 @@
     "license_auth": 4,
     "license_auth_context": 2,
     "telegram_broker": 1,
-    "storage_protocol": 3
+    "storage_protocol": 3,
+    "address_search": 1
   },
   "service_versions": {
     "desktop": "7.8.3",

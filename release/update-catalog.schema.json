@@ -49,12 +49,13 @@
         "required_contracts": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["reg_api", "license_auth", "telegram_broker", "storage_protocol"],
+          "required": ["reg_api", "license_auth", "telegram_broker", "storage_protocol", "address_search"],
           "properties": {
             "reg_api": { "type": "integer", "minimum": 1 },
             "license_auth": { "type": "integer", "minimum": 1 },
             "telegram_broker": { "type": "integer", "minimum": 1 },
-            "storage_protocol": { "type": "integer", "minimum": 1 }
+            "storage_protocol": { "type": "integer", "minimum": 1 },
+            "address_search": { "type": "integer", "minimum": 1 }
           }
         },
         "payload": {
