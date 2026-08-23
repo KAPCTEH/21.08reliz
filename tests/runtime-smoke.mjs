@@ -11,6 +11,8 @@ const listButtons = mode === 'list-buttons';
 const stress5000 = mode === 'stress5000';
 const cloudSync = mode === 'cloud-sync';
 const atomicMutation = mode === 'atomic-mutation';
+const localFirstRetry = mode === 'local-first-retry';
+const localFirstOffline = mode === 'local-first-offline';
 const deepBusiness = mode === 'deep-business';
 const orderPrintMode = mode === 'order-print';
 const orderSaveIntegrityMode = mode === 'order-save-integrity';
@@ -83,6 +85,9 @@ window.__confirms = [];
 window.__bridgeCalls = [];
 window.__entitySyncPayloads = [];
 window.__rejectEntitySync = false;
+window.__entitySyncNetworkDown = false;
+window.__serverEntityMap = new Map();
+window.__serverCursor = 0;
 window.scrollTo = () => {};
 window.HTMLElement.prototype.scrollIntoView = () => {};
 window.HTMLFormElement.prototype.requestSubmit = function () {
@@ -166,7 +171,10 @@ window.JustFunDesktop = {
   },
   regVps: {
     status: async () => ({ configured: false }),
-    warehouses: async () => ({ ok: true, configured: true, registryInitialized: false, warehouses: [] }),
+    warehouses: async () => {
+      const keepRuntimeWarehouse=atomicMutation||localFirstRetry||localFirstOffline,active=keepRuntimeWarehouse?window.TeplitsaWarehouseBootstrap?.activeWarehouse?.():null;
+      return{ok:true,configured:true,registryInitialized:Boolean(active),warehouses:active?[{...JSON.parse(JSON.stringify(active)),status:'active',entity_version:1,digest_sha256:'A'.repeat(64)}]:[]}
+    },
     configure: async () => ({ canceled: true }),
     syncWarehouse: async payload => {
       window.__bridgeCalls.push(`reg.sync:${payload?.warehouseId || ''}:${payload?.environment || ''}`);
@@ -176,14 +184,16 @@ window.JustFunDesktop = {
     bootstrapEntities: async payload => {
       runtimeTrace('reg.bootstrap', payload?.warehouseId || '', payload?.environment || '');
       window.__bridgeCalls.push(`reg.entityBootstrap:${payload?.warehouseId || ''}:${payload?.environment || ''}`);
-      return { ok: true, cursor: 0, entities: [], readableTypes: ['warehouse','orders','products','inventoryMovements','drivers','settings','reportingData','company','routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides','routeExecutions','routeArchives','warehouseReservations','manualRouteSequences'] };
+      return { ok: true, cursor: window.__serverCursor, entities: [...window.__serverEntityMap.values()].map(item=>JSON.parse(JSON.stringify(item))), readableTypes: ['warehouse','orders','products','inventoryMovements','drivers','settings','reportingData','company','routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides','routeExecutions','routeArchives','warehouseReservations','manualRouteSequences'] };
     },
     syncEntities: async payload => {
       runtimeTrace('reg.sync', payload?.warehouseId || '', (payload?.changes || []).length, payload?.intent?.kind || 'background');
       window.__bridgeCalls.push(`reg.entitySync:${payload?.warehouseId || ''}:${payload?.environment || ''}:${payload?.intent?.kind || 'background'}`);
       window.__entitySyncPayloads.push(JSON.parse(JSON.stringify(payload || {})));
+      if (window.__entitySyncNetworkDown) throw Object.assign(new Error('Тестовый обрыв сети'), { code: 'NETWORK_ERROR' });
       if (window.__rejectEntitySync) return { ok: false, code: 'TEST_REJECT', error: 'Тестовый отказ VPS' };
-      return { ok: true, cursor: 1, commandId: payload?.commandId || '', entities: (payload?.changes || []).map((item,index) => ({ type:item.type,id:item.id,version:Number(item.baseVersion||0)+1,eventId:index+1,digest:'A'.repeat(64),deleted:item.deleted===true })) };
+      const entities=(payload?.changes || []).map(item=>{const version=Number(item.baseVersion||0)+1,eventId=++window.__serverCursor,key=`${item.type}:${item.id}`,result={type:item.type,id:item.id,version,eventId,digest:'A'.repeat(64),deleted:item.deleted===true};if(item.deleted===true)window.__serverEntityMap.delete(key);else window.__serverEntityMap.set(key,{type:item.type,id:item.id,version,event_id:eventId,digest_sha256:'A'.repeat(64),payload:JSON.parse(JSON.stringify(item.payload))});return result});
+      return { ok: true, cursor: window.__serverCursor, commandId: payload?.commandId || '', entities };
     },
     entityChanges: async payload => { runtimeTrace('reg.changes', payload?.warehouseId || '', payload?.afterEventId || 0); return { ok: true, cursor: Number(payload?.afterEventId||0), events: [], readableTypes: ['warehouse','orders','products','inventoryMovements','drivers','settings','reportingData','company','routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides','routeExecutions','routeArchives','warehouseReservations','manualRouteSequences'], hasMore: false }; }
   },
@@ -245,18 +255,54 @@ if (cloudSync) {
     errors.push({ phase: 'cloud-sync', level: 'error', text: `Expected exactly one row-level VPS upload, got ${uploads.length}.` });
   }
 }
+let localFirstResult = null;
+if (localFirstRetry || localFirstOffline) {
+  if (testEdition !== 'full') {
+    errors.push({ phase: 'local-first', level: 'error', text: 'Local-first verification must run in full edition.' });
+  } else {
+    try {
+      if(!window.JustFunEntitySyncV783?.status?.().installed)window.__JustFunEntitySyncTestV783.install();
+      if(!window.JustFunEntitySyncV783?.status?.().installed)throw new Error('Desktop persistence guards не установлены.');
+      const localFirstScript = window.document.createElement('script');
+      localFirstScript.textContent = `window.__localFirstPromise = (async () => {
+        const previousConfirm=jfConfirm;jfConfirm=async()=>true;
+        try{
+          const id='local-first-order',makeOrder=()=>normalizeOrder({id,number:id,orderType:'delivery',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),deliveryDate:todayISO(),contactName:'Проверка local-first',contactMethod:'',deliveryAddress:'Тестовый адрес',geo:{lat:55.75,lon:37.61,region:'Москва',district:'Тверской район'},items:[],total:0,goodsTotal:0,deliveryCost:0,grandTotal:0,status:'new',fulfillmentStatus:'active'});
+          if(${localFirstRetry})await window.JustFunEntitySyncV783.flushAndConfirm();
+          orders=orders.filter(item=>item.id!==id);orders.unshift(makeOrder());const persistWrapped=String(window.persistOrders).includes('scheduleCloudUpload');window.persistOrders();const statusAfterPersist=window.JustFunEntitySyncV783.status();await new Promise(resolve=>setTimeout(resolve,250));
+          if(${localFirstRetry})await window.JustFunEntitySyncV783.flushAndConfirm();const statusAfterBaseline=window.JustFunEntitySyncV783.status(),baselineLocalPresent=orders.some(item=>item.id===id),baselineServerPresent=window.__serverEntityMap.has('orders:'+id);
+          window.__entitySyncPayloads.length=0;window.__entitySyncNetworkDown=${localFirstRetry};
+          const deleteResult=await window.deleteOrder(id),removed=!orders.some(item=>item.id===id),before=window.JustFunEntitySyncV783.status(),queue=window.JustFunLocalOutboxV783.create(localStorage,before.scope),allAfterDelete=queue.list(),pending=allAfterDelete.filter(entry=>entry.state==='pending'||entry.state==='sending').at(-1)||null,restarted=window.JustFunLocalOutboxV783.create(localStorage,before.scope),restartPreserved=Boolean(pending&&restarted.get(pending.commandId)?.state==='pending'),simulatedServer=buildBackupPayload();simulatedServer.data.orders.push(makeOrder());const overlaid=window.__JustFunEntitySyncTestV783.overlaySnapshot(simulatedServer),bootstrapOverlayPreserved=!overlaid.data.orders.some(item=>item.id===id);
+          let criticalResult=null,criticalPreserved=null,retrySameCommand=null,confirmedAfterRetry=null;
+          if(${localFirstOffline}){const count=orders.length;criticalResult=await window.clearAll();criticalPreserved=orders.length===count}
+          if(${localFirstRetry}){window.__entitySyncNetworkDown=false;await window.JustFunEntitySyncV783.flushAndConfirm();const attempts=window.__entitySyncPayloads.filter(payload=>payload.commandId===pending?.commandId);retrySameCommand=attempts.length===2&&attempts.every(payload=>payload.commandId===pending.commandId);confirmedAfterRetry=window.JustFunLocalOutboxV783.create(localStorage,before.scope).get(pending?.commandId)?.state==='confirmed'}
+          return{persistWrapped,statusAfterPersist,statusAfterBaseline,baselineLocalPresent,baselineServerPresent,deleteResult,removed,outboxAfterDelete:before.outbox,allAfterDelete:allAfterDelete.map(entry=>({commandId:entry.commandId,state:entry.state,attempts:entry.attempts,nextAttemptAt:entry.nextAttemptAt,lastError:entry.lastError})),pendingSaved:Boolean(pending),restartPreserved,bootstrapOverlayPreserved,criticalResult,criticalPreserved,retrySameCommand,confirmedAfterRetry,syncAttempts:window.__entitySyncPayloads.length};
+        }finally{jfConfirm=previousConfirm;window.__entitySyncNetworkDown=false}
+      })();`;
+      window.document.body.append(localFirstScript);
+      localFirstResult = await window.__localFirstPromise;
+      const expected = localFirstRetry
+        ? localFirstResult.deleteResult===true&&localFirstResult.removed&&localFirstResult.pendingSaved&&localFirstResult.restartPreserved&&localFirstResult.bootstrapOverlayPreserved&&localFirstResult.retrySameCommand&&localFirstResult.confirmedAfterRetry
+        : localFirstResult.deleteResult===true&&localFirstResult.removed&&localFirstResult.pendingSaved&&localFirstResult.restartPreserved&&localFirstResult.bootstrapOverlayPreserved&&localFirstResult.criticalResult===false&&localFirstResult.criticalPreserved;
+      if (!expected) errors.push({ phase: 'local-first', level: 'error', text: JSON.stringify(localFirstResult) });
+    } catch (error) {
+      errors.push({ phase: 'local-first', level: 'error', text: error.stack || String(error) });
+    }
+  }
+}
 if (atomicMutation) {
   if (testEdition !== 'full') {
     errors.push({ phase: 'atomic-mutation', level: 'error', text: 'Atomic mutation verification must run in full edition.' });
   } else {
     try {
+      if(!window.JustFunEntitySyncV783?.status?.().installed)window.__JustFunEntitySyncTestV783?.install?.();
       const atomicScript = window.document.createElement('script');
       atomicScript.textContent = `window.__atomicMutationPromise = (async () => {
         const previousConfirm=jfConfirm;jfConfirm=async()=>true;
         try{
         const makeOrder = id => normalizeOrder({id,number:id,orderType:'delivery',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),deliveryDate:todayISO(),contactName:'Проверка атомарности',contactMethod:'',deliveryAddress:'Тестовый адрес',geo:{lat:55.75,lon:37.61,region:'Москва',district:'Тверской район'},items:[],total:0,goodsTotal:0,deliveryCost:0,grandTotal:0,status:'new',fulfillmentStatus:'active'});
         const first=makeOrder('atomic-order-success'),second=makeOrder('atomic-order-reject');
-        orders=orders.filter(item=>![first.id,second.id].includes(item.id));orders.unshift(first,second);delete routeAssignments[first.id];delete routeAssignments[second.id];delete routeLocks[first.id];delete routeLocks[second.id];persistOrders();
+        orders=orders.filter(item=>![first.id,second.id].includes(item.id));orders.unshift(first,second);delete routeAssignments[first.id];delete routeAssignments[second.id];delete routeLocks[first.id];delete routeLocks[second.id];window.persistOrders();
         await window.JustFunEntitySyncV783.flushAndConfirm();window.__entitySyncPayloads.length=0;
         const successResult=await window.deleteOrder(first.id),successRemoved=!orders.some(item=>item.id===first.id),successPayload=window.__entitySyncPayloads.at(-1)||null;
         window.__entitySyncPayloads.length=0;window.__rejectEntitySync=true;const rejectResult=await window.deleteOrder(second.id);window.__rejectEntitySync=false;
@@ -1146,6 +1192,7 @@ const result = {
   roleMatrix: roleMatrixResult,
   securityFuzz: securityFuzzResult,
   accessibility: accessibilityResult,
+  localFirst: localFirstResult,
   bridgeCalls: window.__bridgeCalls
 };
 

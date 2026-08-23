@@ -157,7 +157,7 @@ async function applyCloudAuth(auth){
     await window.JustFunDesktop?.restart?.();
     return false;
   }
-  currentUser=cloudUserToLocal(auth?.user,auth?.company,auth);users=[currentUser];audit('cloud_login_success',{company:currentUser.companyCode,companyId,offline:!!auth?.offline});await enterWorkspace();return true
+  currentUser=cloudUserToLocal(auth?.user,auth?.company,auth);users=[currentUser];audit('cloud_login_success',{company:currentUser.companyCode,companyId,offline:!!auth?.offline});return await enterWorkspace()
 }
 function cloudResultError(result,fallback='Операция не выполнена.'){
   const code=String(result?.error||'');
@@ -235,7 +235,7 @@ async function retryWorkspaceAccess(){
   const button=q('#jfRetry'),message=q('#jfNoWarehouseMessage');if(button)button.disabled=true;if(message)message.textContent='Проверяем назначения складов на сервере…';
   try{const before=activeWarehouseId();await synchronizeCompanyWarehouseRegistry();const allowed=allowedWarehouseIds();if(pendingWarehouseDeleteId()){if(message)message.textContent='Сервер ещё не подтвердил новый список после удаления склада.';return false}if(!allowed.length){if(message)message.textContent='Сервер подтвердил: вашей учётной записи пока не назначен склад.';return false}const target=allowed.includes(activeWarehouseId())?activeWarehouseId():allowed[0];if(target!==activeWarehouseId())window.TeplitsaWarehouseBootstrap.setActive(target);if(applyWarehouseRegistryTransition(before,'warehouse-assignment-retry'))return true;await confirmActiveWarehouseContext();mountWorkspace();return true}catch(error){if(message)message.textContent=`Проверка не выполнена: ${cloudResultError({error:error?.message||String(error)})}`;return false}finally{if(button)button.disabled=false}
 }
-function addDesktopStrip(){let strip=q('#jfDesktopStrip');if(!strip){strip=document.createElement('div');strip.id='jfDesktopStrip';strip.className='jf-desktop-strip';document.body.prepend(strip)}const role=ROLE_LABELS[roleFor()]||'Пользователь',wh=window.TeplitsaWarehouseBootstrap?.activeWarehouse?.()?.name||'Склад',demo=isTrainingEnvironment(),offline=!!desktopSession?.auth?.offline;strip.innerHTML=`<div class="jf-license-banner">${demo?'<span class="jf-edition demo">УЧЕБНЫЙ РЕЖИМ</span>':''}${offline?'<span class="jf-license-time">Автономный доступ</span>':''}${desktopSession?.edition==='demo'?`<span class="jf-license-time" id="jfDemoTime"></span>`:''}</div><div class="jf-userbar"><span>${esc(currentUser.fullName)} · ${esc(role)} · ${esc(wh)}</span><button id="jfProfileBtn">Профиль</button><button id="jfLogoutBtn">Выйти</button></div>`;q('#jfProfileBtn').onclick=openProfile;q('#jfLogoutBtn').onclick=logout;updateDemoTime(desktopSession?.demoRemainingMs)}
+function addDesktopStrip(){let strip=q('#jfDesktopStrip');if(!strip){strip=document.createElement('div');strip.id='jfDesktopStrip';strip.className='jf-desktop-strip';document.body.prepend(strip)}const role=ROLE_LABELS[roleFor()]||'Пользователь',wh=window.TeplitsaWarehouseBootstrap?.activeWarehouse?.()?.name||'Склад',demo=isTrainingEnvironment(),offline=!!desktopSession?.auth?.offline;strip.innerHTML=`<div class="jf-license-banner">${demo?'<span class="jf-edition demo">УЧЕБНЫЙ РЕЖИМ</span>':''}${offline?'<span class="jf-license-time">Автономный доступ</span>':''}${desktopSession?.edition==='demo'?`<span class="jf-license-time" id="jfDemoTime"></span>`:''}${demo?'':'<span class="jf-outbox-state ready" id="jfOutboxState">Локальные данные сохранены</span>'}</div><div class="jf-userbar"><span>${esc(currentUser.fullName)} · ${esc(role)} · ${esc(wh)}</span><button id="jfProfileBtn">Профиль</button><button id="jfLogoutBtn">Выйти</button></div>`;q('#jfProfileBtn').onclick=openProfile;q('#jfLogoutBtn').onclick=logout;updateDemoTime(desktopSession?.demoRemainingMs);renderLocalOutboxStatus()}
 function updateDemoTime(ms){const el=q('#jfDemoTime');if(!el||ms==null)return;const s=Math.max(0,Math.floor(ms/1000)),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);el.textContent=`Осталось ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
 function applyBrand(){document.body.classList.add('jf-default-brand');if(typeof window.TeplitsaWarehouseV600?.applyBranding==='function')window.TeplitsaWarehouseV600.applyBranding();else{document.title=`JustFun Логистика · ${VERSION}`;const title=q('.brand-title');if(title)title.textContent='JustFun Логистика';const sub=q('.brand-sub');if(sub)sub.textContent='Заказы · склады · маршруты'}const logo=q('.company-brand .logo');if(logo)logo.setAttribute('aria-label','Логотип программы')}
 function trainingAdminActionForControl(control){
@@ -494,16 +494,33 @@ const ENTITY_SETTINGS_WAREHOUSE_FIELDS=['warehouse'];
 const ENTITY_SETTINGS_ROUTE_FIELDS=['routeStartTime','serviceMinutes','serviceMinMinutes','serviceMaxMinutes','minRouteHours','maxRouteHours','maxRoundKm','maxStops','routeMode','returnToDepot','routeProfile','routeHintsEnabled','driverPayment','deliveryPricing','driverRatePerKm','loadingStartTime','loadingBayCount','loadingMinutes','loadingIntervalMinutes','driverArrivalLeadMinutes','arrivalWindowMinutes','loadingPriority'];
 const ENTITY_SETTINGS_INTEGRATION_FIELDS=['nominatimUrl','osrmUrl','tileUrl'];
 const ENTITY_UPDATE_PERMISSION={warehouse:['warehouses.manage'],orders:['orders.create','orders.update','orders.status','orders.payment','orders.pricing','orders.delete'],products:['inventory.catalog','inventory.stock','inventory.pricing','inventory.delete'],inventoryMovements:['inventory.stock'],drivers:['drivers.update','drivers.delete'],settings:['warehouses.manage','routes.settings','integrations.manage'],company:['company.update'],reportingData:['reports.settings','reports.expenses'],routePlans:['routes.plan','routes.approve','routes.pick','routes.start','routes.return','routes.close','routes.cancel'],routeAssignments:['routes.plan','routes.cancel'],routeCatalog:['routes.plan','routes.cancel'],routeDriverAssignments:['drivers.assign','routes.cancel'],routeLocks:['routes.plan','routes.approve','routes.cancel'],routeOverrides:['routes.settings','routes.cancel'],routeExecutions:['routes.start','routes.return','routes.close'],routeArchives:['routes.close'],warehouseReservations:['inventory.pick','routes.close'],manualRouteSequences:['routes.plan','routes.cancel']};
-const cloudSyncState={installed:false,bootstrapped:false,bootstrapPromise:null,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,inFlight:false,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set()};
+const cloudSyncState={installed:false,bootstrapped:false,bootstrapPromise:null,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlight:false,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),outbox:null,outboxError:null};
 function stableEntityValue(value){if(Array.isArray(value))return value.map(stableEntityValue);if(value&&typeof value==='object'){const out={};for(const key of Object.keys(value).sort())out[key]=stableEntityValue(value[key]);return out}return value}
 function entityFingerprint(value){const stable=JSON.stringify(stableEntityValue(value)),reverse=stable.split('').reverse().join('');return`${hashString(stable)}:${hashString(reverse)}:${stable.length}`}
 function entityKey(type,id){return`${String(type)}:${String(id)}`}
 function entityScope(){return`${String(desktopSession?.auth?.company?.id||'unknown')}:${activeEnvironment()}:${activeWarehouseId()}`}
 function entityStateStorageKey(){return`jf.reg-entity-state.v2.${entityScope().replace(/[^A-Za-z0-9_.:-]/g,'_')}`}
+function outboxError(code,message,details={}){return Object.assign(new Error(message),{code,details})}
+function localOutboxDeviceId(){
+  const authenticated=String(currentUser?.deviceId||desktopSession?.auth?.device_id||desktopSession?.auth?.deviceId||'').trim();if(authenticated)return authenticated;
+  const key='jf.local-device-id.v1';try{const saved=String(localStorage.getItem(key)||'').trim();if(saved)return saved;const created=`desktop:${newEntityCommandId().split(':').slice(2).join(':')}`;localStorage.setItem(key,created);return created}catch{return'desktop:unavailable'}
+}
+function onlineEntitySyncAvailable(){return!desktopSession?.auth?.offline&&Boolean(desktopSession?.auth?.company?.data_service)&&typeof window.JustFunDesktop?.regVps?.syncEntities==='function'}
+function renderLocalOutboxStatus(){
+  const badge=q('#jfOutboxState');if(!badge||isTrainingEnvironment())return;
+  if(cloudSyncState.outboxError||cloudSyncState.outbox?.isCorrupt?.()){badge.className='jf-outbox-state error';badge.textContent='Ошибка локальной очереди';badge.title=String(cloudSyncState.outboxError?.message||cloudSyncState.outbox?.corruption?.()?.message||'Outbox недоступен');return}
+  const state=cloudSyncState.outbox?.status?.();if(!state){badge.className='jf-outbox-state pending';badge.textContent='Локальная очередь запускается';return}
+  if(state.conflict||state.rejectedActive){badge.className='jf-outbox-state error';badge.textContent=`Требуют решения: ${state.conflict+state.rejectedActive}`;badge.title='Локальные данные сохранены, но сервер не принял часть изменений.';return}
+  if(state.pending||state.sending){badge.className='jf-outbox-state pending';badge.textContent=`Ожидают синхронизации: ${state.pending+state.sending}`;badge.title='Изменения надёжно сохранены на этом компьютере и будут отправлены с теми же command_id.';return}
+  badge.className='jf-outbox-state ready';badge.textContent='Локальные данные сохранены';badge.title='Несинхронизированных изменений нет.'
+}
+function requireLocalOutbox(){resetEntityScope();if(cloudSyncState.outboxError)throw cloudSyncState.outboxError;if(!cloudSyncState.outbox)throw outboxError('OUTBOX_UNAVAILABLE','Модуль локальной очереди не загружен. Изменение безопасно остановлено.');return cloudSyncState.outbox}
 function resetEntityScope(){
   const scope=entityScope();if(cloudSyncState.scope===scope)return;
-  cloudSyncState.scope=scope;cloudSyncState.bootstrapped=false;cloudSyncState.cursor=0;cloudSyncState.known=new Map();cloudSyncState.conflicts=new Map();cloudSyncState.readableTypes=new Set();
+  clearTimeout(cloudSyncState.retryTimer);cloudSyncState.retryTimer=null;cloudSyncState.scope=scope;cloudSyncState.bootstrapped=false;cloudSyncState.cursor=0;cloudSyncState.known=new Map();cloudSyncState.conflicts=new Map();cloudSyncState.readableTypes=new Set();cloudSyncState.outbox=null;cloudSyncState.outboxError=null;
   try{const saved=JSON.parse(localStorage.getItem(entityStateStorageKey())||'{}');cloudSyncState.cursor=Number.isSafeInteger(Number(saved.cursor))?Number(saved.cursor):0;cloudSyncState.known=new Map(Object.entries(saved.entities||{}));cloudSyncState.conflicts=new Map(Object.entries(saved.conflicts||{}));cloudSyncState.readableTypes=new Set(asArray(saved.readableTypes).map(String))}catch{}
+  try{if(!window.JustFunLocalOutboxV783?.create)throw outboxError('OUTBOX_MODULE_MISSING','Модуль локальной очереди не загружен.');cloudSyncState.outbox=window.JustFunLocalOutboxV783.create(localStorage,scope);if(cloudSyncState.outbox.isCorrupt())throw cloudSyncState.outbox.corruption()}catch(error){cloudSyncState.outboxError=error instanceof Error?error:outboxError('OUTBOX_INIT_FAILED',String(error))}
+  cloudSyncState.dirty=Boolean(cloudSyncState.outbox&&!cloudSyncState.outboxError&&cloudSyncState.outbox.status().active);renderLocalOutboxStatus();
 }
 function saveEntitySyncState(){
   resetEntityScope();
@@ -598,11 +615,16 @@ function initialServerSeedChanges(localSnapshot){
   }
   return changes
 }
+function overlayLocalOutbox(snapshot){
+  const queue=requireLocalOutbox();let applied=0;
+  for(const entry of queue.overlayEntries())for(const change of entry.changes){applyEntityToSnapshot(snapshot,change,change.deleted===true);applied++;if(entry.state==='conflict'||entry.state==='rejected')cloudSyncState.conflicts.set(entityKey(change.type,change.id),{type:change.type,id:change.id,commandId:entry.commandId,state:entry.state,...asObject(entry.lastError),detectedAt:entry.updatedAt})}
+  return applied
+}
 async function bootstrapEntitySync(force=false){
   if(isTrainingEnvironment()||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.bootstrapEntities)return false;
   resetEntityScope();if(cloudSyncState.bootstrapped&&!force)return true;if(cloudSyncState.bootstrapPromise)return cloudSyncState.bootstrapPromise;
   cloudSyncState.bootstrapPromise=(async()=>{
-    const warehouseId=activeWarehouseId(),environment=activeEnvironment(),localSnapshot=buildBackupPayload();let result=await window.JustFunDesktop.regVps.bootstrapEntities({warehouseId,environment});
+    const warehouseId=activeWarehouseId(),environment=activeEnvironment(),localSnapshot=buildBackupPayload(),bootstrapSerial=cloudSyncState.serial;let result=await window.JustFunDesktop.regVps.bootstrapEntities({warehouseId,environment});
     if(!result?.ok)throw Object.assign(new Error(result?.error||'VPS не вернул сущности склада.'),{code:result?.code||'ENTITY_BOOTSTRAP_FAILED'});
     let entities=asArray(result.entities).map(canonicalServerEntity);
     if(environment===WAREHOUSE_REGISTRY_ENVIRONMENT&&!entities.some(entity=>entity.type==='warehouse'&&entity.id===warehouseId)){
@@ -615,23 +637,25 @@ async function bootstrapEntitySync(force=false){
     }
     const readableTypes=asArray(result.readableTypes).map(String),serverSnapshot=snapshotFromServerEntities(localSnapshot,entities,readableTypes);cloudSyncState.known=new Map();cloudSyncState.conflicts=new Map();cloudSyncState.cursor=Number(result.cursor)||0;cloudSyncState.readableTypes=new Set(readableTypes);
     for(const entity of entities)cloudSyncState.known.set(entityKey(entity.type,entity.id),{version:Number(entity.version)||0,digest:String(entity.digest_sha256||''),fingerprint:entityFingerprint(entity.payload),deleted:false,eventId:Number(entity.event_id)||0});
+    const overlaid=overlayLocalOutbox(serverSnapshot);
     if(typeof buildBackupPayload==='function'&&typeof window.TeplitsaWarehouseV600?.importServerSnapshot==='function'){
       cloudSyncState.suspended++;try{await window.TeplitsaWarehouseV600.importServerSnapshot(serverSnapshot)}finally{cloudSyncState.suspended--}
     }
-    cloudSyncState.bootstrapped=true;cloudSyncState.pollFailures=0;cloudSyncState.nextPollAt=0;cloudSyncState.dirty=false;saveEntitySyncState();
-    integrationBadge('jfRegBadge','Серверные данные готовы','ready');return true;
+    cloudSyncState.bootstrapped=true;cloudSyncState.pollFailures=0;cloudSyncState.nextPollAt=0;cloudSyncState.dirty=requireLocalOutbox().status().active>0||cloudSyncState.serial!==bootstrapSerial;saveEntitySyncState();renderLocalOutboxStatus();
+    integrationBadge('jfRegBadge',overlaid?'Сервер + локальная очередь':'Серверные данные готовы','ready');if(cloudSyncState.dirty)scheduleOutboxDrain(0);return true;
   })().finally(()=>{cloudSyncState.bootstrapPromise=null});
   return cloudSyncState.bootstrapPromise;
 }
 function scheduleCloudUpload(){
-  if(cloudSyncState.suspended||isTrainingEnvironment()||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
-  resetEntityScope();cloudSyncState.dirty=true;cloudSyncState.serial++;
+  if(cloudSyncState.suspended||isTrainingEnvironment())return;
+  resetEntityScope();cloudSyncState.dirty=true;cloudSyncState.serial++;clearTimeout(cloudSyncState.uploadTimer);cloudSyncState.uploadTimer=setTimeout(()=>backgroundCloudUpload().catch(reportCloudSyncFailure),150);
 }
 function installAutomaticCloudSync(){
-  if(cloudSyncState.installed||isTrainingEnvironment())return;cloudSyncState.installed=true;
+  if(cloudSyncState.installed)return;cloudSyncState.installed=true;
+  if(!isTrainingEnvironment()){resetEntityScope();renderLocalOutboxStatus()}
   const names=['persistOrders','persistProducts','persistInventoryMovements','persistDrivers','persistSettings','persistRoutes','persistRouteAssignments','persistRouteDrivers','persistRouteLocks','persistRouteOverrides','persistRouteExecutions','persistRouteArchives','persistWarehouseReservations','persistReporting'];
   for(const name of names){const base=window[name];if(typeof base!=='function')continue;window[name]=function(){const result=base.apply(this,arguments);scheduleCloudUpload();return result}}
-  setTimeout(()=>bootstrapEntitySync().catch(error=>{integrationBadge('jfRegBadge','Требуется обновление VPS','error');integrationStatus('jfRegStatus',error?.message||String(error),'error')}),250);
+  setTimeout(()=>{if(onlineEntitySyncAvailable())bootstrapEntitySync().catch(reportCloudSyncFailure);else if(cloudSyncState.dirty)scheduleOutboxDrain(1000)},250);
   cloudSyncState.pollTimer=setInterval(()=>pollCloudRevision().catch(error=>console.error('Background entity check failed',error)),5000);
 }
 function buildPendingEntityChanges(){
@@ -648,34 +672,93 @@ function acceptEntityBatchResult(result,changes){
   }
   cloudSyncState.cursor=Math.max(cloudSyncState.cursor,Number(result.cursor)||0);saveEntitySyncState()
 }
-function entityChangesBetween(beforeSnapshot,afterSnapshot){
+function nextLocalBaseVersion(type,id,knownVersion){
+  try{return Number(knownVersion||0)+requireLocalOutbox().pendingOffset(type,id)}catch{return Number(knownVersion)||0}
+}
+function entityChangesBetween(beforeSnapshot,afterSnapshot,{includeOutbox=true}={}){
   const before=splitEntitySnapshot(beforeSnapshot),after=splitEntitySnapshot(afterSnapshot),keys=new Set([...before.keys(),...after.keys()]),changes=[];
-  for(const key of keys){const previous=before.get(key),next=after.get(key);if(previous?.fingerprint===next?.fingerprint)continue;const split=key.indexOf(':'),type=key.slice(0,split),id=key.slice(split+1),known=cloudSyncState.known.get(key);changes.push({type,id,baseVersion:Number(known?.version)||0,deleted:!next,payload:next?.payload||null,_fingerprint:next?.fingerprint||''})}
+  for(const key of keys){const previous=before.get(key),next=after.get(key);if(previous?.fingerprint===next?.fingerprint)continue;const split=key.indexOf(':'),type=key.slice(0,split),id=key.slice(split+1),known=cloudSyncState.known.get(key),baseVersion=includeOutbox?nextLocalBaseVersion(type,id,known?.version):Number(known?.version)||0;changes.push({type,id,baseVersion,deleted:!next,payload:next?.payload||null,_fingerprint:next?.fingerprint||''})}
   return changes
 }
 async function waitForEntitySyncIdle(){
   for(let attempt=0;cloudSyncState.inFlight&&attempt<100;attempt++)await new Promise(resolve=>setTimeout(resolve,25));
   if(cloudSyncState.inFlight)throw new Error('Синхронизация занята другой операцией. Повторите действие.')
 }
+function localOutboxEntry(intent,changes){
+  return{commandId:newEntityCommandId(),companyId:String(desktopSession?.auth?.company?.id||''),warehouseId:activeWarehouseId(),environment:activeEnvironment(),authorUserId:String(currentUser?.id||desktopSession?.auth?.user?.id||'local-user'),deviceId:localOutboxDeviceId(),intent:{kind:String(intent?.kind||'local_change'),targetId:String(intent?.targetId||'')},changes}
+}
+function retryableEntityFailure(value){
+  const code=String(value?.code||value?.errorCode||'').toUpperCase(),message=String(value?.message||value?.error||'').toUpperCase();
+  return/(TIMEOUT|NETWORK|UNAVAILABLE|CONNECTION|ECONN|ABORT|TEMPORARY|BUSY|RATE_LIMIT|HTTP_5)/.test(`${code} ${message}`)
+}
+function outboxRetryDelay(attempts){return Math.min(300000,1000*(2**Math.min(8,Math.max(0,Number(attempts)||0))))}
+function scheduleOutboxDrain(delay=0){
+  if(isTrainingEnvironment()||!onlineEntitySyncAvailable())return;clearTimeout(cloudSyncState.retryTimer);cloudSyncState.retryTimer=setTimeout(()=>{cloudSyncState.retryTimer=null;drainLocalOutbox().catch(reportCloudSyncFailure)},Math.max(0,Number(delay)||0))
+}
+function blockingOutboxEntries(queue=requireLocalOutbox()){return queue.overlayEntries().filter(entry=>entry.state==='conflict'||entry.state==='rejected')}
+function markOutboxEntityConflict(key,details){
+  const queue=requireLocalOutbox();for(const entry of queue.list(['pending','sending']))if(entry.changes.some(change=>entityKey(change.type,change.id)===key))queue.markConflict(entry.commandId,details);cloudSyncState.dirty=queue.status().active>0;renderLocalOutboxStatus()
+}
+async function rollbackLocalSnapshot(snapshot){
+  if(!snapshot||typeof window.TeplitsaWarehouseV600?.importServerSnapshot!=='function')return false;cloudSyncState.suspended++;try{await window.TeplitsaWarehouseV600.importServerSnapshot(snapshot);window.renderAll?.();return true}finally{cloudSyncState.suspended--}
+}
+let outboxDrainChain=Promise.resolve();
+function drainLocalOutbox(options={}){const run=()=>drainLocalOutboxNow(options);outboxDrainChain=outboxDrainChain.then(run,run);return outboxDrainChain}
+async function drainLocalOutboxNow({targetCommandId='',force=false}={}){
+  if(isTrainingEnvironment()||!onlineEntitySyncAvailable())return{state:'offline'};
+  resetEntityScope();const queue=requireLocalOutbox(),drainSerial=cloudSyncState.serial;if(!cloudSyncState.bootstrapped)await bootstrapEntitySync();await waitForEntitySyncIdle();
+  const blocked=blockingOutboxEntries(queue);if(blocked.length){cloudSyncState.dirty=true;renderLocalOutboxStatus();return{state:'blocked',entry:blocked[0]}}
+  cloudSyncState.inFlight=true;let targetState='pending',targetEntry=targetCommandId?queue.get(targetCommandId):null;
+  try{
+    const ready=()=>queue.ready(force?Number.MAX_SAFE_INTEGER:Date.now());for(let entry=ready();entry;entry=ready()){
+      entry=queue.markSending(entry.commandId);renderLocalOutboxStatus();let result;
+      try{result=await window.JustFunDesktop.regVps.syncEntities({warehouseId:entry.warehouseId,environment:entry.environment,commandId:entry.commandId,changes:entry.changes.map(({_fingerprint,...change})=>change)})}
+      catch(error){const details={code:String(error?.code||'ENTITY_NETWORK_ERROR'),message:String(error?.message||error)};queue.markPending(entry.commandId,details,outboxRetryDelay(entry.attempts));if(entry.commandId===targetCommandId){targetState='pending';targetEntry=queue.get(entry.commandId)}scheduleOutboxDrain(outboxRetryDelay(entry.attempts));break}
+      if(result?.ok){acceptEntityBatchResult(result,entry.changes);queue.markConfirmed(entry.commandId,{cursor:Number(result.cursor)||0});if(entry.commandId===targetCommandId){targetState='confirmed';targetEntry=queue.get(entry.commandId)}continue}
+      const failure={code:String(result?.code||'ENTITY_COMMAND_FAILED'),message:String(result?.error||'VPS отклонил изменение.'),details:asObject(result?.details)};
+      if(failure.code.toLowerCase()==='entity_version_conflict'){
+        queue.markConflict(entry.commandId,failure);for(const change of entry.changes)cloudSyncState.conflicts.set(entityKey(change.type,change.id),{...failure.details,type:change.type,id:change.id,commandId:entry.commandId,detectedAt:new Date().toISOString()});saveEntitySyncState();if(entry.commandId===targetCommandId){targetState='conflict';targetEntry=queue.get(entry.commandId)}break
+      }
+      if(retryableEntityFailure(failure)){queue.markPending(entry.commandId,failure,outboxRetryDelay(entry.attempts));if(entry.commandId===targetCommandId){targetState='pending';targetEntry=queue.get(entry.commandId)}scheduleOutboxDrain(outboxRetryDelay(entry.attempts));break}
+      queue.markRejected(entry.commandId,failure,true);for(const change of entry.changes)cloudSyncState.conflicts.set(entityKey(change.type,change.id),{...failure.details,type:change.type,id:change.id,commandId:entry.commandId,state:'rejected',code:failure.code,detectedAt:new Date().toISOString()});saveEntitySyncState();if(entry.commandId===targetCommandId){targetState='rejected';targetEntry=queue.get(entry.commandId)}break
+    }
+  }finally{cloudSyncState.inFlight=false;cloudSyncState.dirty=queue.status().active>0||cloudSyncState.serial!==drainSerial;renderLocalOutboxStatus()}
+  const state=queue.status();if(!state.active){integrationBadge('jfRegBadge','Синхронизировано','ready');integrationStatus('jfRegStatus','Все локальные изменения подтверждены VPS.','ok')}else if(state.pending||state.sending)integrationStatus('jfRegStatus',`На компьютере сохранено изменений: ${state.pending+state.sending}. Отправка будет повторена автоматически.`,'error');else integrationStatus('jfRegStatus',`Требуют решения: ${state.conflict+state.rejectedActive}. Локальные данные не удалены.`,'error');
+  return{state:targetCommandId?targetState:(state.active?'pending':'confirmed'),entry:targetEntry}
+}
 let entityCommandChain=Promise.resolve();
 function commitEntityMutation(intent,mutation){
   if(isTrainingEnvironment())return Promise.resolve().then(mutation);
-  if(desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.syncEntities){const message='Изменение требует подтверждения рабочего VPS. Проверьте соединение и повторите действие.';toast(message,'error');audit('server_mutation_offline_blocked',{kind:intent?.kind||'',targetId:intent?.targetId||''});return Promise.resolve(false)}
+  const critical=intent?.critical!==false;
+  if(critical&&!onlineEntitySyncAvailable()){const message='Эта критическая операция требует подтверждения рабочего VPS. Обычные данные можно продолжать сохранять локально.';toast(message,'error');audit('critical_server_mutation_offline_blocked',{kind:intent?.kind||'',targetId:intent?.targetId||''});return Promise.resolve(false)}
   const execute=async()=>{
-    let rollbackSnapshot=null;
+    let rollbackSnapshot=null,localCommandPersisted=false;
     try{
-      await bootstrapEntitySync();await waitForEntitySyncIdle();
-      if(cloudSyncState.dirty)throw new Error('Обнаружено неподтверждённое локальное изменение. Обновите кэш с VPS и повторите действие.');
-      if(cloudSyncState.conflicts.size)throw new Error('Сначала разрешите конфликт серверных записей. Операция не выполнена.');
-      rollbackSnapshot=buildBackupPayload();const mutationResult=await mutation();await window.TeplitsaWarehouseV600?.whenPersisted?.();const afterSnapshot=buildBackupPayload(),changes=entityChangesBetween(rollbackSnapshot,afterSnapshot);
+      resetEntityScope();const queue=requireLocalOutbox();
+      if(critical){
+        await waitForEntitySyncIdle();if(cloudSyncState.dirty)await backgroundCloudUpload({force:true});else{await bootstrapEntitySync();await drainLocalOutbox({force:true})}await waitForEntitySyncIdle();const pending=queue.status();if(pending.active||cloudSyncState.dirty)throw new Error('Сначала синхронизируйте или разрешите локальные изменения. Критическая операция не выполнена.');if(cloudSyncState.conflicts.size)throw new Error('Сначала разрешите конфликт серверных записей. Операция не выполнена.')
+      }else if(onlineEntitySyncAvailable()){
+        try{await waitForEntitySyncIdle();if(cloudSyncState.dirty)await backgroundCloudUpload();else{await bootstrapEntitySync();await drainLocalOutbox()}}catch(error){reportCloudSyncFailure(error)}
+      }
+      rollbackSnapshot=buildBackupPayload();cloudSyncState.suspended++;let mutationResult;try{mutationResult=await mutation();await window.TeplitsaWarehouseV600?.whenPersisted?.()}finally{cloudSyncState.suspended--}const afterSnapshot=buildBackupPayload(),changes=entityChangesBetween(rollbackSnapshot,afterSnapshot,{includeOutbox:!critical});
       if(!changes.length)return mutationResult;
       if(changes.length>1000)throw new Error('Операция изменила больше 1000 записей и безопасно остановлена. Разделите действие на несколько частей.');
-      clearTimeout(cloudSyncState.uploadTimer);cloudSyncState.inFlight=true;
-      const warehouseId=activeWarehouseId(),environment=activeEnvironment(),commandId=newEntityCommandId(),serverIntent=intent?.critical===false?null:intent,payload={warehouseId,environment,commandId,changes:changes.map(({_fingerprint,...item})=>item)};if(serverIntent)payload.intent=serverIntent;const result=await window.JustFunDesktop.regVps.syncEntities(payload);
+      const blocked=queue.blockedEntityKeys(),blockedChange=changes.find(change=>blocked.has(entityKey(change.type,change.id)));if(blockedChange)throw outboxError('OUTBOX_ENTITY_BLOCKED',`Запись ${blockedChange.type}/${blockedChange.id} уже требует разрешения конфликта. Новое изменение отменено.`);
+      if(!critical){
+        const entry=queue.enqueue(localOutboxEntry(intent,changes));localCommandPersisted=true;cloudSyncState.dirty=true;cloudSyncState.serial++;renderLocalOutboxStatus();audit('local_entity_command_saved',{kind:intent?.kind||'',targetId:intent?.targetId||'',commandId:entry.commandId,changes:changes.length,warehouseId:entry.warehouseId,environment:entry.environment});
+        if(!onlineEntitySyncAvailable()){toast('Изменение сохранено на этом компьютере и ожидает синхронизации.','success');return mutationResult}
+        const sent=await drainLocalOutbox({targetCommandId:entry.commandId});
+        if(sent.state==='rejected'){
+          if(await rollbackLocalSnapshot(rollbackSnapshot)){queue.markRejected(entry.commandId,asObject(sent.entry?.lastError),false);for(const change of changes)cloudSyncState.conflicts.delete(entityKey(change.type,change.id));cloudSyncState.dirty=queue.status().active>0;saveEntitySyncState();renderLocalOutboxStatus()}
+          throw outboxError(String(sent.entry?.lastError?.code||'ENTITY_COMMAND_REJECTED'),String(sent.entry?.lastError?.message||'VPS отклонил локальное изменение.'),asObject(sent.entry?.lastError?.details))
+        }
+        if(sent.state==='confirmed')toast('Изменение сохранено локально и подтверждено VPS.','success');else if(sent.state==='conflict')toast('Изменение сохранено локально, но конфликтует с серверной версией. Данные не потеряны.','error');else toast('Изменение сохранено локально и будет отправлено повторно.','success');return mutationResult
+      }
+      clearTimeout(cloudSyncState.uploadTimer);cloudSyncState.inFlight=true;const warehouseId=activeWarehouseId(),environment=activeEnvironment(),commandId=newEntityCommandId(),result=await window.JustFunDesktop.regVps.syncEntities({warehouseId,environment,commandId,changes:changes.map(({_fingerprint,...item})=>item),intent});
       if(!result?.ok)throw Object.assign(new Error(result?.error||'VPS отклонил изменение.'),{code:result?.code||'ENTITY_COMMAND_FAILED',details:result?.details||{}});
-      acceptEntityBatchResult(result,changes);cloudSyncState.dirty=buildPendingEntityChanges().length>0;if(cloudSyncState.dirty)throw new Error('VPS подтвердил команду не полностью: локальный кэш будет перечитан с сервера.');integrationBadge('jfRegBadge','Операция подтверждена сервером','ready');const success=({route_approve:'Согласование рейса подтверждено сервером.',route_picking:'Комплектация рейса подтверждена сервером.',route_cancel:'Рейс отменён, складской резерв освобождён.',route_start:'Выезд подтверждён сервером.',route_return:'Возврат машины подтверждён сервером.',route_close:'Рейс закрыт, склад и архив обновлены.',pickup_ready:'Резерв самовывоза подтверждён сервером.',pickup_collected:'Выдача и списание подтверждены сервером.'})[intent?.kind];if(success)toast(success,'success');return mutationResult
+      acceptEntityBatchResult(result,changes);integrationBadge('jfRegBadge','Операция подтверждена сервером','ready');const success=({route_approve:'Согласование рейса подтверждено сервером.',route_picking:'Комплектация рейса подтверждена сервером.',route_cancel:'Рейс отменён, складской резерв освобождён.',route_start:'Выезд подтверждён сервером.',route_return:'Возврат машины подтверждён сервером.',route_close:'Рейс закрыт, склад и архив обновлены.',pickup_ready:'Резерв самовывоза подтверждён сервером.',pickup_collected:'Выдача и списание подтверждены сервером.'})[intent?.kind];if(success)toast(success,'success');return mutationResult
     }catch(error){
-      if(rollbackSnapshot&&typeof window.TeplitsaWarehouseV600?.importServerSnapshot==='function'){cloudSyncState.suspended++;try{await window.TeplitsaWarehouseV600.importServerSnapshot(rollbackSnapshot)}finally{cloudSyncState.suspended--}window.renderAll?.()}if(['route_return','route_close'].includes(intent?.kind))window.closeRouteCloseModal?.();
+      if(rollbackSnapshot&&(critical||!localCommandPersisted))await rollbackLocalSnapshot(rollbackSnapshot);if(['route_return','route_close'].includes(intent?.kind))window.closeRouteCloseModal?.();
       integrationBadge('jfRegBadge','Изменение отклонено','error');integrationStatus('jfRegStatus',error?.message||String(error),'error');toast(error?.message||String(error),'error');audit('server_entity_command_rejected',{kind:intent?.kind||'',targetId:intent?.targetId||'',code:error?.code||'',details:error?.details||{}});return false
     }finally{cloudSyncState.inFlight=false}
   };
@@ -686,7 +769,7 @@ function installEntityCommandGuards(){
   const currentOrderId=()=>typeof currentDetailId!=='undefined'?currentDetailId:'';
   const editId=selector=>()=>q(selector)?.value||'';
   const specs={
-    saveOrder:{kind:'order_save',critical:false,target:editId('#editingOrderId'),optionalTarget:true},savePickup:{kind:'pickup_save',critical:false,target:editId('#editingPickupId'),optionalTarget:true},deleteOrder:{kind:'order_delete',critical:false,target:args=>args[0]},clearAll:{kind:'workspace_clear',critical:false,target:()=>activeWarehouseId()},toggleCurrentOrderPayment:{kind:'order_payment',critical:false,target:currentOrderId},retryCurrentDelivery:{kind:'order_retry',critical:false,target:currentOrderId},resolveCurrentPartial:{kind:'order_partial_resolution',critical:false,target:currentOrderId},confirmNotRelevant:{kind:'order_not_relevant',critical:false,target:()=>q('#notRelevantOrderId')?.value},
+    saveOrder:{kind:'order_save',critical:false,target:editId('#editingOrderId'),optionalTarget:true},savePickup:{kind:'pickup_save',critical:false,target:editId('#editingPickupId'),optionalTarget:true},deleteOrder:{kind:'order_delete',critical:false,target:args=>args[0]},clearAll:{kind:'workspace_clear',target:()=>activeWarehouseId()},toggleCurrentOrderPayment:{kind:'order_payment',critical:false,target:currentOrderId},retryCurrentDelivery:{kind:'order_retry',critical:false,target:currentOrderId},resolveCurrentPartial:{kind:'order_partial_resolution',critical:false,target:currentOrderId},confirmNotRelevant:{kind:'order_not_relevant',critical:false,target:()=>q('#notRelevantOrderId')?.value},
     saveProduct:{kind:'product_save',critical:false,target:editId('#productEditId'),optionalTarget:true},deleteProduct:{kind:'product_delete',critical:false,target:args=>args[0]},importProductsFromOrders:{kind:'product_import',critical:false,target:()=>activeWarehouseId()},saveInventoryMovement:{kind:'inventory_movement',critical:false,target:editId('#inventoryMovementProductId'),optionalTarget:true},
     saveDriver:{kind:'driver_save',critical:false,target:editId('#driverEditId'),optionalTarget:true},deleteDriver:{kind:'driver_delete',critical:false,target:args=>args[0]},
     saveReportCalculationSettings:{kind:'report_settings',critical:false,target:()=>activeWarehouseId()},saveReportEmployee:{kind:'report_employee_save',critical:false,target:editId('#reportEmployeeEditId'),optionalTarget:true},deleteReportEmployee:{kind:'report_employee_delete',critical:false,target:args=>args[0]},saveReportExpense:{kind:'report_expense_save',critical:false,target:editId('#reportExpenseEditId'),optionalTarget:true},deleteReportExpense:{kind:'report_expense_delete',critical:false,target:args=>args[0]},
@@ -704,39 +787,33 @@ function reportCloudSyncFailure(error){
   try{audit('background_vps_sync_failed',{code,warehouseId:activeWarehouseId(),environment:activeEnvironment()})}catch{}
   try{console.error('Background entity upload failed',error)}catch{}
 }
-async function backgroundCloudUpload(){
-  if(!cloudSyncState.dirty||cloudSyncState.inFlight||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
-  await bootstrapEntitySync();if(!cloudSyncState.bootstrapped)return;if(cloudSyncState.conflicts.size)throw new Error(`Обнаружены конфликты записей: ${cloudSyncState.conflicts.size}. Автоматическая перезапись остановлена.`);
-  const warehouseId=activeWarehouseId(),environment=activeEnvironment(),serial=cloudSyncState.serial;cloudSyncState.inFlight=true;
-  try{
-    await window.TeplitsaWarehouseV600?.whenPersisted?.();const changes=buildPendingEntityChanges();
-    for(let offset=0;offset<changes.length;offset+=1000){
-      const chunk=changes.slice(offset,offset+1000),commandId=newEntityCommandId(),result=await window.JustFunDesktop?.regVps?.syncEntities?.({warehouseId,environment,commandId,changes:chunk.map(({_fingerprint,...item})=>item)});
-      if(!result?.ok){if(result?.code==='entity_version_conflict'){const details=result.details||{},key=entityKey(details.entity_type,details.entity_id);cloudSyncState.conflicts.set(key,{...details,detectedAt:new Date().toISOString()});saveEntitySyncState();integrationBadge('jfRegBadge','Конфликт записи','error');integrationStatus('jfRegStatus',`Запись ${details.entity_type||'сущности'}/${details.entity_id||'—'} изменена на другом компьютере. Локальная версия сохранена, перезапись остановлена.`,'error');return}throw new Error(result?.error||'VPS не принял изменения')}
-      acceptEntityBatchResult(result,chunk);
-    }
-    if(serial===cloudSyncState.serial)cloudSyncState.dirty=false;else{clearTimeout(cloudSyncState.uploadTimer);cloudSyncState.uploadTimer=setTimeout(()=>backgroundCloudUpload().catch(reportCloudSyncFailure),300)}
-    integrationBadge('jfRegBadge','Синхронизировано','ready');integrationStatus('jfRegStatus',changes.length?`Сервер подтвердил ${changes.length} изменений отдельных записей.`:'Локальные и серверные записи совпадают.','ok');
-  }finally{cloudSyncState.inFlight=false}
+async function backgroundCloudUpload({force=false}={}){
+  if(isTrainingEnvironment())return;if(cloudSyncState.inFlight){clearTimeout(cloudSyncState.uploadTimer);cloudSyncState.uploadTimer=setTimeout(()=>backgroundCloudUpload().catch(reportCloudSyncFailure),150);return}if(cloudSyncState.suspended){clearTimeout(cloudSyncState.uploadTimer);cloudSyncState.uploadTimer=setTimeout(()=>backgroundCloudUpload().catch(reportCloudSyncFailure),150);return}resetEntityScope();const queue=requireLocalOutbox();
+  const captureSerial=cloudSyncState.serial;await window.TeplitsaWarehouseV600?.whenPersisted?.();
+  if(cloudSyncState.dirty&&!queue.status().active){
+    const changes=buildPendingEntityChanges();for(let offset=0;offset<changes.length;offset+=1000){const chunk=changes.slice(offset,offset+1000);queue.enqueue(localOutboxEntry({kind:'background_local_capture',targetId:activeWarehouseId()},chunk));audit('background_local_entity_command_saved',{changes:chunk.length,warehouseId:activeWarehouseId(),environment:activeEnvironment()})}
+  }
+  cloudSyncState.dirty=queue.status().active>0||cloudSyncState.serial!==captureSerial;renderLocalOutboxStatus();
+  if(!onlineEntitySyncAvailable()){if(cloudSyncState.dirty)integrationStatus('jfRegStatus',`Изменения сохранены на компьютере: ${queue.status().active}. VPS будет синхронизирован после восстановления связи.`,'error');return}
+  if(!cloudSyncState.bootstrapped)await bootstrapEntitySync();await drainLocalOutbox({force});if(cloudSyncState.serial!==captureSerial){cloudSyncState.dirty=true;clearTimeout(cloudSyncState.uploadTimer);cloudSyncState.uploadTimer=setTimeout(()=>backgroundCloudUpload().catch(reportCloudSyncFailure),150)}
 }
 async function flushEntitySyncBeforeContextChange(){
   if(isTrainingEnvironment())return true;
-  if(desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)throw new Error('Рабочий VPS недоступен: изменения не подтверждены сервером.');
-  await bootstrapEntitySync();await waitForEntitySyncIdle();
-  if(cloudSyncState.conflicts.size)throw new Error(`Есть неразрешённые конфликты: ${cloudSyncState.conflicts.size}.`);
-  cloudSyncState.dirty=true;cloudSyncState.serial++;await backgroundCloudUpload();await waitForEntitySyncIdle();
-  if(cloudSyncState.conflicts.size||cloudSyncState.dirty)throw new Error('VPS не подтвердил все локальные изменения.');
+  resetEntityScope();if(!onlineEntitySyncAvailable())throw new Error('Рабочий VPS недоступен: локальные изменения сохранены, но перед сменой контекста должны быть синхронизированы.');
+  await waitForEntitySyncIdle();await backgroundCloudUpload({force:true});await waitForEntitySyncIdle();const state=requireLocalOutbox().status();
+  if(cloudSyncState.conflicts.size||state.active||cloudSyncState.dirty)throw new Error(`VPS не подтвердил все локальные изменения. Ожидают или требуют решения: ${Math.max(state.active,cloudSyncState.dirty?1:0)}.`);
   return true
 }
-window.JustFunEntitySyncV783=Object.freeze({flushAndConfirm:flushEntitySyncBeforeContextChange,status:()=>({bootstrapped:cloudSyncState.bootstrapped,dirty:cloudSyncState.dirty,inFlight:cloudSyncState.inFlight,conflicts:cloudSyncState.conflicts.size,scope:cloudSyncState.scope,cursor:cloudSyncState.cursor})});
+window.JustFunEntitySyncV783=Object.freeze({flushAndConfirm:flushEntitySyncBeforeContextChange,status:()=>{resetEntityScope();const outbox=cloudSyncState.outbox&&!cloudSyncState.outboxError?cloudSyncState.outbox.status():{active:0,corrupt:Boolean(cloudSyncState.outboxError)};return{bootstrapped:cloudSyncState.bootstrapped,dirty:cloudSyncState.dirty,inFlight:cloudSyncState.inFlight,conflicts:cloudSyncState.conflicts.size,scope:cloudSyncState.scope,cursor:cloudSyncState.cursor,outbox,...(window.__JF_RUNTIME_TEST__?{serial:cloudSyncState.serial,suspended:cloudSyncState.suspended,installed:cloudSyncState.installed}:{})}}});
+if(window.__JF_RUNTIME_TEST__)window.__JustFunEntitySyncTestV783=Object.freeze({install:()=>{installAutomaticCloudSync();installEntityCommandGuards()},overlaySnapshot:snapshot=>{const copy=cloneValue(snapshot);overlayLocalOutbox(copy);return copy}});
 let nextWarehouseRegistryRefreshAtV783=0;
 async function refreshWarehouseRegistryDuringPollingV783(force=false,reason='warehouse-registry-periodic'){
   const now=Date.now();if(!force&&now<nextWarehouseRegistryRefreshAtV783)return false;nextWarehouseRegistryRefreshAtV783=now+30000;
   const before=activeWarehouseId();await synchronizeCompanyWarehouseRegistry();return applyWarehouseRegistryTransition(before,reason)
 }
 async function pollCloudRevision(){
-  if(cloudSyncState.inFlight||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
-  const now=Date.now();if(now<cloudSyncState.nextPollAt)return;if(await refreshWarehouseRegistryDuringPollingV783(false))return;await bootstrapEntitySync();if(!cloudSyncState.bootstrapped)return;
+  if(isTrainingEnvironment()||cloudSyncState.inFlight||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
+  resetEntityScope();if(cloudSyncState.outbox&&!cloudSyncState.outboxError&&cloudSyncState.outbox.ready())await drainLocalOutbox();const now=Date.now();if(now<cloudSyncState.nextPollAt)return;if(await refreshWarehouseRegistryDuringPollingV783(false))return;await bootstrapEntitySync();if(!cloudSyncState.bootstrapped)return;
   const warehouseId=activeWarehouseId(),environment=activeEnvironment();if(!warehouseId)return;cloudSyncState.inFlight=true;
   try{
     let more=true,rounds=0,applied=0,workingSnapshot=null,current=null,activeWarehouseDeleted=false;
@@ -747,7 +824,7 @@ async function pollCloudRevision(){
       workingSnapshot=workingSnapshot||buildBackupPayload();current=current||splitEntitySnapshot(workingSnapshot);
       for(const rawEvent of result.events){const event=canonicalServerEntity(rawEvent),key=entityKey(event.type,event.id),known=cloudSyncState.known.get(key),local=current.get(key),localDirty=local?(!known||known.deleted||local.fingerprint!==known.fingerprint):Boolean(known&&!known.deleted);if(Number(event.version)<=Number(known?.version||0))continue;
         if(event.type==='warehouse'&&event.id===warehouseId&&event.operation==='delete'){activeWarehouseDeleted=true;current.delete(key);cloudSyncState.known.set(key,{version:Number(event.version)||0,digest:String(event.digest||''),fingerprint:'',deleted:true,eventId:Number(event.eventId)||0});applied++;continue}
-        if(localDirty){cloudSyncState.conflicts.set(key,{type:event.type,id:event.id,remoteVersion:event.version,remotePayload:event.payload,operation:event.operation,eventId:event.eventId,detectedAt:new Date().toISOString()});integrationBadge('jfRegBadge','Нужно решить конфликт','error');continue}
+        if(localDirty){const details={type:event.type,id:event.id,remoteVersion:event.version,remotePayload:event.payload,operation:event.operation,eventId:event.eventId,detectedAt:new Date().toISOString()};cloudSyncState.conflicts.set(key,details);markOutboxEntityConflict(key,{code:'entity_version_conflict',message:'Запись изменена на другом компьютере.',details});integrationBadge('jfRegBadge','Нужно решить конфликт','error');continue}
         applyEntityToSnapshot(workingSnapshot,event,event.operation==='delete');if(event.operation==='delete')current.delete(key);else current.set(key,{type:event.type,id:event.id,payload:event.payload,fingerprint:entityFingerprint(event.payload)});cloudSyncState.known.set(key,{version:Number(event.version)||0,digest:String(event.digest||''),fingerprint:event.operation==='delete'?'':entityFingerprint(event.payload),deleted:event.operation==='delete',eventId:Number(event.eventId)||0});applied++}
       cloudSyncState.cursor=Math.max(cloudSyncState.cursor,Number(result.cursor)||0);more=result.hasMore===true;
     }
@@ -760,13 +837,13 @@ async function pollCloudRevision(){
 }
 async function syncActiveWarehouse(){
   const button=q('#jfRegSync'),warehouseId=activeWarehouseId(),environment=activeEnvironment();if(!warehouseId)return integrationStatus('jfRegStatus','Активный склад не определён.','error');setIntegrationBusy(button,true);integrationStatus('jfRegStatus',`Получаем актуальные серверные записи склада «${activeWarehouseLabel()}» · ${environment.toUpperCase()}…`);
-  try{cloudSyncState.bootstrapped=false;await bootstrapEntitySync(true);integrationStatus('jfRegStatus','Локальный кэш обновлён подтверждёнными данными VPS.','ok')}
+  try{cloudSyncState.bootstrapped=false;await bootstrapEntitySync(true);await backgroundCloudUpload({force:true});const pending=requireLocalOutbox().status().active;integrationStatus('jfRegStatus',pending?`Сервер прочитан, но ${pending} локальных изменений ещё требуют отправки или решения.`:'Локальный кэш и VPS синхронизированы.','ok')}
   catch(error){integrationStatus('jfRegStatus',error?.message||error,'error')}
   finally{setIntegrationBusy(button,false)}
 }
 async function restoreActiveWarehouseFromVps(){
   const button=q('#jfRegRestore'),warehouseId=activeWarehouseId(),environment=activeEnvironment();setIntegrationBusy(button,true);integrationStatus('jfRegStatus',`Получаем подтверждённые серверные записи «${activeWarehouseLabel()}» · ${environment.toUpperCase()}…`);
-  try{if(!await jfConfirm(`Заменить локальный кэш склада «${activeWarehouseLabel()}» актуальными серверными записями? Перед заменой будет сохранена резервная копия.`,{title:'Восстановление с сервера',confirmLabel:'Восстановить',kind:'danger'}))return integrationStatus('jfRegStatus','Восстановление отменено. Локальные данные не изменены.');if(typeof exportBackup==='function')exportBackup();cloudSyncState.bootstrapped=false;await bootstrapEntitySync(true);cloudSyncState.dirty=false;integrationStatus('jfRegStatus',`Локальный кэш «${activeWarehouseLabel()}» восстановлен из отдельных серверных записей.`,'ok')}
+  try{resetEntityScope();const pending=requireLocalOutbox().status().active;if(pending)throw new Error(`Восстановление остановлено: ${pending} локальных изменений ещё не подтверждены. Сначала синхронизируйте или разрешите их.`);if(!await jfConfirm(`Заменить локальный кэш склада «${activeWarehouseLabel()}» актуальными серверными записями? Перед заменой будет сохранена резервная копия.`,{title:'Восстановление с сервера',confirmLabel:'Восстановить',kind:'danger'}))return integrationStatus('jfRegStatus','Восстановление отменено. Локальные данные не изменены.');if(typeof exportBackup==='function')exportBackup();cloudSyncState.bootstrapped=false;await bootstrapEntitySync(true);cloudSyncState.dirty=false;integrationStatus('jfRegStatus',`Локальный кэш «${activeWarehouseLabel()}» восстановлен из отдельных серверных записей.`,'ok')}
   catch(error){integrationStatus('jfRegStatus',error?.message||error,'error')}
   finally{setIntegrationBusy(button,false)}
 }
