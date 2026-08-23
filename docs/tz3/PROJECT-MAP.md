@@ -10,6 +10,14 @@
 - Полный исходный UI-инвентарь: [`UI-INVENTORY.md`](UI-INVENTORY.md).
 - Живые результаты: [`LIVE-TEST-REGISTER.md`](LIVE-TEST-REGISTER.md).
 - Полные живые сценарии: [`LIVE-ACCEPTANCE-SCENARIOS.md`](LIVE-ACCEPTANCE-SCENARIOS.md).
+- Методика проверки до и после подключений: [`LOCAL-FIRST-CONNECTIVITY-ACCEPTANCE.md`](LOCAL-FIRST-CONNECTIVITY-ACCEPTANCE.md).
+- Многопользовательские базы и миграции: [`MULTI-TENANT-DATA-MIGRATION-SPEC.md`](MULTI-TENANT-DATA-MIGRATION-SPEC.md).
+- Предложение по режимам хранения и окончательному релизу: [`STORAGE-MODES-AND-FINAL-RELEASE-PROPOSAL.md`](STORAGE-MODES-AND-FINAL-RELEASE-PROPOSAL.md).
+- Полное ТЗ №3 простыми словами: [`TZ3-FINAL-RELEASE-SIMPLE.md`](TZ3-FINAL-RELEASE-SIMPLE.md).
+- Главное полное ТЗ №3 с измеримыми воротами коммерческого релиза: [`TZ3-COMPLETE-RELEASE-SPEC.md`](TZ3-COMPLETE-RELEASE-SPEC.md).
+- Автономный полный тест и матрица обновления всех поддерживаемых старых баз: [`UNATTENDED-E2E-AND-DATABASE-MIGRATION-SPEC.md`](UNATTENDED-E2E-AND-DATABASE-MIGRATION-SPEC.md).
+- Экспертная критика и рекомендуемая архитектура: [`ARCHITECTURE-CRITIQUE-AND-RECOMMENDATION.md`](ARCHITECTURE-CRITIQUE-AND-RECOMMENDATION.md).
+- Telegram: новая архитектура общего бота отменена; в ТЗ остаётся проверка текущей реализации без её переработки.
 - Текущий релизный статус: `NO-GO`; установка выполнена, живая приёмка на первом ПК находится `IN PROGRESS`, production и multi-PC ещё не приняты.
 
 ## Компоненты
@@ -86,6 +94,7 @@ UI-функция
 5. Текущий Windows RC установлен и запущен на одном физическом ПК; полный живой цикл функций на этом ПК ещё не завершён.
 6. Не выполнены полная визуальная проверка, второй пользователь и несколько физических ПК.
 7. Telegram компании/складов/водителей не принят в production.
+8. Автономный сквозной исполнитель и полная матрица миграций каждой поддерживаемой старой localStorage/IndexedDB/PostgreSQL/D1 схемы ещё не реализованы и не доказаны.
 
 ## Контракты текущего исходного кода
 

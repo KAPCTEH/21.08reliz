@@ -567,6 +567,142 @@
         "owner authorization recheck",
         "resume full live acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0034",
+      "stage": 3,
+      "action": "first launch of the current installed build and owner-session restoration check",
+      "result": "STARTUP PASS / AUTH PERSISTENCE FAIL / RELOGIN PASS",
+      "confirmed": [
+        "exactly one JustFun Logistics 7.8.3 window opened",
+        "runtime hardening reported no errors",
+        "protected ASAR integrity passed",
+        "renderer reached the cloud-auth surface",
+        "previously authorized owner session was rejected after reinstall",
+        "normal existing-company login form opened",
+        "owner entered company code, login and password personally",
+        "existing-company authorization succeeded and workspace opened",
+        "no new-company activation was attempted",
+        "native-secrets values were not read"
+      ],
+      "application_archive_sha256": "DAC8D24BDA2357F7332D9E1053DE2120B0BE9BFE1D2AB8CE762D92240B6441DA",
+      "auth_rejection": {
+        "log_code": "cloud auth state rejected",
+        "message": "Защищённый локальный ключ повреждён или создан другим пользователем Windows.",
+        "authorized": false,
+        "defect": "JF3-DEFECT-002"
+      },
+      "safe_metadata_only": {
+        "native_secrets_backup_bytes": 3512,
+        "native_secrets_current_bytes": 1256,
+        "hashes_differ": true,
+        "values_opened": false
+      },
+      "pending": [
+        "continue live business-flow acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0035",
+      "stage": 3,
+      "action": "existing-company context isolation and safe visual traversal of the installed application",
+      "result": "PASS WITH OPEN DEFECTS / BUSINESS FLOWS CONTINUE",
+      "confirmed": [
+        "owner workspace is open after successful relogin",
+        "only one active warehouse is listed",
+        "only the owner and one current connected computer are listed",
+        "orders count is 0",
+        "drivers count is 0",
+        "trips count is 0",
+        "built-in catalog has 62 products with 0 tracked inventory and 0 stock value",
+        "orders, products, drivers, trips, reports, route settings, and program settings opened without destructive actions",
+        "instruction modal scroll, Escape close, and focus return passed",
+        "update center reports installed 7.8.3 and not connected; update actions are disabled",
+        "REG.RU reports not configured and the VPS IP field is empty",
+        "Telegram and Cloudflare report restore required; bot and warehouse group are not connected",
+        "default Nominatim, OSRM, and map tile endpoints are present",
+        "program-settings tab changes the shared product header and violates visual consistency"
+      ],
+      "open_defects": [
+        "JF3-DEFECT-002",
+        "JF3-DEFECT-003"
+      ],
+      "pending": [
+        "create four synthetic orders and exercise address search",
+        "create drivers and exercise route and status lifecycle",
+        "verify reports and delete/archive lifecycle",
+        "configure and verify VPS with owner-entered credentials",
+        "restore Telegram and Cloudflare with owner-entered credentials",
+        "verify second warehouse, second user, and second device isolation"
+      ]
+    },
+    {
+      "step_id": "JF3-S0036",
+      "stage": 3,
+      "action": "record continuous discovery-first live-test policy before batch repair",
+      "result": "TEST POLICY RECORDED / DISCOVERY CONTINUES",
+      "rules": [
+        "do not interrupt the first full live pass to repair each individual product defect",
+        "record functional, code, log, design, layout, scroll, and consistency findings with evidence",
+        "continue every independent scenario after a finding",
+        "mark only the actually unavailable path as blocked",
+        "record successful steps and the complete observed cycle as well as defects",
+        "group confirmed root causes and repair them in one controlled batch after discovery",
+        "install one controlled replacement build and run complete live regression"
+      ],
+      "exception": "an emergency product fix requires a separate owner decision and is allowed only when the application cannot be safely started and no independent scenario remains testable"
+    },
+    {
+      "step_id": "JF3-S0037",
+      "stage": 3,
+      "action": "consolidate the complete project history into the authoritative TZ3 commercial-release specification",
+      "result": "SPECIFICATION RECORDED / RELEASE REMAINS NO-GO",
+      "document": "docs/tz3/TZ3-COMPLETE-RELEASE-SPEC.md",
+      "confirmed": [
+        "38 requirement sections are consolidated in one specification",
+        "eight measurable GO/NO-GO gates are defined",
+        "the discovery-first then batch-repair then full-regression sequence is mandatory",
+        "Windows publisher certificate is not a release gate by owner decision",
+        "cryptographic signing of automatic updates remains mandatory",
+        "Yandex Maps comparison and local address archives are excluded",
+        "the proposed shared Telegram bot architecture is excluded and the current integration remains in scope",
+        "no product source or infrastructure was changed by this specification step"
+      ]
+    },
+    {
+      "step_id": "JF3-S0038",
+      "stage": 3,
+      "action": "record unattended end-to-end acceptance and supported database migration matrix",
+      "result": "SPECIFICATION RECORDED / NOT EXECUTED / RELEASE REMAINS NO-GO",
+      "document": "docs/tz3/UNATTENDED-E2E-AND-DATABASE-MIGRATION-SPEC.md",
+      "credential_handling": {
+        "test_bundle_supplied_locally": true,
+        "secret_values_copied_to_documents_or_register": false,
+        "required_runtime_handling": "protected aliases in Windows or isolated CI secret storage"
+      },
+      "scope": [
+        "scoped localStorage and IndexedDB",
+        "protected desktop state",
+        "VPS PostgreSQL V3",
+        "license server schema and migrations",
+        "company Telegram broker D1",
+        "Telegram Worker legacy, v2 and deprovision D1 schemas",
+        "Cloudflare KV update catalog format"
+      ],
+      "acceptance": [
+        "full run completes unattended after one-time secure preparation",
+        "100% of declared supported historical schema paths reach current schema",
+        "zero lost, duplicated, orphaned or cross-scope records",
+        "partial, repeated, interrupted, concurrent and large-data migrations pass",
+        "backup is restored and reread by the application",
+        "unknown or corrupt schemas stop without modifying source data",
+        "incompatible old clients cannot write"
+      ],
+      "limitations": [
+        "unattended runner is not yet implemented or executed",
+        "historical migration matrix is not yet proven",
+        "no product source, database or external infrastructure was changed in this step"
+      ]
     }
   ],
   "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
