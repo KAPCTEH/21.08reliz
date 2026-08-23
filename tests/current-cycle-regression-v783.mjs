@@ -11,6 +11,7 @@ const routeMap=read('source/application/web/assets/js/95-route-map-loading.js');
 const mapReliability=read('source/application/web/assets/js/105-map-reliability-v772.js');
 const smartRoutes=read('source/application/web/assets/js/98-smart-automation-v598.js');
 const desktopPlatform=read('source/application/web/assets/js/110-desktop-platform-v750.js');
+const routeWorkspace=read('source/application/web/assets/js/94-route-workspace-final.js');
 
 assert(main.includes("String(active.id)===String(primary.id)&&active.catalogMode==='catalog'"));
 assert(warehouses.includes("write(PRODUCTS_KEY,[])"));
@@ -56,6 +57,15 @@ assert(desktopPlatform.includes("environment:WAREHOUSE_REGISTRY_ENVIRONMENT,comm
 assert(desktopPlatform.includes("const WAREHOUSE_REGISTRY_ENVIRONMENT='live'"));
 assert(desktopPlatform.includes("nextWarehouseRegistryRefreshAtV783=now+30000"));
 assert(desktopPlatform.includes("blockWorkspaceAfterWarehouseChange('Список складов изменился, но безопасная автоматическая перезагрузка была остановлена."));
+assert(desktopPlatform.includes("function isTrainingEnvironment(){return desktopSession?.edition==='demo'||window.TeplitsaWarehouseBootstrap?.isDemo?.()===true}"));
+assert(desktopPlatform.includes("if(isTrainingEnvironment())return Promise.resolve().then(mutation)"));
+assert(desktopPlatform.includes("canCreate:()=>!isTrainingEnvironment()"));
+assert(desktopPlatform.includes("if(isTrainingEnvironment()){boxes.forEach"));
+assert(desktopPlatform.includes("function telegramEnvironment(){return activeEnvironment()}"));
+assert(routeWorkspace.includes("const filteredCards=()=>cards().filter"));
+assert(routeWorkspace.includes("all.forEach(card=>{card.hidden=true})"));
+assert(routeWorkspace.includes("jf:route-stage-filter-changed"));
+assert(main.includes("document.dispatchEvent(new CustomEvent('jf:route-stage-filter-changed'))"));
 
 const lifecycleLockSource=warehouses.match(/let warehouseLifecycleBusyV760=false;[\s\S]*?async function withWarehouseLifecycleLockV760\(action\)\{[\s\S]*?\n\}/)?.[0];
 assert(lifecycleLockSource,'warehouse lifecycle lock source is available');

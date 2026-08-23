@@ -27,6 +27,7 @@ const valid = native.validateOptions({
 });
 assert.strictEqual(valid.host, '203.0.113.10');
 assert.strictEqual(valid.username, 'root');
+assert.strictEqual(native.normalizeShellScript('\uFEFF#!/usr/bin/env bash\r\nset -euo pipefail\r\n'), '#!/usr/bin/env bash\nset -euo pipefail\n');
 assert.throws(() => native.validateOptions({...valid, password:'line\nbreak'}), /SSH-пароль/);
 assert.throws(() => native.validateOptions({...valid, username:'Root!'}), /SSH-пользователя/);
 assert.throws(() => native.validateOptions({...valid, port:70000}), /SSH-порт/);
@@ -50,6 +51,8 @@ assert(mainSource.includes('openRegVpsPasswordWindow'));
 assert(nativeSource.includes('hostVerifier'));
 assert(nativeSource.includes('sudo -S -p'));
 assert(nativeSource.includes('mode: 0o600'));
+assert(nativeSource.includes("sftpCall(sftp, 'writeFile', `${remoteDir}/install.sh`, installerPayload"));
+assert(!nativeSource.includes("sftpCall(sftp, 'fastPut', installerPath"));
 assert(nativeSource.includes('VPS_ATTESTATION_SECRET_B64='));
 assert(mainSource.includes('attestation_secret:attestationSecret'));
 assert(installerSource.includes("<<'EOF_NGINX'"));

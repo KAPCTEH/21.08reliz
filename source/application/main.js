@@ -814,7 +814,7 @@ function bundledIntegrationPath(...parts) { return path.join(__dirname, 'integra
 
 function requireSecureStorage() {
   if (!safeStorage || typeof safeStorage.isEncryptionAvailable !== 'function' || !safeStorage.isEncryptionAvailable()) {
-    throw new Error('Защищённое хранилище Windows недоступно. Войдите в обычную учётную запись Windows и повторите запуск.');
+    throw Object.assign(new Error('Защищённое хранилище Windows недоступно. Войдите в обычную учётную запись Windows и повторите запуск.'), { code: 'NATIVE_SECRET_STORAGE_UNAVAILABLE' });
   }
 }
 function readNativeSecret(name) {
@@ -823,7 +823,12 @@ function readNativeSecret(name) {
   const encoded = String(store[name] || '');
   if (!encoded) return '';
   try { return safeStorage.decryptString(Buffer.from(encoded, 'base64')); }
-  catch { throw new Error('Защищённый локальный ключ повреждён или создан другим пользователем Windows.'); }
+  catch (cause) {
+    throw Object.assign(new Error('Защищённый локальный ключ временно недоступен. Выполните обычный вход; сохранённые данные ключа не удалены.'), {
+      code: 'NATIVE_SECRET_DECRYPT_FAILED',
+      causeCode: String(cause?.code || cause?.name || '')
+    });
+  }
 }
 function writeNativeSecret(name, value) {
   requireSecureStorage();
@@ -983,9 +988,10 @@ function readCloudAuthState() {
     }
     return normalized;
   } catch (error) {
-    appendLog('cloud auth state rejected', {code:String(error?.code||''),error:safeIntegrationError(error)});
-    try{deleteNativeSecret(CLOUD_AUTH_SECRET)}
-    catch(deleteError){appendLog('rejected cloud auth secret delete failed',{error:safeIntegrationError(deleteError)})}
+    const code=String(error?.code||''),preserveEncryptedState=['NATIVE_SECRET_DECRYPT_FAILED','NATIVE_SECRET_STORAGE_UNAVAILABLE'].includes(code);
+    appendLog(preserveEncryptedState?'cloud auth state temporarily unavailable':'cloud auth state rejected', {code,error:safeIntegrationError(error),causeCode:String(error?.causeCode||'')});
+    if(!preserveEncryptedState){try{deleteNativeSecret(CLOUD_AUTH_SECRET)}
+    catch(deleteError){appendLog('rejected cloud auth secret delete failed',{error:safeIntegrationError(deleteError)})}}
     return null;
   }
 }

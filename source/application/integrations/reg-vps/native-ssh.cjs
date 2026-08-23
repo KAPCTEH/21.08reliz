@@ -41,6 +41,10 @@ function sftpCall(sftp, method, ...args) {
   });
 }
 
+function normalizeShellScript(value) {
+  return String(value ?? '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+}
+
 function connect(options, confirmFingerprint) {
   return new Promise((resolve, reject) => {
     const client = new Client();
@@ -153,6 +157,7 @@ async function installRegVps(rawOptions) {
     throw new Error('В программе отсутствуют компоненты установки VPS. Переустановите JustFun.');
   }
   if (typeof rawOptions.confirmFingerprint !== 'function') throw new Error('Не настроена проверка отпечатка SSH.');
+  const installerPayload = Buffer.from(normalizeShellScript(fs.readFileSync(installerPath, 'utf8')), 'utf8');
 
   const nonce = crypto.randomBytes(18).toString('hex');
   const remoteDir = `/tmp/justfun-orders-${nonce}`;
@@ -172,7 +177,7 @@ async function installRegVps(rawOptions) {
     const sftp = await openSftp(client);
     await sftpCall(sftp, 'mkdir', remoteDir, { mode: 0o700 });
     await sftpCall(sftp, 'fastPut', serverPath, `${remoteDir}/server.py`, { mode: 0o600 });
-    await sftpCall(sftp, 'fastPut', installerPath, `${remoteDir}/install.sh`, { mode: 0o700 });
+    await sftpCall(sftp, 'writeFile', `${remoteDir}/install.sh`, installerPayload, { mode: 0o700 });
     await sftpCall(sftp, 'writeFile', `${remoteDir}/${bootstrapName}`, bootstrap, { mode: 0o600 });
     await sftpCall(sftp, 'chmod', `${remoteDir}/install.sh`, 0o700);
     await sftpCall(sftp, 'chmod', `${remoteDir}/${bootstrapName}`, 0o600);
@@ -214,5 +219,6 @@ async function installRegVps(rawOptions) {
 module.exports = Object.freeze({
   conventionalFingerprint,
   installRegVps,
+  normalizeShellScript,
   validateOptions
 });

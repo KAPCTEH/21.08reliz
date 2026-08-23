@@ -54,6 +54,8 @@ const FUNCTION_PERMISSIONS={
 };
 const FORM_PERMISSIONS={orderForm:'orders.update',pickupForm:'orders.update',driverForm:'drivers.update',productForm:'inventory.catalog',inventoryMovementForm:'inventory.stock',reportEmployeeForm:'reports.expenses',reportExpenseForm:'reports.expenses'};
 const CONTROL_PERMISSIONS={deleteOrderBtn:'orders.delete',deleteDriverBtn:'drivers.delete',deleteProductBtn:'inventory.delete',restartDemoButton:'company.update'};
+const DEMO_CLOUD_ADMIN_FUNCTIONS=new Set(['openWarehouseCreatorV600','openWarehouseEditorV600','saveWarehouseEditorV600','toggleWarehouseArchiveV600','deleteWarehouseV760']);
+const DEMO_CLOUD_CONTROL_IDS=new Set(['jfAddUser','jfRegConfigure','jfRegCheck','jfRegSync','jfRegRestore','jfTelegramConfigure','jfTelegramReconnect','jfTelegramCheck','jfTelegramWarehouse']);
 const CLOUD_ID_RE=/^[A-Za-z0-9_-]{16,80}$/;
 let desktopSession=null,currentUser=null,users=[],guardInstalled=false,entityCommandGuardsInstalled=false,permissionEventsInstalled=false,permissionObserverInstalled=false,memorySession=null,startupReadySent=false,integrationWizardBusy=false,backgroundWorkspaceSyncStarted=false;
 let telegramBindings=new Map(),telegramRouteState={},telegramRouteScope='',telegramPollTimer=null,telegramPollFailures=0,telegramPollingConfigured=null,lastTelegramStatus=null,telegramRouteGuardInstalled=false;
@@ -65,9 +67,9 @@ function activeWarehouseId(){return String(window.TeplitsaWarehouseBootstrap?.ac
 function allowedWarehouseIds(user=currentUser){if(!user)return[];const all=registry().warehouses.filter(w=>w.status!=='archived').map(w=>String(w.id));return user.allWarehouses?all:(user.warehouseIds||[]).map(String).filter(x=>all.includes(x))}
 function roleFor(user=currentUser){return user?.role||'viewer'}
 function normalizePermissionList(value){const result=[];for(const permission of Array.isArray(value)?value.map(String):[]){if(!result.includes(permission))result.push(permission);for(const expanded of LEGACY_PERMISSION_EXPANSIONS[permission]||[]){if(!result.includes(expanded))result.push(expanded)}}return result}
-function permissionList(user=currentUser){if(!user)return[];if(desktopSession?.edition==='demo'||!user.serverRole)return normalizePermissionList(LOCAL_ROLE_PERMISSIONS[roleFor(user)]||LOCAL_ROLE_PERMISSIONS.viewer);return normalizePermissionList(user.permissions)}
+function permissionList(user=currentUser){if(!user)return[];if(isTrainingEnvironment()||!user.serverRole)return normalizePermissionList(LOCAL_ROLE_PERMISSIONS[roleFor(user)]||LOCAL_ROLE_PERMISSIONS.viewer);return normalizePermissionList(user.permissions)}
 function hasPermission(name,user=currentUser){const list=permissionList(user);if(user?.role==='owner'||list.includes('*'))return true;const domain=String(name||'').split('.')[0];return list.includes(name)||list.includes(domain+'.*')}
-window.JustFunWarehouseAccessV783=Object.freeze({canCreate:()=>hasPermission('warehouses.manage')&&currentUser?.allWarehouses===true,canDelete:()=>hasPermission('warehouses.manage')&&currentUser?.allWarehouses===true});
+window.JustFunWarehouseAccessV783=Object.freeze({canCreate:()=>!isTrainingEnvironment()&&hasPermission('warehouses.manage')&&currentUser?.allWarehouses===true,canDelete:()=>!isTrainingEnvironment()&&hasPermission('warehouses.manage')&&currentUser?.allWarehouses===true});
 function resolvedFunctionPermission(name,fallback,args=[]){
   if(name==='openOrderModal'||name==='openPickupModal')return args[0]?'orders.update':'orders.create';
   if(name==='saveOrder'||name==='savePickup')return q('#editingOrderId')?.value?'orders.update':'orders.create';
@@ -76,7 +78,7 @@ function resolvedFunctionPermission(name,fallback,args=[]){
 function formPermission(form){if(!form)return'';if(form.id==='orderForm'||form.id==='pickupForm')return q('#editingOrderId')?.value?'orders.update':'orders.create';return FORM_PERMISSIONS[form.id]||''}
 function allowedTabs(user=currentUser){
   if(!user)return[];
-  if(desktopSession?.edition==='demo'||!user.serverRole)return ROLE_TABS[roleFor(user)]||ROLE_TABS.viewer;
+  if(isTrainingEnvironment()||!user.serverRole)return ROLE_TABS[roleFor(user)]||ROLE_TABS.viewer;
   if(user.role==='owner'||hasPermission('*',user))return ROLE_TABS.owner;
   const tabs=[];
   if(hasPermission('orders.read',user))tabs.push('orders');
@@ -233,9 +235,17 @@ async function retryWorkspaceAccess(){
   const button=q('#jfRetry'),message=q('#jfNoWarehouseMessage');if(button)button.disabled=true;if(message)message.textContent='Проверяем назначения складов на сервере…';
   try{const before=activeWarehouseId();await synchronizeCompanyWarehouseRegistry();const allowed=allowedWarehouseIds();if(pendingWarehouseDeleteId()){if(message)message.textContent='Сервер ещё не подтвердил новый список после удаления склада.';return false}if(!allowed.length){if(message)message.textContent='Сервер подтвердил: вашей учётной записи пока не назначен склад.';return false}const target=allowed.includes(activeWarehouseId())?activeWarehouseId():allowed[0];if(target!==activeWarehouseId())window.TeplitsaWarehouseBootstrap.setActive(target);if(applyWarehouseRegistryTransition(before,'warehouse-assignment-retry'))return true;await confirmActiveWarehouseContext();mountWorkspace();return true}catch(error){if(message)message.textContent=`Проверка не выполнена: ${cloudResultError({error:error?.message||String(error)})}`;return false}finally{if(button)button.disabled=false}
 }
-function addDesktopStrip(){let strip=q('#jfDesktopStrip');if(!strip){strip=document.createElement('div');strip.id='jfDesktopStrip';strip.className='jf-desktop-strip';document.body.prepend(strip)}const role=ROLE_LABELS[roleFor()]||'Пользователь',wh=window.TeplitsaWarehouseBootstrap?.activeWarehouse?.()?.name||'Склад',demo=desktopSession?.edition==='demo',offline=!!desktopSession?.auth?.offline;strip.innerHTML=`<div class="jf-license-banner">${demo?'<span class="jf-edition demo">DEMO 72 ЧАСА</span>':''}${offline?'<span class="jf-license-time">Автономный доступ</span>':''}${demo?`<span class="jf-license-time" id="jfDemoTime"></span>`:''}</div><div class="jf-userbar"><span>${esc(currentUser.fullName)} · ${esc(role)} · ${esc(wh)}</span><button id="jfProfileBtn">Профиль</button><button id="jfLogoutBtn">Выйти</button></div>`;q('#jfProfileBtn').onclick=openProfile;q('#jfLogoutBtn').onclick=logout;updateDemoTime(desktopSession?.demoRemainingMs)}
+function addDesktopStrip(){let strip=q('#jfDesktopStrip');if(!strip){strip=document.createElement('div');strip.id='jfDesktopStrip';strip.className='jf-desktop-strip';document.body.prepend(strip)}const role=ROLE_LABELS[roleFor()]||'Пользователь',wh=window.TeplitsaWarehouseBootstrap?.activeWarehouse?.()?.name||'Склад',demo=isTrainingEnvironment(),offline=!!desktopSession?.auth?.offline;strip.innerHTML=`<div class="jf-license-banner">${demo?'<span class="jf-edition demo">УЧЕБНЫЙ РЕЖИМ</span>':''}${offline?'<span class="jf-license-time">Автономный доступ</span>':''}${desktopSession?.edition==='demo'?`<span class="jf-license-time" id="jfDemoTime"></span>`:''}</div><div class="jf-userbar"><span>${esc(currentUser.fullName)} · ${esc(role)} · ${esc(wh)}</span><button id="jfProfileBtn">Профиль</button><button id="jfLogoutBtn">Выйти</button></div>`;q('#jfProfileBtn').onclick=openProfile;q('#jfLogoutBtn').onclick=logout;updateDemoTime(desktopSession?.demoRemainingMs)}
 function updateDemoTime(ms){const el=q('#jfDemoTime');if(!el||ms==null)return;const s=Math.max(0,Math.floor(ms/1000)),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);el.textContent=`Осталось ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`}
-function applyBrand(){document.body.classList.add('jf-default-brand');document.title=`JustFun Логистика · ${VERSION}`;const title=q('.brand-title');if(title)title.textContent='JustFun Логистика';const sub=q('.brand-sub');if(sub)sub.textContent='Заказы · склады · маршруты';const logo=q('.company-brand .logo');if(logo)logo.setAttribute('aria-label','Официальный логотип JustFun')}
+function applyBrand(){document.body.classList.add('jf-default-brand');if(typeof window.TeplitsaWarehouseV600?.applyBranding==='function')window.TeplitsaWarehouseV600.applyBranding();else{document.title=`JustFun Логистика · ${VERSION}`;const title=q('.brand-title');if(title)title.textContent='JustFun Логистика';const sub=q('.brand-sub');if(sub)sub.textContent='Заказы · склады · маршруты'}const logo=q('.company-brand .logo');if(logo)logo.setAttribute('aria-label','Логотип программы')}
+function trainingAdminActionForControl(control){
+  if(!isTrainingEnvironment()||!control)return'';
+  if(DEMO_CLOUD_CONTROL_IDS.has(String(control.id||'')))return String(control.id);
+  const inline=String(control.getAttribute?.('data-jf-onclick')||control.closest?.('form')?.getAttribute?.('data-jf-onsubmit')||'');
+  for(const name of DEMO_CLOUD_ADMIN_FUNCTIONS)if(new RegExp(`(?:^|[^A-Za-z0-9_$])${name}\\s*\\(`).test(inline))return name;
+  return''
+}
+function rejectTrainingAdmin(action){const message='В учебном режиме реальные склады, сотрудники, VPS и Telegram не изменяются. Переключитесь в рабочий режим.';toast(message,'error');audit('training_cloud_admin_blocked',{action});return false}
 function permissionForControl(control){
   if(!control)return'';
   if(CONTROL_PERMISSIONS[control.id])return CONTROL_PERMISSIONS[control.id];
@@ -248,16 +258,16 @@ function permissionForControl(control){
 function rejectPermission(permission,action){toast('Недостаточно прав для этого действия.','error');audit('forbidden_action',{action,permission,role:roleFor()})}
 function applyActionPermissions(root=document){
   qa('button,input[type="submit"],input[type="button"]',root).forEach(control=>{
-    const permission=permissionForControl(control);if(!permission)return;
-    const denied=!hasPermission(permission);
+    const permission=permissionForControl(control),trainingAction=trainingAdminActionForControl(control);if(!permission&&!trainingAction)return;
+    const denied=Boolean(trainingAction)||(permission&&!hasPermission(permission));
     control.classList.toggle('jf-role-hidden',!!denied);
     if(denied){control.setAttribute('aria-hidden','true');control.tabIndex=-1}else{control.removeAttribute('aria-hidden');if(control.tabIndex===-1)control.removeAttribute('tabindex')}
   })
 }
 function installPermissionEvents(){
   if(permissionEventsInstalled)return;permissionEventsInstalled=true;
-  document.addEventListener('click',event=>{const control=event.target?.closest?.('button,input[type="submit"],input[type="button"]'),permission=permissionForControl(control);if(permission&&!hasPermission(permission)){event.preventDefault();event.stopImmediatePropagation();rejectPermission(permission,control?.id||control?.textContent?.trim()||'button')}},true);
-  document.addEventListener('submit',event=>{const permission=formPermission(event.target);if(permission&&!hasPermission(permission)){event.preventDefault();event.stopImmediatePropagation();rejectPermission(permission,event.target?.id||'form')}},true);
+  document.addEventListener('click',event=>{const control=event.target?.closest?.('button,input[type="submit"],input[type="button"]'),trainingAction=trainingAdminActionForControl(control),permission=permissionForControl(control);if(trainingAction){event.preventDefault();event.stopImmediatePropagation();rejectTrainingAdmin(trainingAction);return}if(permission&&!hasPermission(permission)){event.preventDefault();event.stopImmediatePropagation();rejectPermission(permission,control?.id||control?.textContent?.trim()||'button')}},true);
+  document.addEventListener('submit',event=>{const trainingAction=trainingAdminActionForControl(event.target?.querySelector?.('[type="submit"]')||event.target),permission=formPermission(event.target);if(trainingAction){event.preventDefault();event.stopImmediatePropagation();rejectTrainingAdmin(trainingAction);return}if(permission&&!hasPermission(permission)){event.preventDefault();event.stopImmediatePropagation();rejectPermission(permission,event.target?.id||'form')}},true);
   if(!permissionObserverInstalled&&document.body){permissionObserverInstalled=true;new MutationObserver(records=>{if(records.some(record=>record.addedNodes.length))queueMicrotask(()=>applyActionPermissions())}).observe(document.body,{childList:true,subtree:true})}
 }
 function applyPermissions(){const tabs=new Set(allowedTabs());for(const [view,elementId] of Object.entries(TAB_ID)){q('#'+elementId)?.classList.toggle('jf-role-hidden',!tabs.has(view))}const canWrite=permissionList().some(permission=>permission==='*'||(!permission.endsWith('.read')&&!permission.startsWith('jf.warehouse')));document.body.classList.toggle('jf-readonly',!canWrite);const first=[...tabs][0]||'orders';const active=q('.tabs .tab.active');if(active&&active.classList.contains('jf-role-hidden'))window.showView?.(first);applyActionPermissions();installPermissionEvents()}
@@ -277,6 +287,7 @@ function installGuards(){
   for(const[name,permission]of Object.entries(FUNCTION_PERMISSIONS)){
     if(typeof window[name]!=='function')continue;
     overrides.wrap(name,'desktop-permissions-v750',base=>function(){
+      if(isTrainingEnvironment()&&DEMO_CLOUD_ADMIN_FUNCTIONS.has(name))return rejectTrainingAdmin(name);
       const required=resolvedFunctionPermission(name,permission,arguments);
       if(!hasPermission(required)){rejectPermission(required,name);return}
       return base.apply(this,arguments)
@@ -292,7 +303,7 @@ function normalizedServerWarehouse(item){
 }
 async function synchronizeCompanyWarehouseRegistry(){
   const B=window.TeplitsaWarehouseBootstrap;
-  if(!B||desktopSession?.edition==='demo'||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
+  if(!B||isTrainingEnvironment()||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
   const response=await window.JustFunDesktop?.regVps?.warehouses?.({environment:'live'});
   if(!response?.ok||response.configured!==true){
     audit('company_warehouse_registry_unavailable',{code:response?.code||'',error:response?.error||'',configured:response?.configured===true});
@@ -333,11 +344,11 @@ async function synchronizeCompanyWarehouseRegistry(){
 }
 window.JustFunWarehouseRegistryV783=Object.freeze({refresh:synchronizeCompanyWarehouseRegistry,showNoWarehouse:renderNoWarehouse});
 function requiresAuthoritativeWarehouseRegistry(){
-  if(desktopSession?.edition==='demo'||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
+  if(isTrainingEnvironment()||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
   const companyId=String(desktopSession?.auth?.company?.id||''),pending=pendingWarehouseDeleteId();return !companyId||String(registry().serverWorkspaceId||'')!==companyId||Boolean(pending&&registry().warehouses.some(item=>String(item.id)===pending))
 }
 async function restoreFreshComputerWorkspace(){
-  if(desktopSession?.edition==='demo'||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
+  if(isTrainingEnvironment()||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return false;
   const warehouseId=activeWarehouseId(),environment=activeEnvironment();resetEntityScope();
   if(cloudSyncState.bootstrapped&&cloudSyncState.known.size)return false;
   const counts=window.TeplitsaWarehouseV600?.counts?.()||{},businessCount=Number(counts.orders||0)+Number(counts.movements||0)+Number(counts.routes||0)+Number(counts.executions||0)+Number(counts.archives||0);
@@ -348,7 +359,7 @@ async function restoreFreshComputerWorkspace(){
 function mountWorkspace(){
   installAutomaticCloudSync();
   clearWorkspaceReloadGuard();
-  document.documentElement.classList.add('jf-authenticated');addDesktopStrip();applyPermissions();installGuards();installEntityCommandGuards();applyBrand();installUserManagement();installIntegrationPanel();installTelegramDriverActions();installTelegramRouteActions();installLogDiagnostics();installHelp();if(desktopSession?.edition==='demo')enableLicensedDemo();setTimeout(()=>{try{window.renderAll?.();refreshTelegramBindings().then(promptRequiredWarehouseTelegram).catch(()=>promptRequiredWarehouseTelegram());startTelegramPolling()}catch{}},0)
+  document.documentElement.classList.add('jf-authenticated');addDesktopStrip();applyPermissions();installGuards();installEntityCommandGuards();applyBrand();installUserManagement();installIntegrationPanel();installLogDiagnostics();installHelp();if(!isTrainingEnvironment()){installTelegramDriverActions();installTelegramRouteActions()}if(desktopSession?.edition==='demo')enableLicensedDemo();setTimeout(()=>{try{window.renderAll?.();if(!isTrainingEnvironment()){refreshTelegramBindings().then(promptRequiredWarehouseTelegram).catch(()=>promptRequiredWarehouseTelegram());startTelegramPolling()}}catch{}},0)
 }
 async function confirmActiveWarehouseContext(){
   const bridge=window.JustFunDesktop?.setActiveWarehouse;if(typeof bridge!=='function')return true;
@@ -357,7 +368,7 @@ async function confirmActiveWarehouseContext(){
   return true
 }
 async function synchronizeWorkspaceInBackground(){
-  if(backgroundWorkspaceSyncStarted||desktopSession?.edition==='demo'||desktopSession?.auth?.offline)return;
+  if(backgroundWorkspaceSyncStarted||isTrainingEnvironment()||desktopSession?.auth?.offline)return;
   backgroundWorkspaceSyncStarted=true;
   try{
     const before=activeWarehouseId();await synchronizeCompanyWarehouseRegistry();const allowed=allowedWarehouseIds();
@@ -404,11 +415,11 @@ window.JustFunDialog=Object.freeze({
 window.jfConfirm=(message,options={})=>{const text=String(message||''),danger=/безвозврат|удалить|очист|заменить локальный|восстановить данные|отменить операц/i.test(text);return window.JustFunDialog.confirm(text,{title:danger?'Подтвердите важное действие':'Подтвердите действие',confirmLabel:danger?'Подтвердить':'Продолжить',kind:danger?'danger':'warning',...options})};
 window.jfPrompt=(message,defaultValue='',options={})=>window.JustFunDialog.prompt(message,defaultValue,{title:'Введите подтверждение',confirmLabel:'Продолжить',...options});
 function modernAlert(){window.JustFunOverrides.replace('alert','desktop-dialogs-v750',function(message){toast(message,/ошиб|нельзя|запрещ|не удалось/i.test(String(message))?'error':'ok')})}
-async function openProfile(){const returnFocus=document.activeElement;let modal=q('#jfProfileModal');if(!modal){modal=document.createElement('div');modal.id='jfProfileModal';modal.className='jf-profile-modal';document.body.append(modal)}const warehouses=allowedWarehouseIds().map(x=>registry().warehouses.find(w=>String(w.id)===x)?.name).filter(Boolean).map(esc).join(', ')||'Нет';const connection=desktopSession?.edition==='demo'?'Демонстрационная учётная запись':desktopSession?.auth?.offline?'Автономный доступ до '+new Date(desktopSession.auth.offline_expires_at).toLocaleString('ru-RU'):'Защищённый сервер подтверждён';modal.innerHTML=`<div class="jf-dialog"><h2>Профиль пользователя</h2><p class="muted">${esc(currentUser.fullName)} · ${esc(ROLE_LABELS[roleFor()]||roleFor())}</p><div class="jf-auth-grid"><div class="jf-auth-field"><label>Логин</label><div>${esc(currentUser.login||'demo')}</div></div><div class="jf-auth-field"><label>Роль</label><div>${esc(ROLE_LABELS[roleFor()]||roleFor())}</div></div><div class="jf-auth-field"><label>Компания</label><div>${esc(currentUser.companyName||'—')}</div></div><div class="jf-auth-field"><label>Код компании</label><div>${esc(currentUser.companyCode||'DEMO')}</div></div><div class="jf-auth-field"><label>Версия программы</label><div>${VERSION}</div></div><div class="jf-auth-field"><label>Устройство</label><div>${esc(currentUser.deviceId||'Локальный компьютер')}</div></div><div class="jf-auth-field span-2"><label>Разрешённые склады</label><div>${warehouses}</div></div><div class="jf-auth-field span-2"><label>Telegram активного склада</label><div id="jfProfileTelegram">Проверяется…</div></div><div class="jf-auth-field span-2"><label>Состояние доступа</label><div>${esc(connection)}</div></div></div><div class="jf-dialog-actions"><button class="btn-primary" id="jfProfileClose">Закрыть</button></div></div>`;modal.classList.add('open');q('#jfProfileClose').onclick=()=>{modal.classList.remove('open');if(returnFocus&&document.contains(returnFocus))returnFocus.focus()};try{const telegram=await window.JustFunDesktop?.telegramCloudflare?.status?.({warehouseId:activeWarehouseId()}),field=q('#jfProfileTelegram');if(field&&modal.classList.contains('open'))field.textContent=telegram?.configured?`${activeWarehouseLabel()} · @${telegram.botUsername||'имя не получено'} · ${telegram.online?'работает':'требует восстановления'}`:`${activeWarehouseLabel()} · бот не подключён`}catch(error){const field=q('#jfProfileTelegram');if(field&&modal.classList.contains('open'))field.textContent=`${activeWarehouseLabel()} · проверка недоступна`}}
+async function openProfile(){const returnFocus=document.activeElement;let modal=q('#jfProfileModal');if(!modal){modal=document.createElement('div');modal.id='jfProfileModal';modal.className='jf-profile-modal';document.body.append(modal)}const warehouses=allowedWarehouseIds().map(x=>registry().warehouses.find(w=>String(w.id)===x)?.name).filter(Boolean).map(esc).join(', ')||'Нет';const connection=isTrainingEnvironment()?'Учебный режим: реальные сервисы не изменяются':desktopSession?.auth?.offline?'Автономный доступ до '+new Date(desktopSession.auth.offline_expires_at).toLocaleString('ru-RU'):'Защищённый сервер подтверждён';modal.innerHTML=`<div class="jf-dialog"><h2>Профиль пользователя</h2><p class="muted">${esc(currentUser.fullName)} · ${esc(ROLE_LABELS[roleFor()]||roleFor())}</p><div class="jf-auth-grid"><div class="jf-auth-field"><label>Логин</label><div>${esc(currentUser.login||'demo')}</div></div><div class="jf-auth-field"><label>Роль</label><div>${esc(ROLE_LABELS[roleFor()]||roleFor())}</div></div><div class="jf-auth-field"><label>Компания</label><div>${esc(currentUser.companyName||'—')}</div></div><div class="jf-auth-field"><label>Код компании</label><div>${esc(currentUser.companyCode||'DEMO')}</div></div><div class="jf-auth-field"><label>Версия программы</label><div>${VERSION}</div></div><div class="jf-auth-field"><label>Устройство</label><div>${esc(currentUser.deviceId||'Локальный компьютер')}</div></div><div class="jf-auth-field span-2"><label>Разрешённые склады</label><div>${warehouses}</div></div><div class="jf-auth-field span-2"><label>Telegram активного склада</label><div id="jfProfileTelegram">${isTrainingEnvironment()?'Отключён в учебном режиме':'Проверяется…'}</div></div><div class="jf-auth-field span-2"><label>Состояние доступа</label><div>${esc(connection)}</div></div></div><div class="jf-dialog-actions"><button class="btn-primary" id="jfProfileClose">Закрыть</button></div></div>`;modal.classList.add('open');q('#jfProfileClose').onclick=()=>{modal.classList.remove('open');if(returnFocus&&document.contains(returnFocus))returnFocus.focus()};if(isTrainingEnvironment())return;try{const telegram=await window.JustFunDesktop?.telegramCloudflare?.status?.({warehouseId:activeWarehouseId()}),field=q('#jfProfileTelegram');if(field&&modal.classList.contains('open'))field.textContent=telegram?.configured?`${activeWarehouseLabel()} · @${telegram.botUsername||'имя не получено'} · ${telegram.online?'работает':'требует восстановления'}`:`${activeWarehouseLabel()} · бот не подключён`}catch(error){const field=q('#jfProfileTelegram');if(field&&modal.classList.contains('open'))field.textContent=`${activeWarehouseLabel()} · проверка недоступна`}}
 function installUserManagement(){if(!hasPermission('users.read'))return;const grid=q('#programSettingsView .settings-grid');if(!grid||q('#jfUsersBox'))return;const box=document.createElement('div');box.id='jfUsersBox';box.className='settings-box span-2 jf-users-panel';grid.prepend(box);renderUsersPanel()}
 async function renderUsersPanel(){
   const box=q('#jfUsersBox');if(!box)return;
-  if(desktopSession?.edition==='demo'){box.innerHTML='<h3>Пользователи и права доступа</h3><p>В демонстрации используется автоматический администратор. Реальные сотрудники создаются только в полной версии.</p>';return}
+  if(isTrainingEnvironment()){box.innerHTML='<h3>Пользователи и права доступа</h3><p>Учебный режим не читает и не изменяет реальных сотрудников. Переключитесь в рабочий режим для управления доступом.</p>';return}
   box.innerHTML='<h3>Пользователи и права доступа</h3><p>Загрузка списка с Cloudflare…</p>';
   const [ur,dr]=await Promise.all([window.JustFunDesktop.auth.users(),window.JustFunDesktop.auth.devices()]);
   if(!ur?.ok){box.innerHTML=`<h3>Пользователи и права доступа</h3><div class="notice notice-warn">${esc(cloudResultError(ur))}</div>`;return}
@@ -439,6 +450,8 @@ function openUserAccessEditor(user){
   q('#jfUserAccessForm').onsubmit=async event=>{event.preventDefault();const roleInput=q('#jfAccessRole'),role=roleInput.value.trim().replace(/\s+/g,' '),permissions=qa('input[name="jfAccessPermission"]:checked',modal).map(x=>x.value),allWarehouses=all.checked,warehouseIds=checks().filter(x=>x.checked).map(x=>x.value),statusBox=q('#jfAccessStatus'),submit=q('#jfAccessSubmit');if(!validCustomRole(role))return accessFormError(modal,statusBox,'Название роли: 2–50 букв или цифр. Слово «owner» зарезервировано.',roleInput);if(!permissions.length)return accessFormError(modal,statusBox,'Выберите хотя бы одно действие сотрудника.');if(!allWarehouses&&!warehouseIds.length)return accessFormError(modal,statusBox,'Выберите хотя бы один склад.');statusBox.textContent='Сохраняем права…';statusBox.className='jf-auth-status';submit.disabled=true;const result=await window.JustFunDesktop.auth.setUserAccess({userId:user.id,role,permissions:cloudPermissions(permissions,allWarehouses,warehouseIds)});submit.disabled=false;if(!result?.ok)return accessFormError(modal,statusBox,cloudResultError(result));modal.classList.remove('open');toast('Название роли, права и склады сотрудника обновлены.','ok');await renderUsersPanel()}
 }
 function activeEnvironment(){return window.TeplitsaWarehouseBootstrap?.isDemo?.()?'demo':'live'}
+function isTrainingEnvironment(){return desktopSession?.edition==='demo'||window.TeplitsaWarehouseBootstrap?.isDemo?.()===true}
+function userVisibleError(error,fallback='Операция не выполнена'){return String(error?.message||error||fallback).replace(/^Error:\s*/i,'').trim()||fallback}
 function activeWarehouseLabel(){const w=registry().warehouses.find(x=>String(x.id)===activeWarehouseId());return w?.name||w?.code||'Активный склад'}
 function setIntegrationBusy(button,busy){if(button){button.disabled=!!busy;button.dataset.originalText=button.dataset.originalText||button.textContent;if(busy)button.textContent='Выполняется…';else button.textContent=button.dataset.originalText}}
 function setIntegrationWizardBusy(activeButton,busy){
@@ -559,7 +572,7 @@ function knownWarehouseVersion(record){
   return Number.isSafeInteger(Number(known?.version))?Number(known.version):(Number.isSafeInteger(stored)&&stored>=0?stored:0)
 }
 async function writeAuthoritativeWarehouse(record,{deleted=false,baseVersion,initialSettings=null,initialCompany=null}={}){
-  if(desktopSession?.edition==='demo')return{ok:true,skipped:true,version:Number(baseVersion)||0};
+  if(isTrainingEnvironment())return{ok:true,skipped:true,version:Number(baseVersion)||0};
   if(desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.writeWarehouse)throw new Error('Изменение склада требует рабочего VPS. Локальный кэш открыт только для чтения.');
   const id=String(record?.id||'');if(!id)throw new Error('Идентификатор склада не определён.');
   const version=baseVersion==null?knownWarehouseVersion(record):Number(baseVersion),payload=deleted?null:{...cloneValue(record),id,environment:WAREHOUSE_REGISTRY_ENVIRONMENT};
@@ -586,7 +599,7 @@ function initialServerSeedChanges(localSnapshot){
   return changes
 }
 async function bootstrapEntitySync(force=false){
-  if(desktopSession?.edition==='demo'||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.bootstrapEntities)return false;
+  if(isTrainingEnvironment()||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.bootstrapEntities)return false;
   resetEntityScope();if(cloudSyncState.bootstrapped&&!force)return true;if(cloudSyncState.bootstrapPromise)return cloudSyncState.bootstrapPromise;
   cloudSyncState.bootstrapPromise=(async()=>{
     const warehouseId=activeWarehouseId(),environment=activeEnvironment(),localSnapshot=buildBackupPayload();let result=await window.JustFunDesktop.regVps.bootstrapEntities({warehouseId,environment});
@@ -611,11 +624,11 @@ async function bootstrapEntitySync(force=false){
   return cloudSyncState.bootstrapPromise;
 }
 function scheduleCloudUpload(){
-  if(cloudSyncState.suspended||desktopSession?.edition==='demo'||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
+  if(cloudSyncState.suspended||isTrainingEnvironment()||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)return;
   resetEntityScope();cloudSyncState.dirty=true;cloudSyncState.serial++;
 }
 function installAutomaticCloudSync(){
-  if(cloudSyncState.installed||desktopSession?.edition==='demo')return;cloudSyncState.installed=true;
+  if(cloudSyncState.installed||isTrainingEnvironment())return;cloudSyncState.installed=true;
   const names=['persistOrders','persistProducts','persistInventoryMovements','persistDrivers','persistSettings','persistRoutes','persistRouteAssignments','persistRouteDrivers','persistRouteLocks','persistRouteOverrides','persistRouteExecutions','persistRouteArchives','persistWarehouseReservations','persistReporting'];
   for(const name of names){const base=window[name];if(typeof base!=='function')continue;window[name]=function(){const result=base.apply(this,arguments);scheduleCloudUpload();return result}}
   setTimeout(()=>bootstrapEntitySync().catch(error=>{integrationBadge('jfRegBadge','Требуется обновление VPS','error');integrationStatus('jfRegStatus',error?.message||String(error),'error')}),250);
@@ -646,7 +659,7 @@ async function waitForEntitySyncIdle(){
 }
 let entityCommandChain=Promise.resolve();
 function commitEntityMutation(intent,mutation){
-  if(desktopSession?.edition==='demo')return Promise.resolve().then(mutation);
+  if(isTrainingEnvironment())return Promise.resolve().then(mutation);
   if(desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.syncEntities){const message='Изменение требует подтверждения рабочего VPS. Проверьте соединение и повторите действие.';toast(message,'error');audit('server_mutation_offline_blocked',{kind:intent?.kind||'',targetId:intent?.targetId||''});return Promise.resolve(false)}
   const execute=async()=>{
     let rollbackSnapshot=null;
@@ -707,7 +720,7 @@ async function backgroundCloudUpload(){
   }finally{cloudSyncState.inFlight=false}
 }
 async function flushEntitySyncBeforeContextChange(){
-  if(desktopSession?.edition==='demo')return true;
+  if(isTrainingEnvironment())return true;
   if(desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service)throw new Error('Рабочий VPS недоступен: изменения не подтверждены сервером.');
   await bootstrapEntitySync();await waitForEntitySyncIdle();
   if(cloudSyncState.conflicts.size)throw new Error(`Есть неразрешённые конфликты: ${cloudSyncState.conflicts.size}.`);
@@ -810,9 +823,9 @@ function promptRequiredWarehouseTelegram(){
   if(q('#jfWarehouseTelegramRequired'))return;const modal=document.createElement('div');modal.id='jfWarehouseTelegramRequired';modal.className='jf-profile-modal open';modal.innerHTML=`<div class="jf-dialog"><h2>Подключите Telegram нового склада</h2><p>Для склада «${esc(activeWarehouseLabel())}» нужен отдельный бот и отдельная группа. Так сообщения разных складов не смешиваются.</p><div class="jf-settings-help"><b>После подключения группа будет получать:</b><br>состав рейса, общий список товара, порядок погрузки, время подачи машины, дефицит и статусы сборки.</div><div class="jf-dialog-actions"><button class="btn-primary" id="jfWarehouseTelegramOpen">Перейти к подключению</button></div></div>`;document.body.append(modal);q('#jfWarehouseTelegramOpen').onclick=openWarehouseTelegramSetup
 }
 function installIntegrationPanel(){
-  const boxes=qa('#jfRegIntegrationsBox,#jfTelegramIntegrationsBox,#jfIntegrationsBox');if(!boxes.length||boxes.every(box=>box.dataset.bound==='1')||!hasPermission('company.update'))return;boxes.forEach(box=>box.dataset.bound='1');if(!telegramProgressBound&&window.JustFunDesktop?.telegramCloudflare?.onProgress){window.JustFunDesktop.telegramCloudflare.onProgress(renderTelegramProgress);telegramProgressBound=true;}if(!telegramCompanyPublishBound&&window.JustFunDesktop?.telegramCloudflare?.onCompanyPublished){window.JustFunDesktop.telegramCloudflare.onCompanyPublished(()=>refreshTelegramStatus().catch(error=>integrationStatus('jfTelegramStatus',error?.message||error,'error')));telegramCompanyPublishBound=true;}q('#jfRegConfigure').onclick=configureRegVps;q('#jfRegCheck').onclick=()=>refreshRegVpsStatus({manual:true});q('#jfRegSync').onclick=syncActiveWarehouse;q('#jfRegRestore').onclick=restoreActiveWarehouseFromVps;q('#jfTelegramConfigure').onclick=()=>configureTelegram(false);q('#jfTelegramReconnect').onclick=repairTelegram;q('#jfTelegramCheck').onclick=refreshTelegramStatus;q('#jfTelegramWarehouse').onclick=bindActiveWarehouseTelegram;refreshRegVpsStatus().catch(error=>integrationStatus('jfRegStatus',error?.message||error,'error'));refreshTelegramStatus().catch(error=>integrationStatus('jfTelegramStatus',error?.message||error,'error'))
+  const boxes=qa('#jfRegIntegrationsBox,#jfTelegramIntegrationsBox,#jfIntegrationsBox');if(!boxes.length||boxes.every(box=>box.dataset.bound==='1')||!hasPermission('company.update'))return;if(isTrainingEnvironment()){boxes.forEach(box=>{box.dataset.bound='1';qa('button',box).forEach(button=>{button.disabled=true;button.classList.add('jf-role-hidden')})});integrationBadge('jfRegBadge','Учебный режим');integrationStatus('jfRegStatus','Подключение VPS доступно только в рабочем режиме.');integrationBadge('jfTelegramBadge','Учебный режим');integrationStatus('jfTelegramStatus','Подключение Telegram доступно только в рабочем режиме.');return}boxes.forEach(box=>box.dataset.bound='1');if(!telegramProgressBound&&window.JustFunDesktop?.telegramCloudflare?.onProgress){window.JustFunDesktop.telegramCloudflare.onProgress(renderTelegramProgress);telegramProgressBound=true;}if(!telegramCompanyPublishBound&&window.JustFunDesktop?.telegramCloudflare?.onCompanyPublished){window.JustFunDesktop.telegramCloudflare.onCompanyPublished(()=>refreshTelegramStatus().catch(error=>integrationStatus('jfTelegramStatus',userVisibleError(error),'error')));telegramCompanyPublishBound=true;}q('#jfRegConfigure').onclick=configureRegVps;q('#jfRegCheck').onclick=()=>refreshRegVpsStatus({manual:true});q('#jfRegSync').onclick=syncActiveWarehouse;q('#jfRegRestore').onclick=restoreActiveWarehouseFromVps;q('#jfTelegramConfigure').onclick=()=>configureTelegram(false);q('#jfTelegramReconnect').onclick=repairTelegram;q('#jfTelegramCheck').onclick=refreshTelegramStatus;q('#jfTelegramWarehouse').onclick=bindActiveWarehouseTelegram;refreshRegVpsStatus().catch(error=>integrationStatus('jfRegStatus',userVisibleError(error),'error'));refreshTelegramStatus().catch(error=>integrationStatus('jfTelegramStatus',userVisibleError(error),'error'))
 }
-function telegramEnvironment(){return desktopSession?.edition==='demo'?'demo':'live'}
+function telegramEnvironment(){return activeEnvironment()}
 function telegramScopeKey(){return`${telegramEnvironment()}:${activeWarehouseId()}`}
 function loadTelegramRouteState(){
   const scope=telegramScopeKey();if(scope===telegramRouteScope)return;
@@ -950,7 +963,7 @@ async function pollTelegramEventsOnce(){
 }
 function stopTelegramPolling(){if(telegramPollTimer)clearTimeout(telegramPollTimer);telegramPollTimer=null;telegramPollFailures=0}
 function telegramPollDelay(){return Math.min(5*60*1000,15000*Math.pow(2,Math.min(5,telegramPollFailures)))}
-async function telegramPollingStep(){telegramPollTimer=null;if(!currentUser||(desktopSession?.edition!=='demo'&&!desktopSession?.auth)){stopTelegramPolling();return}try{if(telegramPollingConfigured===null){const status=await window.JustFunDesktop?.telegramCloudflare?.status?.({warehouseId:activeWarehouseId()});lastTelegramStatus=status||null;telegramPollingConfigured=Boolean(status?.configured&&status?.online);renderTelegramWarehouseContext()}if(!telegramPollingConfigured){stopTelegramPolling();return}await pollTelegramEventsOnce();telegramPollFailures=0}catch(error){telegramPollFailures+=1;if(['TELEGRAM_NOT_CONFIGURED','INVALID_SESSION','AUTH_REQUIRED','WAREHOUSE_ACCESS_DENIED'].includes(String(error?.code||''))||telegramPollFailures>=7){telegramPollingConfigured=false;stopTelegramPolling();return}}telegramPollTimer=setTimeout(telegramPollingStep,telegramPollDelay())}
+async function telegramPollingStep(){telegramPollTimer=null;if(isTrainingEnvironment()||!currentUser||(desktopSession?.edition!=='demo'&&!desktopSession?.auth)){stopTelegramPolling();return}try{if(telegramPollingConfigured===null){const status=await window.JustFunDesktop?.telegramCloudflare?.status?.({warehouseId:activeWarehouseId()});lastTelegramStatus=status||null;telegramPollingConfigured=Boolean(status?.configured&&status?.online);renderTelegramWarehouseContext()}if(!telegramPollingConfigured){stopTelegramPolling();return}await pollTelegramEventsOnce();telegramPollFailures=0}catch(error){telegramPollFailures+=1;if(['TELEGRAM_NOT_CONFIGURED','INVALID_SESSION','AUTH_REQUIRED','WAREHOUSE_ACCESS_DENIED'].includes(String(error?.code||''))||telegramPollFailures>=7){telegramPollingConfigured=false;stopTelegramPolling();return}}telegramPollTimer=setTimeout(telegramPollingStep,telegramPollDelay())}
 function startTelegramPolling(){if(telegramPollTimer||telegramPollingConfigured===false)return;telegramPollTimer=setTimeout(telegramPollingStep,0)}
 function installTelegramRouteActions(){
   if(telegramRouteGuardInstalled)return;
@@ -967,8 +980,8 @@ function installTelegramDriverActions(){
 function injectTelegramDriverActions(driverId){
   const warehouseId=activeWarehouseId(),driver=typeof drivers!=='undefined'?drivers.find(x=>String(x.id)===String(driverId)):null,body=q('#driverDetailBody');if(!driver||!body||body.querySelector('.jf-telegram-driver')||String(driver.warehouseId||warehouseId)!==warehouseId)return;if(typeof driverIsAggregator==='function'&&driverIsAggregator(driver))return;
   const binding=telegramBindings.get(telegramBindingKey('driver',String(driver.id))),section=document.createElement('div');section.className='detail-section jf-telegram-driver';section.dataset.driverId=String(driver.id);section.innerHTML=`<h2 class="detail-section-title">Telegram водителя</h2><div class="jf-route-telegram-head"><div class="muted">Одноразовая ссылка относится только к водителю «${esc(driver.name)}» и складу «${esc(activeWarehouseLabel())}». Chat ID вручную не вводится.</div><span class="jf-telegram-state ${binding?'sent':''}">${binding?`Подключён${binding.username?`: @${esc(binding.username)}`:''}`:'Не подключён'}</span></div><div class="jf-telegram-driver-actions"><button class="btn-primary" type="button" data-driver-link>${binding?'Создать новую ссылку':'Подключить водителя'}</button><button class="btn-soft" type="button" data-driver-test ${binding?'':'disabled'}>Отправить проверку</button></div><div class="jf-telegram-driver-result" data-driver-result hidden></div>`;body.prepend(section);const resultBox=q('[data-driver-result]',section);
-  q('[data-driver-link]',section).onclick=async event=>{const button=event.currentTarget;setIntegrationBusy(button,true);try{const result=await window.JustFunDesktop?.telegramCloudflare?.createLink?.({warehouseId,entityType:'driver',entityId:String(driver.id),label:driver.name});if(!result?.ok)throw new Error(result?.error||'Ссылка не создана');resultBox.hidden=false;resultBox.innerHTML=`Откройте ссылку на телефоне водителя и нажмите START:<br><a href="${esc(result.deepLink)}" target="_blank" rel="noopener">${esc(result.deepLink)}</a><br><small>После START статус обновится в программе автоматически.</small>`;setTimeout(()=>pollTelegramEventsOnce().catch(()=>{}),1500)}catch(error){resultBox.hidden=false;resultBox.textContent=error?.message||error}finally{setIntegrationBusy(button,false)}};
-  q('[data-driver-test]',section).onclick=async event=>{const button=event.currentTarget;setIntegrationBusy(button,true);try{const key=`warehouse:${warehouseId}:driver:${driver.id}:test:${Date.now()}`,response=await window.JustFunDesktop?.telegramCloudflare?.sendNotification?.({warehouseId,entityType:'driver',entityId:String(driver.id),idempotencyKey:key,text:`JustFun · проверка связи\nСклад: ${activeWarehouseLabel()}\nВодитель: ${driver.name}`,statusButtons:false});if(!response?.ok)throw new Error(response?.error||'Уведомление не отправлено');resultBox.hidden=false;resultBox.textContent=response.duplicate?'Проверочное сообщение уже было отправлено.':'Проверочное сообщение отправлено.'}catch(error){resultBox.hidden=false;resultBox.textContent=error?.message||error}finally{setIntegrationBusy(button,false)}}
+  q('[data-driver-link]',section).onclick=async event=>{const button=event.currentTarget;setIntegrationBusy(button,true);try{const result=await window.JustFunDesktop?.telegramCloudflare?.createLink?.({warehouseId,entityType:'driver',entityId:String(driver.id),label:driver.name});if(!result?.ok)throw new Error(result?.error||'Ссылка не создана');resultBox.hidden=false;resultBox.innerHTML=`Откройте ссылку на телефоне водителя и нажмите START:<br><a href="${esc(result.deepLink)}" target="_blank" rel="noopener">${esc(result.deepLink)}</a><br><small>После START статус обновится в программе автоматически.</small>`;setTimeout(()=>pollTelegramEventsOnce().catch(()=>{}),1500)}catch(error){resultBox.hidden=false;resultBox.textContent=userVisibleError(error,'Ссылка не создана')}finally{setIntegrationBusy(button,false)}};
+  q('[data-driver-test]',section).onclick=async event=>{const button=event.currentTarget;setIntegrationBusy(button,true);try{const key=`warehouse:${warehouseId}:driver:${driver.id}:test:${Date.now()}`,response=await window.JustFunDesktop?.telegramCloudflare?.sendNotification?.({warehouseId,entityType:'driver',entityId:String(driver.id),idempotencyKey:key,text:`JustFun · проверка связи\nСклад: ${activeWarehouseLabel()}\nВодитель: ${driver.name}`,statusButtons:false});if(!response?.ok)throw new Error(response?.error||'Уведомление не отправлено');resultBox.hidden=false;resultBox.textContent=response.duplicate?'Проверочное сообщение уже было отправлено.':'Проверочное сообщение отправлено.'}catch(error){resultBox.hidden=false;resultBox.textContent=userVisibleError(error,'Уведомление не отправлено')}finally{setIntegrationBusy(button,false)}}
 }
 const HELP={
   warehousePoint:{

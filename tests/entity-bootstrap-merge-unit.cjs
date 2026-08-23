@@ -32,6 +32,7 @@ const context={
   ENTITY_SETTINGS_ROUTE_FIELDS:['routeStartTime'],
   ENTITY_SETTINGS_INTEGRATION_FIELDS:['nominatimUrl'],
 };
+context.isTrainingEnvironment=()=>context.activeEnvironment()==='demo';
 vm.createContext(context);
 vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(start,end)}\nglobalThis.__fromServer=snapshotFromServerEntities;globalThis.__fp=entityFingerprint;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;`,context);
 assert.equal(typeof context.window.JustFunServerStorageV3?.writeWarehouse,'function','browser storage export remains available in the extracted fragment');
@@ -107,6 +108,7 @@ async function verifyWarehouseRegistryReconciliation(){
     currentUser:null,
     users:[],
   };
+  syncContext.isTrainingEnvironment=()=>syncContext.desktopSession.edition==='demo'||activeEnvironmentValue==='demo';
   vm.createContext(syncContext);
   vm.runInContext(`${renderer.slice(syncStart,syncEnd)}\nglobalThis.__syncWarehouseRegistry=synchronizeCompanyWarehouseRegistry;globalThis.__applyTransition=applyWarehouseRegistryTransition;globalThis.__routingDepot=()=>[settings.warehouse.lat,settings.warehouse.lon];globalThis.__pendingMetadata=()=>pendingActiveWarehouseMetadataChangeV783;`,syncContext);
   assert.equal(await syncContext.__syncWarehouseRegistry(),false,'active warehouse remains unchanged');
@@ -131,22 +133,20 @@ async function verifyWarehouseRegistryReconciliation(){
   activeEnvironmentValue='demo';
   syncContext.settings.warehouse={address:'Старый адрес DEMO',lat:55.5,lon:37.5};
   remoteWarehouses=[{id:'warehouse-1',name:'Новый склад DEMO',code:'ДМО',address:'Новый адрес DEMO',lat:61.03,lon:32.04,timezone:'Europe/Moscow',status:'active',entity_version:6,digest_sha256:'digest-6'}];
-  assert.equal(await syncContext.__syncWarehouseRegistry(),true,'canonical live registry metadata also refreshes an open DEMO workspace');
-  assert.equal(syncContext.__applyTransition('warehouse-1','same-id-demo-metadata'),true);
-  assert.deepEqual(Array.from(syncContext.__routingDepot()),[61.03,32.04],'DEMO routing must not retain stale depot coordinates');
-  assert.equal(syncContext.settings.warehouse.address,'Новый адрес DEMO');
-  assert.equal(settingsWrites.at(-1).environment,'demo','metadata is persisted in the currently open DEMO data scope');
-  assert.equal(syncContext.window.__jfActiveWarehouseMetadataV783.environment,'demo');
+  assert.equal(await syncContext.__syncWarehouseRegistry(),false,'an open training workspace must not read or mutate the live warehouse registry');
+  assert.deepEqual(Array.from(syncContext.__routingDepot()),[55.5,37.5],'training routing keeps its isolated local depot coordinates');
+  assert.equal(syncContext.settings.warehouse.address,'Старый адрес DEMO');
   assert.equal(syncContext.cloudSyncState.dirty,true);
-  assert.equal(syncContext.window.__jfWarehouseMetadataEpochV783,2);
 
+  activeEnvironmentValue='live';
   syncContext.settings.warehouse={address:'Прерванное старое значение',lat:1,lon:2};
   syncContext.settings.warehouseProfile={id:'warehouse-1',code:'СТР',name:'Старое имя',timezone:'Europe/Moscow'};
   assert.equal(await syncContext.__syncWarehouseRegistry(),true,'a restart gap with an already-current registry still repairs stale active settings');
-  assert.equal(syncContext.__applyTransition('warehouse-1','same-id-demo-restart-recovery'),true);
+  assert.equal(syncContext.__applyTransition('warehouse-1','same-id-live-restart-recovery'),true);
   assert.deepEqual(Array.from(syncContext.__routingDepot()),[61.03,32.04]);
   assert.equal(syncContext.settings.warehouseProfile.code,'ДМО');
-  assert.equal(syncContext.window.__jfWarehouseMetadataEpochV783,3);
+  assert.equal(settingsWrites.at(-1).environment,'live');
+  assert.equal(syncContext.window.__jfWarehouseMetadataEpochV783,2);
 
   remoteWarehouses=[
     {id:'warehouse-1',name:'Архив 1',code:'А01',status:'archived',entity_version:7,digest_sha256:'digest-7'},
@@ -214,12 +214,13 @@ function verifyWarehouseCreateAccessExport(){
   const accessEnd=renderer.indexOf('function resolvedFunctionPermission',accessStart);
   assert(accessStart>=0&&accessEnd>accessStart,'warehouse access source fragment is available');
   const accessContext={
-    window:{},
+    window:{TeplitsaWarehouseBootstrap:{isDemo:()=>false}},
     currentUser:{role:'manager',serverRole:'manager',permissions:['warehouses.manage'],allWarehouses:false},
     desktopSession:{edition:'full'},
     LEGACY_PERMISSION_EXPANSIONS:{},
     LOCAL_ROLE_PERMISSIONS:{manager:[]},
   };
+  accessContext.isTrainingEnvironment=()=>accessContext.desktopSession.edition==='demo'||accessContext.window.TeplitsaWarehouseBootstrap.isDemo()===true;
   vm.createContext(accessContext);
   vm.runInContext(renderer.slice(accessStart,accessEnd),accessContext);
   assert(Object.isFrozen(accessContext.window.JustFunWarehouseAccessV783));
@@ -228,6 +229,10 @@ function verifyWarehouseCreateAccessExport(){
   accessContext.currentUser.allWarehouses=true;
   assert.equal(accessContext.window.JustFunWarehouseAccessV783.canCreate(),true,'warehouse management plus all-warehouse scope permits creation');
   assert.equal(accessContext.window.JustFunWarehouseAccessV783.canDelete(),true,'warehouse management plus all-warehouse scope permits deletion');
+  accessContext.window.TeplitsaWarehouseBootstrap.isDemo=()=>true;
+  assert.equal(accessContext.window.JustFunWarehouseAccessV783.canCreate(),false,'the training data environment must not expose live warehouse creation');
+  assert.equal(accessContext.window.JustFunWarehouseAccessV783.canDelete(),false,'the training data environment must not expose live warehouse deletion');
+  accessContext.window.TeplitsaWarehouseBootstrap.isDemo=()=>false;
   accessContext.currentUser.permissions=[];
   assert.equal(accessContext.window.JustFunWarehouseAccessV783.canCreate(),false,'all-warehouse scope alone is not a warehouse management permission');
   assert.equal(accessContext.window.JustFunWarehouseAccessV783.canDelete(),false,'all-warehouse scope alone is not a warehouse deletion permission');
@@ -302,6 +307,7 @@ async function verifyWarehouseStorageIsolation(){
     ENTITY_SETTINGS_ROUTE_FIELDS:['routeStartTime'],
     ENTITY_SETTINGS_INTEGRATION_FIELDS:['nominatimUrl'],
   };
+  storageContext.isTrainingEnvironment=()=>storageContext.desktopSession.edition==='demo'||storageContext.activeEnvironment()==='demo';
   vm.createContext(storageContext);
   vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(start,end)}\nglobalThis.__writeWarehouse=writeAuthoritativeWarehouse;globalThis.__cloudSyncState=cloudSyncState;globalThis.__entityScope=entityScope;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;`,storageContext);
   storageContext.__cloudSyncState.scope=storageContext.__entityScope();
@@ -377,6 +383,7 @@ async function verifyWarehouseRegistryTransitions(){
     renderWarehouseLoading:()=>{renderState='loading'},
     synchronizeCompanyWarehouseRegistry:async()=>{syncCalls++},
   };
+  transitionContext.isTrainingEnvironment=()=>transitionContext.desktopSession.edition==='demo';
   vm.createContext(transitionContext);
   vm.runInContext(`${renderer.slice(transitionStart,transitionEnd)}\n${renderer.slice(requiresStart,requiresEnd)}\n${renderer.slice(periodicStart,periodicEnd)}\nglobalThis.__applyTransition=applyWarehouseRegistryTransition;globalThis.__requiresRegistry=requiresAuthoritativeWarehouseRegistry;globalThis.__refreshRegistry=refreshWarehouseRegistryDuringPollingV783;globalThis.__reloadKey=workspaceReloadKey;`,transitionContext);
 
@@ -416,5 +423,5 @@ async function verifyWarehouseRegistryTransitions(){
 }
 
 Promise.all([verifyWarehouseRegistryReconciliation(),verifyWarehouseStorageIsolation(),verifyWarehouseRegistryTransitions(),verifyRouteCalculationRejectsStaleDepot(),verifyWarehouseCreateAccessExport(),verifyAuthoritativeEmptyCreateAction(),verifyWarehouseLifecycleUiSource()])
-  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,activeMetadataRefreshDemo:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true})))
+  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true})))
   .catch(error=>{console.error(error);process.exitCode=1});

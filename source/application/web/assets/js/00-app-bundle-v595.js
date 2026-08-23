@@ -2561,7 +2561,7 @@ function routeLifecycleV560(def,plan=validRoutePlan(def)){
   const readiness=routeReadinessV560(def,plan);if(readiness.ready)return{code:'ready',label:'Готов к выезду',className:'route-stage-ready'};if(!plan)return{code:'draft',label:'Черновик',className:'route-stage-draft'};return{code:'needs_action',label:'Требует решения',className:'route-stage-problem'}
 }
 function routeStageMatchesV560(code){if(routeStageFilterV560==='all')return true;if(routeStageFilterV560==='planning')return['draft','needs_action'].includes(code);if(routeStageFilterV560==='ready')return['ready','loading'].includes(code);if(routeStageFilterV560==='active')return code==='in_transit';if(routeStageFilterV560==='closing')return code==='awaiting_close';if(routeStageFilterV560==='problem')return code==='needs_action';return true}
-function setRouteStageFilterV560(value){routeStageFilterV560=value||'all';applyRouteStageFilterV560()}
+function setRouteStageFilterV560(value){routeStageFilterV560=value||'all';applyRouteStageFilterV560();document.dispatchEvent(new CustomEvent('jf:route-stage-filter-changed'))}
 
 function routeChecklistHtmlV560(readiness,lifecycle){
   if(readiness.execution||settings.routeHintsEnabled!==true)return'';
