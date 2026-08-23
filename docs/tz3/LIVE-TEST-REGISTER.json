@@ -256,8 +256,140 @@
         "updater remains disabled",
         "no signed staging catalog or live Windows update"
       ]
+    },
+    {
+      "step_id": "JF3-S0019",
+      "stage": 2,
+      "action": "implement durable end-to-end warehouse deletion lifecycle",
+      "result": "SOURCE PASS",
+      "commit": "d55ab31e1fec5da6d54c1d5d7d9d7bdb2ab25d6b",
+      "implemented": [
+        "durable prepare and lease contract",
+        "archive-before-delete and atomic LIVE/DEMO tombstones",
+        "business history payload redaction",
+        "HMAC-attested central Telegram deprovision",
+        "secret-free PostgreSQL release outbox",
+        "actor and session scoped desktop recovery journal"
+      ],
+      "tests": {
+        "local_pr_runnable": "64/64 PASS",
+        "postgres_local": "22 discovered, skipped because no DSN"
+      },
+      "limitations": [
+        "production services not deployed",
+        "installed application not tested",
+        "multi-PC acceptance not run"
+      ]
+    },
+    {
+      "step_id": "JF3-S0020",
+      "stage": 2,
+      "action": "run first mandatory PostgreSQL CI and record tombstone failure",
+      "result": "FAIL FOUND AND FIXED",
+      "commit": "d55ab31e1fec5da6d54c1d5d7d9d7bdb2ab25d6b",
+      "audit_run": 32624425249,
+      "tests": {
+        "safe_passed": 63,
+        "safe_failed": 1,
+        "postgres_discovered": 22
+      },
+      "finding": "payload=null tombstone was misclassified as an immutable identity mutation before final lease validation",
+      "cancelled_stale_windows_run": 32624425321,
+      "release_effect": "BLOCKED"
+    },
+    {
+      "step_id": "JF3-S0021",
+      "stage": 2,
+      "action": "fix tombstone validation and rerun PostgreSQL gate",
+      "result": "PASS",
+      "commit": "c45eb07242e59fa3df95724bb283ec6d90ad07ae",
+      "audit_run": 32624837813,
+      "windows_run": {
+        "id": 32624837780,
+        "status": "completed",
+        "conclusion": "success"
+      },
+      "tests": {
+        "revision": "35/35 PASS",
+        "ci_pr_runnable": "64/64 PASS",
+        "postgresql_16": "22/22 PASS without skip"
+      },
+      "confirmed": [
+        "atomic LIVE/DEMO deletion",
+        "full rollback when lease validation fails before commit",
+        "prepared delete survives Telegram deprovision failure",
+        "RLS company and warehouse isolation",
+        "release outbox retries after temporary network failure"
+      ],
+      "release_effect": "BLOCKED"
+    },
+    {
+      "step_id": "JF3-S0022",
+      "stage": 2,
+      "action": "regenerate complete source UI inventory",
+      "result": "SOURCE INVENTORY PASS",
+      "commit": "c45eb07242e59fa3df95724bb283ec6d90ad07ae",
+      "full": {
+        "buttons": 302,
+        "controls": 695,
+        "safe_candidates": 88,
+        "destructive_or_expensive": 41,
+        "sha256": "0a87218d3c06fcce79fee8564b9855fe12b40868ff5cdd4d429f1ae19f7affed"
+      },
+      "demo": {
+        "buttons": 349,
+        "controls": 776,
+        "safe_candidates": 90,
+        "destructive_or_expensive": 41,
+        "sha256": "a367c6a19da6307f3ea2fd54c32fba79fc416b5f16a060d01f2bb6039db60387"
+      },
+      "limitations": [
+        "source inventory does not prove clicks or business outcomes",
+        "installed EXE visual acceptance not run"
+      ]
+    },
+    {
+      "step_id": "JF3-S0023",
+      "stage": 2,
+      "action": "remove duplicate audit execution for pull request branches",
+      "result": "PASS",
+      "cancelled_duplicate_run": 32624835080,
+      "retained_successful_run": 32624837813,
+      "audit_ledger_commit": "1f4f52f41536886293d2488ba772f6e7e1f66c95",
+      "test_catalog_count": 82
+    },
+    {
+      "step_id": "JF3-S0024",
+      "stage": 2,
+      "action": "complete Windows native release gate for current product source",
+      "result": "CI PASS",
+      "product_source_commit": "c45eb07242e59fa3df95724bb283ec6d90ad07ae",
+      "windows_run": 32624837780,
+      "confirmed": [
+        "Update Helper build and self-test",
+        "protected Electron payload",
+        "Recovery, update payload and premium Setup",
+        "installer screen rendering",
+        "hidden application visual acceptance",
+        "interrupted update recovery",
+        "isolated full installer acceptance",
+        "shortcut, icon and destructive-operation refusals",
+        "SBOM and release evidence"
+      ],
+      "artifact": {
+        "id": 9489539095,
+        "name": "justfun-windows-7105a7e48987ba4926730a3d7841c2f4dcf8b180",
+        "size_bytes": 1326877942,
+        "digest": "sha256:522522e4dbcd5b67e6b3813513b3274d2ea172814a8ca336e16d9aec7ad76d71"
+      },
+      "attestation": "skipped for pull request",
+      "limitations": [
+        "artifact not installed on the user's physical PC",
+        "production services not deployed",
+        "multi-PC and live business acceptance not run"
+      ]
     }
   ],
-  "current_gate": "stage-1/address-live-provider-pending",
+  "current_gate": "stage-2/production-and-live-acceptance-pending",
   "release_status": "NO-GO"
 }
