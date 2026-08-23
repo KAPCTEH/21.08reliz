@@ -54,3 +54,20 @@
 | Visual / release / tokens | PASS | контракты успешны, legacy visual risk не закрыт |
 
 Это подтверждает только исходный код и изолированный runtime. Реальная полнота адресной базы и качество на живых адресах пока не доказаны.
+
+## Адресный provider-инкремент после уточнения владельца
+
+| Проверка | Результат | Подтверждение |
+|---|---|---|
+| REG address provider | PASS | 9 изолированных тестов: строгий контракт, DaData adapter, ФИАС-код, координаты, очистка внешнего ответа, transient cache, explicit Nominatim, отсутствие локальной базы |
+| Public Nominatim policy guard | PASS | автоматический режим не может перейти на public Nominatim; явный режим отделён контрактом |
+| Desktop address broker | PASS | provider-first, company/warehouse/environment scope, повреждённый ответ отклоняется |
+| Updater compatibility | PASS | `address_search=1` обязателен в подписанном update catalog |
+| Installer source | PASS | 20/20 после изменения VPS installer |
+| Runtime smoke | PASS | 24/24 скрипта, 349 кнопок, 0 runtime errors; стенд дополнен стандартным Chromium API `structuredClone` |
+| Security / hygiene / static audit | PASS | 173 файла, 0 findings; 286 tracked files; 56 bindings / 23 overrides |
+| Current cycle / experience / release / visual / tokens | PASS | все выборочные регрессии затронутой области успешны |
+
+Зафиксированный source commit: `ad4136d` (`feat: add scoped on-demand address search`).
+
+Не проверено: реальный DaData API, production VPS, фактические лимиты тарифа, точность живых ответов и Windows UI. Ключ в исходный код не добавлялся.

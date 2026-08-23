@@ -162,13 +162,65 @@
       "release_effect": "BLOCKED",
       "blocker": "JF3-BLOCKER-002",
       "limitations": [
-        "no GAR/FIAS index",
-        "no server-side fuzzy index",
+        "no configured live address provider",
         "no golden corpus metrics",
         "no live installed-app acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0016",
+      "stage": 1,
+      "action": "replace planned GAR/FIAS import with remote on-demand address provider",
+      "owner_decision": "do not add the address database; learn to find addresses on demand",
+      "result": "PASS",
+      "commit": "ad4136d",
+      "implemented": [
+        "no GAR/FIAS archive or persistent address database",
+        "scoped versioned VPS address-search contract",
+        "DaData Suggestions adapter with FIAS identifiers and coordinates",
+        "explicit-only Nominatim fallback",
+        "public Nominatim autocomplete policy guard",
+        "transient bounded memory cache",
+        "provider key preserved by VPS reinstall without logging"
+      ],
+      "tests": {
+        "reg_address_provider": "9/9 PASS",
+        "desktop_main": "PASS",
+        "address_intelligence": "PASS",
+        "reg_map_proxy": "5/5 PASS",
+        "installer_source": "20/20 PASS",
+        "release_contract_count": 80,
+        "runtime_smoke": "24/24 scripts, 349 buttons, 0 runtime errors",
+        "security_audit": "173 files, 0 findings",
+        "source_hygiene": "286 tracked files",
+        "workflow_regressions": "PASS"
+      },
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-002",
+      "limitations": [
+        "real DaData key not configured",
+        "production VPS not checked",
+        "golden corpus metrics not run",
+        "installed Windows UI not checked"
+      ]
+    },
+    {
+      "step_id": "JF3-S0017",
+      "stage": 1,
+      "action": "harden provider response validation and rerun impacted source gates",
+      "result": "PASS",
+      "commit": "ad4136d",
+      "finding": "jsdom did not expose the standard Electron Chromium structuredClone API",
+      "resolution": "runtime harness now supplies the Chromium API; production code was not weakened",
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-002",
+      "limitations": [
+        "real provider API not exercised",
+        "production VPS not checked",
+        "installed Windows UI not checked"
+      ]
     }
   ],
-  "current_gate": "stage-1/gate-a",
+  "current_gate": "stage-1/address-live-provider-pending",
   "release_status": "NO-GO"
 }
