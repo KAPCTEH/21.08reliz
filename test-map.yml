@@ -2,7 +2,586 @@
   "schema_version": 1,
   "tests": [
     {
+      "id": "JF-TEST-RELEASE-CONTRACT",
+      "name": "Release Contract",
+      "level": "source",
+      "path": "tools/release/verify-release-contract.mjs",
+      "command": "node tools/release/verify-release-contract.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci"
+      ],
+      "contracts": [
+        "release-identity",
+        "test-catalog",
+        "update-catalog",
+        "update-journal",
+        "compatibility-policy",
+        "build-manifest"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "release contract and all declared version sources agree",
+        "test catalog is complete and structurally valid",
+        "update catalog, update journal, compatibility and build manifest formats are valid"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when release.json, a declared version source, test catalog, build scripts, installer scripts or release workflow changes",
+      "class": "contract"
+    },
+    {
+      "id": "JF-TEST-AUDIT-TOOLS-UNIT",
+      "name": "Audit Tools Unit",
+      "level": "source",
+      "path": "tests/audit-tools-unit.mjs",
+      "command": "node tests/audit-tools-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24",
+        "git"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "audit-registry",
+        "ci",
+        "repository-wide"
+      ],
+      "contracts": [
+        "incremental-impact",
+        "test-runner-policy",
+        "environment-isolation"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "unmapped paths select the full safe test set",
+        "zero runnable tests fail closed",
+        "per-test cwd, timeout and JF environment allowlist are enforced"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request that changes audit selection, the test runner, the catalog or CI",
+      "invalidation_rule": "invalidate when impact mapping, runner policy, catalog metadata or workflow environment changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CATALOG-SERVICE-CHECK",
+      "name": "Update Catalog Service Check",
+      "level": "source",
+      "path": "source/update-catalog-service/package.json",
+      "command": "npm run check",
+      "cwd": "source/update-catalog-service",
+      "prerequisites": [
+        "node-24",
+        "npm-ci"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci",
+        "update-catalog-service"
+      ],
+      "contracts": [
+        "update-catalog-service",
+        "cloudflare-worker-build",
+        "production-dry-run"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "worker syntax and generated binding types agree",
+        "production Worker dry-run bundle succeeds without deployment"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and update catalog service deployment",
+      "invalidation_rule": "invalidate when the catalog Worker, Wrangler configuration, dependencies or production bindings change",
+      "class": "contract"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CORE-UNIT",
+      "name": "Update Core Unit",
+      "level": "source",
+      "path": "tests/update-core-unit.cjs",
+      "command": "node tests/update-core-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "release"
+      ],
+      "contracts": [
+        "update-catalog",
+        "trusted-update-keys",
+        "update-journal",
+        "semver"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "canonical JSON and SemVer checks pass",
+        "Ed25519 tamper, trust, expiry, sequence, downgrade, URL and compatibility defenses pass",
+        "atomic journal transitions and recovery decisions pass"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when updater core, catalog schema, trust store, journal schema or release compatibility changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-DOWNLOADER-UNIT",
+      "name": "Update Downloader Unit",
+      "level": "source",
+      "path": "tests/update-downloader-unit.cjs",
+      "command": "node tests/update-downloader-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime"
+      ],
+      "contracts": [
+        "update-catalog",
+        "update-download"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "interrupted payload resumes with a valid HTTP range",
+        "size, SHA-256, scheme and host violations are rejected",
+        "completed payload is atomically promoted from the partial file"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when downloader, catalog URL policy, retry policy or payload verification changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CONTROLLER-UNIT",
+      "name": "Update Controller Unit",
+      "level": "source",
+      "path": "tests/update-controller-unit.cjs",
+      "command": "node tests/update-controller-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "release"
+      ],
+      "contracts": [
+        "update-controller",
+        "update-catalog",
+        "update-download",
+        "update-journal"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "disabled, current, staged rollout and available-update decisions pass",
+        "verified catalog persists and survives controller restart",
+        "download failure is recorded safely and can be retried as a new operation",
+        "signed halt cancels a downloaded build and signed rollback is limited to named installed versions",
+        "after-close and remind-later choices persist without exposing a machine identifier"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when UpdateController, policy, downloader, journal or catalog validation changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-UI-UNIT",
+      "name": "Update UI Unit",
+      "level": "source",
+      "path": "tests/update-ui-unit.cjs",
+      "command": "node tests/update-ui-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24",
+        "tests/node_modules"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "release"
+      ],
+      "contracts": [
+        "update-controller",
+        "update-renderer",
+        "accessible-status"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "disabled, idle, available, downloading, ready, applying and failed states render correctly",
+        "download progress, release summary, size, last check, history and safe diagnostic id are rendered",
+        "restart-now, after-close and remind-later choices are exercised",
+        "signature failures are shown in plain language and remain fail-closed"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when update UI, preload update bridge, controller status or update settings markup changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CATALOG-WORKER-UNIT",
+      "name": "Update Catalog Worker Unit",
+      "level": "source",
+      "path": "tests/update-catalog-worker-unit.mjs",
+      "command": "node tests/update-catalog-worker-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci"
+      ],
+      "contracts": [
+        "update-catalog-service",
+        "cloudflare-kv-read-only"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "only GET and HEAD catalog routes are accepted",
+        "stored catalog bytes, channel, size and shape are checked before serving",
+        "ETag, revalidation and fail-closed responses are exercised"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and update catalog service deployment",
+      "invalidation_rule": "invalidate when the catalog Worker, KV binding, route or response policy changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CATALOG-OPS-UNIT",
+      "name": "Update Catalog Operations Unit",
+      "level": "source",
+      "path": "tests/update-catalog-ops-unit.mjs",
+      "command": "node tests/update-catalog-ops-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci"
+      ],
+      "contracts": [
+        "update-catalog",
+        "update-catalog-publication",
+        "stable-rollout"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "private and public Ed25519 keys must match",
+        "catalog sequence and immutable backup keys are validated",
+        "stable rollout cannot skip or regress the 5 and 25 percent stages",
+        "halt and rollback directives must identify the currently published release"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and update catalog publication",
+      "invalidation_rule": "invalidate when signing, publication, backup, rollback or rollout policy changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-HELPER-RUNNER-UNIT",
+      "name": "Update Helper Runner Unit",
+      "level": "source",
+      "path": "tests/update-helper-runner-unit.cjs",
+      "command": "node tests/update-helper-runner-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "update-plan",
+        "update-helper-identity",
+        "update-helper-launch"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "installed helper hash is verified before its isolated copy is launched",
+        "operation plan uses fixed download, staging, previous and health paths and binds the installed source version",
+        "helper launch never uses a shell or renderer-supplied command"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when update plan, helper identity, helper runner or apply orchestration changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-WINDOWS-UPDATE-HELPER-SELF-TEST",
+      "name": "Windows Update Helper Self Test",
+      "level": "windows",
+      "path": "source/update-helper/JustFunUpdateHelper.csproj",
+      "command": "publish JustFunUpdateHelper.exe and run --self-test-report=<report>",
+      "cwd": ".",
+      "prerequisites": [
+        "windows-2022",
+        "dotnet-8",
+        "locked-nuget-restore"
+      ],
+      "env_allowlist": [
+        "JF_PRODUCT_VERSION"
+      ],
+      "network_allowed": false,
+      "executable_allowed": true,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "desktop-runtime",
+        "installer",
+        "release"
+      ],
+      "contracts": [
+        "update-helper",
+        "recovery-helper",
+        "trusted-update-keys",
+        "safe-zip"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "canonical JSON and Ed25519 self-test pass",
+        "tamper, path traversal, atomic state and SHA-256 self-tests pass",
+        "transactional file replacement and simulated health-confirmation rollback restore the previous version",
+        "publish emits a self-contained single-file Windows helper"
+      ],
+      "timeout_ms": 600000,
+      "artifact_paths": [
+        ".release/update-helper-self-test.json",
+        ".release/update-helper/JustFunUpdateHelper.exe"
+      ],
+      "run_rule": "every Windows payload and installer build",
+      "invalidation_rule": "invalidate when Update Helper source, NuGet lock, embedded trust store, build identity or Windows toolchain changes",
+      "class": "windows-release"
+    },
+    {
+      "id": "JF-TEST-UPDATE-PAYLOAD-IDENTITY",
+      "name": "Update Payload Identity",
+      "level": "windows",
+      "path": "tests/update-payload-identity-test.mjs",
+      "command": "node tests/update-payload-identity-test.mjs <payload>",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24",
+        "completed-protected-payload"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "protected-asar",
+        "update-helper-identity",
+        "protected-payload"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "helper byte count and SHA-256 inside protected app.asar match the shipped PE",
+        "shipped helper has a Windows PE header"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [
+        ".release/payload/JustFun-UpdateHelper.exe",
+        ".release/payload/resources/app.asar"
+      ],
+      "run_rule": "every Windows payload and installer build",
+      "invalidation_rule": "invalidate when payload assembly, ASAR protection, helper build or helper identity changes",
+      "class": "windows-release"
+    },
+    {
+      "id": "JF-TEST-BUILD-MANIFEST",
+      "name": "Build Manifest",
+      "level": "windows",
+      "path": "tools/release/verify-build-manifest.mjs",
+      "command": "node tools/release/verify-build-manifest.mjs --manifest <manifest> --build-identity <identity> --source-archive <archive> --payload-dir <payload> --installer-dir <installer>",
+      "cwd": ".",
+      "prerequisites": [
+        "node",
+        "completed-windows-build"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "desktop-runtime",
+        "installer"
+      ],
+      "contracts": [
+        "build-manifest",
+        "release-identity",
+        "protected-payload"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "manifest identity equals the exact release contract and commit",
+        "source archive, lockfiles, payload and Windows artifact hashes match"
+      ],
+      "timeout_ms": 120000,
+      "artifact_paths": [
+        ".release/installer/BUILD-MANIFEST.json"
+      ],
+      "run_rule": "every Windows payload and installer build",
+      "invalidation_rule": "invalidate when release identity, manifest schema, payload, installer, lockfile, source archive or hashing logic changes",
+      "class": "windows-release"
+    },
+    {
+      "id": "JF-TEST-RELEASE-EVIDENCE-UNIT",
+      "name": "Release Evidence Unit",
+      "level": "source",
+      "path": "tests/release-evidence-unit.py",
+      "command": "python tests/release-evidence-unit.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python-3.12"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci"
+      ],
+      "contracts": [
+        "spdx-sbom",
+        "release-evidence",
+        "artifact-checksums"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "npm and NuGet locks produce SPDX 2.3 packages",
+        "evidence output cannot erase the .release root",
+        "evidence ZIP creation is deterministic",
+        "canonical release artifacts, checksums and NO-GO status assemble together"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when SBOM, checksum, evidence packaging or release artifact naming changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-WINDOWS-NATIVE-783",
+      "name": "Windows Native 783",
+      "level": "windows",
+      "path": ".github/workflows/windows-native-783.yml",
+      "command": "GitHub Actions: Windows native release gate",
+      "cwd": ".",
+      "prerequisites": [
+        "windows-2022",
+        "node-24",
+        "python-3.12",
+        "dotnet-8",
+        "verified-nsis-3.11"
+      ],
+      "env_allowlist": [
+        "GITHUB_SHA",
+        "RUNNER_TEMP",
+        "JF_PRODUCT_VERSION"
+      ],
+      "network_allowed": true,
+      "executable_allowed": true,
+      "requires_explicit_live_authorization": true,
+      "modules": [
+        "application",
+        "desktop-runtime",
+        "installer",
+        "release"
+      ],
+      "contracts": [
+        "protected-payload",
+        "native-installer",
+        "recovery",
+        "release-identity"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "protected payload and native installer are built from the exact checked-out commit",
+        "installer, recovery, visual and destructive-operation acceptance pass"
+      ],
+      "timeout_ms": 5400000,
+      "artifact_paths": [
+        ".release/build-identity.json",
+        ".release/source.zip",
+        ".release/prebuild-test-results.json",
+        ".release/installer/",
+        ".release/premium-previews/",
+        ".release/visual-qa/",
+        ".release/full-acceptance/",
+        ".release/native-safety/"
+      ],
+      "run_rule": "every pull request that affects release, application, desktop-runtime or installer contracts and every protected main commit",
+      "invalidation_rule": "invalidate on any source, lockfile, workflow, payload, installer, test or release-contract change",
+      "class": "windows-release"
+    },
+    {
       "id": "JF-TEST-BACKGROUND-CLOUD-SYNC-FAILURE-REGRESSION-V783",
+      "name": "Background Cloud Sync Failure Regression V783",
+      "level": "source",
       "path": "tests/background-cloud-sync-failure-regression-v783.cjs",
       "command": "node tests/background-cloud-sync-failure-regression-v783.cjs",
       "cwd": ".",
@@ -38,6 +617,8 @@
     },
     {
       "id": "JF-TEST-ACTION-DISPATCH-UNIT",
+      "name": "Action Dispatch Unit",
+      "level": "source",
       "path": "tests/action-dispatch-unit.cjs",
       "command": "node tests/action-dispatch-unit.cjs",
       "cwd": ".",
@@ -67,6 +648,8 @@
     },
     {
       "id": "JF-TEST-ASAR-FILE-HASH",
+      "name": "Asar File Hash",
+      "level": "integration",
       "path": "tests/asar-file-hash.mjs",
       "command": "node tests/asar-file-hash.mjs <app.asar> <internal/path>",
       "cwd": ".",
@@ -96,6 +679,8 @@
     },
     {
       "id": "JF-TEST-ATOMIC-MUTATION-ASYNC-REGRESSION-V783",
+      "name": "Atomic Mutation Async Regression V783",
+      "level": "integration",
       "path": "tests/atomic-mutation-async-regression-v783.cjs",
       "command": "node tests/atomic-mutation-async-regression-v783.cjs",
       "cwd": ".",
@@ -125,6 +710,8 @@
     },
     {
       "id": "JF-TEST-AUTH-REG-SOURCE-CONTRACT",
+      "name": "Auth Reg Source Contract",
+      "level": "source",
       "path": "tests/auth-reg-source-contract.cjs",
       "command": "node tests/auth-reg-source-contract.cjs",
       "cwd": ".",
@@ -156,6 +743,8 @@
     },
     {
       "id": "JF-TEST-COMPANY-SCOPE-TEST",
+      "name": "Company Scope Test",
+      "level": "integration",
       "path": "tests/company-scope-test.mjs",
       "command": "node tests/company-scope-test.mjs",
       "cwd": ".",
@@ -185,6 +774,8 @@
     },
     {
       "id": "JF-TEST-COMPANY-TELEGRAM-BROKER-SCHEMA-TEST",
+      "name": "Company Telegram Broker Schema Test",
+      "level": "source",
       "path": "tests/company-telegram-broker-schema-test.py",
       "command": "python tests/company-telegram-broker-schema-test.py",
       "cwd": ".",
@@ -214,6 +805,8 @@
     },
     {
       "id": "JF-TEST-COMPANY-TELEGRAM-BROKER-UNIT",
+      "name": "Company Telegram Broker Unit",
+      "level": "source",
       "path": "tests/company-telegram-broker-unit.mjs",
       "command": "node tests/company-telegram-broker-unit.mjs",
       "cwd": ".",
@@ -243,6 +836,8 @@
     },
     {
       "id": "JF-TEST-CURRENT-CYCLE-REGRESSION-V783",
+      "name": "Current Cycle Regression V783",
+      "level": "integration",
       "path": "tests/current-cycle-regression-v783.mjs",
       "command": "node tests/current-cycle-regression-v783.mjs",
       "cwd": ".",
@@ -270,6 +865,8 @@
     },
     {
       "id": "JF-TEST-DEAD-OVERRIDE-REGRESSION-V783",
+      "name": "Dead Override Regression V783",
+      "level": "integration",
       "path": "tests/dead-override-regression-v783.cjs",
       "command": "node tests/dead-override-regression-v783.cjs",
       "cwd": ".",
@@ -297,6 +894,8 @@
     },
     {
       "id": "JF-TEST-DEEP-BUSINESS-FIXTURE-REGRESSION-V783",
+      "name": "Deep Business Fixture Regression V783",
+      "level": "integration",
       "path": "tests/deep-business-fixture-regression-v783.cjs",
       "command": "node tests/deep-business-fixture-regression-v783.cjs",
       "cwd": ".",
@@ -326,6 +925,8 @@
     },
     {
       "id": "JF-TEST-DEPLOY-REG-VPS-SERVER",
+      "name": "Deploy Reg Vps Server",
+      "level": "production",
       "path": "tests/deploy-reg-vps-server.cjs",
       "command": "node tests/deploy-reg-vps-server.cjs source/application/integrations/reg-vps/server/server.py",
       "cwd": ".",
@@ -363,6 +964,8 @@
     },
     {
       "id": "JF-TEST-DESIGN-TOKEN-REGRESSION-V783",
+      "name": "Design Token Regression V783",
+      "level": "integration",
       "path": "tests/design-token-regression-v783.cjs",
       "command": "node tests/design-token-regression-v783.cjs",
       "cwd": ".",
@@ -392,6 +995,8 @@
     },
     {
       "id": "JF-TEST-DESKTOP-DIALOG-REGRESSION-V783",
+      "name": "Desktop Dialog Regression V783",
+      "level": "integration",
       "path": "tests/desktop-dialog-regression-v783.cjs",
       "command": "node tests/desktop-dialog-regression-v783.cjs",
       "cwd": ".",
@@ -421,6 +1026,8 @@
     },
     {
       "id": "JF-TEST-ENTITY-BOOTSTRAP-MERGE-UNIT",
+      "name": "Entity Bootstrap Merge Unit",
+      "level": "source",
       "path": "tests/entity-bootstrap-merge-unit.cjs",
       "command": "node tests/entity-bootstrap-merge-unit.cjs",
       "cwd": ".",
@@ -450,6 +1057,8 @@
     },
     {
       "id": "JF-TEST-ERROR-BOUNDARY-REGRESSION-V783",
+      "name": "Error Boundary Regression V783",
+      "level": "integration",
       "path": "tests/error-boundary-regression-v783.cjs",
       "command": "node tests/error-boundary-regression-v783.cjs",
       "cwd": ".",
@@ -477,6 +1086,8 @@
     },
     {
       "id": "JF-TEST-EXPERIENCE-REGRESSION-V783",
+      "name": "Experience Regression V783",
+      "level": "integration",
       "path": "tests/experience-regression-v783.mjs",
       "command": "node tests/experience-regression-v783.mjs",
       "cwd": ".",
@@ -506,6 +1117,8 @@
     },
     {
       "id": "JF-TEST-ICON-SYSTEM-REGRESSION-V783",
+      "name": "Icon System Regression V783",
+      "level": "integration",
       "path": "tests/icon-system-regression-v783.cjs",
       "command": "node tests/icon-system-regression-v783.cjs",
       "cwd": ".",
@@ -535,6 +1148,8 @@
     },
     {
       "id": "JF-TEST-INSTALLER-CRASH-RECOVERY-TEST",
+      "name": "Installer Crash Recovery Test",
+      "level": "windows",
       "path": "tests/installer-crash-recovery-test.ps1",
       "command": "pwsh -NoProfile -File tests/installer-crash-recovery-test.ps1 -Makensis <makensis.exe> -AssetsDir source/installer/assets",
       "cwd": ".",
@@ -567,6 +1182,8 @@
     },
     {
       "id": "JF-TEST-INSTALLER-FULL-ACCEPTANCE-TEST",
+      "name": "Installer Full Acceptance Test",
+      "level": "windows",
       "path": "tests/installer-full-acceptance-test.ps1",
       "command": "pwsh -NoProfile -File tests/installer-full-acceptance-test.ps1 -Setup <JustFun-Setup.exe> -EvidenceDirectory <evidence-directory>",
       "cwd": ".",
@@ -599,6 +1216,8 @@
     },
     {
       "id": "JF-TEST-INSTALLER-SOURCE-TEST",
+      "name": "Installer Source Test",
+      "level": "integration",
       "path": "tests/installer-source-test.py",
       "command": "python tests/installer-source-test.py",
       "cwd": ".",
@@ -628,6 +1247,8 @@
     },
     {
       "id": "JF-TEST-LICENSE-CUSTOM-ROLE-MIGRATION-TEST",
+      "name": "License Custom Role Migration Test",
+      "level": "source",
       "path": "tests/license-custom-role-migration-test.py",
       "command": "python tests/license-custom-role-migration-test.py",
       "cwd": ".",
@@ -657,6 +1278,8 @@
     },
     {
       "id": "JF-TEST-LICENSE-EXACT-PERMISSION-MIGRATION-TEST",
+      "name": "License Exact Permission Migration Test",
+      "level": "source",
       "path": "tests/license-exact-permission-migration-test.py",
       "command": "python tests/license-exact-permission-migration-test.py",
       "cwd": ".",
@@ -686,6 +1309,8 @@
     },
     {
       "id": "JF-TEST-LICENSE-GRANULAR-PERMISSION-MIGRATION-TEST",
+      "name": "License Granular Permission Migration Test",
+      "level": "source",
       "path": "tests/license-granular-permission-migration-test.py",
       "command": "python tests/license-granular-permission-migration-test.py",
       "cwd": ".",
@@ -715,6 +1340,8 @@
     },
     {
       "id": "JF-TEST-LICENSE-SCHEMA-TEST",
+      "name": "License Schema Test",
+      "level": "source",
       "path": "tests/license-schema-test.py",
       "command": "python tests/license-schema-test.py",
       "cwd": ".",
@@ -744,6 +1371,8 @@
     },
     {
       "id": "JF-TEST-LICENSE-SERVER-UNIT",
+      "name": "License Server Unit",
+      "level": "source",
       "path": "tests/license-server-unit.mjs",
       "command": "node tests/license-server-unit.mjs",
       "cwd": ".",
@@ -773,6 +1402,8 @@
     },
     {
       "id": "JF-TEST-LIVE-CLOUD-SESSION-CHECK",
+      "name": "Live Cloud Session Check",
+      "level": "live",
       "path": "tests/live-cloud-session-check.cjs",
       "command": "node tests/live-cloud-session-check.cjs",
       "cwd": ".",
@@ -804,6 +1435,8 @@
     },
     {
       "id": "JF-TEST-LIVE-CLOUDFLARE-READONLY-INVENTORY",
+      "name": "Live Cloudflare Readonly Inventory",
+      "level": "live",
       "path": "tests/live-cloudflare-readonly-inventory.cjs",
       "command": "node tests/live-cloudflare-readonly-inventory.cjs",
       "cwd": ".",
@@ -834,6 +1467,8 @@
     },
     {
       "id": "JF-TEST-LIVE-CLOUDFLARE-WORKER-SOURCE-READONLY",
+      "name": "Live Cloudflare Worker Source Readonly",
+      "level": "live",
       "path": "tests/live-cloudflare-worker-source-readonly.cjs",
       "command": "node tests/live-cloudflare-worker-source-readonly.cjs",
       "cwd": ".",
@@ -865,6 +1500,8 @@
     },
     {
       "id": "JF-TEST-LIVE-MULTI-USER-ISOLATION",
+      "name": "Live Multi User Isolation",
+      "level": "live",
       "path": "tests/live-multi-user-isolation.cjs",
       "command": "node tests/live-multi-user-isolation.cjs",
       "cwd": ".",
@@ -902,6 +1539,8 @@
     },
     {
       "id": "JF-TEST-LIVE-TELEGRAM-SCOPE-MIGRATION",
+      "name": "Live Telegram Scope Migration",
+      "level": "live",
       "path": "tests/live-telegram-scope-migration.cjs",
       "command": "node tests/live-telegram-scope-migration.cjs",
       "cwd": ".",
@@ -937,6 +1576,8 @@
     },
     {
       "id": "JF-TEST-LIVE-TELEGRAM-TWO-ACCOUNT-AUDIT",
+      "name": "Live Telegram Two Account Audit",
+      "level": "live",
       "path": "tests/live-telegram-two-account-audit.cjs",
       "command": "node tests/live-telegram-two-account-audit.cjs",
       "cwd": ".",
@@ -969,6 +1610,8 @@
     },
     {
       "id": "JF-TEST-LOGO-TRANSPARENCY-TEST",
+      "name": "Logo Transparency Test",
+      "level": "source",
       "path": "tests/logo-transparency-test.py",
       "command": "python tests/logo-transparency-test.py",
       "cwd": ".",
@@ -998,6 +1641,8 @@
     },
     {
       "id": "JF-TEST-MAIN-UNIT",
+      "name": "Main Unit",
+      "level": "source",
       "path": "tests/main-unit.cjs",
       "command": "node tests/main-unit.cjs",
       "cwd": ".",
@@ -1026,7 +1671,42 @@
       "class": "unit"
     },
     {
+      "id": "JF-TEST-ADDRESS-INTELLIGENCE-UNIT-V783",
+      "name": "Address Intelligence Unit V783",
+      "level": "integration",
+      "path": "tests/address-intelligence-unit-v783.cjs",
+      "command": "node tests/address-intelligence-unit-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "normalization, fuzzy ranking, deduplication and Top-3 selection pass",
+        "manual map fallback remains available"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when application or UX address-search code changes",
+      "invalidation_rule": "invalidate when the address intelligence module, renderer integration, test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
       "id": "JF-TEST-MAP-DIAGNOSTIC-REGRESSION-V783",
+      "name": "Map Diagnostic Regression V783",
+      "level": "integration",
       "path": "tests/map-diagnostic-regression-v783.cjs",
       "command": "node tests/map-diagnostic-regression-v783.cjs",
       "cwd": ".",
@@ -1056,6 +1736,8 @@
     },
     {
       "id": "JF-TEST-PERMISSION-COMPAT-REGRESSION-V783",
+      "name": "Permission Compat Regression V783",
+      "level": "integration",
       "path": "tests/permission-compat-regression-v783.cjs",
       "command": "node tests/permission-compat-regression-v783.cjs",
       "cwd": ".",
@@ -1085,6 +1767,8 @@
     },
     {
       "id": "JF-TEST-PRODUCT-DRAWER-ACCESSIBILITY-V783",
+      "name": "Product Drawer Accessibility V783",
+      "level": "integration",
       "path": "tests/product-drawer-accessibility-v783.cjs",
       "command": "node tests/product-drawer-accessibility-v783.cjs",
       "cwd": ".",
@@ -1114,6 +1798,8 @@
     },
     {
       "id": "JF-TEST-REG-API-CONTRACT-TEST",
+      "name": "Reg Api Contract Test",
+      "level": "integration",
       "path": "tests/reg-api-contract-test.py",
       "command": "python tests/reg-api-contract-test.py",
       "cwd": ".",
@@ -1145,6 +1831,8 @@
     },
     {
       "id": "JF-TEST-REG-ENTITY-PROTOCOL-TEST",
+      "name": "Reg Entity Protocol Test",
+      "level": "source",
       "path": "tests/reg-entity-protocol-test.py",
       "command": "python tests/reg-entity-protocol-test.py",
       "cwd": ".",
@@ -1176,6 +1864,8 @@
     },
     {
       "id": "JF-TEST-REG-ENTITY-SOURCE-CONTRACT",
+      "name": "Reg Entity Source Contract",
+      "level": "source",
       "path": "tests/reg-entity-source-contract.cjs",
       "command": "node tests/reg-entity-source-contract.cjs",
       "cwd": ".",
@@ -1206,7 +1896,45 @@
       "class": "schema"
     },
     {
+      "id": "JF-TEST-REG-ADDRESS-SEARCH-TEST",
+      "name": "REG Address Search Test",
+      "level": "integration",
+      "path": "tests/reg-address-search-test.py",
+      "command": "python tests/reg-address-search-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "versioned scoped address contract is strictly validated",
+        "remote provider candidates are ranked, deduplicated and limited to Top-3",
+        "autocomplete never falls through to the public Nominatim service"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when address-search server, provider or deployment code changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, provider adapter, installer or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
       "id": "JF-TEST-REG-MAP-PROXY-TEST",
+      "name": "Reg Map Proxy Test",
+      "level": "integration",
       "path": "tests/reg-map-proxy-test.py",
       "command": "python tests/reg-map-proxy-test.py",
       "cwd": ".",
@@ -1238,6 +1966,8 @@
     },
     {
       "id": "JF-TEST-REG-NATIVE-SSH-UNIT",
+      "name": "Reg Native Ssh Unit",
+      "level": "source",
       "path": "tests/reg-native-ssh-unit.cjs",
       "command": "node tests/reg-native-ssh-unit.cjs",
       "cwd": ".",
@@ -1269,6 +1999,8 @@
     },
     {
       "id": "JF-TEST-REG-REVISION-TEST",
+      "name": "Reg Revision Test",
+      "level": "integration",
       "path": "tests/reg-revision-test.py",
       "command": "python tests/reg-revision-test.py",
       "cwd": ".",
@@ -1300,13 +2032,20 @@
     },
     {
       "id": "JF-TEST-REG-STORAGE-V3-INTEGRATION",
+      "name": "Reg Storage V3 Integration",
+      "level": "integration",
       "path": "tests/reg-storage-v3-integration.py",
       "command": "python tests/reg-storage-v3-integration.py",
       "cwd": ".",
       "prerequisites": [
-        "python"
+        "python",
+        "PostgreSQL 16"
       ],
-      "env_allowlist": [],
+      "env_allowlist": [
+        "JF_REQUIRE_POSTGRES_TESTS",
+        "JF_TEST_POSTGRES_ADMIN_DSN",
+        "JF_TEST_POSTGRES_DSN"
+      ],
       "network_allowed": false,
       "executable_allowed": false,
       "requires_explicit_live_authorization": false,
@@ -1331,6 +2070,8 @@
     },
     {
       "id": "JF-TEST-REG-TLS-SOURCE-TEST",
+      "name": "Reg Tls Source Test",
+      "level": "integration",
       "path": "tests/reg-tls-source-test.cjs",
       "command": "node tests/reg-tls-source-test.cjs",
       "cwd": ".",
@@ -1362,6 +2103,8 @@
     },
     {
       "id": "JF-TEST-RELEASE-REGRESSION-V783",
+      "name": "Release Regression V783",
+      "level": "integration",
       "path": "tests/release-regression-v783.mjs",
       "command": "node tests/release-regression-v783.mjs",
       "cwd": ".",
@@ -1389,8 +2132,10 @@
     },
     {
       "id": "JF-TEST-RUNTIME-BUTTON-MATRIX",
+      "name": "Runtime UI Inventory",
+      "level": "source",
       "path": "tests/runtime-button-matrix.py",
-      "command": "python tests/runtime-button-matrix.py source/application/web --edition full --report <evidence-report.json>",
+      "command": "python tests/runtime-button-matrix.py source/application/web --edition full --list-only --report artifacts/ui-control-inventory-full.json",
       "cwd": ".",
       "prerequisites": [
         "python"
@@ -1416,14 +2161,16 @@
       ],
       "timeout_ms": 900000,
       "artifact_paths": [
-        "<evidence-report.json>"
+        "artifacts/ui-control-inventory-full.json"
       ],
       "run_rule": "FULL baseline and when any mapped module or contract changes",
       "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
-      "class": "visual"
+      "class": "source-inventory"
     },
     {
       "id": "JF-TEST-RUNTIME-OVERRIDES-REGRESSION-V783",
+      "name": "Runtime Overrides Regression V783",
+      "level": "integration",
       "path": "tests/runtime-overrides-regression-v783.cjs",
       "command": "node tests/runtime-overrides-regression-v783.cjs",
       "cwd": ".",
@@ -1453,6 +2200,8 @@
     },
     {
       "id": "JF-TEST-RUNTIME-SMOKE",
+      "name": "Runtime Smoke",
+      "level": "integration",
       "path": "tests/runtime-smoke.mjs",
       "command": "node tests/runtime-smoke.mjs source/application/web load",
       "cwd": ".",
@@ -1491,6 +2240,8 @@
     },
     {
       "id": "JF-TEST-SECURITY-AUDIT",
+      "name": "Security Audit",
+      "level": "integration",
       "path": "tests/security-audit.mjs",
       "command": "node tests/security-audit.mjs source",
       "cwd": ".",
@@ -1520,6 +2271,8 @@
     },
     {
       "id": "JF-TEST-SECURITY-MANIFEST-UNIT",
+      "name": "Security Manifest Unit",
+      "level": "source",
       "path": "tests/security-manifest-unit.cjs",
       "command": "node tests/security-manifest-unit.cjs",
       "cwd": ".",
@@ -1549,6 +2302,8 @@
     },
     {
       "id": "JF-TEST-SECURITY-REGRESSION-V783",
+      "name": "Security Regression V783",
+      "level": "integration",
       "path": "tests/security-regression-v783.mjs",
       "command": "node tests/security-regression-v783.mjs",
       "cwd": ".",
@@ -1578,6 +2333,8 @@
     },
     {
       "id": "JF-TEST-SOURCE-HYGIENE-REGRESSION-V783",
+      "name": "Source Hygiene Regression V783",
+      "level": "integration",
       "path": "tests/source-hygiene-regression-v783.cjs",
       "command": "node tests/source-hygiene-regression-v783.cjs",
       "cwd": ".",
@@ -1605,6 +2362,8 @@
     },
     {
       "id": "JF-TEST-STARTUP-AUTH-REGRESSION",
+      "name": "Startup Auth Regression",
+      "level": "integration",
       "path": "tests/startup-auth-regression.cjs",
       "command": "node tests/startup-auth-regression.cjs",
       "cwd": ".",
@@ -1634,6 +2393,8 @@
     },
     {
       "id": "JF-TEST-STATIC-AUDIT-REGRESSION-V783",
+      "name": "Static Audit Regression V783",
+      "level": "integration",
       "path": "tests/static-audit-regression-v783.cjs",
       "command": "node tests/static-audit-regression-v783.cjs",
       "cwd": ".",
@@ -1661,6 +2422,8 @@
     },
     {
       "id": "JF-TEST-STATIC-AUDIT",
+      "name": "Static Audit",
+      "level": "integration",
       "path": "tests/static-audit.mjs",
       "command": "node tests/static-audit.mjs source/application",
       "cwd": ".",
@@ -1688,6 +2451,8 @@
     },
     {
       "id": "JF-TEST-TELEGRAM-SCOPE-REGRESSION-V783",
+      "name": "Telegram Scope Regression V783",
+      "level": "integration",
       "path": "tests/telegram-scope-regression-v783.cjs",
       "command": "node tests/telegram-scope-regression-v783.cjs",
       "cwd": ".",
@@ -1717,6 +2482,8 @@
     },
     {
       "id": "JF-TEST-TELEGRAM-SHARED-D1-SCHEMA",
+      "name": "Telegram Shared D1 Schema",
+      "level": "source",
       "path": "tests/telegram-shared-d1-schema.cjs",
       "command": "node tests/telegram-shared-d1-schema.cjs",
       "cwd": ".",
@@ -1746,6 +2513,8 @@
     },
     {
       "id": "JF-TEST-TELEGRAM-WIZARD-OPEN-REGRESSION-V783",
+      "name": "Telegram Wizard Open Regression V783",
+      "level": "integration",
       "path": "tests/telegram-wizard-open-regression-v783.cjs",
       "command": "node tests/telegram-wizard-open-regression-v783.cjs",
       "cwd": ".",
@@ -1775,6 +2544,8 @@
     },
     {
       "id": "JF-TEST-TELEGRAM-WORKER-UNIT",
+      "name": "Telegram Worker Unit",
+      "level": "source",
       "path": "tests/telegram-worker-unit.mjs",
       "command": "node tests/telegram-worker-unit.mjs",
       "cwd": ".",
@@ -1804,6 +2575,8 @@
     },
     {
       "id": "JF-TEST-VISUAL-QA-CONTRACT-REGRESSION-V783",
+      "name": "Visual Qa Contract Regression V783",
+      "level": "source",
       "path": "tests/visual-qa-contract-regression-v783.cjs",
       "command": "node tests/visual-qa-contract-regression-v783.cjs",
       "cwd": ".",
@@ -1833,6 +2606,8 @@
     },
     {
       "id": "JF-TEST-VPS-CLEANUP-QA-WORKSPACES",
+      "name": "Vps Cleanup Qa Workspaces",
+      "level": "live",
       "path": "tests/vps-cleanup-qa-workspaces.cjs",
       "command": "node tests/vps-cleanup-qa-workspaces.cjs",
       "cwd": ".",
@@ -1868,6 +2643,8 @@
     },
     {
       "id": "JF-TEST-VPS-DEPLOY-ROW-PROTOCOL",
+      "name": "Vps Deploy Row Protocol",
+      "level": "production",
       "path": "tests/vps-deploy-row-protocol.cjs",
       "command": "node tests/vps-deploy-row-protocol.cjs",
       "cwd": ".",
@@ -1902,6 +2679,8 @@
     },
     {
       "id": "JF-TEST-VPS-ENTITY-CREATED-AT-DIAGNOSTIC",
+      "name": "Vps Entity Created At Diagnostic",
+      "level": "live",
       "path": "tests/vps-entity-created-at-diagnostic.cjs",
       "command": "node tests/vps-entity-created-at-diagnostic.cjs",
       "cwd": ".",
@@ -1935,6 +2714,8 @@
     },
     {
       "id": "JF-TEST-VPS-LIVE-DIAGNOSTIC",
+      "name": "Vps Live Diagnostic",
+      "level": "live",
       "path": "tests/vps-live-diagnostic.cjs",
       "command": "node tests/vps-live-diagnostic.cjs",
       "cwd": ".",

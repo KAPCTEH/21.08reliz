@@ -3,13 +3,13 @@
   "branch": "audit-ledger",
   "orphan_history_required": true,
   "baseline_id": "baseline-20260822-8fc993e",
-  "generated_at_utc": "2026-08-22T15:38:41.783Z",
+  "generated_at_utc": "2026-08-23T06:58:37.1817053Z",
   "raw_sensitive_evidence_published": false,
   "exclusions": [
     "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
   ],
   "file_count": 179,
-  "total_bytes": 5578627,
+  "total_bytes": 5608900,
   "files": [
     {
       "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
@@ -788,8 +788,8 @@
     },
     {
       "path": "github-config/workflows/audit-incremental.yml",
-      "bytes": 3174,
-      "sha256": "92849ca2a579ec1c86b446f0bb3cd11895338af07dcf1b83b03894019cad9139"
+      "bytes": 5380,
+      "sha256": "50f83a48c16baff13d976929076a4df8dcb5c0703fa33c5cab2462633051e92e"
     },
     {
       "path": "github-config/workflows/audit-verify-finding.yml",
@@ -808,8 +808,8 @@
     },
     {
       "path": "module-map.yml",
-      "bytes": 6149,
-      "sha256": "bac2dee9afb4dbc498e5ff1b9830a1fd6834a20720dcb1faf82347b8765973ab"
+      "bytes": 7189,
+      "sha256": "808e36e14a3277a7a10f2f406f943533cf9bb17df40cceb195fcf44b91417c47"
     },
     {
       "path": "publish-secret-scan.json",
@@ -903,8 +903,8 @@
     },
     {
       "path": "test-map.yml",
-      "bytes": 61584,
-      "sha256": "25e1344bc8ce483499dfe651186bf4a9b282b47f33464dff6e6688030b3fb9d6"
+      "bytes": 88611,
+      "sha256": "1eaa5ce27c94ae84906b0138977b5e3cd2f68b480c34306aeed7af0fcabd3d25"
     }
   ]
 }

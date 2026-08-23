@@ -219,6 +219,49 @@
       "owner": "project-owner"
     },
     {
+      "id": "release",
+      "globs": [
+        "release/**",
+        "tools/release/**",
+        "source/update-catalog-service/**",
+        "source/application/update/**",
+        "source/application/release.json"
+      ],
+      "entrypoints": [
+        "source/application/release.json",
+        "release/compatibility-policy.json",
+        "tools/release/verify-release-contract.mjs"
+      ],
+      "owned_contracts": [
+        "release identity",
+        "service compatibility",
+        "signed update catalog",
+        "rollback policy"
+      ],
+      "upstream": [
+        "application",
+        "services"
+      ],
+      "downstream": [
+        "updater",
+        "installer",
+        "CI"
+      ],
+      "criticality": "critical",
+      "required_checks": [
+        "release-contract",
+        "update-core",
+        "update-catalog-service"
+      ],
+      "impact_expansion": [
+        "version",
+        "service contracts",
+        "catalog schema",
+        "update policy"
+      ],
+      "owner": "project-owner"
+    },
+    {
       "id": "ci",
       "globs": [
         ".github/**"
