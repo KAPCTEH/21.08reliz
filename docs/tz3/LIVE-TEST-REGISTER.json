@@ -1308,7 +1308,7 @@
       "step_id": "JF3-S0059",
       "stage": 8,
       "action": "inspect responsive layouts and exercise director report export settings save and Windows print",
-      "result": "CSV EXPORT PASS / NO OP SAVE PASS / RESPONSIVE LAYOUT PARTIAL FAIL / REPORT PRINT FAIL / RELEASE NO-GO",
+      "result": "CSV EXPORT PASS / NO OP SAVE PASS / RESPONSIVE LAYOUT PARTIAL FAIL / REPORT PRINT OUTPUT REQUIRES VISUAL VERIFICATION / RELEASE NO-GO",
       "responsive_widths": {
         "about_1366": "top surfaces fit",
         "about_1280": "right report filter clipped",
@@ -1335,8 +1335,8 @@
       "print": {
         "device": "Microsoft Print to PDF",
         "preview": false,
-        "save_dialog": false,
-        "pdf_created": false,
+        "save_dialog": "initially hidden and later found",
+        "pdf_created": true,
         "log_result": false
       },
       "defects": [
@@ -1348,6 +1348,30 @@
         "repair responsive breakpoints and per view scroll context",
         "provide a working print preview and verified PDF output",
         "repeat visual screenshots for every view and modal at approved widths"
+      ]
+    },
+    {
+      "step_id": "JF3-S0060",
+      "stage": 8,
+      "action": "save the director report through Microsoft Print to PDF then structurally inspect and render the actual page",
+      "result": "PDF FILE CREATED / RUSSIAN CONTENT PRESENT / ROTATED LAYOUT AND NO TEXT LAYER FAIL / RELEASE NO-GO",
+      "pdf": {
+        "name": "TZ3-report-print-20260824.pdf",
+        "bytes": 133733,
+        "pages": 1,
+        "page_points": [595.3, 841.9],
+        "extracted_text_characters": 0,
+        "visual_content_present": true,
+        "content_rotated_90_degrees": true
+      },
+      "defects": [
+        "JF3-DEFECT-025",
+        "JF3-DEFECT-031"
+      ],
+      "pending": [
+        "align print CSS and Windows page orientation",
+        "preserve a searchable text layer",
+        "verify portrait landscape and multi page report outputs"
       ]
     }
   ],
