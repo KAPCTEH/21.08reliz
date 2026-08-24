@@ -3468,9 +3468,11 @@ async function runVisualQa() {
     result.contracts.push({screen:'update-center',...(await collectVisualContract(win,['#jfUpdateTitle','#jfUpdateBadge','#jfUpdateStatus','#jfUpdateCheck','#jfUpdateDownload','#jfUpdateApply','#jfUpdateAfterClose','#jfUpdateRemindLater','#jfUpdateHistory','#jfUpdateDiagnostic']))});
 
     await win.webContents.executeJavaScript("showView('programSettings')");
-    await waitForRenderer(win,"(()=>{const box=document.querySelector('#jfRegIntegrationsBox'),toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610'),body=box?.querySelector(':scope > .settings-accordion-body-v610');if(!box||!toggle||!body)return false;if(!box.classList.contains('open')||body.hidden)toggle.click();if(box.classList.contains('open')&&!body.hidden){box.scrollIntoView({block:'start'});return true}return false})()");
-    await waitForRenderer(win,"document.querySelector('#jfRegIntegrationsBox')?.classList.contains('open')&&!document.querySelector('#jfRegIntegrationsBox > .settings-accordion-body-v610')?.hidden");
+    const regIntegrationOpenPredicate="(()=>{const box=document.querySelector('#jfRegIntegrationsBox'),toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610'),body=box?.querySelector(':scope > .settings-accordion-body-v610');if(!box||!toggle||!body)return false;if(!box.classList.contains('open')||body.hidden)toggle.click();if(box.classList.contains('open')&&!body.hidden){box.scrollIntoView({block:'start'});return true}return false})()";
+    await new Promise(resolve=>setTimeout(resolve,500));
+    await waitForRenderer(win,regIntegrationOpenPredicate);
     await new Promise(resolve=>setTimeout(resolve,900));
+    await waitForRenderer(win,regIntegrationOpenPredicate);
     result.screens.push(await captureVisualQa(win,output,'04-settings-integrations'));
     result.contracts.push({screen:'settings-integrations',...(await collectVisualContract(win,['#jfRegIntegrationsBox h3','#jfRegIntegrationsBox .jf-integration-lead','#jfRegIntegrationsBox .jf-integration-card b','#jfRegIntegrationsBox .jf-integration-card label']))});
 

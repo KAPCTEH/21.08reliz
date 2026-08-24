@@ -30,6 +30,7 @@ const regAccordionRetry = "if(!box.classList.contains('open')||body.hidden)toggl
 const regAccordionVisible = "if(box.classList.contains('open')&&!body.hidden){box.scrollIntoView({block:'start'});return true}";
 assert(main.includes(regAccordionRetry), 'REG.RU visual QA must retry after an intermediate rerender');
 assert(main.includes(regAccordionVisible), 'REG.RU visual QA must accept only a visible open accordion');
+assert.equal(main.split('await waitForRenderer(win,regIntegrationOpenPredicate)').length - 1, 2, 'REG.RU visual QA must verify the open panel again immediately before capture');
 assert(clarityCss.includes('.clarity-decision-box>.modal-head{background-color:#117d4b}'));
 assert(clarityCss.includes('.jf-access-head{flex:0 0 auto;padding:22px 25px 18px;background-color:#073e2e;'));
 
