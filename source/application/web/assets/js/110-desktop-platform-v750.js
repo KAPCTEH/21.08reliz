@@ -362,6 +362,7 @@ function mountWorkspace(){
   document.documentElement.classList.add('jf-authenticated');addDesktopStrip();applyPermissions();installGuards();installEntityCommandGuards();applyBrand();installUserManagement();installIntegrationPanel();installLogDiagnostics();installHelp();if(!isTrainingEnvironment()){installTelegramDriverActions();installTelegramRouteActions()}if(desktopSession?.edition==='demo')enableLicensedDemo();setTimeout(()=>{try{window.renderAll?.();if(!isTrainingEnvironment()){refreshTelegramBindings().then(promptRequiredWarehouseTelegram).catch(()=>promptRequiredWarehouseTelegram());startTelegramPolling()}}catch{}},0)
 }
 async function confirmActiveWarehouseContext(){
+  if(isTrainingEnvironment())return true;
   const bridge=window.JustFunDesktop?.setActiveWarehouse;if(typeof bridge!=='function')return true;
   const result=await bridge({warehouseId:activeWarehouseId(),environment:activeEnvironment()});
   if(!result?.ok)throw Object.assign(new Error(result?.error||'Основное ядро не подтвердило активный склад.'),{code:result?.code||'WAREHOUSE_CONTEXT_REJECTED'});

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 
 const root=path.resolve(import.meta.dirname,'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
@@ -29,6 +30,24 @@ const enter=desktop.slice(desktop.indexOf('async function enterWorkspace()'),des
 assert(enter.includes('mountWorkspace();setTimeout(()=>synchronizeWorkspaceInBackground(),0)'));
 assert(!enter.includes('await synchronizeCompanyWarehouseRegistry()'));
 assert(!enter.includes('await restoreFreshComputerWorkspace()'));
+const confirmStart=desktop.indexOf('async function confirmActiveWarehouseContext()');
+const confirmEnd=desktop.indexOf('async function synchronizeWorkspaceInBackground()',confirmStart);
+assert(confirmStart>=0&&confirmEnd>confirmStart);
+const warehouseContextCalls=[];
+const warehouseContext={
+  window:{JustFunDesktop:{setActiveWarehouse:async payload=>{warehouseContextCalls.push(payload);return{ok:true}}}},
+  isTrainingEnvironment:()=>true,
+  activeWarehouseId:()=> 'warehouse-1',
+  activeEnvironment:()=> 'demo',
+};
+vm.createContext(warehouseContext);
+vm.runInContext(`${desktop.slice(confirmStart,confirmEnd)}\nglobalThis.__confirmActiveWarehouseContext=confirmActiveWarehouseContext;`,warehouseContext);
+assert.equal(await warehouseContext.__confirmActiveWarehouseContext(),true);
+assert.equal(warehouseContextCalls.length,0,'a persisted training environment must not request a LIVE desktop-core context');
+warehouseContext.isTrainingEnvironment=()=>false;
+warehouseContext.activeEnvironment=()=> 'live';
+assert.equal(await warehouseContext.__confirmActiveWarehouseContext(),true);
+assert.equal(JSON.stringify(warehouseContextCalls),JSON.stringify([{warehouseId:'warehouse-1',environment:'live'}]),'the normal LIVE startup must still confirm the active warehouse with the desktop core');
 assert(desktop.includes('class="jf-help-scroll" tabindex="0"'));
 assert(css.includes('.jf-help-scroll{flex:1 1 auto;min-height:0;overflow-y:auto'));
 
