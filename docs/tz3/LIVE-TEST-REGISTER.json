@@ -1688,6 +1688,73 @@
         "log the built in quality execution itself with a safe correlation id",
         "run a controlled restore only in a disposable warehouse or after explicit destructive acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0066",
+      "stage": 8,
+      "action": "exercise REG RU VPS and Telegram controls without entering owner secrets and verify safe local first failures and logs",
+      "result": "LOCAL-FIRST VPS GUARDS AND TELEGRAM FAILURE GUIDANCE PASS / LIVE EXTERNAL SETUP PENDING OWNER CREDENTIALS / MUTATION AUDIT PARTIAL / RELEASE NO-GO",
+      "vps": {
+        "status": "not configured",
+        "ip": null,
+        "ssh_user": "root",
+        "ssh_port": 22,
+        "instruction_opened": true,
+        "install_without_ip_blocked": true,
+        "connection_without_setup_blocked": true,
+        "save_without_setup_blocked": true,
+        "false_server_read_message_reproduced": false,
+        "local_data_explicitly_unchanged": true,
+        "restore_with_pending_outbox_blocked": true,
+        "pending_outbox_at_restore_guard": 8,
+        "external_change_performed": false
+      },
+      "telegram": {
+        "status": "owner repair required",
+        "company_profile_saved": false,
+        "warehouse_group_connected": false,
+        "instruction_opened": true,
+        "secure_setup_wizard_opened": true,
+        "cloudflare_token_entered": false,
+        "bot_token_entered": false,
+        "secret_persisted": false,
+        "repair_without_initial_setup_blocked": true,
+        "webhook_without_setup_failed_meaningfully": true,
+        "group_link_without_setup_code": "TELEGRAM_NOT_CONFIGURED",
+        "external_change_performed": false
+      },
+      "restart": {
+        "application_relaunched": true,
+        "release_integrity_verified": true,
+        "archive_hash_verified": true,
+        "authorized": true,
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "orders": 5,
+        "products": 4,
+        "outbox": 8
+      },
+      "log_evidence": [
+        "REG RU setup failure without IP logged at 2026-08-24T21:06:34.577Z",
+        "Telegram secure setup wizard shown logged at 2026-08-24T21:08:19.739Z",
+        "normal application exit and restart logged",
+        "release integrity and archive hash verified after restart",
+        "Telegram owner repair required and TELEGRAM_NOT_CONFIGURED logged",
+        "Telegram group link failure logged at 2026-08-24T21:12:26.048Z",
+        "VPS connection save and restore validation actions lack distinct audit correlation events"
+      ],
+      "defects": [
+        "JF3-DEFECT-014",
+        "JF3-DEFECT-019"
+      ],
+      "closed_defects": [
+        "JF3-DEFECT-014"
+      ],
+      "pending": [
+        "enter the owner VPS address and SSH password only in the protected flow then verify SSH and TLS fingerprints PostgreSQL V3 upload reconnect and two PC isolation",
+        "enter the temporary limited Cloudflare token and Telegram bot token only in the protected wizard then deploy Worker D1 webhook delete the temporary token and run group end to end statuses",
+        "add safe audit events and correlation ids for every VPS validation action",
+        "keep VPS and Telegram acceptance independent and compare local data before and after each integration"
+      ]
     }
   ],
   "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
