@@ -61,15 +61,19 @@ async function main() {
   const ids = workspaceIds.map(value => `'${value}'`).join(',');
   const sql = `
 WITH
-  commands AS (DELETE FROM processed_commands WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1),
-  events AS (DELETE FROM workspace_change_events WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1),
-  entities AS (DELETE FROM workspace_entities WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1),
-  snapshots AS (DELETE FROM warehouse_snapshots WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1)
+  release_outbox AS (DELETE FROM warehouse_delete_release_outbox_v3 WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1),
+  delete_operations AS (DELETE FROM warehouse_delete_operations_v3 WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1),
+  audit AS (DELETE FROM business_audit_v3 WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1),
+  commands AS (DELETE FROM business_commands_v3 WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1),
+  events AS (DELETE FROM business_events_v3 WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1),
+  entities AS (DELETE FROM business_records_v3 WHERE workspace_id = ANY(ARRAY[${ids}]::varchar[]) RETURNING 1)
 SELECT json_build_object(
+  'release_outbox', (SELECT count(*) FROM release_outbox),
+  'delete_operations', (SELECT count(*) FROM delete_operations),
+  'audit', (SELECT count(*) FROM audit),
   'commands', (SELECT count(*) FROM commands),
   'events', (SELECT count(*) FROM events),
-  'entities', (SELECT count(*) FROM entities),
-  'snapshots', (SELECT count(*) FROM snapshots)
+  'entities', (SELECT count(*) FROM entities)
 )::text;
 `;
   const encoded = Buffer.from(sql, 'utf8').toString('base64');

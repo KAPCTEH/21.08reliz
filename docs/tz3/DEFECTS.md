@@ -202,12 +202,14 @@
 |---|---|
 | Тип | Multi-tenant migration / data isolation risk |
 | Приоритет | P1 до production onboarding |
-| Состояние | OPEN RISK, LIVE INVENTORY NOT RUN |
-| Source status | PARTIAL FOUNDATIONS CONFIRMED |
+| Состояние | SOURCE MIGRATION IMPLEMENTED / LIVE INVENTORY AND DATABASE ACCEPTANCE NOT RUN |
+| Source status | V1/V2 FAIL-CLOSED MIGRATION + UNIT PASS |
 
 В текущем коде присутствуют schema migrations, PostgreSQL RLS, company/warehouse/environment scope и Telegram D1 migrations. Однако общие тестовые базы ещё не инвентаризированы на старые schema versions, orphan rows, legacy wildcard Telegram state и незавершённые операции. Поэтому наличие фактического конфликта пока не объявляется доказанным дефектом.
 
 Условие закрытия: выполнить inventory без секретов, сохранить backup, применить и повторить идемпотентные миграции, проверить legacy quarantine, смешанные версии клиентов, cross-tenant negative tests и матрицу [`MULTI-TENANT-DATA-MIGRATION-SPEC.md`](MULTI-TENANT-DATA-MIGRATION-SPEC.md).
+
+Исправление исходников после `JF3-S0054`: известные PostgreSQL V1/V2 больше не удаляются. Они транзакционно переносятся в V3 с проверкой scope/digest и сохраняются архивными таблицами; неизвестная или повреждённая схема блокирует запуск без изменения исходных данных. Установщик проверяет внешний `pg_dump` и умеет полностью восстановить его при ошибке. До реального PostgreSQL-прогона, production inventory/backup/restore, mixed-client и cross-tenant матриц риск не закрыт.
 
 ### JF3-BLOCKER-004 — Установщик VPS получает Windows-окончания строк и завершается до установки
 

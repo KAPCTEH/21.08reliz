@@ -71,8 +71,13 @@ function upload(client) {
 }
 
 async function rollback(client) {
-  await execute(client, `cp -a '${backupDir}/server.py' '${target}'`);
-  await execute(client, "systemctl restart orders-logistics");
+  await must(client, 'systemctl stop orders-logistics');
+  await must(client, "sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='orderslogistics' AND pid<>pg_backend_pid()\"");
+  await must(client, 'sudo -u postgres dropdb --if-exists orderslogistics');
+  await must(client, 'sudo -u postgres createdb --owner=orderslogistics orderslogistics');
+  await must(client, `sudo -u postgres pg_restore --exit-on-error --dbname=orderslogistics '${backupDir}/orderslogistics.dump'`, 120000);
+  await must(client, `cp -a '${backupDir}/server.py' '${target}'`);
+  await must(client, "systemctl restart orders-logistics");
 }
 
 async function main() {
@@ -83,8 +88,9 @@ async function main() {
     await must(client, `cp -a '${target}' '${backupDir}/server.py'`);
     await must(client, `cp -a /etc/orders-logistics/server.env '${backupDir}/server.env'`);
     await must(client, `sudo -u postgres pg_dump --format=custom orderslogistics > '${backupDir}/orderslogistics.dump'`, 120000);
+    await must(client, `sudo -u postgres pg_restore --list '${backupDir}/orderslogistics.dump' > '${backupDir}/orderslogistics.restore-list'`);
     await must(client, `sha256sum '${backupDir}/server.py' '${backupDir}/orderslogistics.dump' > '${backupDir}/SHA256SUMS'`);
-    const backupCheck = await must(client, `stat -c '%n|%s|%a|%U|%G' '${backupDir}/server.py' '${backupDir}/server.env' '${backupDir}/orderslogistics.dump' '${backupDir}/SHA256SUMS'`);
+    const backupCheck = await must(client, `stat -c '%n|%s|%a|%U|%G' '${backupDir}/server.py' '${backupDir}/server.env' '${backupDir}/orderslogistics.dump' '${backupDir}/orderslogistics.restore-list' '${backupDir}/SHA256SUMS'`);
 
     await upload(client);
     const uploadedHash = (await must(client, `sha256sum '${staging}'`)).split(/\s+/)[0].toLowerCase();
@@ -103,7 +109,7 @@ async function main() {
     if (active.trim() !== 'active' || currentHash !== expectedHash) throw new Error('Service verification failed after deployment');
     const parsedHealth = JSON.parse(health);
     if (!parsedHealth.ok || parsedHealth.database !== 'ready') throw new Error('Health check failed after deployment');
-    const requiredTables = ['processed_commands', 'schema_migrations', 'warehouse_snapshots', 'workspace_change_events', 'workspace_entities'];
+    const requiredTables = ['business_audit_v3', 'business_commands_v3', 'business_events_v3', 'business_records_v3', 'schema_migrations', 'warehouse_delete_operations_v3', 'warehouse_delete_release_outbox_v3'];
     for (const table of requiredTables) if (!database.includes(table)) throw new Error(`Required table is missing: ${table}`);
     process.stdout.write(`${JSON.stringify({ ok: true, backupDir, expectedHash, active, health: parsedHealth, database: database.split(/\r?\n/).filter(Boolean), backup: backupCheck.split(/\r?\n/).filter(Boolean) }, null, 2)}\n`);
   } catch (error) {

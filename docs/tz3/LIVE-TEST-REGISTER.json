@@ -1096,8 +1096,36 @@
         "build and install the next protected release candidate",
         "repeat every affected live scenario"
       ]
+    },
+    {
+      "step_id": "JF3-S0054",
+      "stage": 7,
+      "action": "replace destructive legacy PostgreSQL startup drops with registered fail-closed V1 and V2 migrations",
+      "result": "SOURCE IMPLEMENTED AND UNIT PASS / POSTGRESQL INTEGRATION AND PRODUCTION MIGRATION NOT RUN",
+      "evidence": [
+        "known V1 snapshot and V2 entity event command schemas are matched by exact columns",
+        "unknown schema corrupt scope invalid identifiers duplicate entities and digest mismatches fail closed",
+        "V2 wins per entity while V1 fills only missing records",
+        "legacy source tables are atomically retained as archive tables instead of being dropped",
+        "migration uses an advisory lock stable checksums and batches of one thousand rows",
+        "VPS installer verifies pg_dump readability and SHA-256 before startup and restores the full dump on rollback",
+        "health publishes schema version and applied migration checksums",
+        "five migration unit tests and adjacent REG API revision source release and security suites passed"
+      ],
+      "not_run": [
+        "two PostgreSQL integration scenarios skipped because JF_TEST_POSTGRES_ADMIN_DSN is not configured",
+        "production VPS inventory backup migration reread and restore",
+        "mixed old and new clients",
+        "cross-tenant and multi-PC acceptance"
+      ],
+      "pending": [
+        "run the prepared PostgreSQL integration matrix against an isolated database",
+        "inventory and back up the production test VPS without exposing secrets",
+        "perform migration repeat reread and real restore acceptance",
+        "continue remaining P1 and P2 repair before rebuilding"
+      ]
     }
   ],
-  "current_gate": "stage-7/legacy-database-migration-repair-in-progress",
+  "current_gate": "stage-7/production-postgresql-migration-validation-pending",
   "release_status": "NO-GO"
 }

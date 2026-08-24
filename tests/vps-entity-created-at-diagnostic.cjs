@@ -46,7 +46,7 @@ async function main() {
       "'workspace', workspace_id, 'warehouse', warehouse_id, 'environment', environment,",
       "'version', version, 'row_created_at', created_at, 'payload_created_at', payload->>'createdAt',",
       "'payload_sha256', payload_sha256)",
-      "FROM workspace_entities",
+      "FROM business_records_v3",
       "WHERE entity_type='products' AND entity_id='" + escaped + "' AND NOT is_deleted",
       "ORDER BY updated_at DESC;",
     ].join(' ');

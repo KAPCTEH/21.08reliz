@@ -136,6 +136,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Release evidence unit tests failed.' }
           node tests/reg-entity-source-contract.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Entity source contract failed.' }
+          python tests/reg-legacy-migration-unit.py
+          if ($LASTEXITCODE -ne 0) { throw 'Legacy storage migration unit tests failed.' }
+          python tests/reg-legacy-migration-integration.py
+          if ($LASTEXITCODE -ne 0) { throw 'Legacy storage migration integration tests failed.' }
           node tests/entity-bootstrap-merge-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Entity bootstrap merge unit test failed.' }
           python tests/reg-revision-test.py

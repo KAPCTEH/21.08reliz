@@ -74,7 +74,7 @@ async function main() {
       applicationFiles: "find /opt/justfun/orders-logistics -maxdepth 2 -type f -printf '%p|%s|%u|%g|%m\\n' 2>/dev/null | sort",
       applicationHash: "sha256sum /opt/justfun/orders-logistics/server.py 2>/dev/null || true",
       database: "sudo -u postgres psql -d orderslogistics -X -tAc \"SELECT current_database(), current_user, current_setting('server_version'); SELECT count(*) FROM information_schema.tables WHERE table_schema='public'; SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;\"",
-      warehouseInventory: "sudo -u postgres psql -d orderslogistics -X -F '|' -Atc \"SELECT 'entity',workspace_id,warehouse_id,environment,COALESCE(payload->>'name',payload->>'code',''),updated_at FROM workspace_entities WHERE entity_type='warehouse' AND NOT is_deleted UNION ALL SELECT 'snapshot',workspace_id,warehouse_id,environment,COALESCE(snapshot#>>'{warehouse,name}',snapshot#>>'{warehouse,code}',''),updated_at FROM warehouse_snapshots ORDER BY 2,3,4,1;\"",
+      warehouseInventory: "sudo -u postgres psql -d orderslogistics -X -F '|' -Atc \"SELECT 'v3',workspace_id,warehouse_id,environment,COALESCE(payload->>'name',payload->>'code',''),updated_at FROM business_records_v3 WHERE entity_type='warehouse' AND NOT is_deleted ORDER BY 2,3,4,1;\"",
       warnings: "journalctl -u orders-logistics --since '2026-08-08 00:00:00' -p warning --no-pager -n 80",
     };
     const report = { ok: true, hostReachable: true, checkedAt: new Date().toISOString(), checks: {} };

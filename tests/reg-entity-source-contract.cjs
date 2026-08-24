@@ -16,6 +16,11 @@ assert.ok(server.includes('CREATE TABLE IF NOT EXISTS business_events_v3'),'VPS 
 assert.ok(server.includes('CREATE TABLE IF NOT EXISTS business_commands_v3'),'VPS must deduplicate retried commands');
 assert.ok(server.includes('CREATE TABLE IF NOT EXISTS warehouse_delete_operations_v3'),'VPS must durably persist the pre-Telegram warehouse delete gate');
 assert.ok(server.includes('CREATE TABLE IF NOT EXISTS business_audit_v3'),'VPS must keep an authenticated business audit');
+assert.ok(server.includes('migrate_supported_legacy_storage(cur)'),'VPS startup must migrate registered legacy storage before serving V3');
+assert.ok(server.includes('legacy_v1_warehouse_snapshots_archive'),'V1 snapshots must be retained as a recoverable archive');
+assert.ok(server.includes('legacy_v2_workspace_entities_archive'),'V2 entities must be retained as a recoverable archive');
+assert.ok(!server.includes('DROP TABLE IF EXISTS warehouse_snapshots'),'legacy snapshots must never be silently destroyed');
+assert.ok(!server.includes('DROP TABLE IF EXISTS workspace_entities'),'legacy row storage must never be silently destroyed');
 assert.ok(server.includes('ThreadedConnectionPool'),'VPS must reuse bounded PostgreSQL connections for concurrent clients');
 assert.ok(server.includes('FORCE ROW LEVEL SECURITY'),'VPS must enforce database-level company and warehouse isolation');
 assert.ok(server.includes('entity_version_conflict'),'VPS must reject stale row versions');

@@ -598,3 +598,15 @@
 - FULL runtime подтвердил два склада, заказ первого склада, товар второго, сохранение пустого каталога, исходного активного склада и `0` runtime errors. Отдельный restart/replay подтвердил четыре повторные попытки без увеличения четырёх уже обработанных команд.
 - Проверки синтаксиса, current-cycle, entity source contract, entity bootstrap и оба миграционных runtime-сценария прошли.
 - Результат: `SOURCE FIX + AUTOMATED MIGRATION/RESUME PASS / PRODUCTION VPS, BACKUP AND LIVE RETEST REQUIRED`; миграции старых PostgreSQL-схем ещё не выполнены, релиз остаётся `NO-GO`.
+
+### JF3-S0054 — Безопасное обновление старых PostgreSQL V1/V2 до V3
+
+- Удалён разрушительный startup-путь, который безусловно удалял `warehouse_snapshots`, `workspace_entities`, `workspace_change_events` и `processed_commands`.
+- Зарегистрированы только две фактически найденные в истории проекта схемы: V1 с цельным JSONB-снимком склада и V2 с отдельными сущностями/событиями/командами. Неизвестный набор столбцов получает `UNSUPPORTED_SCHEMA`, повреждённый scope, JSON, идентификатор или digest — `CORRUPT_SCHEMA`; изменение базы при этом откатывается транзакцией.
+- Миграция защищена PostgreSQL advisory-lock, работает пакетами по 1 000 строк, проверяет исходные SHA-256 и канонический company/warehouse/environment scope. Для одного ключа V2 считается более новым источником, а V1 заполняет только отсутствующие записи, не возвращая удалённые V2-сущности.
+- Каждая перенесённая запись получает V3 event/version/digest; исходные таблицы не удаляются, а атомарно переименовываются в read-only архивное семейство `legacy_v1_*_archive` / `legacy_v2_*_archive`. Старые результаты команд сохраняются в архиве, но не выдаются за V3-команды с неизвестным request hash.
+- `schema_migrations` получил SHA-256 зарегистрированных переходов; `/health` публикует фактическую версию и машинно-читаемый список применённых миграций.
+- VPS-установщик до изменения базы создаёт `pg_dump`, проверяет его через `pg_restore --list`, сохраняет SHA-256, а при последующей ошибке полностью восстанавливает прежнюю базу и прежний сервер.
+- Добавлены unit-тесты конвертации, scope/digest/duplicate/unknown-schema fail-closed, source-контракты и отдельная PostgreSQL integration-матрица V1, V1+V2, повторного запуска и архивов.
+- Фактически сейчас прошли 5 unit-тестов и все смежные REG/API/revision/source/release/security проверки. Два PostgreSQL integration-теста подготовлены, но в текущей Windows-среде корректно пропущены: тестовый DSN PostgreSQL не настроен.
+- Результат: `SOURCE IMPLEMENTED + UNIT PASS / POSTGRESQL INTEGRATION, PRODUCTION BACKUP/RESTORE AND LIVE MIGRATION NOT RUN`; релиз остаётся `NO-GO`.

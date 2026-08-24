@@ -187,6 +187,88 @@ INTENT_PLAN_FIELDS = {
     "route_start": {"lifecycleStatus", "lifecycleUpdatedAt"},
     "route_return": {"lifecycleStatus", "lifecycleUpdatedAt"},
 }
+LEGACY_V1_COLUMNS = {
+    "workspace_id", "warehouse_id", "environment", "revision", "digest_sha256",
+    "snapshot", "created_at", "updated_at",
+}
+LEGACY_V2_COLUMNS = {
+    "workspace_entities": {
+        "workspace_id", "warehouse_id", "environment", "entity_type", "entity_id",
+        "version", "payload_sha256", "payload", "is_deleted", "last_event_id",
+        "created_at", "updated_at",
+    },
+    "workspace_change_events": {
+        "event_id", "workspace_id", "warehouse_id", "environment", "entity_type",
+        "entity_id", "entity_version", "operation", "payload_sha256", "payload",
+        "changed_by", "device_id", "command_id", "created_at",
+    },
+    "processed_commands": {
+        "workspace_id", "warehouse_id", "environment", "command_id", "actor_id",
+        "result", "created_at",
+    },
+}
+LEGACY_COLUMN_TYPES = {
+    "warehouse_snapshots": {
+        "workspace_id": "character varying", "warehouse_id": "character varying",
+        "environment": "character varying", "revision": "bigint",
+        "digest_sha256": "character", "snapshot": "jsonb",
+        "created_at": "timestamp with time zone", "updated_at": "timestamp with time zone",
+    },
+    "workspace_entities": {
+        "workspace_id": "character varying", "warehouse_id": "character varying",
+        "environment": "character varying", "entity_type": "character varying",
+        "entity_id": "character varying", "version": "bigint",
+        "payload_sha256": "character", "payload": "jsonb", "is_deleted": "boolean",
+        "last_event_id": "bigint", "created_at": "timestamp with time zone",
+        "updated_at": "timestamp with time zone",
+    },
+    "workspace_change_events": {
+        "event_id": "bigint", "workspace_id": "character varying",
+        "warehouse_id": "character varying", "environment": "character varying",
+        "entity_type": "character varying", "entity_id": "character varying",
+        "entity_version": "bigint", "operation": "character varying",
+        "payload_sha256": "character", "payload": "jsonb",
+        "changed_by": "character varying", "device_id": "character varying",
+        "command_id": "character varying", "created_at": "timestamp with time zone",
+    },
+    "processed_commands": {
+        "workspace_id": "character varying", "warehouse_id": "character varying",
+        "environment": "character varying", "command_id": "character varying",
+        "actor_id": "character varying", "result": "jsonb",
+        "created_at": "timestamp with time zone",
+    },
+}
+LEGACY_V1_MIGRATION_CHECKSUM = hashlib.sha256(
+    b"justfun-reg-vps:warehouse-snapshots-v1-to-business-storage-v3:1"
+).hexdigest()
+LEGACY_V2_MIGRATION_CHECKSUM = hashlib.sha256(
+    b"justfun-reg-vps:workspace-entities-v2-to-business-storage-v3:1"
+).hexdigest()
+REGISTERED_LEGACY_MIGRATIONS = {
+    290: ("verified V1 snapshot storage to V3 migration", LEGACY_V1_MIGRATION_CHECKSUM),
+    291: ("verified V2 row storage to V3 migration", LEGACY_V2_MIGRATION_CHECKSUM),
+}
+REGISTERED_CURRENT_MIGRATIONS = {
+    300: (
+        "server authoritative business storage v3",
+        hashlib.sha256(b"justfun-reg-vps:business-storage-v3:1").hexdigest(),
+    ),
+    301: (
+        "durable warehouse delete prepare gate",
+        hashlib.sha256(b"justfun-reg-vps:warehouse-delete-prepare-v3:1").hexdigest(),
+    ),
+    302: (
+        "durable warehouse delete lease release outbox",
+        hashlib.sha256(b"justfun-reg-vps:warehouse-delete-release-outbox-v3:1").hexdigest(),
+    ),
+}
+REGISTERED_SCHEMA_MIGRATIONS = {**REGISTERED_LEGACY_MIGRATIONS, **REGISTERED_CURRENT_MIGRATIONS}
+LEGACY_SINGLETON_SECTIONS = ("settings", "reportingData", "company")
+LEGACY_MAP_SECTIONS = (
+    "routePlans", "routeAssignments", "routeCatalog", "routeDriverAssignments",
+    "routeLocks", "routeOverrides", "routeExecutions", "warehouseReservations",
+    "manualRouteSequences",
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 LOG = logging.getLogger("orders-logistics")
@@ -397,24 +479,494 @@ def ensure_warehouse_code_unique_index(cur) -> None:
         raise
 
 
+def _schema_table_exists(cur, table_name: str) -> bool:
+    cur.execute("SELECT to_regclass(current_schema() || '.' || %s) IS NOT NULL", (table_name,))
+    return bool(cur.fetchone()[0])
+
+
+def _schema_table_columns(cur, table_name: str) -> set[str]:
+    cur.execute(
+        """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_schema=current_schema() AND table_name=%s
+        ORDER BY ordinal_position
+        """,
+        (table_name,),
+    )
+    return {str(row[0]) for row in cur.fetchall()}
+
+
+def _require_exact_legacy_schema(cur, table_name: str, expected: set[str]) -> None:
+    actual = _schema_table_columns(cur, table_name)
+    if actual != expected:
+        raise RuntimeError(
+            "UNSUPPORTED_SCHEMA: legacy table "
+            + table_name
+            + " has columns "
+            + json.dumps(sorted(actual), ensure_ascii=False, separators=(",", ":"))
+        )
+    cur.execute(
+        """
+        SELECT column_name, data_type
+        FROM information_schema.columns
+        WHERE table_schema=current_schema() AND table_name=%s
+        ORDER BY ordinal_position
+        """,
+        (table_name,),
+    )
+    actual_types = {str(row[0]): str(row[1]) for row in cur.fetchall()}
+    if actual_types != LEGACY_COLUMN_TYPES.get(table_name):
+        raise RuntimeError(
+            "UNSUPPORTED_SCHEMA: legacy table "
+            + table_name
+            + " has unknown column types "
+            + json.dumps(actual_types, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        )
+
+
+def _iter_migration_rows(cur, query: str, parameters: tuple = (), batch_size: int = 1000):
+    """Read a large legacy table in bounded batches while writes use the main cursor."""
+    with cur.connection.cursor() as reader:
+        reader.execute(query, parameters)
+        while True:
+            rows = reader.fetchmany(batch_size)
+            if not rows:
+                return
+            yield from rows
+
+
+def _legacy_scope(workspace_id: object, warehouse_id: object, environment: object) -> tuple[str, str, str]:
+    workspace = str(workspace_id)
+    warehouse = str(warehouse_id)
+    env = str(environment).lower()
+    if not WORKSPACE_RE.fullmatch(workspace) or not WAREHOUSE_RE.fullmatch(warehouse) or env not in {"live", "demo"}:
+        raise RuntimeError("CORRUPT_SCHEMA: legacy record has an invalid company, warehouse or environment scope")
+    return workspace, warehouse, env
+
+
+def _legacy_snapshot_digest(snapshot: dict) -> str:
+    stable = {"warehouse": snapshot.get("warehouse"), "data": snapshot.get("data")}
+    encoded = json.dumps(stable, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _legacy_wrapped_payload(value: object) -> dict:
+    return value if isinstance(value, dict) else {"__jf_wrapped_value": True, "value": value}
+
+
+def legacy_snapshot_entities(snapshot: object, warehouse_id: str, environment: str) -> list[dict]:
+    """Convert the exact supported V1 snapshot contract into V3 entity rows."""
+    if not isinstance(snapshot, dict):
+        raise RuntimeError("CORRUPT_SCHEMA: legacy warehouse snapshot is not a JSON object")
+    warehouse = snapshot.get("warehouse")
+    data = snapshot.get("data")
+    if not isinstance(warehouse, dict) or not isinstance(data, dict):
+        raise RuntimeError("CORRUPT_SCHEMA: legacy warehouse snapshot has no warehouse/data objects")
+    if str(warehouse.get("id", "")) != warehouse_id or str(data.get("warehouseId", "")) != warehouse_id:
+        raise RuntimeError("CORRUPT_SCHEMA: legacy warehouse snapshot contains a foreign warehouse id")
+    if str(warehouse.get("environment", "")).lower() != environment:
+        raise RuntimeError("CORRUPT_SCHEMA: legacy warehouse snapshot mixes LIVE and DEMO")
+    if not WAREHOUSE_CODE_RE.fullmatch(str(warehouse.get("code", "")).strip().upper()):
+        raise RuntimeError("CORRUPT_SCHEMA: legacy warehouse snapshot has an invalid warehouse code")
+
+    entities: list[dict] = []
+    seen: set[tuple[str, str]] = set()
+
+    def add(entity_type: str, entity_id: object, payload: object) -> None:
+        entity = str(entity_id)
+        if entity_type not in ENTITY_SECTIONS or not ENTITY_ID_RE.fullmatch(entity):
+            raise RuntimeError(f"CORRUPT_SCHEMA: legacy section {entity_type} has an invalid entity id")
+        key = (entity_type, entity)
+        if key in seen:
+            raise RuntimeError(f"CORRUPT_SCHEMA: duplicate legacy entity {entity_type}/{entity}")
+        seen.add(key)
+        body = _legacy_wrapped_payload(payload)
+        if isinstance(payload, dict):
+            declared_id = str(payload.get("id", ""))
+            if declared_id and declared_id != entity:
+                raise RuntimeError(f"CORRUPT_SCHEMA: legacy entity {entity_type}/{entity} declares another id")
+            declared_warehouse = str(payload.get("warehouseId", payload.get("warehouse_id", "")))
+            if declared_warehouse and declared_warehouse != warehouse_id:
+                raise RuntimeError(f"CORRUPT_SCHEMA: legacy entity {entity_type}/{entity} belongs to another warehouse")
+        entities.append({"type": entity_type, "id": entity, "payload": body})
+
+    add("warehouse", warehouse_id, warehouse)
+    for section in LEGACY_SINGLETON_SECTIONS:
+        value = data.get(section)
+        if isinstance(value, dict):
+            add(section, section, value)
+    for section in ENTITY_ARRAYS:
+        values = data.get(section, [])
+        if not isinstance(values, list):
+            raise RuntimeError(f"CORRUPT_SCHEMA: legacy section {section} is not an array")
+        for value in values:
+            if not isinstance(value, dict):
+                raise RuntimeError(f"CORRUPT_SCHEMA: legacy section {section} contains a non-object record")
+            fallback = value.get("routeId", value.get("executionId", "")) if section == "routeArchives" else ""
+            add(section, value.get("id", fallback), value)
+    for section in LEGACY_MAP_SECTIONS:
+        values = data.get(section, {})
+        if not isinstance(values, dict):
+            raise RuntimeError(f"CORRUPT_SCHEMA: legacy section {section} is not an object map")
+        for entity_id, value in values.items():
+            add(section, entity_id, value)
+    return entities
+
+
+def _archive_legacy_table(cur, source: str, archive: str) -> None:
+    if not _schema_table_exists(cur, source):
+        return
+    if _schema_table_exists(cur, archive):
+        raise RuntimeError(f"UNSUPPORTED_SCHEMA: both {source} and its archive {archive} exist")
+    if not re.fullmatch(r"[a-z0-9_]{1,63}", source) or not re.fullmatch(r"[a-z0-9_]{1,63}", archive):
+        raise RuntimeError("UNSUPPORTED_SCHEMA: unsafe legacy table name")
+    cur.execute(f"ALTER TABLE {source} RENAME TO {archive}")
+    cur.execute(f"ALTER TABLE {archive} ENABLE ROW LEVEL SECURITY")
+    cur.execute(f"ALTER TABLE {archive} FORCE ROW LEVEL SECURITY")
+    cur.execute(f"REVOKE ALL ON {archive} FROM PUBLIC")
+
+
+def _insert_migrated_event(
+    cur,
+    workspace_id: str,
+    warehouse_id: str,
+    environment: str,
+    entity_type: str,
+    entity_id: str,
+    version: int,
+    payload: dict | None,
+    deleted: bool,
+    changed_by: str,
+    device_id: str,
+    command_id: str,
+    created_at: object,
+    event_id: int | None = None,
+) -> int:
+    from psycopg2.extras import Json
+
+    digest = entity_payload_digest(payload, deleted)
+    operation = "delete" if deleted else "upsert"
+    if event_id is None:
+        cur.execute(
+            """
+            INSERT INTO business_events_v3
+              (workspace_id, warehouse_id, environment, entity_type, entity_id,
+               entity_version, operation, payload_sha256, payload, changed_by,
+               device_id, command_id, created_at)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            RETURNING event_id
+            """,
+            (workspace_id, warehouse_id, environment, entity_type, entity_id, version,
+             operation, digest, None if deleted else Json(payload), changed_by, device_id,
+             command_id, created_at),
+        )
+        return int(cur.fetchone()[0])
+    cur.execute(
+        """
+        INSERT INTO business_events_v3
+          (event_id, workspace_id, warehouse_id, environment, entity_type, entity_id,
+           entity_version, operation, payload_sha256, payload, changed_by,
+           device_id, command_id, created_at)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (event_id) DO NOTHING
+        """,
+        (event_id, workspace_id, warehouse_id, environment, entity_type, entity_id,
+         version, operation, digest, None if deleted else Json(payload), changed_by,
+         device_id, command_id, created_at),
+    )
+    cur.execute(
+        """
+        SELECT workspace_id, warehouse_id, environment, entity_type, entity_id,
+               entity_version, operation, payload_sha256
+        FROM business_events_v3 WHERE event_id=%s
+        """,
+        (event_id,),
+    )
+    stored = cur.fetchone()
+    expected = (workspace_id, warehouse_id, environment, entity_type, entity_id, version, operation, digest)
+    if not stored or tuple(stored) != expected:
+        raise RuntimeError(f"CORRUPT_SCHEMA: legacy event id {event_id} conflicts with V3 history")
+    return event_id
+
+
+def _insert_migrated_record(
+    cur,
+    workspace_id: str,
+    warehouse_id: str,
+    environment: str,
+    entity_type: str,
+    entity_id: str,
+    version: int,
+    payload: dict | None,
+    deleted: bool,
+    last_event_id: int,
+    created_at: object,
+    updated_at: object,
+    actor_id: str,
+    device_id: str = "legacy-migration",
+) -> None:
+    from psycopg2.extras import Json
+
+    digest = entity_payload_digest(payload, deleted)
+    cur.execute(
+        """
+        INSERT INTO business_records_v3
+          (workspace_id, warehouse_id, environment, entity_type, entity_id,
+           version, payload_sha256, payload, is_deleted, last_event_id,
+           created_by, updated_by, device_id, created_at, updated_at, deleted_at)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        ON CONFLICT (workspace_id, warehouse_id, environment, entity_type, entity_id) DO NOTHING
+        """,
+        (workspace_id, warehouse_id, environment, entity_type, entity_id, version,
+         digest, None if deleted else Json(payload), deleted, last_event_id, actor_id,
+         actor_id, device_id, created_at, updated_at, updated_at if deleted else None),
+    )
+    cur.execute(
+        """
+        SELECT version, payload_sha256, is_deleted, last_event_id
+        FROM business_records_v3
+        WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s
+          AND entity_type=%s AND entity_id=%s
+        """,
+        (workspace_id, warehouse_id, environment, entity_type, entity_id),
+    )
+    stored = cur.fetchone()
+    if not stored or tuple(stored) != (version, digest, deleted, last_event_id):
+        raise RuntimeError(f"CORRUPT_SCHEMA: legacy entity {entity_type}/{entity_id} conflicts with V3 storage")
+
+
+def _repair_business_event_sequence(cur) -> None:
+    cur.execute(
+        """
+        SELECT setval(
+          pg_get_serial_sequence('business_events_v3','event_id'),
+          GREATEST(COALESCE((SELECT MAX(event_id) FROM business_events_v3), 1), 1),
+          EXISTS(SELECT 1 FROM business_events_v3)
+        )
+        """
+    )
+
+
+def _record_schema_migration(cur, version: int, name: str, checksum: str) -> None:
+    cur.execute("SELECT name, checksum_sha256 FROM schema_migrations WHERE version=%s FOR UPDATE", (version,))
+    current = cur.fetchone()
+    if current and current[1] and str(current[1]) != checksum:
+        raise RuntimeError(f"UNSUPPORTED_SCHEMA: migration {version} checksum changed")
+    if current:
+        cur.execute(
+            "UPDATE schema_migrations SET name=%s, checksum_sha256=%s WHERE version=%s",
+            (name, checksum, version),
+        )
+    else:
+        cur.execute(
+            "INSERT INTO schema_migrations(version, name, checksum_sha256) VALUES (%s,%s,%s)",
+            (version, name, checksum),
+        )
+
+
+def _write_legacy_migration_audit(
+    cur,
+    source_schema: str,
+    checksum: str,
+    counts: dict[tuple[str, str, str], int],
+) -> None:
+    from psycopg2.extras import Json
+
+    for (workspace, warehouse, environment), count in sorted(counts.items()):
+        cur.execute(
+            """
+            INSERT INTO business_audit_v3
+              (workspace_id, warehouse_id, environment, actor_id, device_id,
+               command_id, action, entity_count, details)
+            VALUES (%s,%s,%s,'system','legacy-migration',%s,'legacy_storage_migration',%s,%s)
+            """,
+            (
+                workspace,
+                warehouse,
+                environment,
+                f"migration:{source_schema}:{warehouse}"[:180],
+                int(count),
+                Json({"source_schema": source_schema, "checksum_sha256": checksum}),
+            ),
+        )
+
+
+def _verify_registered_migration_checksums(cur) -> None:
+    for version, (_name, checksum) in REGISTERED_SCHEMA_MIGRATIONS.items():
+        cur.execute("SELECT checksum_sha256 FROM schema_migrations WHERE version=%s", (version,))
+        row = cur.fetchone()
+        if row and row[0] and str(row[0]) != checksum:
+            raise RuntimeError(f"UNSUPPORTED_SCHEMA: migration {version} has an unknown checksum")
+
+
+def _migrate_legacy_v2(cur) -> set[tuple[str, str, str]]:
+    present = [name for name in LEGACY_V2_COLUMNS if _schema_table_exists(cur, name)]
+    if not present:
+        return set()
+    if set(present) != set(LEGACY_V2_COLUMNS):
+        raise RuntimeError("UNSUPPORTED_SCHEMA: incomplete V2 row-storage table family")
+    for table_name, columns in LEGACY_V2_COLUMNS.items():
+        _require_exact_legacy_schema(cur, table_name, columns)
+
+    event_rows = _iter_migration_rows(
+        cur,
+        """
+        SELECT event_id, workspace_id, warehouse_id, environment, entity_type, entity_id,
+               entity_version, operation, payload_sha256, payload, changed_by,
+               device_id, command_id, created_at
+        FROM workspace_change_events ORDER BY event_id
+        """,
+    )
+    for row in event_rows:
+        (event_id, workspace, warehouse, environment, entity_type, entity_id, version,
+         operation, source_digest, payload, changed_by, device_id, command_id, created_at) = row
+        workspace, warehouse, environment = _legacy_scope(workspace, warehouse, environment)
+        entity_type, entity_id = str(entity_type), str(entity_id)
+        deleted = str(operation) == "delete"
+        if entity_type not in ENTITY_SECTIONS or not ENTITY_ID_RE.fullmatch(entity_id) or str(operation) not in {"upsert", "delete"}:
+            raise RuntimeError("CORRUPT_SCHEMA: V2 event contains an unsupported entity")
+        if entity_payload_digest(payload if isinstance(payload, dict) else None, deleted) != str(source_digest):
+            raise RuntimeError(f"CORRUPT_SCHEMA: V2 event {event_id} digest mismatch")
+        canonical = canonical_entity_payload(entity_type, entity_id, payload, warehouse, environment, created_at)
+        _insert_migrated_event(
+            cur, workspace, warehouse, environment, entity_type, entity_id, int(version),
+            canonical, deleted, str(changed_by), str(device_id or ""), str(command_id),
+            created_at, int(event_id),
+        )
+    _repair_business_event_sequence(cur)
+
+    scopes: set[tuple[str, str, str]] = set()
+    migrated_counts: dict[tuple[str, str, str], int] = {}
+    entity_rows = _iter_migration_rows(
+        cur,
+        """
+        SELECT workspace_id, warehouse_id, environment, entity_type, entity_id, version,
+               payload_sha256, payload, is_deleted, last_event_id, created_at, updated_at
+        FROM workspace_entities
+        ORDER BY workspace_id, warehouse_id, environment, entity_type, entity_id
+        """,
+    )
+    for row in entity_rows:
+        (workspace, warehouse, environment, entity_type, entity_id, version, source_digest,
+         payload, deleted, last_event_id, created_at, updated_at) = row
+        workspace, warehouse, environment = _legacy_scope(workspace, warehouse, environment)
+        scope = (workspace, warehouse, environment)
+        scopes.add(scope)
+        entity_type, entity_id = str(entity_type), str(entity_id)
+        if entity_type not in ENTITY_SECTIONS or not ENTITY_ID_RE.fullmatch(entity_id):
+            raise RuntimeError("CORRUPT_SCHEMA: V2 record contains an unsupported entity")
+        deleted = bool(deleted)
+        if entity_payload_digest(payload if isinstance(payload, dict) else None, deleted) != str(source_digest):
+            raise RuntimeError(f"CORRUPT_SCHEMA: V2 record {entity_type}/{entity_id} digest mismatch")
+        canonical = canonical_entity_payload(entity_type, entity_id, payload, warehouse, environment, created_at)
+        event_id = int(last_event_id or 0)
+        cur.execute(
+            """
+            SELECT entity_version, payload_sha256, operation
+            FROM business_events_v3 WHERE event_id=%s
+              AND workspace_id=%s AND warehouse_id=%s AND environment=%s
+              AND entity_type=%s AND entity_id=%s
+            """,
+            (event_id, workspace, warehouse, environment, entity_type, entity_id),
+        )
+        event = cur.fetchone() if event_id > 0 else None
+        canonical_digest = entity_payload_digest(canonical, deleted)
+        if not event or tuple(event) != (int(version), canonical_digest, "delete" if deleted else "upsert"):
+            event_id = _insert_migrated_event(
+                cur, workspace, warehouse, environment, entity_type, entity_id, int(version),
+                canonical, deleted, "legacy-v2-migration", "legacy-migration",
+                f"migration:v2:{warehouse}:{entity_type}:{entity_id}"[:180], updated_at,
+            )
+        _insert_migrated_record(
+            cur, workspace, warehouse, environment, entity_type, entity_id, int(version),
+            canonical, deleted, event_id, created_at, updated_at, "legacy-v2-migration",
+        )
+        migrated_counts[scope] = migrated_counts.get(scope, 0) + 1
+
+    _write_legacy_migration_audit(cur, "v2", LEGACY_V2_MIGRATION_CHECKSUM, migrated_counts)
+    _archive_legacy_table(cur, "workspace_entities", "legacy_v2_workspace_entities_archive")
+    _archive_legacy_table(cur, "workspace_change_events", "legacy_v2_workspace_change_events_archive")
+    _archive_legacy_table(cur, "processed_commands", "legacy_v2_processed_commands_archive")
+    _record_schema_migration(
+        cur, 291, "verified V2 row storage to V3 migration", LEGACY_V2_MIGRATION_CHECKSUM
+    )
+    return scopes
+
+
+def _migrate_legacy_v1(cur) -> None:
+    if not _schema_table_exists(cur, "warehouse_snapshots"):
+        return
+    _require_exact_legacy_schema(cur, "warehouse_snapshots", LEGACY_V1_COLUMNS)
+    snapshot_rows = _iter_migration_rows(
+        cur,
+        """
+        SELECT workspace_id, warehouse_id, environment, revision, digest_sha256,
+               snapshot, created_at, updated_at
+        FROM warehouse_snapshots
+        ORDER BY workspace_id, warehouse_id, environment
+        """,
+    )
+    migrated_counts: dict[tuple[str, str, str], int] = {}
+    for workspace, warehouse, environment, revision, source_digest, snapshot, created_at, updated_at in snapshot_rows:
+        workspace, warehouse, environment = _legacy_scope(workspace, warehouse, environment)
+        scope = (workspace, warehouse, environment)
+        migrated_counts.setdefault(scope, 0)
+        if not isinstance(snapshot, dict) or _legacy_snapshot_digest(snapshot) != str(source_digest):
+            raise RuntimeError(f"CORRUPT_SCHEMA: V1 snapshot digest mismatch for {workspace}/{warehouse}/{environment}")
+        version = max(1, int(revision))
+        for index, entity in enumerate(legacy_snapshot_entities(snapshot, warehouse, environment)):
+            entity_type, entity_id = entity["type"], entity["id"]
+            cur.execute(
+                """
+                SELECT 1 FROM business_records_v3
+                WHERE workspace_id=%s AND warehouse_id=%s AND environment=%s
+                  AND entity_type=%s AND entity_id=%s
+                """,
+                (workspace, warehouse, environment, entity_type, entity_id),
+            )
+            if cur.fetchone():
+                continue
+            payload = canonical_entity_payload(entity_type, entity_id, entity["payload"], warehouse, environment, created_at)
+            event_id = _insert_migrated_event(
+                cur, workspace, warehouse, environment, entity_type, entity_id, version,
+                payload, False, "legacy-v1-migration", "legacy-migration",
+                f"migration:v1:{warehouse}:{index}"[:180], updated_at,
+            )
+            _insert_migrated_record(
+                cur, workspace, warehouse, environment, entity_type, entity_id, version,
+                payload, False, event_id, created_at, updated_at, "legacy-v1-migration",
+            )
+            migrated_counts[scope] += 1
+    _write_legacy_migration_audit(cur, "v1", LEGACY_V1_MIGRATION_CHECKSUM, migrated_counts)
+    _archive_legacy_table(cur, "warehouse_snapshots", "legacy_v1_warehouse_snapshots_archive")
+    _record_schema_migration(
+        cur, 290, "verified V1 snapshot storage to V3 migration", LEGACY_V1_MIGRATION_CHECKSUM
+    )
+
+
+def migrate_supported_legacy_storage(cur) -> None:
+    """Migrate only registered V1/V2 schemas; retain their exact tables as archives."""
+    cur.execute("SELECT pg_advisory_xact_lock(hashtext('justfun-reg-vps'), hashtext('schema-migration-v3'))")
+    _migrate_legacy_v2(cur)
+    _migrate_legacy_v1(cur)
+    _repair_business_event_sequence(cur)
+
+
 def init_schema() -> None:
     with db_connect() as conn, conn.cursor() as cur:
-        # Business data in the previous local/snapshot protocol is test-only and
-        # intentionally not migrated. Dropping it also prevents accidental reads
-        # from bypassing the authoritative record/event protocol.
-        cur.execute("DROP TABLE IF EXISTS processed_commands CASCADE")
-        cur.execute("DROP TABLE IF EXISTS workspace_change_events CASCADE")
-        cur.execute("DROP TABLE IF EXISTS workspace_entities CASCADE")
-        cur.execute("DROP TABLE IF EXISTS warehouse_snapshots CASCADE")
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS schema_migrations (
               version integer PRIMARY KEY,
               name varchar(160) NOT NULL,
-              applied_at timestamptz NOT NULL DEFAULT now()
+              applied_at timestamptz NOT NULL DEFAULT now(),
+              checksum_sha256 char(64)
             )
             """
         )
+        cur.execute("ALTER TABLE schema_migrations ADD COLUMN IF NOT EXISTS checksum_sha256 char(64)")
+        _verify_registered_migration_checksums(cur)
         cur.execute(
             """
             CREATE TABLE IF NOT EXISTS business_records_v3 (
@@ -576,6 +1128,17 @@ def init_schema() -> None:
             ON business_audit_v3(workspace_id, warehouse_id, environment, created_at DESC)
             """
         )
+        for table_name in (
+            "business_records_v3",
+            "business_events_v3",
+            "business_commands_v3",
+            "warehouse_delete_operations_v3",
+            "warehouse_delete_release_outbox_v3",
+            "business_audit_v3",
+        ):
+            cur.execute(f"ALTER TABLE {table_name} DISABLE ROW LEVEL SECURITY")
+        migrate_supported_legacy_storage(cur)
+        ensure_warehouse_code_unique_index(cur)
         scope_policy = """
           workspace_id = current_setting('jf.workspace_id', true)
           AND environment = current_setting('jf.environment', true)
@@ -609,27 +1172,8 @@ def init_schema() -> None:
         )
         cur.execute("REVOKE ALL ON warehouse_delete_release_outbox_v3 FROM PUBLIC")
         cur.execute("REVOKE ALL ON SEQUENCE warehouse_delete_release_outbox_v3_outbox_id_seq FROM PUBLIC")
-        cur.execute(
-            """
-            INSERT INTO schema_migrations(version, name)
-            VALUES (300, 'server authoritative business storage v3')
-            ON CONFLICT (version) DO NOTHING
-            """
-        )
-        cur.execute(
-            """
-            INSERT INTO schema_migrations(version, name)
-            VALUES (301, 'durable warehouse delete prepare gate')
-            ON CONFLICT (version) DO NOTHING
-            """
-        )
-        cur.execute(
-            """
-            INSERT INTO schema_migrations(version, name)
-            VALUES (302, 'durable warehouse delete lease release outbox')
-            ON CONFLICT (version) DO NOTHING
-            """
-        )
+        for version, (name, checksum) in REGISTERED_CURRENT_MIGRATIONS.items():
+            _record_schema_migration(cur, version, name, checksum)
 
 
 def api_key_valid(value: str) -> bool:
@@ -3775,6 +4319,13 @@ class Handler(BaseHTTPRequestHandler):
                 with db_connect() as conn, conn.cursor() as cur:
                     cur.execute("SELECT 1")
                     cur.fetchone()
+                    cur.execute(
+                        "SELECT version, name, COALESCE(checksum_sha256, '') FROM schema_migrations ORDER BY version"
+                    )
+                    schema_migrations = [
+                        {"version": int(row[0]), "name": str(row[1]), "checksum_sha256": str(row[2])}
+                        for row in cur.fetchall()
+                    ]
                 self.send_json(
                     200,
                     {
@@ -3791,6 +4342,8 @@ class Handler(BaseHTTPRequestHandler):
                         "address_autocomplete": bool(DADATA_API_KEY),
                         "address_storage": "transient-memory-cache",
                         "storage_mode": "server_authoritative_v3",
+                        "schema_version": max((item["version"] for item in schema_migrations), default=0),
+                        "schema_migrations": schema_migrations,
                         "database_pool_max": DB_POOL_MAX,
                         "minimum_client_version": MIN_CLIENT_VERSION,
                         "contract_required": REQUIRE_API_CONTRACT,

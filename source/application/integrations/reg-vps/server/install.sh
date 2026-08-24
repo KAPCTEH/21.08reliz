@@ -9,6 +9,7 @@ BACKUP_DIR=""
 EXISTING_DB=0
 CREATED_DB=0
 SERVICE_WAS_ACTIVE=0
+DB_ROLLBACK_FAILED=0
 if [[ -z "$BOOTSTRAP_FILE" || ! -f "$BOOTSTRAP_FILE" ]]; then
   echo "Bootstrap configuration is missing" >&2
   exit 2
@@ -27,11 +28,19 @@ rollback_installation() {
   echo "JustFun: setup failed; restoring the previous server state" >&2
   systemctl stop orders-logistics 2>/dev/null || true
   if [[ "$BACKUP_READY" == 1 && -d "$BACKUP_DIR" ]]; then
-    # Existing snapshots are never dropped during automatic rollback. The new
-    # server only uses CREATE IF NOT EXISTS, so retaining the database is safer
-    # than a destructive restore; the pre-update dump remains available.
     if [[ "$CREATED_DB" == 1 && "$EXISTING_DB" != 1 ]]; then
       sudo -u postgres dropdb --if-exists orderslogistics >/dev/null 2>&1
+    elif [[ "$EXISTING_DB" == 1 && -s "$BACKUP_DIR/orderslogistics.dump" ]]; then
+      if ! sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 -c \
+          "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='orderslogistics' AND pid<>pg_backend_pid()" >/dev/null 2>&1 || \
+         ! sudo -u postgres dropdb --if-exists orderslogistics >/dev/null 2>&1 || \
+         ! sudo -u postgres createdb --owner=orderslogistics orderslogistics >/dev/null 2>&1 || \
+         ! sudo -u postgres pg_restore --exit-on-error --dbname=orderslogistics \
+          "$BACKUP_DIR/orderslogistics.dump" >/dev/null 2>&1 || \
+         ! sudo -u postgres psql -d orderslogistics -v ON_ERROR_STOP=1 -tAc "SELECT 1" >/dev/null 2>&1; then
+        DB_ROLLBACK_FAILED=1
+        echo "JustFun: CRITICAL - automatic database restore failed; verified dump remains at $BACKUP_DIR/orderslogistics.dump" >&2
+      fi
     fi
     for item in server.py server.env tls.crt tls.key 00-orders-logistics.conf; do
       if [[ -f "$BACKUP_DIR/$item" ]]; then
@@ -61,7 +70,7 @@ rollback_installation() {
     fi
   fi
   systemctl daemon-reload 2>/dev/null || true
-  if [[ "$SERVICE_WAS_ACTIVE" == 1 && -f /etc/systemd/system/orders-logistics.service ]]; then
+  if [[ "$SERVICE_WAS_ACTIVE" == 1 && "$DB_ROLLBACK_FAILED" == 0 && -f /etc/systemd/system/orders-logistics.service ]]; then
     systemctl restart orders-logistics 2>/dev/null || true
   fi
   nginx -t >/dev/null 2>&1 && systemctl reload nginx 2>/dev/null || true
@@ -122,6 +131,9 @@ if [[ -f /opt/justfun/orders-logistics/server.py || -f /etc/orders-logistics/ser
   if [[ "$EXISTING_DB" == 1 ]]; then
     sudo -u postgres pg_dump --format=custom orderslogistics > "$BACKUP_DIR/orderslogistics.dump"
     chmod 0600 "$BACKUP_DIR/orderslogistics.dump"
+    sudo -u postgres pg_restore --list "$BACKUP_DIR/orderslogistics.dump" > "$BACKUP_DIR/orderslogistics.restore-list"
+    sha256sum "$BACKUP_DIR/orderslogistics.dump" > "$BACKUP_DIR/orderslogistics.dump.sha256"
+    chmod 0600 "$BACKUP_DIR/orderslogistics.restore-list" "$BACKUP_DIR/orderslogistics.dump.sha256"
   fi
 fi
 BACKUP_READY=1
