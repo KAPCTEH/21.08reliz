@@ -1259,6 +1259,50 @@
         "repair normalization ranking and administrative parsing",
         "run the approved priority-region corpus automatically and repeat representative live cases"
       ]
+    },
+    {
+      "step_id": "JF3-S0058",
+      "stage": 8,
+      "action": "create edit archive and reserve a temporary pickup then verify each state with two controlled restarts",
+      "result": "CREATE EDIT DURABLE / ARCHIVE PICKUP READY AND RESERVATION DURABILITY FAIL / RELEASE NO-GO",
+      "order": {
+        "number": "ORD-2026-0005",
+        "product": "Груз ТЗ3 №4",
+        "quantity": 2,
+        "total_rub": 2400
+      },
+      "durable_after_restart": [
+        "order creation",
+        "quantity two",
+        "total 2400 rubles"
+      ],
+      "failed_after_restart": [
+        "not relevant status",
+        "archive state and reason",
+        "pickup ready status",
+        "two unit inventory reservation"
+      ],
+      "inventory_before_second_restart": {
+        "physical": 11,
+        "reserved": 2,
+        "available": 9
+      },
+      "inventory_after_second_restart": {
+        "physical": 11,
+        "reserved": 0,
+        "available": 11
+      },
+      "defects": [
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-027",
+        "JF3-DEFECT-028"
+      ],
+      "pending": [
+        "repair atomic lifecycle and reservation persistence",
+        "add complete mutation audit logging with correlation ids",
+        "build install and repeat both restart cycles",
+        "verify reconnect conflict and second PC without archive resurrection"
+      ]
     }
   ],
   "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
