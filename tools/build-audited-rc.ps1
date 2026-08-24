@@ -143,7 +143,10 @@ try {
   $printQa = Join-Path $evidence 'print-qa'
   New-Item -ItemType Directory -Path $printQa -Force | Out-Null
   $payloadApplication = Join-Path $payload 'OrdersLogistics.exe'
-  Invoke-Checked $payloadApplication @("--print-qa-output=$printQa")
+  $printQaProcess = Start-Process -FilePath $payloadApplication -ArgumentList @("--print-qa-output=$printQa") -PassThru -Wait -WindowStyle Hidden
+  if ($printQaProcess.ExitCode -ne 0) {
+    throw "Защищённый payload завершил PDF-проверку с кодом $($printQaProcess.ExitCode)."
+  }
   $printQaResult = Get-Content -LiteralPath (Join-Path $printQa 'PRINT-QA.json') -Raw | ConvertFrom-Json
   if (@($printQaResult.errors).Count -ne 0 -or @($printQaResult.documents).Count -ne 5) {
     throw 'Проверка PDF не создала пять корректных документов.'

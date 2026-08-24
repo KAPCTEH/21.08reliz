@@ -1879,6 +1879,32 @@
         "run the full VPS setup wizard so company and server credentials are rotated atomically",
         "rerun production PostgreSQL migration and entity acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0070",
+      "stage": 9,
+      "action": "run exact commit audited build identify asynchronous GUI print gate race and make the orchestrator wait for completion",
+      "result": "PROTECTED PAYLOAD PASS / BUILD ORCHESTRATOR RACE FIXED / CLEAN REBUILD REQUIRED / RELEASE NO-GO",
+      "build_evidence": {
+        "source_commit": "24c278ea19759ff9ea20c2131d6b3dedb0da6e96",
+        "source_dirty": false,
+        "release_contract_tests": 82,
+        "npm_vulnerabilities": 0,
+        "security_files": 186,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "protected_payload_created": true,
+        "update_helper_self_test": true,
+        "payload_pdf_documents_created": 5,
+        "installer_created": false,
+        "release_eligible": false
+      },
+      "root_cause": "PowerShell did not wait for the Windows GUI executable before reading PRINT-QA.json",
+      "fix": "Start-Process with PassThru Wait Hidden and exit code validation",
+      "pending": [
+        "repeat the clean exact commit audited build",
+        "pass full installer acceptance"
+      ]
     }
   ],
   "current_gate": "stage-9/source-repair-pass-production-live-gates-open",

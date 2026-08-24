@@ -778,3 +778,10 @@
 - При запуске текущий сервер fail-closed потребовал отсутствующие в старом `server.env` `JF_API_KEY_SHA256` и `JF_VPS_ATTESTATION_SECRET`. Каждый допущенный до замены проход автоматически остановил службу, восстановил весь dump и прежний сервер, затем подтвердил active/health/database и исходный удалённый SHA-256.
 - Прямая построчная публикация теперь preflight-блокируется до замены, если защищённые параметры отсутствуют. Продолжение разрешено только через полный мастер нового клиента, который атомарно получает параметры компании и обновляет обе стороны.
 - Результат: `PRODUCTION INVENTORY PASS / DATABASE AND SERVER ROLLBACK PASS / FULL PROTECTED VPS BOOTSTRAP REQUIRED / RELEASE NO-GO`.
+
+### JF3-S0070 — Защищённая сборка: устранение гонки PDF-gate
+
+- Audited-build из точного коммита `24c278e` прошёл релизный контракт 82/82, чистую установку npm с 0 уязвимостей, Update Helper self-test, security 186/0, runtime accessibility, печать, целостность сохранения, atomic rollback, offline/retry, оплату/outbox/audit и бизнес-цикл 69/69.
+- Защищённый payload и ASAR были созданы и прошли проверку хеша/целостности, но PowerShell запустил GUI EXE асинхронно и попытался прочитать `PRINT-QA.json` раньше завершения. Сам payload позже корректно создал 5 PDF и итоговый JSON; установщик не собирался, gate остался false.
+- Build-оркестратор исправлен: GUI-процесс запускается через `Start-Process -PassThru -Wait -WindowStyle Hidden`, проверяется его exit code, и только затем читается PDF-отчёт. Добавлен source-тест, исключающий возврат гонки.
+- Результат: `PROTECTED PAYLOAD PASS / BUILD ORCHESTRATOR RACE FIXED / CLEAN REBUILD REQUIRED / RELEASE NO-GO`.

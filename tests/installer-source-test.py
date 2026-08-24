@@ -16,6 +16,7 @@ WINDOWS_WORKFLOW_CONTRACT = ROOT / "tests" / "fixtures" / "windows-native-783.ym
 DOTNET_SDK_POLICY = ROOT / "global.json"
 CRASH_RECOVERY_TEST = ROOT / "tests" / "installer-crash-recovery-test.ps1"
 PE_ICON_TEST = ROOT / "tests" / "verify-pe-icon.mjs"
+AUDITED_BUILD = ROOT / "tools" / "build-audited-rc.ps1"
 
 
 def read_windows_workflow():
@@ -29,6 +30,13 @@ def read_windows_workflow():
 
 
 class NativeInstallerSourceTests(unittest.TestCase):
+    def test_protected_payload_print_gate_waits_for_gui_process(self):
+        source = AUDITED_BUILD.read_text(encoding="utf-8")
+        self.assertIn("Start-Process -FilePath $payloadApplication", source)
+        self.assertIn("-PassThru -Wait -WindowStyle Hidden", source)
+        self.assertIn("$printQaProcess.ExitCode", source)
+        self.assertLess(source.index("Start-Process -FilePath $payloadApplication"), source.index("PRINT-QA.json"))
+
     def test_update_helper_uses_exact_dotnet_sdk_for_locked_restore(self):
         policy = DOTNET_SDK_POLICY.read_text(encoding="utf-8")
         workflow = read_windows_workflow()
