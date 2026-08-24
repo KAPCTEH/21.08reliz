@@ -769,3 +769,12 @@
 - Runtime оплаты подтвердил: UI paid, durable storage, outbox +1, команда `order_payment`, восстановление после открытия очереди, изменённая сущность, мгновенное обновление backup health и единый correlation-id — все `PASS`.
 - Security audit повторно проверил 185 файлов: 0 findings, 0 forbidden artifacts. Установленный живой повтор и производственные ворота остаются обязательными.
 - Результат: `SOURCE OBSERVABILITY AND BACKUP REFRESH PASS / INSTALLED LIVE RETEST AND PRODUCTION GATES OPEN / RELEASE NO-GO`.
+
+### JF3-S0069 — Production VPS: диагностика, backup-gate и доказанный автоматический откат
+
+- Текущий пароль из предоставленного владельцем документа принят; прежний локально сохранённый пароль оказался устаревшим. Секреты не выводились и не записывались в репозиторий.
+- До изменения production подтверждены active `orders-logistics/nginx/postgresql`, HTTPS health `ok`, API contract 4, database `ready` и пять действующих V3-таблиц. Хеш удалённого `server.py` не совпадал с текущим исходником.
+- Протокол создал отдельный PostgreSQL custom dump, проверил список восстановления, SHA-256 и копии `server.py/server.env`. Выявлены и исправлены ошибки Linux-доступа к backup/restore и ложное принятие состояния `activating`.
+- При запуске текущий сервер fail-closed потребовал отсутствующие в старом `server.env` `JF_API_KEY_SHA256` и `JF_VPS_ATTESTATION_SECRET`. Каждый допущенный до замены проход автоматически остановил службу, восстановил весь dump и прежний сервер, затем подтвердил active/health/database и исходный удалённый SHA-256.
+- Прямая построчная публикация теперь preflight-блокируется до замены, если защищённые параметры отсутствуют. Продолжение разрешено только через полный мастер нового клиента, который атомарно получает параметры компании и обновляет обе стороны.
+- Результат: `PRODUCTION INVENTORY PASS / DATABASE AND SERVER ROLLBACK PASS / FULL PROTECTED VPS BOOTSTRAP REQUIRED / RELEASE NO-GO`.

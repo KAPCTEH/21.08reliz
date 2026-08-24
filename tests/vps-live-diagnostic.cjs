@@ -5,11 +5,11 @@ const path = require('node:path');
 const { Client } = require('../source/application/node_modules/ssh2');
 
 const secretsPath = process.env.JF_TEST_SECRETS_PATH || 'C:\\Users\\zvd1\\.justfun-test-secrets.json';
-const secrets = JSON.parse(fs.readFileSync(path.resolve(secretsPath), 'utf8'));
-const host = String(secrets?.vps?.host || '').trim();
-const port = Number(secrets?.vps?.port || 22);
-const username = String(secrets?.vps?.username || process.env.JF_VPS_USERNAME || 'root').trim();
-const password = String(secrets?.vps?.password || '');
+const secrets = fs.statSync(path.resolve(secretsPath),{throwIfNoEntry:false})?.isFile()?JSON.parse(fs.readFileSync(path.resolve(secretsPath), 'utf8')):{};
+const host = String(process.env.JF_VPS_HOST || secrets?.vps?.host || '').trim();
+const port = Number(process.env.JF_VPS_PORT || secrets?.vps?.port || 22);
+const username = String(process.env.JF_VPS_USERNAME || secrets?.vps?.username || 'root').trim();
+const password = String(process.env.JF_VPS_PASSWORD || secrets?.vps?.password || '');
 
 if (!host || !password || !username) throw new Error('VPS test credentials are incomplete');
 
@@ -76,6 +76,7 @@ async function main() {
       database: "sudo -u postgres psql -d orderslogistics -X -tAc \"SELECT current_database(), current_user, current_setting('server_version'); SELECT count(*) FROM information_schema.tables WHERE table_schema='public'; SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename;\"",
       warehouseInventory: "sudo -u postgres psql -d orderslogistics -X -F '|' -Atc \"SELECT 'v3',workspace_id,warehouse_id,environment,COALESCE(payload->>'name',payload->>'code',''),updated_at FROM business_records_v3 WHERE entity_type='warehouse' AND NOT is_deleted ORDER BY 2,3,4,1;\"",
       warnings: "journalctl -u orders-logistics --since '2026-08-08 00:00:00' -p warning --no-pager -n 80",
+      recentLogs: "journalctl -u orders-logistics --since '2026-08-24 23:24:00' --no-pager -n 240 -o cat",
     };
     const report = { ok: true, hostReachable: true, checkedAt: new Date().toISOString(), checks: {} };
     for (const [name, command] of Object.entries(commands)) report.checks[name] = await execute(client, command, name === 'warnings' ? 30000 : 20000);

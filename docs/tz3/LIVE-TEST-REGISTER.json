@@ -1850,6 +1850,35 @@
         "verify the same-session backup timestamp and correlation id in the installed protected build",
         "complete production VPS address Telegram update rollback and two PC gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0069",
+      "stage": 9,
+      "action": "inventory production VPS attempt protected server update and prove complete rollback on missing V3 protected environment",
+      "result": "PRODUCTION INVENTORY PASS / DATABASE AND SERVER ROLLBACK PASS / FULL PROTECTED VPS BOOTSTRAP REQUIRED / RELEASE NO-GO",
+      "production_evidence": {
+        "ssh_current_credential_pass": true,
+        "services_active_before": true,
+        "https_health_before": true,
+        "database_ready_before": true,
+        "remote_source_outdated": true,
+        "custom_dump_created": true,
+        "restore_list_verified": true,
+        "automatic_rollback_exercised": true,
+        "services_active_after_rollback": true,
+        "https_health_after_rollback": true,
+        "database_ready_after_rollback": true,
+        "original_server_hash_restored": true,
+        "missing_required_environment": [
+          "JF_API_KEY_SHA256",
+          "JF_VPS_ATTESTATION_SECRET"
+        ]
+      },
+      "pending": [
+        "build and install the protected client",
+        "run the full VPS setup wizard so company and server credentials are rotated atomically",
+        "rerun production PostgreSQL migration and entity acceptance"
+      ]
     }
   ],
   "current_gate": "stage-9/source-repair-pass-production-live-gates-open",
