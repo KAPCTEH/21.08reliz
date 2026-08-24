@@ -905,8 +905,126 @@
         "repeat startup with persisted demo state",
         "switch back to live and continue the local-first, VPS, Telegram, multi-PC and migration acceptance matrices"
       ]
+    },
+    {
+      "step_id": "JF3-S0045",
+      "stage": 5,
+      "action": "build, install and live-retest the protected persisted-demo startup repair",
+      "result": "BUILD INSTALL STARTUP AND DEMO-LIVE RETEST PASS",
+      "commit": "8d73d83",
+      "artifacts": {
+        "installer_sha256": "D0D9B788C8CA282CBF1808F382AB309B2D07A973FD94588EDE1C51F14D168695",
+        "installed_exe_sha256": "2BCF7DAE215FD386EE9558F3A422DBCF40B0D15E551DB47D8A149D2C77285CD2",
+        "installed_asar_sha256": "293F161174CDEC19E28160385EF04239570C978D5B04ED2DCA8CADB6F90010EC"
+      },
+      "closed_defects": [
+        "JF3-DEFECT-006"
+      ]
+    },
+    {
+      "step_id": "JF3-S0046",
+      "stage": 6,
+      "action": "create and persist four local orders without a configured VPS",
+      "result": "LOCAL-FIRST ORDERS PASS / CRITICAL STATUS TRANSITIONS FAIL",
+      "evidence": [
+        "four orders persisted across restart",
+        "Saint Petersburg typo returned three candidates",
+        "real SNT returned one candidate and invented SNT returned none",
+        "village short form returned two candidates while the long form failed",
+        "pickup payment persisted"
+      ],
+      "defects": [
+        "JF3-DEFECT-007",
+        "JF3-DEFECT-008"
+      ]
+    },
+    {
+      "step_id": "JF3-S0047",
+      "stage": 6,
+      "action": "exercise drivers, route optimization, route calculation and management reporting",
+      "result": "CORE CALCULATION AND EXPORT PASS WITH OPEN LIFECYCLE AND UX DEFECTS",
+      "evidence": [
+        "three drivers persisted and Boris body length persisted at four metres",
+        "two Leningrad-region deliveries merged into one 182 km route",
+        "Boris was assigned automatically and capacity passed",
+        "CSV report was exported and read from disk"
+      ],
+      "defects": [
+        "JF3-DEFECT-008",
+        "JF3-DEFECT-009",
+        "JF3-DEFECT-010",
+        "JF3-DEFECT-020"
+      ]
+    },
+    {
+      "step_id": "JF3-S0048",
+      "stage": 6,
+      "action": "exercise stock movements, backup, restore, database diagnostics and invitation creation",
+      "result": "INVENTORY BACKUP RESTORE AND RESTART PASS / SECOND USER LOGIN PENDING",
+      "evidence": [
+        "test SKU TZ3-STOCK-001 received ten and issued two, leaving eight",
+        "inventory value persisted at 800 rubles",
+        "database diagnostics passed 17 of 17",
+        "manual backup and automatic safety backup were written",
+        "restore completed and business data survived restart",
+        "one-time restricted invitation was created"
+      ],
+      "defects": [
+        "JF3-DEFECT-011",
+        "JF3-DEFECT-017"
+      ]
+    },
+    {
+      "step_id": "JF3-S0049",
+      "stage": 6,
+      "action": "exercise second warehouse, updater, VPS, Telegram and map service settings",
+      "result": "SECOND WAREHOUSE AND UPDATER FAIL / EXTERNAL CREDENTIAL TESTS PENDING",
+      "evidence": [
+        "warehouse address search failed with a corrupt request identifier",
+        "local second warehouse creation was rejected and coupled to Telegram setup",
+        "updater actions are disabled and no catalog is connected",
+        "VPS is unconfigured but one action displayed a false green server-read message",
+        "Telegram unconfigured paths returned explicit errors and recovered button state",
+        "standard Nominatim OSRM and OSM tile endpoints were retained"
+      ],
+      "defects": [
+        "JF3-DEFECT-012",
+        "JF3-DEFECT-013",
+        "JF3-DEFECT-014",
+        "JF3-BLOCKER-001"
+      ]
+    },
+    {
+      "step_id": "JF3-S0050",
+      "stage": 6,
+      "action": "exercise route settings and verify all current local data after a controlled restart",
+      "result": "RESTART PERSISTENCE PASS / ROUTE SETTINGS PARTIAL PASS / RELEASE NO-GO",
+      "evidence": [
+        "all five route settings accordions and help modal rendered",
+        "three no-op saves increased the outbox from five to eight",
+        "four orders, three drivers, 32.40 cubic metres and stock eight persisted",
+        "comfortable density and local behavior preferences persisted",
+        "current startup log verified protected integrity and live warehouse context"
+      ],
+      "defects": [
+        "JF3-DEFECT-012",
+        "JF3-DEFECT-015",
+        "JF3-DEFECT-016",
+        "JF3-DEFECT-017",
+        "JF3-DEFECT-018",
+        "JF3-DEFECT-019"
+      ],
+      "pending": [
+        "repair the consolidated live defect batch and rebuild",
+        "repeat all affected live paths",
+        "connect and accept production VPS PostgreSQL V3, server backup and restore",
+        "connect and accept Telegram with owner credentials",
+        "complete second-user, second-profile and second-PC synchronization",
+        "execute old database migration and mixed-client matrices",
+        "connect and live-test the signed updater catalog"
+      ]
     }
   ],
-  "current_gate": "stage-3/installed-pc-live-acceptance-in-progress",
+  "current_gate": "stage-6/installed-pc-live-discovery-in-progress",
   "release_status": "NO-GO"
 }
