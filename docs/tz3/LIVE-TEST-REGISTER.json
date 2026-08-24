@@ -1599,13 +1599,94 @@
         "JF3-DEFECT-018",
         "JF3-DEFECT-019",
         "JF3-DEFECT-035",
-        "JF3-DEFECT-036"
+        "JF3-DEFECT-016"
       ],
       "pending": [
         "make the show logo in app setting control the common header immediately and after restart",
         "render an explicit accessible autosave indicator checkbox and verify keyboard operation",
         "verify the print documents logo setting in actual output",
         "add centralized safe audit events and correlation ids for settings mutations"
+      ]
+    },
+    {
+      "step_id": "JF3-S0065",
+      "stage": 8,
+      "action": "verify the installed updater screen rerun built in quality checks export their result create and parse a live backup open logs and restart",
+      "result": "BUILT-IN QA AND VERIFIED BACKUP PASS / UPDATE CHANNEL BLOCKED AND BACKUP HEALTH REFRESH DELAYED / RELEASE NO-GO",
+      "update_center": {
+        "installed_version": "7.8.3",
+        "channel": "stable",
+        "status": "not connected",
+        "available_version": null,
+        "last_check": "never",
+        "download_size": null,
+        "check_enabled": false,
+        "download_enabled": false,
+        "apply_enabled": false,
+        "after_close_enabled": false,
+        "remind_later_enabled": false,
+        "help_dialog_opened_with_keyboard": true,
+        "help_dialog_scrolled": true,
+        "help_dialog_closed_with_escape": true
+      },
+      "built_in_quality": {
+        "created_at": "2026-08-24T20:51:34Z",
+        "total": 17,
+        "passed": 17,
+        "warnings": 0,
+        "failed": 0,
+        "exported_json_bytes": 2481,
+        "exported_json_sha256": "5B5D7A2D3EF5C7E43E20E1341871FB636F013DAFC166D06664979CAFF255A0EC",
+        "export_reread_ok": true
+      },
+      "backup": {
+        "verified_manual_files_created": 4,
+        "latest_file": "ТЗ3_WORK_backup_2026-08-24-1787604892739.json",
+        "latest_bytes": 58912,
+        "latest_sha256": "35FBCDA51C93FC289E7521A128F8075B73EC56A11DB13E98EABF6C6BF85EC585",
+        "app_version": "7.8.3",
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "environment": "live",
+        "orders": 5,
+        "products": 4,
+        "inventory_movements": 1,
+        "drivers": 1,
+        "route_catalog_entries": 2,
+        "warehouse_id_inside_matches": true,
+        "ui_timestamp_before_restart": "2026-08-23 21:10 MSK",
+        "ui_timestamp_after_restart": "2026-08-24 23:54 MSK",
+        "kind_after_restart": "manual"
+      },
+      "logs": {
+        "open_logs_folder_button_passed": true,
+        "desktop_log_visible": true,
+        "installer_log_visible": true,
+        "uninstaller_log_visible": true,
+        "backup_file_verified_events": 4,
+        "qa_download_start_and_finish_logged": true,
+        "qa_execution_audit_event_logged": false
+      },
+      "post_restart": {
+        "release_integrity_verified": true,
+        "archive_hash_verified": true,
+        "authorized": true,
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "orders": 5,
+        "orders_total_rub": 12800,
+        "products": 4,
+        "tracked_physical_stock": 11,
+        "outbox": 8
+      },
+      "defects": [
+        "JF3-BLOCKER-001",
+        "JF3-DEFECT-017",
+        "JF3-DEFECT-019"
+      ],
+      "pending": [
+        "complete the original update signing trust and live staging update rollback cycle",
+        "refresh the confirmed backup timestamp immediately after verified write without restart",
+        "log the built in quality execution itself with a safe correlation id",
+        "run a controlled restore only in a disposable warehouse or after explicit destructive acceptance"
       ]
     }
   ],
