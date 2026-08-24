@@ -1225,8 +1225,42 @@
         "run production VPS PostgreSQL migration backup restore and reconnect acceptance",
         "complete second user second profile second PC Telegram and updater acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0057",
+      "stage": 8,
+      "action": "exercise exact short and misspelled village addresses in the installed order editor and compare the safe log delta",
+      "result": "ADDRESS VILLAGE MATRIX FAIL / PUBLIC DEVELOPMENT FALLBACK CONFIRMED / RELEASE NO-GO",
+      "unsaved_order": "ORD-2026-0005",
+      "not_found": [
+        "Pskov region Pskov district village Rodina full form",
+        "village Rodina Pskov short form",
+        "Novgorod region Novgorod district village Syrkovo full form",
+        "village Syrkovo Veliky Novgorod short form",
+        "Republic of Karelia Prionezhsky district village Vilga full form",
+        "Moscow region Odintsovo urban district village Zhukovka full form"
+      ],
+      "found": [
+        "misspelled short Zhukovka query returned one correct result at 92 percent"
+      ],
+      "log_evidence": [
+        "development public address fallback configured false",
+        "queryCorrected true",
+        "Nominatim parser detected region but not district for the returned Zhukovka result"
+      ],
+      "defects": [
+        "JF3-DEFECT-026"
+      ],
+      "blockers": [
+        "JF3-BLOCKER-002"
+      ],
+      "pending": [
+        "configure the production address provider",
+        "repair normalization ranking and administrative parsing",
+        "run the approved priority-region corpus automatically and repeat representative live cases"
+      ]
     }
   ],
-  "current_gate": "stage-7/production-postgresql-migration-validation-pending",
+  "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
   "release_status": "NO-GO"
 }
