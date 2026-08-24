@@ -1539,6 +1539,74 @@
         "repeat the same isolation cycle with production PostgreSQL V3 and two authorized PCs",
         "add centralized mutation audit events and correlation ids for warehouse inventory and order operations"
       ]
+    },
+    {
+      "step_id": "JF3-S0064",
+      "stage": 8,
+      "action": "verify company branding document settings and behavior settings with reversible saves and full restarts",
+      "result": "BRANDING POSITION AND BEHAVIOR PERSISTENCE PASS / LOGO VISIBILITY AND AUTOSAVE CONTROL UI FAIL / RELEASE NO-GO",
+      "branding": {
+        "position_left": {
+          "logo_x_px_approx": 40,
+          "applied": true
+        },
+        "position_center": {
+          "logo_x_px_approx": 118,
+          "applied": true
+        },
+        "position_right": {
+          "logo_x_px_approx": 198,
+          "applied": true,
+          "persisted_after_restart": true
+        },
+        "show_in_app_unchecked_persisted": true,
+        "logo_hidden_immediately": false,
+        "logo_hidden_after_restart": false,
+        "restored_show_in_app": true,
+        "restored_position": "left"
+      },
+      "documents_inspected": {
+        "legal_contact_and_bank_fields": true,
+        "invoice_number_preview": "ТЗ3-240826",
+        "customer_promotional_block": true,
+        "print_logo_visibility_live_output_pending": true
+      },
+      "behavior": {
+        "startup_products_persisted_after_restart": true,
+        "compact_size_persisted_after_restart": true,
+        "restored_start_section": "orders",
+        "restored_size": "comfortable",
+        "autosave_indicator_toggle_saved": true,
+        "autosave_checkbox_visible": false,
+        "autosave_indicator_restored_on": true,
+        "downstream_indicator_behavior_proven": false
+      },
+      "summary": {
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "outbox_before": 8,
+        "outbox_after": 8,
+        "orders_after": 5,
+        "orders_total_rub_after": 12800
+      },
+      "log_evidence": [
+        "three normal full restarts confirmed",
+        "release integrity and archive hash verified after every restart",
+        "same warehouse restored after every restart",
+        "branding and behavior setting mutations absent from desktop log",
+        "invitation list NOT_FOUND and Telegram owner repair required remained unchanged"
+      ],
+      "defects": [
+        "JF3-DEFECT-018",
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-035",
+        "JF3-DEFECT-036"
+      ],
+      "pending": [
+        "make the show logo in app setting control the common header immediately and after restart",
+        "render an explicit accessible autosave indicator checkbox and verify keyboard operation",
+        "verify the print documents logo setting in actual output",
+        "add centralized safe audit events and correlation ids for settings mutations"
+      ]
     }
   ],
   "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
