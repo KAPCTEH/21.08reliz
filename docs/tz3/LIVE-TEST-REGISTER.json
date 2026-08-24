@@ -858,13 +858,52 @@
         "critical_transitions_fail_closed": true,
         "server_bootstrap_preserves_durable_local_intent": true,
         "corrupt_outbox_overwrite_forbidden": true,
-        "installed_application_replaced": false
+        "installed_application_replaced": true
       },
       "pending": [
-        "build and inspect the protected Windows package and app.asar",
-        "install the replacement build on the physical PC",
         "repeat the local-only, reconnect, conflict, second-PC and log acceptance matrix",
         "prove production VPS schema, backup, restore and legacy migration paths"
+      ]
+    },
+    {
+      "step_id": "JF3-S0043",
+      "stage": 5,
+      "action": "build, accept and install the protected Windows replacement, then perform its first live startup",
+      "result": "BUILD AND INSTALL PASS / LIVE STARTUP FAIL / RELEASE NO-GO",
+      "commit": "bfdf126",
+      "evidence": [
+        "release contract 82 of 82 and security scan 181 files with zero findings passed",
+        "full runtime, demo 69 of 69, visual, release and installer source checks passed",
+        "full installer acceptance passed after the running application was closed normally",
+        "installed EXE and ASAR hashes matched the protected build manifest",
+        "startup verified ASAR integrity, runtime hardening and an authorized owner session",
+        "renderer context was rejected because a persisted demo environment was submitted to the live desktop core"
+      ],
+      "artifacts": {
+        "installer_sha256": "782fd1c7811edaeb37c74e65233ac4d177a13910e363408f9626c60e3e11422b",
+        "payload_exe_sha256": "5bc573edc67c35128e1a5c8301a0d2fd27a041fd1e2ccd8107d4d6e256f72f49",
+        "asar_sha256": "ae1c80a8a9962826df392a9622c8941bf96af38f73b79668eca677362a5d59c6",
+        "owner_archive_sha256": "73138f275f6b17054c73f1033fad56d3b1818cf4bc113594264a043d08333025"
+      },
+      "defects": [
+        "JF3-DEFECT-006"
+      ]
+    },
+    {
+      "step_id": "JF3-S0044",
+      "stage": 5,
+      "action": "repair and regress the persisted training-environment startup failure",
+      "result": "SOURCE PASS / PROTECTED REBUILD AND LIVE RETEST REQUIRED",
+      "commit": "dc5e9c2",
+      "evidence": [
+        "training startup performs zero live desktop-core warehouse confirmations",
+        "live startup still performs exactly one warehouse confirmation with environment live",
+        "experience, current-cycle, source hygiene, static audit, main unit, entity bootstrap, REG entity, release and security checks passed"
+      ],
+      "pending": [
+        "rebuild and install the protected package",
+        "repeat startup with persisted demo state",
+        "switch back to live and continue the local-first, VPS, Telegram, multi-PC and migration acceptance matrices"
       ]
     }
   ],
