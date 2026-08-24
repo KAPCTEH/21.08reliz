@@ -54,7 +54,7 @@ const FUNCTION_PERMISSIONS={
 };
 const FORM_PERMISSIONS={orderForm:'orders.update',pickupForm:'orders.update',driverForm:'drivers.update',productForm:'inventory.catalog',inventoryMovementForm:'inventory.stock',reportEmployeeForm:'reports.expenses',reportExpenseForm:'reports.expenses'};
 const CONTROL_PERMISSIONS={deleteOrderBtn:'orders.delete',deleteDriverBtn:'drivers.delete',deleteProductBtn:'inventory.delete',restartDemoButton:'company.update'};
-const DEMO_CLOUD_ADMIN_FUNCTIONS=new Set(['openWarehouseCreatorV600','openWarehouseEditorV600','saveWarehouseEditorV600','toggleWarehouseArchiveV600','deleteWarehouseV760']);
+const DEMO_CLOUD_ADMIN_FUNCTIONS=new Set(['openWarehouseCreatorV600','saveWarehouseEditorV600','toggleWarehouseArchiveV600','deleteWarehouseV760']);
 const DEMO_CLOUD_CONTROL_IDS=new Set(['jfAddUser','jfRegConfigure','jfRegCheck','jfRegSync','jfRegRestore','jfTelegramConfigure','jfTelegramReconnect','jfTelegramCheck','jfTelegramWarehouse']);
 const CLOUD_ID_RE=/^[A-Za-z0-9_-]{16,80}$/;
 let desktopSession=null,currentUser=null,users=[],guardInstalled=false,entityCommandGuardsInstalled=false,permissionEventsInstalled=false,permissionObserverInstalled=false,memorySession=null,startupReadySent=false,integrationWizardBusy=false,backgroundWorkspaceSyncStarted=false;

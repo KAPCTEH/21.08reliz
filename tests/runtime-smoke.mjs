@@ -1123,7 +1123,16 @@ if (accessibilityMode) {
   const telegramTraining={routeVisible:Boolean(routeTelegram),routeActions:routeTelegramActions.length,routeDisabledCount:routeTelegramActions.filter(button=>button.disabled).length,routeDisabled:routeTelegramActions.length>=2&&routeTelegramActions.every(button=>button.disabled),driverVisible:Boolean(driverTelegram),driverActions:driverTelegramActions.length,driverDisabled:driverTelegramActions.length===2&&driverTelegramActions.every(button=>button.disabled)};
   telegramTraining.ok=telegramTraining.routeVisible&&telegramTraining.routeDisabled&&telegramTraining.driverVisible&&telegramTraining.driverDisabled;
   if(!telegramTraining.ok)findings.push(finding('training-telegram-readonly-contract',routeTelegram||driverTelegram,JSON.stringify(telegramTraining)));
-  accessibilityResult = { ok: findings.length === 0 && dialogTests.every(item => item.ok), controls:doc.querySelectorAll('button,input,select,textarea,a[href]').length, fields:doc.querySelectorAll('input:not([type="hidden"]),select,textarea').length, images:doc.querySelectorAll('img').length, dialogs:dialogTests, integrationTraining, telegramTraining, findings };
+  window.closeDriverDetailModal?.();
+  window.showView?.('programSettings');
+  window.openWarehouseEditorV600?.();
+  await new Promise(resolve => setTimeout(resolve, 100));
+  const warehouseModal=doc.querySelector('#warehouseEditorModalV600'),warehouseMap=warehouseModal?.querySelector('#warehouseLocationMapV600'),warehouseSave=warehouseModal?.querySelector('button[type="submit"]');
+  const warehouseTraining={opened:Boolean(warehouseModal?.classList.contains('open')),mapVisible:Boolean(warehouseMap),saveBlocked:Boolean(warehouseSave?.classList.contains('jf-role-hidden')&&warehouseSave?.getAttribute('aria-hidden')==='true')};
+  warehouseTraining.ok=warehouseTraining.opened&&warehouseTraining.mapVisible&&warehouseTraining.saveBlocked;
+  if(!warehouseTraining.ok)findings.push(finding('training-warehouse-readonly-contract',warehouseModal,JSON.stringify(warehouseTraining)));
+  window.closeWarehouseEditorV600?.();
+  accessibilityResult = { ok: findings.length === 0 && dialogTests.every(item => item.ok), controls:doc.querySelectorAll('button,input,select,textarea,a[href]').length, fields:doc.querySelectorAll('input:not([type="hidden"]),select,textarea').length, images:doc.querySelectorAll('img').length, dialogs:dialogTests, integrationTraining, telegramTraining, warehouseTraining, findings };
   if (!accessibilityResult.ok) errors.push({ phase:'accessibility', level:'error', text:JSON.stringify(accessibilityResult) });
 }
 
