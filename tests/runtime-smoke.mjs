@@ -14,6 +14,8 @@ const atomicMutation = mode === 'atomic-mutation';
 const localFirstRetry = mode === 'local-first-retry';
 const localFirstOffline = mode === 'local-first-offline';
 const localWarehouse = mode === 'local-warehouse';
+const localToServerMigrationResume = mode === 'local-to-server-migration-resume';
+const localToServerMigration = mode === 'local-to-server-migration'||localToServerMigrationResume;
 const deepBusiness = mode === 'deep-business';
 const orderPrintMode = mode === 'order-print';
 const orderSaveIntegrityMode = mode === 'order-save-integrity';
@@ -89,6 +91,10 @@ window.__rejectEntitySync = false;
 window.__entitySyncNetworkDown = false;
 window.__serverEntityMap = new Map();
 window.__serverCursor = 0;
+window.__serverRegistryInitialized = false;
+window.__activeRendererWarehouse = '';
+window.__processedEntityCommands = new Map();
+window.__entityCommandAttempts = [];
 window.__addressSearchPayloads = [];
 window.scrollTo = () => {};
 window.HTMLElement.prototype.scrollIntoView = () => {};
@@ -158,6 +164,7 @@ window.JustFunDesktop = {
   openLogFolder: async () => ({ ok: true }),
   copyText: async () => true,
   openSupport: async () => true,
+  setActiveWarehouse: async payload => { window.__activeRendererWarehouse=String(payload?.warehouseId||''); return {ok:true,warehouseId:window.__activeRendererWarehouse,environment:String(payload?.environment||'live')}; },
   maps: {
     addressSearch: async payload => { window.__addressSearchPayloads.push(JSON.parse(JSON.stringify(payload||{}))); return { ok:false, configured:false }; },
     geocode: async () => ({ ok:false, configured:false }),
@@ -180,6 +187,7 @@ window.JustFunDesktop = {
   regVps: {
     status: async () => ({ configured: false }),
     warehouses: async () => {
+      if(localToServerMigration){const warehouses=[...window.__serverEntityMap.values()].filter(item=>item.type==='warehouse').map(item=>({...JSON.parse(JSON.stringify(item.payload)),entity_version:item.version,digest_sha256:item.digest_sha256,updated_at:new Date().toISOString()}));return{ok:true,configured:true,registryInitialized:window.__serverRegistryInitialized,warehouses}}
       const keepRuntimeWarehouse=atomicMutation||localFirstRetry||localFirstOffline,active=keepRuntimeWarehouse?window.TeplitsaWarehouseBootstrap?.activeWarehouse?.():null;
       return{ok:true,configured:true,registryInitialized:Boolean(active),warehouses:active?[{...JSON.parse(JSON.stringify(active)),status:'active',entity_version:1,digest_sha256:'A'.repeat(64)}]:[]}
     },
@@ -189,19 +197,23 @@ window.JustFunDesktop = {
       return { ok: true, revision: 1, digest: 'A'.repeat(64) };
     },
     fetchWarehouse: async () => ({ ok: false, code: 'snapshot_not_found' }),
+    writeWarehouse: async payload => {
+      const commandKey=`${payload?.warehouseId}:${payload?.commandId}`;window.__entityCommandAttempts.push(commandKey);if(localToServerMigration&&window.__processedEntityCommands.has(commandKey))return JSON.parse(JSON.stringify(window.__processedEntityCommands.get(commandKey)));window.__serverRegistryInitialized=true;const entities=(payload?.changes||[]).map(item=>{const key=localToServerMigration?`${payload?.warehouseId}:${item.type}:${item.id}`:`${item.type}:${item.id}`,eventId=++window.__serverCursor,entity={type:item.type,id:item.id,warehouseId:String(payload?.warehouseId||''),version:1,event_id:eventId,eventId,digest_sha256:'A'.repeat(64),digest:'A'.repeat(64),payload:JSON.parse(JSON.stringify(item.payload)),deleted:item.deleted===true};if(item.deleted)window.__serverEntityMap.delete(key);else window.__serverEntityMap.set(key,entity);return{type:item.type,id:item.id,version:1,eventId,digest:'A'.repeat(64),deleted:item.deleted===true}}),result={ok:true,commandId:payload?.commandId||'',entities,cursor:window.__serverCursor};if(localToServerMigration)window.__processedEntityCommands.set(commandKey,JSON.parse(JSON.stringify(result)));return result;
+    },
     bootstrapEntities: async payload => {
       runtimeTrace('reg.bootstrap', payload?.warehouseId || '', payload?.environment || '');
       window.__bridgeCalls.push(`reg.entityBootstrap:${payload?.warehouseId || ''}:${payload?.environment || ''}`);
-      return { ok: true, cursor: window.__serverCursor, entities: [...window.__serverEntityMap.values()].map(item=>JSON.parse(JSON.stringify(item))), readableTypes: ['warehouse','orders','products','inventoryMovements','drivers','settings','reportingData','company','routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides','routeExecutions','routeArchives','warehouseReservations','manualRouteSequences'] };
+      return { ok: true, cursor: window.__serverCursor, entities: [...window.__serverEntityMap.values()].filter(item=>!localToServerMigration||item.warehouseId===String(payload?.warehouseId||'')).map(item=>JSON.parse(JSON.stringify(item))), readableTypes: ['warehouse','orders','products','inventoryMovements','drivers','settings','reportingData','company','routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides','routeExecutions','routeArchives','warehouseReservations','manualRouteSequences'] };
     },
     syncEntities: async payload => {
       runtimeTrace('reg.sync', payload?.warehouseId || '', (payload?.changes || []).length, payload?.intent?.kind || 'background');
       window.__bridgeCalls.push(`reg.entitySync:${payload?.warehouseId || ''}:${payload?.environment || ''}:${payload?.intent?.kind || 'background'}`);
       window.__entitySyncPayloads.push(JSON.parse(JSON.stringify(payload || {})));
+      const processedKey=`${payload?.warehouseId}:${payload?.commandId}`;window.__entityCommandAttempts.push(processedKey);if(localToServerMigration&&window.__processedEntityCommands.has(processedKey))return JSON.parse(JSON.stringify(window.__processedEntityCommands.get(processedKey)));
       if (window.__entitySyncNetworkDown) throw Object.assign(new Error('Тестовый обрыв сети'), { code: 'NETWORK_ERROR' });
       if (window.__rejectEntitySync) return { ok: false, code: 'TEST_REJECT', error: 'Тестовый отказ VPS' };
-      const entities=(payload?.changes || []).map(item=>{const version=Number(item.baseVersion||0)+1,eventId=++window.__serverCursor,key=`${item.type}:${item.id}`,result={type:item.type,id:item.id,version,eventId,digest:'A'.repeat(64),deleted:item.deleted===true};if(item.deleted===true)window.__serverEntityMap.delete(key);else window.__serverEntityMap.set(key,{type:item.type,id:item.id,version,event_id:eventId,digest_sha256:'A'.repeat(64),payload:JSON.parse(JSON.stringify(item.payload))});return result});
-      return { ok: true, cursor: window.__serverCursor, commandId: payload?.commandId || '', entities };
+      const entities=(payload?.changes || []).map(item=>{const version=Number(item.baseVersion||0)+1,eventId=++window.__serverCursor,key=localToServerMigration?`${payload?.warehouseId}:${item.type}:${item.id}`:`${item.type}:${item.id}`,result={type:item.type,id:item.id,version,eventId,digest:'A'.repeat(64),deleted:item.deleted===true};if(item.deleted===true)window.__serverEntityMap.delete(key);else window.__serverEntityMap.set(key,{type:item.type,id:item.id,warehouseId:String(payload?.warehouseId||''),version,event_id:eventId,digest_sha256:'A'.repeat(64),payload:JSON.parse(JSON.stringify(item.payload))});return result});
+      const result={ ok: true, cursor: window.__serverCursor, commandId: payload?.commandId || '', entities };if(localToServerMigration)window.__processedEntityCommands.set(processedKey,JSON.parse(JSON.stringify(result)));return result;
     },
     entityChanges: async payload => { runtimeTrace('reg.changes', payload?.warehouseId || '', payload?.afterEventId || 0); return { ok: true, cursor: Number(payload?.afterEventId||0), events: [], readableTypes: ['warehouse','orders','products','inventoryMovements','drivers','settings','reportingData','company','routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides','routeExecutions','routeArchives','warehouseReservations','manualRouteSequences'], hasMore: false }; }
   },
@@ -229,6 +241,20 @@ window.addEventListener('error', event => {
 window.addEventListener('unhandledrejection', event => {
   errors.push({ phase: 'promise', level: 'error', text: event.reason?.stack || String(event.reason) });
 });
+
+if(localToServerMigration){
+  const scope='teplitsa_company_cmp_company_test_12345__',prefix=`${scope}wh_v600__`,first='warehouse-local-a',second='warehouse-local-b',now='2026-08-24T00:00:00.000Z';
+  const warehouses=[
+    {id:first,name:'Локальный склад А',code:'СПБ',address:'Санкт-Петербург, Невский проспект, 28',lat:59.9351,lon:30.3255,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',origin:'local-default',createdAt:now,updatedAt:now},
+    {id:second,name:'Локальный склад Б',code:'МСК',address:'Москва, Тверская улица, 1',lat:55.7578,lon:37.6156,timezone:'Europe/Moscow',status:'active',catalogMode:'empty',origin:'local',createdAt:now,updatedAt:now}
+  ];
+  window.localStorage.setItem(`${scope}warehouses_registry_v600`,JSON.stringify({version:2,activeWarehouseId:first,warehouses,createdAt:now,updatedAt:now}));
+  window.__migrationSourceRegistry={version:2,activeWarehouseId:first,warehouses:JSON.parse(JSON.stringify(warehouses)),createdAt:now,updatedAt:now};
+  const write=(warehouseId,key,value)=>window.localStorage.setItem(`${prefix}${warehouseId}__live__${key}`,JSON.stringify(value));
+  for(const warehouse of warehouses){write(warehouse.id,'orders_2gis_tms_v1',[]);write(warehouse.id,'orders_osm_leaflet_products_v1',[]);write(warehouse.id,'orders_osm_leaflet_inventory_movements_v1',[]);write(warehouse.id,'orders_osm_leaflet_drivers_v1',[]);write(warehouse.id,'orders_osm_leaflet_settings_v1',{warehouse:{address:warehouse.address,lat:warehouse.lat,lon:warehouse.lon},warehouseProfile:{id:warehouse.id,code:warehouse.code,name:warehouse.name},company:{shortName:'Тест миграции'}})}
+  write(first,'orders_2gis_tms_v1',[{id:'migration-order-1',number:'MIG-1',warehouseId:first,orderType:'pickup',createdAt:now,updatedAt:now,items:[],total:0,goodsTotal:0,deliveryCost:0,grandTotal:0,status:'new',fulfillmentStatus:'active'}]);
+  write(second,'orders_osm_leaflet_products_v1',[{id:'migration-product-1',warehouseId:second,name:'Товар второго склада',article:'MIG-P1',purchasePrice:10,salePrice:20}]);
+}
 
 const scriptResults = [];
 for (const src of scriptPaths) {
@@ -343,6 +369,18 @@ if (localWarehouse) {
       errors.push({ phase: 'local-warehouse', level: 'error', text: error.stack || String(error) });
     }
   }
+}
+let localToServerMigrationResult = null;
+if(localToServerMigration){
+  try{
+    const B=window.TeplitsaWarehouseBootstrap,migrationKey=String(B.registryKey).replace(/warehouses_registry_v600$/,'local_to_server_migration_v783');let journal=null;
+    for(let attempt=0;attempt<100;attempt++){try{journal=JSON.parse(B.raw.get(migrationKey)||'null')}catch{}if(journal?.state==='complete')break;await new Promise(resolve=>setTimeout(resolve,50))}
+    let registry=B.getRegistry();const serverWarehouses=[...window.__serverEntityMap.values()].filter(item=>item.type==='warehouse'),order=window.__serverEntityMap.get('warehouse-local-a:orders:migration-order-1'),product=window.__serverEntityMap.get('warehouse-local-b:products:migration-product-1');
+    localToServerMigrationResult={journalState:journal?.state||null,warehouses:serverWarehouses.length,orderMigrated:Boolean(order),productMigrated:Boolean(product),registryServerOwned:registry.warehouses.length===2&&registry.warehouses.every(item=>item.origin==='server'),activeWarehousePreserved:registry.activeWarehouseId==='warehouse-local-a',secondCatalogMode:registry.warehouses.find(item=>item.id==='warehouse-local-b')?.catalogMode||null,resumeReplay:null};
+    if(localToServerMigrationResume){B.saveRegistry(window.__migrationSourceRegistry);journal={...journal,state:'failed',completedAt:null,updatedAt:new Date().toISOString(),lastError:{code:'TEST_INTERRUPTION',message:'simulated restart'}};B.raw.set(migrationKey,JSON.stringify(journal));const processedBefore=window.__processedEntityCommands.size,attemptsBefore=window.__entityCommandAttempts.length;await window.JustFunWarehouseRegistryV783.refresh();const resumed=JSON.parse(B.raw.get(migrationKey)||'null');registry=B.getRegistry();localToServerMigrationResult.resumeReplay={state:resumed?.state||null,processedBefore,processedAfter:window.__processedEntityCommands.size,replayedAttempts:window.__entityCommandAttempts.length-attemptsBefore,registryServerOwned:registry.warehouses.every(item=>item.origin==='server')};}
+    const resumeOk=!localToServerMigrationResume||(localToServerMigrationResult.resumeReplay?.state==='complete'&&localToServerMigrationResult.resumeReplay.processedBefore===localToServerMigrationResult.resumeReplay.processedAfter&&localToServerMigrationResult.resumeReplay.replayedAttempts>0&&localToServerMigrationResult.resumeReplay.registryServerOwned);
+    if(localToServerMigrationResult.journalState!=='complete'||localToServerMigrationResult.warehouses!==2||!localToServerMigrationResult.orderMigrated||!localToServerMigrationResult.productMigrated||!localToServerMigrationResult.registryServerOwned||!localToServerMigrationResult.activeWarehousePreserved||localToServerMigrationResult.secondCatalogMode!=='empty'||!resumeOk)errors.push({phase:'local-to-server-migration',level:'error',text:JSON.stringify(localToServerMigrationResult)});
+  }catch(error){errors.push({phase:'local-to-server-migration',level:'error',text:error.stack||String(error)})}
 }
 if (atomicMutation) {
   if (testEdition !== 'full') {
@@ -1248,6 +1286,7 @@ const result = {
   accessibility: accessibilityResult,
   localFirst: localFirstResult,
   localWarehouse: localWarehouseResult,
+  localToServerMigration: localToServerMigrationResult,
   bridgeCalls: window.__bridgeCalls
 };
 

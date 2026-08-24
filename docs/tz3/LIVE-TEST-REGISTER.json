@@ -1071,8 +1071,33 @@
         "repeat every affected live scenario",
         "continue remaining P1 and P2 defect repair"
       ]
+    },
+    {
+      "step_id": "JF3-S0053",
+      "stage": 7,
+      "action": "implement controlled local company migration to an explicitly empty VPS",
+      "result": "SOURCE FIX AND AUTOMATED MIGRATION RESUME PASS / PRODUCTION VPS BACKUP AND LIVE RETEST REQUIRED",
+      "evidence": [
+        "two isolated local LIVE warehouses were uploaded to an explicitly uninitialized server registry",
+        "the first warehouse order and second warehouse product were preserved",
+        "the intentionally empty catalog and original active warehouse were preserved",
+        "migration journal stores fingerprints and stable command identifiers without business payloads or secrets",
+        "a restart replayed four stable commands without increasing the four processed server commands",
+        "foreign populated VPS and missing previously migrated warehouse states fail closed",
+        "local source records remain available after server confirmation",
+        "both FULL migration runtimes completed with zero runtime errors"
+      ],
+      "source_fixed_defects": [
+        "JF3-DEFECT-013"
+      ],
+      "pending": [
+        "perform production VPS backup and controlled live migration acceptance",
+        "execute old PostgreSQL schema migration matrix without destructive legacy drops",
+        "build and install the next protected release candidate",
+        "repeat every affected live scenario"
+      ]
     }
   ],
-  "current_gate": "stage-7/source-repair-batch-in-progress",
+  "current_gate": "stage-7/legacy-database-migration-repair-in-progress",
   "release_status": "NO-GO"
 }

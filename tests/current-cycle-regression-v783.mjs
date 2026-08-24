@@ -65,6 +65,13 @@ assert(desktopPlatform.includes("if(!desktopSession?.auth?.company?.data_service
 assert(desktopPlatform.includes("startRoutePicking:{kind:'route_picking',critical:false"));
 assert(desktopPlatform.includes("markCurrentPickupReady:{kind:'pickup_ready',critical:false"));
 assert(desktopPlatform.includes("if(!onlineEntitySyncAvailable()){if(!desktopSession?.auth?.company?.data_service)"));
+assert(desktopPlatform.includes("LOCAL_TO_SERVER_MIGRATION_SCHEMA_V783=1"));
+assert(desktopPlatform.includes("LOCAL_MIGRATION_REMOTE_NOT_EMPTY"));
+assert(desktopPlatform.includes("LOCAL_MIGRATION_SOURCE_CHANGED"));
+assert(desktopPlatform.includes("queue.markConfirmed(item.commandId"));
+assert(desktopPlatform.includes("pendingMigration.state==='complete'"));
+assert(desktopPlatform.includes("item?.catalog_mode==='empty'||item?.catalogMode==='empty'"));
+assert(warehouses.includes('storedSnapshot:(warehouseId,environment=\'live\')'));
 assert(main.includes('const requestId=String(context.requestId||mapRequestId())'));
 assert(warehouses.includes('const address=String(point.address||\'\').trim(),lat='));
 assert(warehouses.includes("telegramSetupRequired:false,storageMode:serverCommitted?'server':'local'"));

@@ -159,6 +159,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Order save integrity regression failed.' }
           node tests/runtime-smoke.mjs source/application/web atomic-mutation
           if ($LASTEXITCODE -ne 0) { throw 'Atomic VPS mutation regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web local-to-server-migration
+          if ($LASTEXITCODE -ne 0) { throw 'Local-to-server migration regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web local-to-server-migration-resume
+          if ($LASTEXITCODE -ne 0) { throw 'Local-to-server migration resume regression failed.' }
           node tests/runtime-smoke.mjs source/application/web deep-business
           if ($LASTEXITCODE -ne 0) { throw 'Deep business regression failed.' }
           node tests/experience-regression-v783.mjs

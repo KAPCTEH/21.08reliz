@@ -1846,6 +1846,7 @@ def warehouse_registry_snapshot(workspace_id: str, environment: str, auth: dict)
                 "lon": meta.get("lon"),
                 "timezone": str(meta.get("timezone", "Europe/Moscow"))[:80],
                 "status": "archived" if meta.get("status") == "archived" else "active",
+                "catalog_mode": "empty" if meta.get("catalogMode") == "empty" else "catalog",
                 "revision": 0,
                 "entity_version": int(version),
                 "change_cursor": int(event_id),

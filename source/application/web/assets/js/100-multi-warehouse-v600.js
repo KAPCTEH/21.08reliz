@@ -341,6 +341,43 @@ function applyWarehouseSnapshotV783(parsed){
   reportingData=normalizeReportingData(data.reportingData||{});stampCurrentData();persistEverything();runDataDiagnostics(false);renderAll();applyBranding();installSettingsPanels();
   return true;
 }
+function readStoredWarehouseSectionV783(warehouseId,environment,key,fallback){
+  const raw=B.raw.get(B.dataKey(key,environment,warehouseId));if(raw===null||raw==='')return clone(fallback);
+  let parsed;try{parsed=JSON.parse(raw)}catch{throw Object.assign(new Error(`Раздел ${key} склада повреждён. Миграция на VPS остановлена без изменения локальных данных.`),{code:'LOCAL_MIGRATION_SECTION_CORRUPT',section:key,warehouseId})}
+  if(Array.isArray(fallback)){if(!Array.isArray(parsed))throw Object.assign(new Error(`Раздел ${key} должен содержать список. Миграция на VPS остановлена.`),{code:'LOCAL_MIGRATION_SECTION_INVALID',section:key,warehouseId})}
+  else if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw Object.assign(new Error(`Раздел ${key} должен содержать объект. Миграция на VPS остановлена.`),{code:'LOCAL_MIGRATION_SECTION_INVALID',section:key,warehouseId});
+  return parsed
+}
+async function storedWarehouseSnapshotV783(warehouseId,environment='live'){
+  const record=B.getRegistry().warehouses.find(item=>String(item.id)===String(warehouseId));if(!record)throw Object.assign(new Error('Склад для переноса на VPS отсутствует в локальном реестре.'),{code:'LOCAL_MIGRATION_WAREHOUSE_MISSING'});
+  const ordersRaw=B.raw.get(B.dataKey(STORAGE_KEY,environment,record.id));let storedOrders=[];if(ordersRaw!==null&&ordersRaw!==''){try{storedOrders=JSON.parse(ordersRaw)}catch{throw Object.assign(new Error('Раздел заказов склада повреждён. Миграция на VPS остановлена.'),{code:'LOCAL_MIGRATION_SECTION_CORRUPT',section:STORAGE_KEY,warehouseId:record.id})}if(!Array.isArray(storedOrders)&&storedOrders?.[LARGE_ORDERS_POINTER]!==true)throw Object.assign(new Error('Раздел заказов склада имеет неверный формат.'),{code:'LOCAL_MIGRATION_SECTION_INVALID',section:STORAGE_KEY,warehouseId:record.id})}
+  if(!Array.isArray(storedOrders)&&storedOrders?.[LARGE_ORDERS_POINTER]===true){
+    const database=B.databaseName(LARGE_ORDERS_DB_NAME,record.id,environment),large=await readLargeOrdersRecordFromDatabase(database).catch(error=>{throw Object.assign(new Error(`Расширенная база заказов склада не прочитана: ${error?.message||error}`),{code:'LOCAL_MIGRATION_LARGE_ORDERS_UNAVAILABLE'})});
+    if(!large||typeof large.json!=='string')throw Object.assign(new Error('Расширенная база заказов склада отсутствует. Миграция остановлена.'),{code:'LOCAL_MIGRATION_LARGE_ORDERS_MISSING'});
+    try{storedOrders=JSON.parse(large.json)}catch{throw Object.assign(new Error('Расширенная база заказов склада повреждена. Миграция остановлена.'),{code:'LOCAL_MIGRATION_LARGE_ORDERS_CORRUPT'})}
+    if(!Array.isArray(storedOrders))throw Object.assign(new Error('Расширенная база заказов имеет неверный формат.'),{code:'LOCAL_MIGRATION_LARGE_ORDERS_INVALID'})
+  }
+  const storedSettings=readStoredWarehouseSectionV783(record.id,environment,SETTINGS_KEY,{}),data={
+    orders:storedOrders,
+    products:readStoredWarehouseSectionV783(record.id,environment,PRODUCTS_KEY,[]),
+    inventoryMovements:readStoredWarehouseSectionV783(record.id,environment,INVENTORY_MOVEMENTS_KEY,[]),
+    drivers:readStoredWarehouseSectionV783(record.id,environment,DRIVERS_KEY,[]),
+    settings:storedSettings,
+    company:asObject(storedSettings.company),
+    routePlans:readStoredWarehouseSectionV783(record.id,environment,ROUTES_KEY,{}),
+    routeAssignments:readStoredWarehouseSectionV783(record.id,environment,ROUTE_ASSIGNMENTS_KEY,{}),
+    routeCatalog:readStoredWarehouseSectionV783(record.id,environment,ROUTE_CATALOG_KEY,{}),
+    routeDriverAssignments:readStoredWarehouseSectionV783(record.id,environment,ROUTE_DRIVERS_KEY,{}),
+    routeLocks:readStoredWarehouseSectionV783(record.id,environment,ROUTE_LOCKS_KEY,{}),
+    reportingData:readStoredWarehouseSectionV783(record.id,environment,REPORTING_KEY,{}),
+    routeOverrides:readStoredWarehouseSectionV783(record.id,environment,ROUTE_OVERRIDES_KEY,{}),
+    routeExecutions:readStoredWarehouseSectionV783(record.id,environment,ROUTE_EXECUTIONS_KEY,{}),
+    routeArchives:readStoredWarehouseSectionV783(record.id,environment,ROUTE_ARCHIVE_KEY,[]),
+    warehouseReservations:readStoredWarehouseSectionV783(record.id,environment,WAREHOUSE_RESERVATIONS_KEY,{}),
+    manualRouteSequences:readStoredWarehouseSectionV783(record.id,environment,'teplitsa_route_manual_sequences_v596',{})
+  };
+  return{app:'Заказы и логистика',version:BUILD,exportedAt:nowIso(),warehouse:{...clone(record),id:String(record.id),environment},data:{...data,warehouseId:String(record.id)}}
+}
 importBackupFile__implV595=async function(event){
   const file=event.target.files?.[0];event.target.value='';if(!file)return;
   try{
@@ -357,7 +394,7 @@ try{const baseDiag=runDataDiagnostics__implV595;runDataDiagnostics__implV595=fun
 try{const baseBuildAll=buildAllRoutes;buildAllRoutes=async function(){if(!validRouteStart(settings.warehouse)){setProgress('Маршруты не рассчитаны: сначала настройте адрес и координаты активного склада.',false,true);return}return baseBuildAll.apply(this,arguments)}}catch{}
 try{const baseBuildOne=buildSingleRoute;buildSingleRoute=async function(){if(!validRouteStart(settings.warehouse)){setProgress('Маршрут не рассчитан: сначала настройте адрес и координаты активного склада.',false,true);return}return baseBuildOne.apply(this,arguments)}}catch{}
 
-window.TeplitsaWarehouseV600=Object.freeze({version:BUILD,activeWarehouse:()=>clone(active()),activeWarehouseId:activeId,nextInvoiceNumber:(date,excludeId='')=>nextInvoiceNumber(date,excludeId),baseInvoiceNumber:date=>baseInvoiceNumber(date),documentSnapshot:()=>documentSnapshot(),storageKey:key=>B.dataKey(key),routeStartReady:()=>validRouteStart(settings.warehouse),counts:()=>({orders:orders.length,products:products.length,movements:inventoryMovements.length,drivers:drivers.length,routes:Object.keys(routePlans||{}).length,executions:Object.keys(routeExecutions||{}).length,archives:routeArchives.length}),whenPersisted:()=>ordersPersistChain,importServerSnapshot:snapshot=>applyWarehouseSnapshotV783(snapshot),quarantine:()=>{try{return clone(JSON.parse(localStorage.getItem(B.dataKey('teplitsa_cross_warehouse_quarantine_v600'))||'[]'))}catch{return[]}},afterOrdersHydrated:()=>{stampCurrentData();persistSettings();applyBranding();return true},stampCurrentData:()=>stampCurrentData(),applyBranding:()=>applyBranding(),installSettingsPanels:()=>installSettingsPanels()});
+window.TeplitsaWarehouseV600=Object.freeze({version:BUILD,activeWarehouse:()=>clone(active()),activeWarehouseId:activeId,nextInvoiceNumber:(date,excludeId='')=>nextInvoiceNumber(date,excludeId),baseInvoiceNumber:date=>baseInvoiceNumber(date),documentSnapshot:()=>documentSnapshot(),storageKey:key=>B.dataKey(key),routeStartReady:()=>validRouteStart(settings.warehouse),counts:()=>({orders:orders.length,products:products.length,movements:inventoryMovements.length,drivers:drivers.length,routes:Object.keys(routePlans||{}).length,executions:Object.keys(routeExecutions||{}).length,archives:routeArchives.length}),whenPersisted:()=>ordersPersistChain,storedSnapshot:(warehouseId,environment='live')=>storedWarehouseSnapshotV783(warehouseId,environment),importServerSnapshot:snapshot=>applyWarehouseSnapshotV783(snapshot),quarantine:()=>{try{return clone(JSON.parse(localStorage.getItem(B.dataKey('teplitsa_cross_warehouse_quarantine_v600'))||'[]'))}catch{return[]}},afterOrdersHydrated:()=>{stampCurrentData();persistSettings();applyBranding();return true},stampCurrentData:()=>stampCurrentData(),applyBranding:()=>applyBranding(),installSettingsPanels:()=>installSettingsPanels()});
 
 try{repairLegacySeededCatalog();stampCurrentData()}catch(error){window.__warehouseIsolationCritical=true;console.error('Ранняя проверка складской изоляции не выполнена',error)}
 function init(){ensureWarehouseSettings();stampCurrentData();persistSettings();applyBranding();ensureWarehouseModal();installSettingsPanels();const status=$id('diagnosticStatus');if(status)status.textContent=`Версия системы: ${BUILD} · активный склад «${active()?.name}» · физически изолированное хранилище.`;try{renderAll()}catch(err){console.error('Warehouse final render failed',err)}}

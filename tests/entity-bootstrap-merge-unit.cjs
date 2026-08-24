@@ -72,7 +72,6 @@ async function verifyWarehouseRegistryReconciliation(){
     warehouses:[
       {id:'warehouse-1',name:'Склад 1',code:'С1',address:'Старый адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',origin:'server',status:'active',catalogMode:'catalog',revision:4,digest:'digest-4'},
       {id:'warehouse-deleted',name:'Удалённый склад',code:'УДЛ',origin:'server',status:'archived'},
-      {id:'warehouse-migration',name:'Склад миграции',code:'МГР',origin:'local',status:'active'},
     ],
   };
   let saved=null,brandingCalls=0,settingsWrites=[],registryInitialized=true,registryConfigured=true;
@@ -113,9 +112,13 @@ async function verifyWarehouseRegistryReconciliation(){
   vm.runInContext(`${renderer.slice(syncStart,syncEnd)}\nglobalThis.__syncWarehouseRegistry=synchronizeCompanyWarehouseRegistry;globalThis.__applyTransition=applyWarehouseRegistryTransition;globalThis.__routingDepot=()=>[settings.warehouse.lat,settings.warehouse.lon];globalThis.__pendingMetadata=()=>pendingActiveWarehouseMetadataChangeV783;`,syncContext);
   assert.equal(await syncContext.__syncWarehouseRegistry(),false,'active warehouse remains unchanged');
   assert(saved,'reconciled registry is persisted');
-  assert.deepEqual(saved.warehouses.map(item=>item.id),['warehouse-1'],'an initialized registry must never re-import a local-only warehouse');
+  assert.deepEqual(saved.warehouses.map(item=>item.id),['warehouse-1'],'an initialized registry removes a server-deleted warehouse');
   assert.equal(saved.warehouses[0].origin,'server');
   assert.equal(saved.warehouses[0].revision,4,'entity_version is authoritative when the list response also contains a legacy revision');
+
+  registryState.warehouses.push({id:'warehouse-migration',name:'Самостоятельный локальный склад',code:'МГР',origin:'local',status:'active'});
+  await assert.rejects(syncContext.__syncWarehouseRegistry(),error=>error?.code==='LOCAL_MIGRATION_REMOTE_NOT_EMPTY','independent local data must not be silently hidden or merged into an already populated VPS');
+  registryState.warehouses=registryState.warehouses.filter(item=>item.id!=='warehouse-migration');
 
   remoteWarehouses=[{id:'warehouse-1',name:'Новый склад',code:'НОВ',address:'Новый адрес LIVE',lat:60.01,lon:31.02,timezone:'Europe/Moscow',status:'active',entity_version:5,digest_sha256:'digest-5'}];
   assert.equal(await syncContext.__syncWarehouseRegistry(),true,'same-id active metadata change requires immediate reconciliation');
@@ -162,23 +165,6 @@ async function verifyWarehouseRegistryReconciliation(){
   assert.equal(saved.activeWarehouseId,'');
   assert.equal(saved.serverAuthoritativeEmpty,true);
   assert.equal(saved.serverRegistryInitialized,true,'a previously initialized empty registry is authoritative on every computer');
-
-  registryState={activeWarehouseId:'local-default',warehouses:[{id:'local-default',name:'Склад',code:'СКЛ',origin:'local-default',status:'active'}]};
-  saved=null;registryInitialized=false;
-  syncContext.window.TeplitsaWarehouseV600.counts=()=>({orders:0,movements:0,routes:0,executions:0,archives:0});
-  assert.equal(await syncContext.__syncWarehouseRegistry(),false,'a global manager may bootstrap the first warehouse only for a never-initialized registry');
-  assert.equal(saved.warehouses.length,1);
-  assert.equal(saved.serverRegistryInitialized,false);
-
-  registryState={activeWarehouseId:'stale-local',warehouses:[{id:'stale-local',name:'Старый',code:'СТР',origin:'local',status:'active'}]};
-  saved=null;
-  assert.equal(await syncContext.__syncWarehouseRegistry(),true,'arbitrary local data is never promoted into a new server registry');
-  assert.deepEqual(saved.warehouses,[]);
-
-  registryState={activeWarehouseId:'local-default',warehouses:[{id:'local-default',name:'Склад',code:'СКЛ',origin:'local-default',status:'active'}]};
-  saved=null;syncContext.cloudUserToLocal=()=>({id:'manager-1',permissions:['warehouses.manage'],allWarehouses:false});
-  assert.equal(await syncContext.__syncWarehouseRegistry(),true,'a scoped manager cannot bootstrap a company-wide first warehouse');
-  assert.deepEqual(saved.warehouses,[]);
 
   registryState={activeWarehouseId:'local-default',warehouses:[{id:'local-default',name:'Склад',code:'СКЛ',origin:'local-default',status:'active'}]};
   registryInitialized=null;registryConfigured=true;

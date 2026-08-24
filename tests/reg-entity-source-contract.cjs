@@ -39,6 +39,7 @@ assert.ok(server.includes('business_records_v3_live_warehouse_code_uidx'),'live 
 assert.ok(server.includes("upper(btrim(payload->>'code'))"),'warehouse code uniqueness must use the same trim and uppercase canonicalization as server writes');
 assert.ok(server.includes('warehouse_code_duplicate_preflight'),'schema startup must report legacy canonical warehouse-code duplicates explicitly');
 assert.ok(server.includes('warehouse_code_conflict'),'warehouse code uniqueness failures must have an app-friendly API error');
+assert.ok(server.includes('"catalog_mode": "empty" if meta.get("catalogMode") == "empty" else "catalog"'),'the authoritative warehouse registry must preserve an intentionally empty catalog');
 assert.ok(server.includes('warehouse_delete_cascade'),'warehouse deletion must have a distinct authenticated audit action');
 assert.ok(server.includes('cascade_deleted'),'warehouse deletion must report the number of server-side cascade tombstones');
 assert.ok(server.includes('cascade_by_environment'),'warehouse deletion must report live and demo cascade counts');
