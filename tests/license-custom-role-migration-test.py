@@ -14,17 +14,29 @@ def legacy_schema(current_schema: str) -> str:
         current_schema
         .replace("role TEXT NOT NULL CHECK (length(trim(role)) BETWEEN 2 AND 50),", "role TEXT NOT NULL CHECK (role IN ('owner','admin','manager','logistician','warehouse','viewer')),")
         .replace("role TEXT NOT NULL CHECK (lower(trim(role)) <> 'owner' AND length(trim(role)) BETWEEN 2 AND 50),", "role TEXT NOT NULL CHECK (role IN ('admin','manager','logistician','warehouse','viewer')),")
-        .replace("CREATE TABLE IF NOT EXISTS schema_migrations (\n  version TEXT PRIMARY KEY,\n  applied_at TEXT NOT NULL\n);\nINSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES\n  ('002-company-data-service', 'schema-baseline-7.8.3'),\n  ('003-company-telegram-service', 'schema-baseline-7.8.3'),\n  ('004-custom-roles', 'schema-baseline-7.8.3'),\n  ('005-granular-permissions-audit', 'schema-baseline-7.8.3'),\n  ('006-exact-permissions', 'schema-baseline-7.8.3');\n", "")
+        .replace(",\n  revoked_at TEXT,\n  revoked_by TEXT", "")
+        .replace("CREATE TABLE IF NOT EXISTS schema_migrations (\n  version TEXT PRIMARY KEY,\n  applied_at TEXT NOT NULL\n);\nINSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES\n  ('002-company-data-service', 'schema-baseline-7.8.3'),\n  ('003-company-telegram-service', 'schema-baseline-7.8.3'),\n  ('004-custom-roles', 'schema-baseline-7.8.3'),\n  ('005-granular-permissions-audit', 'schema-baseline-7.8.3'),\n  ('006-exact-permissions', 'schema-baseline-7.8.3'),\n  ('007-warehouse-delete-leases', 'schema-baseline-7.8.3'),\n  ('008-vps-attestations', 'schema-baseline-7.8.3'),\n  ('009-invitation-lifecycle', 'schema-baseline-7.8.3');\n", "")
     )
 
 
 db = sqlite3.connect(":memory:")
 db.executescript(legacy_schema(SCHEMA.read_text(encoding="utf-8")))
+for (trigger_name,) in db.execute(
+    "SELECT name FROM sqlite_master WHERE type='trigger' AND instr(sql, 'revoked_at') > 0"
+).fetchall():
+    db.execute(f'DROP TRIGGER "{trigger_name}"')
 db.execute("INSERT INTO companies(id,code,name,status,created_at) VALUES('cmp','TEST','Test','active','now')")
 db.execute("INSERT INTO licenses VALUES('lic','hash','cmp','active',25,3,'now')")
 user_values = ("owner", "cmp", "owner", "Owner", "owner", "[\"*\"]", "salt", "hash", 1, "active", "now", "now")
 db.execute("INSERT INTO users VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", user_values)
-db.execute("INSERT INTO invitations VALUES('inv','cmp','code','user','User','manager','[]','owner','now','later')")
+db.execute(
+    """
+    INSERT INTO invitations
+      (id, company_id, code_hash, login, full_name, role, permissions_json,
+       created_by, created_at, expires_at)
+    VALUES ('inv','cmp','code','user','User','manager','[]','owner','now','later')
+    """
+)
 db.commit()
 
 db.executescript(MIGRATION.read_text(encoding="utf-8"))
