@@ -16,7 +16,7 @@
   "contracts": {
     "update_manifest": 1,
     "reg_api": 3,
-    "license_auth": 4,
+    "license_auth": 5,
     "license_auth_context": 2,
     "telegram_broker": 4,
     "storage_protocol": 3,
