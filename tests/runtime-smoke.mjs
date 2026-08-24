@@ -1112,7 +1112,18 @@ if (accessibilityMode) {
   if(!integrationTraining.ok)findings.push(finding('training-integration-readonly-contract',integrationBox,JSON.stringify(integrationTraining)));
   const helpButton = doc.querySelector('#jfRegIntegrationsBox .jf-instruction-btn') || doc.querySelector('#programSettingsView .jf-instruction-btn');
   await testDialog('help', helpButton, '#jfHelpModal');
-  accessibilityResult = { ok: findings.length === 0 && dialogTests.every(item => item.ok), controls:doc.querySelectorAll('button,input,select,textarea,a[href]').length, fields:doc.querySelectorAll('input:not([type="hidden"]),select,textarea').length, images:doc.querySelectorAll('img').length, dialogs:dialogTests, integrationTraining, findings };
+  window.showView?.('trips');
+  window.JustFunTelegramRoutesV783?.decorate?.();
+  await new Promise(resolve => setTimeout(resolve, 30));
+  const routeTelegram=doc.querySelector('#tripsArea .jf-route-telegram'),routeTelegramActions=[...doc.querySelectorAll('#tripsArea [data-route-tg]')];
+  window.showView?.('drivers');
+  window.eval("(()=>{const driver=(typeof drivers!=='undefined'?drivers:[]).find(item=>!(typeof driverIsAggregator==='function'&&driverIsAggregator(item)));if(driver)openDriverDetails(driver.id)})()");
+  await new Promise(resolve => setTimeout(resolve, 30));
+  const driverTelegram=doc.querySelector('.jf-telegram-driver'),driverTelegramActions=[...driverTelegram?.querySelectorAll('button')||[]];
+  const telegramTraining={routeVisible:Boolean(routeTelegram),routeActions:routeTelegramActions.length,routeDisabledCount:routeTelegramActions.filter(button=>button.disabled).length,routeDisabled:routeTelegramActions.length>=2&&routeTelegramActions.every(button=>button.disabled),driverVisible:Boolean(driverTelegram),driverActions:driverTelegramActions.length,driverDisabled:driverTelegramActions.length===2&&driverTelegramActions.every(button=>button.disabled)};
+  telegramTraining.ok=telegramTraining.routeVisible&&telegramTraining.routeDisabled&&telegramTraining.driverVisible&&telegramTraining.driverDisabled;
+  if(!telegramTraining.ok)findings.push(finding('training-telegram-readonly-contract',routeTelegram||driverTelegram,JSON.stringify(telegramTraining)));
+  accessibilityResult = { ok: findings.length === 0 && dialogTests.every(item => item.ok), controls:doc.querySelectorAll('button,input,select,textarea,a[href]').length, fields:doc.querySelectorAll('input:not([type="hidden"]),select,textarea').length, images:doc.querySelectorAll('img').length, dialogs:dialogTests, integrationTraining, telegramTraining, findings };
   if (!accessibilityResult.ok) errors.push({ phase:'accessibility', level:'error', text:JSON.stringify(accessibilityResult) });
 }
 

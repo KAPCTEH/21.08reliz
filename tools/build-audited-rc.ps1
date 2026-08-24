@@ -98,6 +98,8 @@ try {
   Invoke-Checked 'node' @('tests/update-controller-unit.cjs')
   Invoke-Checked 'node' @('tests/update-helper-runner-unit.cjs')
   Invoke-Checked 'node' @('tests/current-cycle-regression-v783.mjs')
+  $env:JF_TEST_EDITION = 'demo'
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'accessibility')
   $env:JF_TEST_EDITION = 'full'
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'order-print')
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'order-save-integrity')

@@ -164,6 +164,9 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Design-token regression failed.' }
           node tests/product-drawer-accessibility-v783.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Product drawer accessibility regression failed.' }
+          $env:JF_TEST_EDITION = 'demo'
+          node tests/runtime-smoke.mjs source/application/web accessibility
+          if ($LASTEXITCODE -ne 0) { throw 'Training accessibility regression failed.' }
           $env:JF_TEST_EDITION = 'full'
           node tests/runtime-smoke.mjs source/application/web order-print
           if ($LASTEXITCODE -ne 0) { throw 'Order print regression failed.' }
