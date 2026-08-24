@@ -1303,6 +1303,52 @@
         "build install and repeat both restart cycles",
         "verify reconnect conflict and second PC without archive resurrection"
       ]
+    },
+    {
+      "step_id": "JF3-S0059",
+      "stage": 8,
+      "action": "inspect responsive layouts and exercise director report export settings save and Windows print",
+      "result": "CSV EXPORT PASS / NO OP SAVE PASS / RESPONSIVE LAYOUT PARTIAL FAIL / REPORT PRINT FAIL / RELEASE NO-GO",
+      "responsive_widths": {
+        "about_1366": "top surfaces fit",
+        "about_1280": "right report filter clipped",
+        "about_1100": "header and final navigation controls clipped"
+      },
+      "export": {
+        "files": 2,
+        "bytes_each": 8499,
+        "log_state": "completed",
+        "verified_fields": [
+          "Russian title",
+          "version 7.8.3",
+          "period",
+          "warehouse",
+          "reliability 86",
+          "open order value 12800"
+        ]
+      },
+      "no_op_methodology_save": {
+        "ui": "success",
+        "outbox_before": 5,
+        "outbox_after": 5
+      },
+      "print": {
+        "device": "Microsoft Print to PDF",
+        "preview": false,
+        "save_dialog": false,
+        "pdf_created": false,
+        "log_result": false
+      },
+      "defects": [
+        "JF3-DEFECT-025",
+        "JF3-DEFECT-029",
+        "JF3-DEFECT-030"
+      ],
+      "pending": [
+        "repair responsive breakpoints and per view scroll context",
+        "provide a working print preview and verified PDF output",
+        "repeat visual screenshots for every view and modal at approved widths"
+      ]
     }
   ],
   "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
