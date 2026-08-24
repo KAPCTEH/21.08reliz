@@ -1417,6 +1417,55 @@
         "repeat CRUD and audit verification after the repaired build",
         "compare the same report entities from a second authorized PC"
       ]
+    },
+    {
+      "step_id": "JF3-S0062",
+      "stage": 8,
+      "action": "create search edit availability and delete a temporary driver and vehicle then verify deletion durability after restart",
+      "result": "DRIVER CREATE EDIT SEARCH DELETE DURABILITY PASS / FILTERED EMPTY STATE AND MUTATION AUDIT LOGGING FAIL / RELEASE NO-GO",
+      "driver": {
+        "name": "Водитель ТЗ3 Временный",
+        "contact": "+79990000222",
+        "vehicle": "ТЗ3 Фургон Временный",
+        "registration": "В000ТТ178",
+        "body_m": [3.2, 1.8, 1.9],
+        "volume_m3": 10.94,
+        "payload_kg": 800,
+        "rate_rub_per_km_round_trip": 70
+      },
+      "summary": {
+        "executors_before": 1,
+        "executors_after_create": 2,
+        "active_after_create": 2,
+        "active_after_edit": 1,
+        "executors_after_delete": 1,
+        "executors_after_restart": 1,
+        "volume_before_m3": 9.72,
+        "volume_after_create_m3": 20.66,
+        "volume_after_delete_m3": 9.72,
+        "outbox_before": 5,
+        "outbox_after_create": 6,
+        "outbox_after_edit": 7,
+        "outbox_after_delete": 8
+      },
+      "durability": {
+        "deleted_driver_returned_after_restart": false,
+        "original_driver_preserved": true
+      },
+      "log_evidence": [
+        "application exiting and clean boot recorded",
+        "release integrity and same live warehouse context confirmed",
+        "driver create availability edit and delete mutations absent from desktop log"
+      ],
+      "defects": [
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-032"
+      ],
+      "pending": [
+        "replace the filtered no results message with an accurate search empty state",
+        "add centralized mutation audit events and correlation ids for driver CRUD",
+        "repeat driver availability and assignment checks after the repaired build and on a second PC"
+      ]
     }
   ],
   "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
