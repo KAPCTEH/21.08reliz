@@ -26,7 +26,12 @@ assert(main.includes('delete routeDriverAssignments[routeId]'));
 assert(main.includes("window.openRouteDecisionCenterV783?.(routeId)"));
 assert(main.includes("#routeDecisionModalV783.open .clarity-decision-list"));
 assert(main.includes("#routeDecisionModalV783.open .clarity-decision-summary"));
+const regAccordionReady = "document.querySelector('#jfRegIntegrationsBox > .settings-accordion-toggle-v610')&&document.querySelector('#jfRegIntegrationsBox > .settings-accordion-body-v610')";
+const regAccordionWait = main.indexOf(`await waitForRenderer(win,\"${regAccordionReady}\")`);
+const regAccordionClick = main.indexOf("const box=document.querySelector('#jfRegIntegrationsBox')", regAccordionWait);
+assert(regAccordionWait >= 0, 'REG.RU visual QA must wait for the rendered accordion');
+assert(regAccordionClick > regAccordionWait, 'REG.RU visual QA must click only after the accordion is ready');
 assert(clarityCss.includes('.clarity-decision-box>.modal-head{background-color:#117d4b}'));
 assert(clarityCss.includes('.jf-access-head{flex:0 0 auto;padding:22px 25px 18px;background-color:#073e2e;'));
 
-console.log(JSON.stringify({ ok: true, currentProductDrawer: true, deterministicBlockedRoute: true, solidHeaderFallbacks: true }));
+console.log(JSON.stringify({ ok: true, currentProductDrawer: true, deterministicBlockedRoute: true, regAccordionRaceGuarded: true, solidHeaderFallbacks: true }));

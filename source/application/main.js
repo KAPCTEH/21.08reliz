@@ -3467,7 +3467,9 @@ async function runVisualQa() {
     result.screens.push(await captureVisualQa(win,output,'04-update-center'));
     result.contracts.push({screen:'update-center',...(await collectVisualContract(win,['#jfUpdateTitle','#jfUpdateBadge','#jfUpdateStatus','#jfUpdateCheck','#jfUpdateDownload','#jfUpdateApply','#jfUpdateAfterClose','#jfUpdateRemindLater','#jfUpdateHistory','#jfUpdateDiagnostic']))});
 
-    await win.webContents.executeJavaScript("showView('programSettings');const box=document.querySelector('#jfRegIntegrationsBox');const toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610');if(box&&!box.classList.contains('open'))toggle?.click();box?.scrollIntoView({block:'start'});");
+    await win.webContents.executeJavaScript("showView('programSettings')");
+    await waitForRenderer(win,"document.querySelector('#jfRegIntegrationsBox > .settings-accordion-toggle-v610')&&document.querySelector('#jfRegIntegrationsBox > .settings-accordion-body-v610')");
+    await win.webContents.executeJavaScript("(()=>{const box=document.querySelector('#jfRegIntegrationsBox');const toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610');if(box&&!box.classList.contains('open'))toggle?.click();box?.scrollIntoView({block:'start'});})()");
     await waitForRenderer(win,"document.querySelector('#jfRegIntegrationsBox')?.classList.contains('open')&&!document.querySelector('#jfRegIntegrationsBox > .settings-accordion-body-v610')?.hidden");
     await new Promise(resolve=>setTimeout(resolve,900));
     result.screens.push(await captureVisualQa(win,output,'04-settings-integrations'));
