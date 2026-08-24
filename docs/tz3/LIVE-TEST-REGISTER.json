@@ -1466,6 +1466,79 @@
         "add centralized mutation audit events and correlation ids for driver CRUD",
         "repeat driver availability and assignment checks after the repaired build and on a second PC"
       ]
+    },
+    {
+      "step_id": "JF3-S0063",
+      "stage": 8,
+      "action": "create a second local warehouse verify empty isolation create separate product stock and pickup then switch restart and compare both warehouses",
+      "result": "WAREHOUSE DATA ISOLATION AND LOCAL RESTART DURABILITY PASS / ORDER OUTBOX AND TRANSIENT CLOUD SESSION FAIL / RELEASE NO-GO",
+      "warehouses": {
+        "a": {
+          "id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+          "name": "Склад ТЗ3 — изоляция",
+          "orders": 5,
+          "orders_total_rub": 12800,
+          "products": 4,
+          "tracked_products": 1,
+          "tracked_physical_stock": 11,
+          "drivers": 1,
+          "active_drivers": 1,
+          "vehicle_volume_m3": 9.72,
+          "routes": 2,
+          "route_points": 3,
+          "route_orders_total_rub": 9650,
+          "outbox": 8
+        },
+        "b": {
+          "id": "5799ff6a-1081-404d-a2be-c10b9da938f7",
+          "name": "Склад ТЗ3 B — изоляция",
+          "code": "B03",
+          "initial_orders": 0,
+          "initial_products": 0,
+          "initial_drivers": 0,
+          "initial_routes": 0,
+          "created_product": "Товар ТЗ3 B",
+          "sku": "TZ3-B-001",
+          "physical_stock": 5,
+          "available_stock": 5,
+          "reserved_stock": 0,
+          "stock_value_rub": 2500,
+          "created_order": "ORD-2026-0001",
+          "orders": 1,
+          "orders_total_rub": 700,
+          "outbox_after_product": 1,
+          "outbox_after_receipt": 2,
+          "outbox_after_order": 2,
+          "outbox_after_restart": 2
+        }
+      },
+      "durability": {
+        "warehouse_b_restored_after_restart": true,
+        "warehouse_b_order_restored": true,
+        "warehouse_b_product_and_stock_restored": true,
+        "warehouse_a_unchanged_after_return": true,
+        "cross_warehouse_data_leak_detected": false
+      },
+      "log_evidence": [
+        "both live warehouse ids confirmed",
+        "release integrity verified after restart",
+        "warehouse product receipt and order mutations absent from desktop log",
+        "one warehouse reload produced INVALID_SESSION for cloud user invitation and Telegram calls",
+        "full restart restored authorized true and the ordinary NOT_FOUND invitation response"
+      ],
+      "defects": [
+        "JF3-DEFECT-012",
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-030",
+        "JF3-DEFECT-033",
+        "JF3-DEFECT-034"
+      ],
+      "pending": [
+        "enqueue every durable order mutation in the scoped idempotent outbox",
+        "stabilize cloud session continuity across warehouse reloads and reproduce ten switches",
+        "repeat the same isolation cycle with production PostgreSQL V3 and two authorized PCs",
+        "add centralized mutation audit events and correlation ids for warehouse inventory and order operations"
+      ]
     }
   ],
   "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
