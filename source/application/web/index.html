@@ -351,7 +351,7 @@
 <div class="field"><label for="jfRegPort">SSH-порт</label><input id="jfRegPort" type="number" min="1" max="65535" value="22"/></div>
 </div>
 <div class="jf-integration-note">Домен не нужен. Пароль SSH вводится в отдельном защищённом окне JustFun, используется только в памяти и не сохраняется. Перед входом программа обязательно проверяет отпечаток SSH-ключа VPS. Порт PostgreSQL наружу не открывается.</div>
-<div class="inline-actions"><button class="btn-primary" id="jfRegConfigure" type="button">Установить или обновить VPS</button><button class="btn-gray" id="jfRegCheck" type="button">Проверить связь</button><button class="btn-blue" id="jfRegSync" type="button">Сохранить активный склад</button><button class="btn-soft" id="jfRegRestore" type="button">Восстановить активный склад</button></div>
+<div class="inline-actions"><button class="btn-primary" id="jfRegConfigure" type="button" data-jf-integration-action>Установить или обновить VPS</button><button class="btn-gray" id="jfRegCheck" type="button" data-jf-integration-action>Проверить связь</button><button class="btn-blue" id="jfRegSync" type="button" data-jf-integration-action>Сохранить активный склад</button><button class="btn-soft" id="jfRegRestore" type="button" data-jf-integration-action>Восстановить активный склад</button></div>
 <div class="jf-integration-status" id="jfRegStatus">Введите IP своего VPS REG.RU.</div>
 </section>
 </div>
@@ -362,7 +362,7 @@
 <div class="jf-integration-head"><div><b>Telegram + Cloudflare</b><span>Временный API-токен → автоматические Worker, D1 и webhook</span></div><i id="jfTelegramBadge">Не настроен</i></div>
 <div class="jf-integration-note"><b>Отдельное подключение активного склада.</b> Для каждого склада владелец указывает своего Telegram-бота. Программа создаёт отдельные Worker, D1, webhook и защищённый ключ, поэтому бот и сообщения другого склада сюда попасть не могут. Собственный домен не требуется; временный Cloudflare API-токен после настройки рекомендуется удалить.</div>
 <div class="jf-integration-status" id="jfTelegramWarehouseContext">Активный склад: определяется…</div>
-<div class="inline-actions"><button class="btn-primary" id="jfTelegramConfigure" type="button">Настроить Telegram</button><button class="btn-gray" id="jfTelegramReconnect" type="button">Проверить и восстановить</button><button class="btn-gray" id="jfTelegramCheck" type="button">Проверить webhook</button><button class="btn-blue" id="jfTelegramWarehouse" type="button">Подключить группу склада</button></div>
+<div class="inline-actions"><button class="btn-primary" id="jfTelegramConfigure" type="button" data-jf-integration-action>Настроить Telegram</button><button class="btn-gray" id="jfTelegramReconnect" type="button" data-jf-integration-action>Проверить и восстановить</button><button class="btn-gray" id="jfTelegramCheck" type="button" data-jf-integration-action>Проверить webhook</button><button class="btn-blue" id="jfTelegramWarehouse" type="button" data-jf-integration-action>Подключить группу склада</button></div>
 <div class="jf-telegram-progress" id="jfTelegramProgress" hidden>
 <div class="jf-telegram-progress-head"><span id="jfTelegramProgressText">Подготовка…</span><b id="jfTelegramProgressPercent">0%</b></div>
 <div class="jf-telegram-progress-track"><i id="jfTelegramProgressBar"></i></div>

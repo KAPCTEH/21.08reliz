@@ -1106,9 +1106,13 @@ if (accessibilityMode) {
   await new Promise(resolve => setTimeout(resolve, 30));
   const integrationBox=doc.querySelector('#jfRegIntegrationsBox'),integrationToggle=integrationBox?.querySelector(':scope > .settings-accordion-toggle-v610');if(integrationBox&&!integrationBox.classList.contains('open'))integrationToggle?.click();
   await new Promise(resolve => setTimeout(resolve, 30));
+  const integrationActions=[...doc.querySelectorAll('#jfRegIntegrationsBox [data-jf-integration-action],#jfTelegramIntegrationsBox [data-jf-integration-action]')],integrationBody=integrationBox?.querySelector(':scope > .settings-accordion-body-v610');
+  const integrationTraining={toggleEnabled:Boolean(integrationToggle&&!integrationToggle.disabled),opened:Boolean(integrationBox?.classList.contains('open')&&!integrationBody?.hidden),actions:integrationActions.length,actionsDisabled:integrationActions.length===8&&integrationActions.every(button=>button.disabled)};
+  integrationTraining.ok=integrationTraining.toggleEnabled&&integrationTraining.opened&&integrationTraining.actionsDisabled;
+  if(!integrationTraining.ok)findings.push(finding('training-integration-readonly-contract',integrationBox,JSON.stringify(integrationTraining)));
   const helpButton = doc.querySelector('#jfRegIntegrationsBox .jf-instruction-btn') || doc.querySelector('#programSettingsView .jf-instruction-btn');
   await testDialog('help', helpButton, '#jfHelpModal');
-  accessibilityResult = { ok: findings.length === 0 && dialogTests.every(item => item.ok), controls:doc.querySelectorAll('button,input,select,textarea,a[href]').length, fields:doc.querySelectorAll('input:not([type="hidden"]),select,textarea').length, images:doc.querySelectorAll('img').length, dialogs:dialogTests, findings };
+  accessibilityResult = { ok: findings.length === 0 && dialogTests.every(item => item.ok), controls:doc.querySelectorAll('button,input,select,textarea,a[href]').length, fields:doc.querySelectorAll('input:not([type="hidden"]),select,textarea').length, images:doc.querySelectorAll('img').length, dialogs:dialogTests, integrationTraining, findings };
   if (!accessibilityResult.ok) errors.push({ phase:'accessibility', level:'error', text:JSON.stringify(accessibilityResult) });
 }
 
