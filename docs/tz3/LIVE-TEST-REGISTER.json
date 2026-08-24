@@ -1023,8 +1023,56 @@
         "execute old database migration and mixed-client matrices",
         "connect and live-test the signed updater catalog"
       ]
+    },
+    {
+      "step_id": "JF3-S0051",
+      "stage": 6,
+      "action": "create edit delete and restart disposable local product and driver records",
+      "result": "LOCAL CREATE EDIT DELETE AND RESTART PASS",
+      "evidence": [
+        "disposable product create edit and delete completed",
+        "disposable driver create and delete completed",
+        "both deleted records remained absent after restart",
+        "four orders three real drivers and stock eight remained unchanged",
+        "thirteen local outbox operations survived restart"
+      ],
+      "pending": [
+        "repeat deletion after VPS connection and from a second PC"
+      ]
+    },
+    {
+      "step_id": "JF3-S0052",
+      "stage": 7,
+      "action": "repair the first consolidated local live defect batch",
+      "result": "SOURCE FIX AND AUTOMATED RETEST PASS / PROTECTED BUILD AND LIVE RETEST REQUIRED",
+      "evidence": [
+        "warehouse address search now generates a valid request identifier",
+        "route picking preparation and pickup ready are durable local commands",
+        "autonomous local warehouse creation edit archive and context switch are supported",
+        "Telegram is decoupled from warehouse creation",
+        "missing VPS cannot produce a successful server-read message",
+        "unchanged warehouse coordinates do not update the registry timestamp",
+        "FULL local warehouse runtime completed without runtime errors"
+      ],
+      "source_fixed_defects": [
+        "JF3-DEFECT-007",
+        "JF3-DEFECT-008",
+        "JF3-DEFECT-012",
+        "JF3-DEFECT-014",
+        "JF3-DEFECT-015"
+      ],
+      "partially_fixed_defects": [
+        "JF3-DEFECT-013",
+        "JF3-DEFECT-019"
+      ],
+      "pending": [
+        "complete controlled local-to-server migration",
+        "build and install a protected release candidate",
+        "repeat every affected live scenario",
+        "continue remaining P1 and P2 defect repair"
+      ]
     }
   ],
-  "current_gate": "stage-6/installed-pc-live-discovery-in-progress",
+  "current_gate": "stage-7/source-repair-batch-in-progress",
   "release_status": "NO-GO"
 }

@@ -272,7 +272,9 @@ function verifyAuthoritativeEmptyCreateAction(){
 function verifyWarehouseLifecycleUiSource(){
   assert(multiWarehouse.includes('refreshAuthoritativeWarehouseRegistryV760'),'warehouse lifecycle operations must refresh the authoritative registry after commit');
   assert(multiWarehouse.includes("window.JustFunWarehouseRegistryV783?.refresh"),'the lifecycle UI must use the shared server registry refresh');
-  assert(!multiWarehouse.includes('Object.assign(w,next);B.saveRegistry(r)'),'an edit commit must not overwrite the refreshed registry with a stale pre-request snapshot');
+  assert(multiWarehouse.includes("committed=result?.skipped!==true"),'warehouse lifecycle operations must distinguish server-confirmed and autonomous local storage');
+  assert(multiWarehouse.includes('if(committed)canonical=(await refreshAuthoritativeWarehouseRegistryV760'),'a server-confirmed edit must refresh the authoritative registry before updating UI state');
+  assert(multiWarehouse.includes('else{Object.assign(w,next);B.saveRegistry(r);canonical=next}'),'an autonomous local edit must update only the local registry');
   assert(!multiWarehouse.includes('r.warehouses=r.warehouses.filter(x=>String(x.id)!==String(w.id));B.saveRegistry(r)'),'a delete commit must not save a stale pre-request registry');
   assert(multiWarehouse.includes("$id('warehouseCodeV600').readOnly=true"),'an existing warehouse code is read-only');
   assert(multiWarehouse.includes('Код задаётся при создании один раз и затем не изменяется.'),'the create flow explains code immutability');

@@ -2954,7 +2954,7 @@ function registerIPC(config) {
     const url = map[channel]; if (!url) return false; return shell.openExternal(url).then(() => true, () => false);
   });
   handleMainIPC('desktop:reg-status', async () => getRegStatus());
-  handleMainIPC('desktop:address-search',async(_event,payload)=>resolveDesktopAddressSearch(payload));
+  handleMainIPC('desktop:address-search',async(_event,payload)=>{try{return await resolveDesktopAddressSearch(payload)}catch(error){appendRecurringLog('Address search request rejected',{code:String(error?.code||'ADDRESS_REQUEST_REJECTED'),error:safeIntegrationError(error),queryLength:String(payload?.query||'').length,hasRequestId:Boolean(payload?.requestId)});return{ok:false,code:String(error?.code||'ADDRESS_REQUEST_REJECTED'),error:safeIntegrationError(error)}}});
   handleMainIPC('desktop:maps-geocode',async(_event,payload)=>resolveDesktopMapGeocode(payload));
   handleMainIPC('desktop:maps-diagnostic',async(_event,payload)=>{
     const requestId=String(payload?.requestId||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,80);

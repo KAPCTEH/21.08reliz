@@ -13,6 +13,7 @@ const cloudSync = mode === 'cloud-sync';
 const atomicMutation = mode === 'atomic-mutation';
 const localFirstRetry = mode === 'local-first-retry';
 const localFirstOffline = mode === 'local-first-offline';
+const localWarehouse = mode === 'local-warehouse';
 const deepBusiness = mode === 'deep-business';
 const orderPrintMode = mode === 'order-print';
 const orderSaveIntegrityMode = mode === 'order-save-integrity';
@@ -88,6 +89,7 @@ window.__rejectEntitySync = false;
 window.__entitySyncNetworkDown = false;
 window.__serverEntityMap = new Map();
 window.__serverCursor = 0;
+window.__addressSearchPayloads = [];
 window.scrollTo = () => {};
 window.HTMLElement.prototype.scrollIntoView = () => {};
 window.HTMLFormElement.prototype.requestSubmit = function () {
@@ -156,6 +158,12 @@ window.JustFunDesktop = {
   openLogFolder: async () => ({ ok: true }),
   copyText: async () => true,
   openSupport: async () => true,
+  maps: {
+    addressSearch: async payload => { window.__addressSearchPayloads.push(JSON.parse(JSON.stringify(payload||{}))); return { ok:false, configured:false }; },
+    geocode: async () => ({ ok:false, configured:false }),
+    route: async () => ({ ok:false, configured:false }),
+    diagnostic: async () => ({ ok:true })
+  },
   auth: {
     checkLicense: async () => ({ ok: false }),
     registerOwner: async () => ({ ok: true }),
@@ -287,6 +295,52 @@ if (localFirstRetry || localFirstOffline) {
       if (!expected) errors.push({ phase: 'local-first', level: 'error', text: JSON.stringify(localFirstResult) });
     } catch (error) {
       errors.push({ phase: 'local-first', level: 'error', text: error.stack || String(error) });
+    }
+  }
+}
+let localWarehouseResult = null;
+if (localWarehouse) {
+  if (testEdition !== 'full' || process.env.JF_TEST_DATA_SERVICE_DISABLED !== '1') {
+    errors.push({ phase: 'local-warehouse', level: 'error', text: 'Local warehouse verification requires full edition with the data service disabled.' });
+  } else {
+    try {
+      if(!window.JustFunEntitySyncV783?.status?.().installed)window.__JustFunEntitySyncTestV783.install();
+      await window.JustFunEntitySyncV783.flushAndConfirm();
+      window.persistSettings();
+      await new Promise(resolve=>setTimeout(resolve,350));
+      const outboxBefore=window.JustFunEntitySyncV783.status().outbox.active;
+      window.persistSettings();
+      await new Promise(resolve=>setTimeout(resolve,350));
+      const outboxAfter=window.JustFunEntitySyncV783.status().outbox.active;
+      const addressResults=await window.geocodeSearch('Санкт-Петербург Невский 28');
+      const addressPayload=window.__addressSearchPayloads.at(-1)||null;
+      const beforeRegistry=window.TeplitsaWarehouseBootstrap.getRegistry();
+      window.__JF_TEST_NO_RELOAD=true;
+      window.openWarehouseCreatorV600();
+      window.document.getElementById('warehouseNameV600').value='Локальный тестовый склад';
+      window.document.getElementById('warehouseCodeV600').value='ЛТС';
+      window.document.getElementById('warehouseAddressV600').value='Санкт-Петербург, Невский проспект, 28';
+      window.document.getElementById('warehouseLatV600').value='59.9351';
+      window.document.getElementById('warehouseLonV600').value='30.3255';
+      const created=await window.saveWarehouseEditorV600(new window.Event('submit',{cancelable:true}));
+      const afterRegistry=window.TeplitsaWarehouseBootstrap.getRegistry(),createdWarehouse=afterRegistry.warehouses.find(item=>item.name==='Локальный тестовый склад');
+      const emptyOrders=createdWarehouse?JSON.parse(window.TeplitsaWarehouseBootstrap.raw.get(window.TeplitsaWarehouseBootstrap.dataKey('orders_2gis_tms_v1','live',createdWarehouse.id))||'null'):null;
+      localWarehouseResult={
+        localFlush:true,
+        noOpOutboxStable:outboxBefore===outboxAfter,
+        generatedRequestId:Boolean(addressPayload&&/^[A-Za-z0-9_-]{8,80}$/.test(String(addressPayload.requestId||''))),
+        addressResults:Array.isArray(addressResults)?addressResults.length:null,
+        created,
+        warehouseCountBefore:beforeRegistry.warehouses.length,
+        warehouseCountAfter:afterRegistry.warehouses.length,
+        activeWarehouseId:afterRegistry.activeWarehouseId,
+        createdWarehouseId:createdWarehouse?.id||null,
+        emptyOrders:Array.isArray(emptyOrders)&&emptyOrders.length===0,
+        telegramNotForced:window.sessionStorage.getItem('jfTelegramSetupWarehouseV783')===null
+      };
+      if(!localWarehouseResult.noOpOutboxStable||!localWarehouseResult.generatedRequestId||created!==true||afterRegistry.warehouses.length!==beforeRegistry.warehouses.length+1||afterRegistry.activeWarehouseId!==createdWarehouse?.id||!localWarehouseResult.emptyOrders||!localWarehouseResult.telegramNotForced)errors.push({phase:'local-warehouse',level:'error',text:JSON.stringify(localWarehouseResult)});
+    } catch (error) {
+      errors.push({ phase: 'local-warehouse', level: 'error', text: error.stack || String(error) });
     }
   }
 }
@@ -1193,6 +1247,7 @@ const result = {
   securityFuzz: securityFuzzResult,
   accessibility: accessibilityResult,
   localFirst: localFirstResult,
+  localWarehouse: localWarehouseResult,
   bridgeCalls: window.__bridgeCalls
 };
 

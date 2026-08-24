@@ -591,7 +591,8 @@ function knownWarehouseVersion(record){
 }
 async function writeAuthoritativeWarehouse(record,{deleted=false,baseVersion,initialSettings=null,initialCompany=null}={}){
   if(isTrainingEnvironment())return{ok:true,skipped:true,version:Number(baseVersion)||0};
-  if(desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.writeWarehouse)throw new Error('Изменение склада требует рабочего VPS. Локальный кэш открыт только для чтения.');
+  if(!desktopSession?.auth?.company?.data_service){if(deleted)throw new Error('Безвозвратное удаление склада требует рабочего VPS и серверной резервной копии. Можно использовать архив.');return{ok:true,skipped:true,storageMode:'local',version:Number(baseVersion)||0}}
+  if(desktopSession?.auth?.offline||!window.JustFunDesktop?.regVps?.writeWarehouse)throw new Error('Серверный режим компании временно недоступен. Изменение склада не выполнено.');
   const id=String(record?.id||'');if(!id)throw new Error('Идентификатор склада не определён.');
   const version=baseVersion==null?knownWarehouseVersion(record):Number(baseVersion),payload=deleted?null:{...cloneValue(record),id,environment:WAREHOUSE_REGISTRY_ENVIRONMENT};
   if(payload){delete payload.revision;delete payload.digest;delete payload.updated_at}
@@ -775,7 +776,7 @@ function installEntityCommandGuards(){
     saveDriver:{kind:'driver_save',critical:false,target:editId('#driverEditId'),optionalTarget:true},deleteDriver:{kind:'driver_delete',critical:false,target:args=>args[0]},
     saveReportCalculationSettings:{kind:'report_settings',critical:false,target:()=>activeWarehouseId()},saveReportEmployee:{kind:'report_employee_save',critical:false,target:editId('#reportEmployeeEditId'),optionalTarget:true},deleteReportEmployee:{kind:'report_employee_delete',critical:false,target:args=>args[0]},saveReportExpense:{kind:'report_expense_save',critical:false,target:editId('#reportExpenseEditId'),optionalTarget:true},deleteReportExpense:{kind:'report_expense_delete',critical:false,target:args=>args[0]},
     saveSettingsFromForm:{kind:'route_settings',critical:false,target:()=>activeWarehouseId()},saveDriverPaymentSettings:{kind:'driver_payment_settings',critical:false,target:()=>activeWarehouseId()},saveDeliveryPricingSettings:{kind:'delivery_pricing_settings',critical:false,target:()=>activeWarehouseId()},
-    approveRouteManually:{kind:'route_approve',target:args=>args[0]},startRoutePicking:{kind:'route_picking',target:args=>args[0]},cancelRouteBeforeStart:{kind:'route_cancel',target:args=>args[0]},startRoute:{kind:'route_start',target:args=>args[0]},openRouteClosure:{kind:'route_return',target:args=>args[0]},commitRouteClosure:{kind:'route_close',target:()=>q('#routeCloseId')?.value},markCurrentPickupReady:{kind:'pickup_ready',target:currentOrderId},markCurrentPickupCollected:{kind:'pickup_collected',target:currentOrderId}
+    approveRouteManually:{kind:'route_approve',target:args=>args[0]},startRoutePicking:{kind:'route_picking',critical:false,target:args=>args[0]},cancelRouteBeforeStart:{kind:'route_cancel',target:args=>args[0]},startRoute:{kind:'route_start',target:args=>args[0]},openRouteClosure:{kind:'route_return',target:args=>args[0]},commitRouteClosure:{kind:'route_close',target:()=>q('#routeCloseId')?.value},markCurrentPickupReady:{kind:'pickup_ready',critical:false,target:currentOrderId},markCurrentPickupCollected:{kind:'pickup_collected',target:currentOrderId}
   };
   for(const[name,spec]of Object.entries(specs)){const base=window[name];if(typeof base!=='function')continue;window[name]=function(){const args=arguments,event=args[0];if(event&&typeof event.preventDefault==='function')event.preventDefault();const targetId=String(spec.target(args)||'');if(!targetId&&!spec.optionalTarget)return base.apply(this,args);return commitEntityMutation({kind:spec.kind,targetId,critical:spec.critical},()=>base.apply(this,args))}}
 }
@@ -800,7 +801,7 @@ async function backgroundCloudUpload({force=false}={}){
 }
 async function flushEntitySyncBeforeContextChange(){
   if(isTrainingEnvironment())return true;
-  resetEntityScope();if(!onlineEntitySyncAvailable())throw new Error('Рабочий VPS недоступен: локальные изменения сохранены, но перед сменой контекста должны быть синхронизированы.');
+  resetEntityScope();if(!onlineEntitySyncAvailable()){if(!desktopSession?.auth?.company?.data_service){await window.TeplitsaWarehouseV600?.whenPersisted?.();if(window.__warehousePersistenceCritical)throw new Error('Локальные данные не подтверждены на диске. Переключение склада остановлено.');return true}throw new Error('Рабочий VPS недоступен: локальные изменения сохранены, но перед сменой контекста должны быть синхронизированы.')}
   await waitForEntitySyncIdle();await backgroundCloudUpload({force:true});await waitForEntitySyncIdle();const state=requireLocalOutbox().status();
   if(cloudSyncState.conflicts.size||state.active||cloudSyncState.dirty)throw new Error(`VPS не подтвердил все локальные изменения. Ожидают или требуют решения: ${Math.max(state.active,cloudSyncState.dirty?1:0)}.`);
   return true
@@ -838,7 +839,7 @@ async function pollCloudRevision(){
 }
 async function syncActiveWarehouse(){
   const button=q('#jfRegSync'),warehouseId=activeWarehouseId(),environment=activeEnvironment();if(!warehouseId)return integrationStatus('jfRegStatus','Активный склад не определён.','error');setIntegrationBusy(button,true);integrationStatus('jfRegStatus',`Получаем актуальные серверные записи склада «${activeWarehouseLabel()}» · ${environment.toUpperCase()}…`);
-  try{cloudSyncState.bootstrapped=false;await bootstrapEntitySync(true);await backgroundCloudUpload({force:true});const pending=requireLocalOutbox().status().active;integrationStatus('jfRegStatus',pending?`Сервер прочитан, но ${pending} локальных изменений ещё требуют отправки или решения.`:'Локальный кэш и VPS синхронизированы.','ok')}
+  try{if(!onlineEntitySyncAvailable())throw new Error('VPS не настроен или недоступен. Локальные данные не изменены и продолжают храниться на этом компьютере.');cloudSyncState.bootstrapped=false;await bootstrapEntitySync(true);await backgroundCloudUpload({force:true});const pending=requireLocalOutbox().status().active;integrationStatus('jfRegStatus',pending?`Сервер прочитан, но ${pending} локальных изменений ещё требуют отправки или решения.`:'Локальный кэш и VPS синхронизированы.','ok')}
   catch(error){integrationStatus('jfRegStatus',error?.message||error,'error')}
   finally{setIntegrationBusy(button,false)}
 }

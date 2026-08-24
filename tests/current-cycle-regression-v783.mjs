@@ -38,12 +38,14 @@ assert(deleteWarehouseBlock.includes('withWarehouseLifecycleLockV760(async()=>')
 assert(saveWarehouseBlock.includes('await persistWarehouseRegistryV760(next)'));
 assert(saveWarehouseBlock.includes('serverWrite=await persistWarehouseRegistryV760(w,{initialSettings,initialCompany:initialSettings.company})'));
 assert(saveWarehouseBlock.indexOf('await persistWarehouseRegistryV760(next)')<saveWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('изменение склада'"));
-assert(!saveWarehouseBlock.includes('Object.assign(w,next);B.saveRegistry(r)'));
+assert(saveWarehouseBlock.includes("committed=result?.skipped!==true"));
+assert(saveWarehouseBlock.includes('else{Object.assign(w,next);B.saveRegistry(r);canonical=next}'));
 assert(saveWarehouseBlock.indexOf('serverWrite=await persistWarehouseRegistryV760(w,{initialSettings,initialCompany:initialSettings.company})')<saveWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('создание склада'"));
 assert(saveWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('создание склада'")<saveWarehouseBlock.indexOf('B.setActive(w.id)'));
 assert(!saveWarehouseBlock.includes("const rollbackWarehouse={...w,status:'archived'}"));
 assert(archiveWarehouseBlock.indexOf('await persistWarehouseRegistryV760(next)')<archiveWarehouseBlock.indexOf('refreshAuthoritativeWarehouseRegistryV760(action'));
-assert(!archiveWarehouseBlock.includes('Object.assign(w,next);B.saveRegistry(r)'));
+assert(archiveWarehouseBlock.includes("committed=result?.skipped!==true"));
+assert(archiveWarehouseBlock.includes('else{Object.assign(w,next);B.saveRegistry(r)}'));
 assert(!deleteWarehouseBlock.includes('assertWarehouseDeletionAssignments'));
 assert(deleteWarehouseBlock.indexOf('await persistWarehouseRegistryV760(w,{deleted:true})')<deleteWarehouseBlock.indexOf('B.raw.remove(key)'));
 assert(deleteWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('удаление склада'")<deleteWarehouseBlock.indexOf('B.raw.remove(key)'));
@@ -59,6 +61,14 @@ assert(desktopPlatform.includes("nextWarehouseRegistryRefreshAtV783=now+30000"))
 assert(desktopPlatform.includes("blockWorkspaceAfterWarehouseChange('Список складов изменился, но безопасная автоматическая перезагрузка была остановлена."));
 assert(desktopPlatform.includes("function isTrainingEnvironment(){return desktopSession?.edition==='demo'||window.TeplitsaWarehouseBootstrap?.isDemo?.()===true}"));
 assert(desktopPlatform.includes("if(isTrainingEnvironment())return Promise.resolve().then(mutation)"));
+assert(desktopPlatform.includes("if(!desktopSession?.auth?.company?.data_service){if(deleted)throw new Error"));
+assert(desktopPlatform.includes("startRoutePicking:{kind:'route_picking',critical:false"));
+assert(desktopPlatform.includes("markCurrentPickupReady:{kind:'pickup_ready',critical:false"));
+assert(desktopPlatform.includes("if(!onlineEntitySyncAvailable()){if(!desktopSession?.auth?.company?.data_service)"));
+assert(main.includes('const requestId=String(context.requestId||mapRequestId())'));
+assert(warehouses.includes('const address=String(point.address||\'\').trim(),lat='));
+assert(warehouses.includes("telegramSetupRequired:false,storageMode:serverCommitted?'server':'local'"));
+assert(!warehouses.includes("sessionStorage.setItem('jfTelegramSetupWarehouseV783'"));
 assert(desktopPlatform.includes("canCreate:()=>!isTrainingEnvironment()"));
 assert(desktopPlatform.includes("if(isTrainingEnvironment()){boxes.forEach"));
 assert(desktopPlatform.includes("function telegramEnvironment(){return activeEnvironment()}"));
@@ -121,4 +131,4 @@ assert(!main.includes('persistSettings();routePlans={};persistRoutes();renderWar
 assert(!main.includes('persistSettings();routePlans={};persistRoutes();renderSettings();ensureWarehouseMap()'));
 assert(smartRoutes.includes("typeof window.invalidateMutableRoutePlansV783==='function'"));
 
-console.log(JSON.stringify({ok:true,warehouseCatalogIsolation:true,warehouseSwitchPersistence:true,warehouseServerFirstMutations:true,serverDeletedWarehousesNotMerged:true,singleMapResizeObserver:true,deferredMapInitialization:true,moscowDistrictFallback:true,spbMunicipalDistrictFallback:true,driverAssignmentRequiresPlan:true,activeRoutePlanProtection:true}));
+console.log(JSON.stringify({ok:true,warehouseCatalogIsolation:true,warehouseSwitchPersistence:true,warehouseDualStorageMutations:true,serverDeletedWarehousesNotMerged:true,singleMapResizeObserver:true,deferredMapInitialization:true,moscowDistrictFallback:true,spbMunicipalDistrictFallback:true,driverAssignmentRequiresPlan:true,activeRoutePlanProtection:true}));

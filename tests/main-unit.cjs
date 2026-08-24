@@ -385,6 +385,7 @@ assert.equal(failedMapResult.ok,false);
 assert.equal(failedMapResult.code,'NETWORK_TIMEOUT');
 assert.match(failedMapResult.error,/OpenStreetMap: Error: public unavailable; VPS: Error: VPS unavailable/);
 const addressState={workspace_id:'cmp_company_1234567890'};
+assert.throws(()=>main.validateDesktopAddressSearchPayload({query:'Всеволожск',warehouseId:'warehouse_msk',interaction:'explicit'}),/Идентификатор адресного запроса повреждён/);
 let publicAddressCalls=0;
 const indexedAddressResult=await main.resolveDesktopAddressSearch(
   {requestId:'address-request-1',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'autocomplete'},

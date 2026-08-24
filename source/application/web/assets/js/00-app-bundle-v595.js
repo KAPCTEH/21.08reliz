@@ -825,13 +825,14 @@ async function searchDeliveryAddress({automatic=false}={}){
 }
 async function geocodeSearch(q,context={}){
   const intelligence=globalThis.JustFunAddressIntelligenceV783;
-  const managed=await vpsMapRequest('addressSearch',{requestId:context.requestId,query:q,warehouseId:currentWarehouseIdV560(),preferredRegion:intelligence?.requestedRegion?.(settings.warehouse?.address||'')||'',interaction:context.automatic?'autocomplete':'explicit'});
+  const requestId=String(context.requestId||mapRequestId()),requestContext={...context,requestId};
+  const managed=await vpsMapRequest('addressSearch',{requestId,query:q,warehouseId:currentWarehouseIdV560(),preferredRegion:intelligence?.requestedRegion?.(settings.warehouse?.address||'')||'',interaction:context.automatic?'autocomplete':'explicit'});
   if(managed.used){const data=Array.isArray(managed.data)?managed.data:[];return managed.source==='company-address-provider'?data.slice(0,3):rankGeocodeResults(data,q)}
   if(context.automatic)throw new Error('Автоподсказки требуют подключённый адресный сервис');
   const expanded=expandAddressQuery(q),params={q:expanded,format:'jsonv2',addressdetails:'1',namedetails:'1',limit:'10',countrycodes:'ru','accept-language':'ru',viewbox:'27.0,61.5,35.0,57.2',bounded:'0',layer:'address',dedupe:'1'};
-  let list=await nominatimFetch('/search',params,context);
-  if(!list.length){const fallback={...params};delete fallback.layer;list=await nominatimFetch('/search',fallback,context)}
-  if(!list.length){const broad={...params};delete broad.layer;delete broad.viewbox;delete broad.bounded;list=await nominatimFetch('/search',broad,context)}
+  let list=await nominatimFetch('/search',params,requestContext);
+  if(!list.length){const fallback={...params};delete fallback.layer;list=await nominatimFetch('/search',fallback,requestContext)}
+  if(!list.length){const broad={...params};delete broad.layer;delete broad.viewbox;delete broad.bounded;list=await nominatimFetch('/search',broad,requestContext)}
   return rankGeocodeResults(list,q);
 }
 function expandAddressQuery(q){const intelligence=globalThis.JustFunAddressIntelligenceV783;if(intelligence?.normalizeQuery)return intelligence.normalizeQuery(q);return String(q||'').replace(/\bдер\.?\s+/gi,'деревня ').replace(/\bд\.\s+/gi,'деревня ').replace(/\bпос\.?\s+/gi,'посёлок ').replace(/\bуч\.?\s*/gi,'участок ').replace(/\s+/g,' ').trim()}
