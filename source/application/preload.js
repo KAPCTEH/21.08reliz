@@ -23,6 +23,9 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
   openLogFolder: () => ipcRenderer.invoke('desktop:open-log-folder'),
   copyText: (text) => ipcRenderer.invoke('desktop:copy-text', String(text ?? '')),
   openSupport: (channel) => ipcRenderer.invoke('desktop:open-support', channel),
+  backups: Object.freeze({
+    save: (payload={}) => ipcRenderer.invoke('desktop:backup-save', payload)
+  }),
   updates: Object.freeze({
     status: () => ipcRenderer.invoke('desktop:update-status'),
     check: () => ipcRenderer.invoke('desktop:update-check'),
@@ -44,7 +47,9 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
     acceptInvitation: (payload) => ipcRenderer.invoke('desktop:auth-accept-invitation', payload||{}),
     logout: () => ipcRenderer.invoke('desktop:auth-logout'),
     users: () => ipcRenderer.invoke('desktop:auth-users'),
+    invitations: () => ipcRenderer.invoke('desktop:auth-invitations'),
     invite: (payload) => ipcRenderer.invoke('desktop:auth-invite', payload||{}),
+    revokeInvitation: (payload) => ipcRenderer.invoke('desktop:auth-invitation-revoke', payload||{}),
     setUserStatus: (payload) => ipcRenderer.invoke('desktop:auth-user-status', payload||{}),
     setUserAccess: (payload) => ipcRenderer.invoke('desktop:auth-user-access', payload||{}),
     devices: () => ipcRenderer.invoke('desktop:auth-devices'),

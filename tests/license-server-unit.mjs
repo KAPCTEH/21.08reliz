@@ -188,6 +188,13 @@ await assert.rejects(
 assert.equal(_internals.canAccessWarehouse({ role: 'viewer', permissions: ['jf.warehouse:wh_main'] }, 'wh_main'), true);
 assert.equal(_internals.canAccessWarehouse({ role: 'viewer', permissions: ['jf.warehouse:wh_main'] }, 'wh_other'), false);
 assert.equal(_internals.canAccessWarehouse({ role: 'owner', permissions: [] }, 'wh_other'), true);
+const pendingInvitation=_internals.publicInvitation({id:'inv_pending',login:'user',full_name:'User',role:'Логист',permissions_json:'["orders.read"]',created_at:'2026-08-24T10:00:00.000Z',expires_at:'2026-08-25T10:00:00.000Z'},Date.parse('2026-08-24T11:00:00.000Z'));
+assert.equal(pendingInvitation.status,'pending');
+assert.deepEqual(pendingInvitation.permissions,['orders.read']);
+assert.equal(Object.hasOwn(pendingInvitation,'code_hash'),false);
+assert.equal(_internals.publicInvitation({...pendingInvitation,permissions_json:'[]',claimed_at:'2026-08-24T12:00:00.000Z'},Date.parse('2026-08-24T13:00:00.000Z')).status,'used');
+assert.equal(_internals.publicInvitation({...pendingInvitation,permissions_json:'[]',revoked_at:'2026-08-24T12:00:00.000Z'},Date.parse('2026-08-24T13:00:00.000Z')).status,'revoked');
+assert.equal(_internals.publicInvitation({...pendingInvitation,permissions_json:'[]',expires_at:'2026-08-24T10:30:00.000Z'},Date.parse('2026-08-24T13:00:00.000Z')).status,'expired');
 
 // Rate limiting combines a broad IP ceiling with an account bucket that is
 // independent of the attacker's IP. Bucket values contain hashes, never a
@@ -300,7 +307,7 @@ await assert.rejects(
 const healthResponse = await worker.fetch(new Request('https://license.test/v1/health'), { DB: {} });
 assert.equal(healthResponse.status, 200);
 const health = await healthResponse.json();
-assert.equal(health.auth_contract, 4);
+assert.equal(health.auth_contract, 5);
 assert.equal(health.warehouse_delete_lease_contract, 3);
 
 const leaseTokenUnit = 'jfdl_unit-token';

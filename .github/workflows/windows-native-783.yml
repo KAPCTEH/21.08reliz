@@ -122,6 +122,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Static audit regression failed.' }
           node tests/main-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Main unit tests failed.' }
+          node tests/tz3-live-defects-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'TZ3 live-defect regressions failed.' }
+          node tests/license-server-unit.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'License server unit tests failed.' }
+          python tests/license-schema-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'License schema and migration tests failed.' }
+          node tests/auth-reg-source-contract.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Authorization source contract failed.' }
           node tests/update-core-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Update core unit tests failed.' }
           node tests/update-downloader-unit.cjs

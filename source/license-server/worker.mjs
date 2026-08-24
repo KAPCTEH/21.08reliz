@@ -642,7 +642,7 @@ async function createInvitation(env, request, data, requestId) {
   const pending = await env.DB.prepare(`
     SELECT 1 found FROM invitations i
     LEFT JOIN invitation_claims c ON c.invitation_id=i.id
-    WHERE i.company_id=? AND i.login=? AND i.expires_at>? AND c.invitation_id IS NULL
+    WHERE i.company_id=? AND i.login=? AND i.revoked_at IS NULL AND i.expires_at>? AND c.invitation_id IS NULL
   `).bind(auth.company_id, login, nowIso()).first();
   if (pending) throw new ApiError(409, 'INVITATION_ALREADY_EXISTS');
   const rawCode = `JFI-${randomToken(12).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16).match(/.{1,4}/g).join('-')}`;
@@ -696,7 +696,7 @@ async function acceptInvitation(env, request, data, requestId) {
     FROM invitations i JOIN companies c ON c.id=i.company_id JOIN licenses l ON l.company_id=c.id
     WHERE i.code_hash=?
   `).bind(await sha256(code)).first();
-  if (!row || row.already_used || Date.parse(row.expires_at) <= Date.now()) throw new ApiError(404, 'INVITATION_INVALID_OR_EXPIRED');
+  if (!row || row.revoked_at || row.already_used || Date.parse(row.expires_at) <= Date.now()) throw new ApiError(404, 'INVITATION_INVALID_OR_EXPIRED');
   if (row.license_status !== 'active' || row.company_status !== 'active') throw new ApiError(403, 'LICENSE_BLOCKED');
   const passwordRecord = await hashPassword(password);
   const invitationPermissions = permissionsForRole(row.role, (()=>{try{return JSON.parse(row.permissions_json||'[]')}catch{return[]}})());
@@ -725,6 +725,7 @@ async function acceptInvitation(env, request, data, requestId) {
     if (String(error).includes('WAREHOUSE_DELETE_IN_PROGRESS')) {
       throw new ApiError(409, 'WAREHOUSE_DELETE_IN_PROGRESS');
     }
+    if (String(error).includes('INVITATION_INVALID_OR_EXPIRED')) throw new ApiError(404, 'INVITATION_INVALID_OR_EXPIRED');
     if (/UNIQUE|EMPLOYEE_LIMIT_REACHED/i.test(String(error))) {
       if (String(error).includes('EMPLOYEE_LIMIT_REACHED')) throw new ApiError(409, 'EMPLOYEE_LIMIT_REACHED');
       throw new ApiError(409, 'LOGIN_ALREADY_EXISTS_OR_INVITATION_USED');
@@ -764,6 +765,51 @@ async function listUsers(env, request) {
     FROM users WHERE company_id=? ORDER BY role='owner' DESC,full_name COLLATE NOCASE
   `).bind(auth.company_id).all();
   return { ok: true, users: result.results.map(publicUser) };
+}
+function publicInvitation(row, at=Date.now()) {
+  const status = row?.revoked_at ? 'revoked' : row?.claimed_at ? 'used' : Date.parse(row?.expires_at) <= at ? 'expired' : 'pending';
+  let permissions=[];try{permissions=permissionsForRole(row?.role,JSON.parse(row?.permissions_json||'[]'))}catch{}
+  return {
+    id: clean(row?.id), login: clean(row?.login), full_name: clean(row?.full_name), role: clean(row?.role), permissions,
+    created_at: clean(row?.created_at), expires_at: clean(row?.expires_at), status,
+    claimed_at: clean(row?.claimed_at), claimed_by_user_id: clean(row?.claimed_by_user_id),
+    revoked_at: clean(row?.revoked_at), revoked_by_user_id: clean(row?.revoked_by),
+  };
+}
+async function listInvitations(env, request) {
+  const auth = await authenticate(env, request);
+  if (!hasPermission(auth, 'users.read')) throw new ApiError(403, 'ACCESS_BLOCKED');
+  const result = await env.DB.prepare(`
+    SELECT i.id,i.login,i.full_name,i.role,i.permissions_json,i.created_at,i.expires_at,i.revoked_at,i.revoked_by,
+           c.claimed_at,c.user_id claimed_by_user_id
+    FROM invitations i
+    LEFT JOIN invitation_claims c ON c.invitation_id=i.id
+    WHERE i.company_id=?
+    ORDER BY i.created_at DESC,i.id DESC
+    LIMIT 500
+  `).bind(auth.company_id).all();
+  return { ok: true, invitations: result.results.map(row=>publicInvitation(row)) };
+}
+async function revokeInvitation(env, request, invitationId, requestId) {
+  const auth = await authenticate(env, request);
+  if (auth.role !== 'owner') throw new ApiError(403, 'ACCESS_BLOCKED');
+  const target = await env.DB.prepare(`
+    SELECT i.id,i.revoked_at,i.expires_at,c.claimed_at
+    FROM invitations i LEFT JOIN invitation_claims c ON c.invitation_id=i.id
+    WHERE i.id=? AND i.company_id=?
+  `).bind(invitationId,auth.company_id).first();
+  if (!target) throw new ApiError(404, 'INVITATION_NOT_FOUND');
+  if (target.revoked_at) return {ok:true,invitation_id:invitationId,status:'revoked',replayed:true};
+  if (target.claimed_at) throw new ApiError(409, 'INVITATION_ALREADY_USED');
+  if (Date.parse(target.expires_at) <= Date.now()) throw new ApiError(409, 'INVITATION_ALREADY_EXPIRED');
+  const revokedAt=nowIso(),result=await env.DB.prepare(`
+    UPDATE invitations SET revoked_at=?,revoked_by=?
+    WHERE id=? AND company_id=? AND revoked_at IS NULL
+      AND NOT EXISTS (SELECT 1 FROM invitation_claims WHERE invitation_id=invitations.id)
+  `).bind(revokedAt,auth.id,invitationId,auth.company_id).run();
+  if (Number(result?.meta?.changes||0)!==1) throw new ApiError(409, 'INVITATION_STATE_CHANGED');
+  await audit(env,requestId,'invitation.revoke',auth.company_id,auth.id,invitationId);
+  return {ok:true,invitation_id:invitationId,status:'revoked',revoked_at:revokedAt};
 }
 async function setUserStatus(env, request, userId, data, requestId) {
   const auth = await authenticate(env, request);
@@ -1837,7 +1883,7 @@ async function route(env, request, requestId) {
       ok: true,
       service: 'justfun-license-api',
       version: '7.8.3',
-      auth_contract: 4,
+      auth_contract: 5,
       warehouse_delete_lease_contract: 3,
     };
   }
@@ -1848,6 +1894,7 @@ async function route(env, request, requestId) {
   if (method === 'POST' && path === '/v1/auth/refresh') return refresh(env, request, data);
   if (method === 'POST' && path === '/v1/auth/introspect') return introspect(env, request);
   if (method === 'POST' && path === '/v1/invitations/accept') return acceptInvitation(env, request, data, requestId);
+  if (method === 'GET' && path === '/v1/invitations') return listInvitations(env, request);
   if (method === 'POST' && path === '/v1/demo/start') return demoStart(env, request, data);
   if (method === 'GET' && path === '/v1/users') return listUsers(env, request);
   if (method === 'POST' && path === '/v1/users/invite') return createInvitation(env, request, data, requestId);
@@ -1873,6 +1920,8 @@ async function route(env, request, requestId) {
   if (method === 'PATCH' && match) return setUserStatus(env, request, decodeURIComponent(match[1]), data, requestId);
   match = path.match(/^\/v1\/users\/([^/]+)\/access$/);
   if (method === 'PATCH' && match) return setUserAccess(env, request, decodeURIComponent(match[1]), data, requestId);
+  match = path.match(/^\/v1\/invitations\/([^/]+)\/revoke$/);
+  if (method === 'PATCH' && match) return revokeInvitation(env, request, decodeURIComponent(match[1]), requestId);
   if (method === 'GET' && path === '/v1/devices') return listDevices(env, request);
   match = path.match(/^\/v1\/devices\/([^/]+)\/status$/);
   if (method === 'PATCH' && match) return setDeviceStatus(env, request, decodeURIComponent(match[1]), data, requestId);
@@ -1923,6 +1972,7 @@ export const _internals = {
   permissionCoveredBy,
   permissionsGrantableBy,
   permissionsFromRow,
+  publicInvitation,
   canAccessWarehouse,
   validateWarehouseCode,
   normalizeWarehouseDeleteTarget,

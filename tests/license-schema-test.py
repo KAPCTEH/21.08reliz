@@ -15,6 +15,9 @@ WAREHOUSE_LEASE_MIGRATION = (
 VPS_ATTESTATION_MIGRATION = (
     ROOT / "source" / "license-server" / "migrations" / "008-vps-attestations.sql"
 )
+INVITATION_LIFECYCLE_MIGRATION = (
+    ROOT / "source" / "license-server" / "migrations" / "009-invitation-lifecycle.sql"
+)
 
 
 class LicenseSchemaTests(unittest.TestCase):
@@ -93,8 +96,28 @@ class LicenseSchemaTests(unittest.TestCase):
                 "006-exact-permissions",
                 "007-warehouse-delete-leases",
                 "008-vps-attestations",
+                "009-invitation-lifecycle",
             },
         )
+
+    def test_revoked_or_expired_invitation_cannot_be_claimed(self):
+        self.user("owner", "owner")
+        self.db.execute(
+            """INSERT INTO invitations
+               (id,company_id,code_hash,login,full_name,role,permissions_json,created_by,created_at,expires_at,revoked_at,revoked_by)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+            ("revoked", "cmp", "hash-revoked", "revoked", "Revoked", "Логист", "[]", "owner", "2026-08-24T10:00:00Z", "2099-08-25T10:00:00Z", "2026-08-24T11:00:00Z", "owner"),
+        )
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "INVITATION_INVALID_OR_EXPIRED"):
+            self.db.execute("INSERT INTO invitation_claims VALUES(?,?,?)", ("revoked", "employee-revoked", "2026-08-24T12:00:00Z"))
+        self.db.execute(
+            """INSERT INTO invitations
+               (id,company_id,code_hash,login,full_name,role,permissions_json,created_by,created_at,expires_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?)""",
+            ("expired", "cmp", "hash-expired", "expired", "Expired", "Логист", "[]", "owner", "2020-08-24T10:00:00Z", "2020-08-25T10:00:00Z"),
+        )
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "INVITATION_INVALID_OR_EXPIRED"):
+            self.db.execute("INSERT INTO invitation_claims VALUES(?,?,?)", ("expired", "employee-expired", "2026-08-24T12:00:00Z"))
 
     def test_vps_attestation_secret_has_only_an_encrypted_storage_column(self):
         columns = {row[1] for row in self.db.execute("PRAGMA table_info(companies)")}
@@ -117,6 +140,36 @@ class LicenseSchemaTests(unittest.TestCase):
                 "SELECT version FROM schema_migrations WHERE version='008-vps-attestations'"
             ).fetchone()[0],
             "008-vps-attestations",
+        )
+
+    def test_migration_009_applies_to_an_existing_database_without_losing_invitations(self):
+        db = sqlite3.connect(":memory:")
+        db.executescript(
+            """
+            CREATE TABLE users(id TEXT PRIMARY KEY, company_id TEXT NOT NULL, permissions_json TEXT NOT NULL DEFAULT '[]');
+            CREATE TABLE invitations(
+              id TEXT PRIMARY KEY, company_id TEXT NOT NULL, permissions_json TEXT NOT NULL DEFAULT '[]', expires_at TEXT NOT NULL
+            );
+            CREATE TABLE invitation_claims(invitation_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, claimed_at TEXT NOT NULL);
+            CREATE TABLE warehouse_delete_leases(
+              id TEXT PRIMARY KEY, company_id TEXT NOT NULL, warehouse_id TEXT NOT NULL, warehouse_code TEXT NOT NULL,
+              status TEXT NOT NULL, expires_at INTEGER NOT NULL
+            );
+            CREATE TABLE schema_migrations(version TEXT PRIMARY KEY, applied_at TEXT NOT NULL);
+            INSERT INTO invitations(id,company_id,permissions_json,expires_at)
+            VALUES('legacy-pending','cmp','["orders.read"]','2999-01-01T00:00:00.000Z');
+            """
+        )
+        db.executescript(INVITATION_LIFECYCLE_MIGRATION.read_text(encoding="utf-8"))
+        columns = {row[1] for row in db.execute("PRAGMA table_info(invitations)")}
+        self.assertTrue({"revoked_at", "revoked_by"}.issubset(columns))
+        self.assertEqual(db.execute("SELECT COUNT(*) FROM invitations WHERE id='legacy-pending'").fetchone()[0], 1)
+        db.execute("UPDATE invitations SET revoked_at='2026-08-24T12:00:00.000Z', revoked_by='owner' WHERE id='legacy-pending'")
+        with self.assertRaisesRegex(sqlite3.IntegrityError, "INVITATION_INVALID_OR_EXPIRED"):
+            db.execute("INSERT INTO invitation_claims VALUES('legacy-pending','employee','2026-08-24T12:01:00.000Z')")
+        self.assertEqual(
+            db.execute("SELECT version FROM schema_migrations WHERE version='009-invitation-lifecycle'").fetchone()[0],
+            "009-invitation-lifecycle",
         )
 
     def insert_invitation(self, invitation_id: str, permissions, expires_at="2999-01-01T00:00:00.000Z"):

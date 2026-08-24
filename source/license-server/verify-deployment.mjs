@@ -2,10 +2,12 @@
 
 const origin = String(process.argv[2] || 'https://justfun-license-api.l2maloy47rus.workers.dev').replace(/\/+$/, '');
 const checks = [
-  { method: 'GET', path: '/health', expected: [200], code: null, authContract: 4, warehouseDeleteLeaseContract: 3 },
-  { method: 'GET', path: '/v1/health', expected: [200], code: null, authContract: 4, warehouseDeleteLeaseContract: 3 },
+  { method: 'GET', path: '/health', expected: [200], code: null, authContract: 5, warehouseDeleteLeaseContract: 3 },
+  { method: 'GET', path: '/v1/health', expected: [200], code: null, authContract: 5, warehouseDeleteLeaseContract: 3 },
   { method: 'POST', path: '/v1/license/check', expected: [400], code: 'LICENSE_KEY_REQUIRED', body: {} },
   { method: 'POST', path: '/v1/auth/introspect', expected: [401], code: 'INVALID_TOKEN', body: {} },
+  { method: 'GET', path: '/v1/invitations', expected: [401], code: 'INVALID_TOKEN' },
+  { method: 'PATCH', path: '/v1/invitations/unit/revoke', expected: [401], code: 'INVALID_TOKEN', body: {} },
   { method: 'PUT', path: '/v1/company/data-service', expected: [401], code: 'INVALID_TOKEN', body: {} },
   { method: 'PUT', path: '/v1/company/telegram-service', expected: [401], code: 'INVALID_TOKEN', body: {} },
   { method: 'GET', path: '/v1/company/telegram/status', expected: [401], code: 'INVALID_TOKEN' },

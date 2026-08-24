@@ -64,6 +64,12 @@ assert.deepEqual(logWrite.files, [primaryLog]);
 assert.equal(fs.existsSync(primaryLog), true);
 assert.equal(fs.existsSync(emergencyLog), false);
 assert.equal(main.logCandidates().includes(path.join(path.dirname(process.execPath), 'logs', 'desktop.log')), false);
+const backupRoot=path.join(temporary,'backup-root'),backup=main.saveBackupPayload({backup:{version:'7.8.3',data:{orders:[{id:'order-1'}]}},fileName:'MAIN_WORK_backup.json',kind:'manual'},backupRoot);
+assert.equal(backup.ok,true);
+assert.equal(backup.kind,'manual');
+assert.match(backup.sha256,/^[a-f0-9]{64}$/);
+assert.deepEqual(JSON.parse(fs.readFileSync(backup.path,'utf8')).data.orders,[{id:'order-1'}]);
+assert.throws(()=>main.saveBackupPayload({backup:null},backupRoot),/Резервная копия/);
 
 assert.equal(main.VERSION, release.version);
 assert.match(mainSource, /directOpenStreetMapGeocode/);

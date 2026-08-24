@@ -164,6 +164,7 @@ window.JustFunDesktop = {
   openLogFolder: async () => ({ ok: true }),
   copyText: async () => true,
   openSupport: async () => true,
+  backups: { save: async () => ({ ok: true, confirmed: true, path: 'C:\\test\\Экспорт\\justfun-backup.json', bytes: 1024, sha256: 'A'.repeat(64), kind: 'manual', at: new Date().toISOString() }) },
   setActiveWarehouse: async payload => { window.__activeRendererWarehouse=String(payload?.warehouseId||''); return {ok:true,warehouseId:window.__activeRendererWarehouse,environment:String(payload?.environment||'live')}; },
   maps: {
     addressSearch: async payload => { window.__addressSearchPayloads.push(JSON.parse(JSON.stringify(payload||{}))); return { ok:false, configured:false }; },
@@ -178,7 +179,9 @@ window.JustFunDesktop = {
     acceptInvitation: async () => ({ ok: true }),
     logout: async () => ({ ok: true }),
     users: async () => ({ ok: true, users: [] }),
+    invitations: async () => ({ ok: true, invitations: [] }),
     invite: async () => ({ ok: true }),
+    revokeInvitation: async () => ({ ok: true }),
     setUserStatus: async () => ({ ok: true }),
     setUserAccess: async () => ({ ok: true }),
     devices: async () => ({ ok: true, devices: [] }),
@@ -187,7 +190,8 @@ window.JustFunDesktop = {
   regVps: {
     status: async () => ({ configured: false }),
     warehouses: async () => {
-      if(localToServerMigration){const warehouses=[...window.__serverEntityMap.values()].filter(item=>item.type==='warehouse').map(item=>({...JSON.parse(JSON.stringify(item.payload)),entity_version:item.version,digest_sha256:item.digest_sha256,updated_at:new Date().toISOString()}));return{ok:true,configured:true,registryInitialized:window.__serverRegistryInitialized,warehouses}}
+      const migratedWarehouses=[...window.__serverEntityMap.values()].filter(item=>item.type==='warehouse').map(item=>({...JSON.parse(JSON.stringify(item.payload)),entity_version:item.version,digest_sha256:item.digest_sha256,updated_at:new Date().toISOString()}));
+      if(localToServerMigration||migratedWarehouses.length||window.__serverRegistryInitialized)return{ok:true,configured:true,registryInitialized:window.__serverRegistryInitialized,warehouses:migratedWarehouses};
       const keepRuntimeWarehouse=atomicMutation||localFirstRetry||localFirstOffline,active=keepRuntimeWarehouse?window.TeplitsaWarehouseBootstrap?.activeWarehouse?.():null;
       return{ok:true,configured:true,registryInitialized:Boolean(active),warehouses:active?[{...JSON.parse(JSON.stringify(active)),status:'active',entity_version:1,digest_sha256:'A'.repeat(64)}]:[]}
     },

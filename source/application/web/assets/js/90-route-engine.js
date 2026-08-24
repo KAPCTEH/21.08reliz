@@ -22,6 +22,18 @@
   const returnsFor=def=>routeModeFor(def)!=='oneway';
   const cleanRouteTitle=text=>String(text||'').replace(STATUS_SUFFIX,'').replace(/^Сборный рейс:\s*$/i,'Сборный рейс').trim()||'Рейс';
 
+  function buildOutcomeCounts(definitions=[]){
+    const counts={ready:0,problems:0,drafts:0};
+    for(const def of asArray(definitions)){
+      const code=routeLifecycleV560(def).code;
+      if(code==='ready')counts.ready++;
+      else if(code==='needs_action')counts.problems++;
+      else counts.drafts++;
+    }
+    return counts
+  }
+  engine.buildOutcomeCounts=buildOutcomeCounts;
+
   function validGeo(o){const lat=Number(o?.geo?.lat),lon=Number(o?.geo?.lon);return Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180&&!(lat===0&&lon===0)}
   function orderPlanningIssues(o){
     const issues=[];
@@ -205,8 +217,8 @@
       persistRoutes();persistRouteLocks();
       for(let i=0;i<initial.length;i++){if(token!==engine.buildToken)throw new Error('Расчёт отменён новой операцией');const def=initial[i];setProgress(`Маршрутный движок ${ENGINE_VERSION}: рейс ${i+1} из ${initial.length} · ${cleanRouteTitle(def.displayDistrict)}…`,true);finished.push(...await calculateFinalizeV570(def,true,0))}
       autoAssignBestDrivers(finished);repairAllRouteSchedulesV560();cleanupStale();if(!activeFingerprintEqual(activeBefore))throw new Error('Защита активного рейса обнаружила изменение данных и отменила перестроение');const audit=routeAudit(true);if(audit.critical)throw new Error(`Проверка целостности обнаружила критические нарушения: ${audit.critical}`);
-      engine.lastBuild={at:new Date().toISOString(),routes:finished.length,orders:finished.reduce((s,d)=>s+d.orders.length,0),ready:finished.filter(d=>routeReadinessV560(d).ready).length,problems:finished.filter(d=>!routeReadinessV560(d).ready).length,activeProtected:active.size,algorithm:'exact<=11 / multistart>11'};try{localStorage.setItem(ENGINE_KEY,JSON.stringify(engine.lastBuild))}catch(_){}
-      persistRouteAssignments();persistRouteLocks();persistRouteDrivers();persistRoutes();persistRouteOverrides();renderTripsPreview();renderOrders();renderDrivers();setProgress(`Перестроение завершено: ${engine.lastBuild.routes} рейс(ов), ${engine.lastBuild.orders} точек. Готовы к выезду: ${engine.lastBuild.ready}. Требуют решения: ${engine.lastBuild.problems}. Активных рейсов сохранено без изменений: ${active.size}.`,false,engine.lastBuild.problems>0)
+      const outcomes=buildOutcomeCounts(finished);engine.lastBuild={at:new Date().toISOString(),routes:finished.length,orders:finished.reduce((s,d)=>s+d.orders.length,0),...outcomes,activeProtected:active.size,algorithm:'exact<=11 / multistart>11'};try{localStorage.setItem(ENGINE_KEY,JSON.stringify(engine.lastBuild))}catch(_){}
+      persistRouteAssignments();persistRouteLocks();persistRouteDrivers();persistRoutes();persistRouteOverrides();renderTripsPreview();renderOrders();renderDrivers();setProgress(`Перестроение завершено: ${engine.lastBuild.routes} рейс(ов), ${engine.lastBuild.orders} точек. Готовы к выезду: ${engine.lastBuild.ready}. Требуют решения: ${engine.lastBuild.problems}. Ожидают завершения подготовки: ${engine.lastBuild.drafts}. Активных рейсов сохранено без изменений: ${active.size}.`,false,engine.lastBuild.problems>0)
     }catch(err){console.error(err);restoreState(snapshot);renderTripsPreview();renderOrders();renderDrivers();setProgress('Перестроение отменено без потери данных: '+(err?.message||err),false,true);alert('Изменения не применены. '+(err?.message||err))}
     finally{engine.building=false;document.getElementById('tripsView')?.classList.remove('route-engine-busy-v570');if(btn)btn.disabled=false}
   };

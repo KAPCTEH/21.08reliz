@@ -30,7 +30,7 @@ assert.ok(renderer.includes("const entered=await applyCloudAuth(desktopSession.a
 
 assert.ok(worker.includes('auth_context_version: 2'),'license server must return auth context contract 2');
 assert.ok(worker.includes('company_id: row.company_id'),'license server token response must expose company id redundantly');
-assert.ok(worker.includes("auth_contract: 4"),'health endpoint must expose granular authorization contract version');
+assert.ok(worker.includes("auth_contract: 5"),'health endpoint must expose invitation lifecycle authorization contract version');
 assert.ok(worker.includes('warehouse_delete_lease_contract: 3'),'health endpoint must expose VPS-attested prepared deletion lease contract');
 assert.ok(worker.includes("path === '/v1/warehouse-delete-leases/acquire'"),'license Worker must expose delete lease acquisition');
 assert.ok(worker.includes("path === '/v1/warehouse-delete-leases/prepare'"),'license Worker must expose durable delete lease preparation');
@@ -47,7 +47,7 @@ assert.ok(warehouseLeaseMigration.includes('permission_fold(owner_id, permission
 assert.ok(warehouseLeaseMigration.includes("RAISE(ABORT, 'WAREHOUSE_CODE_PERMISSION_NOT_CANONICAL')"),'migration must keep future warehouse-code permissions canonical');
 assert.ok(warehouseLeaseMigration.includes("'jf.warehouse-code:' || NEW.warehouse_code"),'migration must match canonical exact warehouse codes');
 assert.ok(licenseSchema.includes("('007-warehouse-delete-leases', 'schema-baseline-7.8.3')"),'fresh schema must register migration 007');
-assert.ok(verifier.includes('authContract: 4'),'deployment verification must reject an outdated Worker');
+assert.ok(verifier.includes('authContract: 5'),'deployment verification must reject an outdated Worker');
 assert.ok(verifier.includes('warehouseDeleteLeaseContract: 3'),'deployment verification must require the VPS-attested prepared lease contract');
 assert.ok(verifier.includes("path: '/v1/warehouse-delete-leases/prepare'"),'deployment verification must probe prepared lease authentication');
 assert.ok(telegramBroker.includes("'/v1/company/telegram/status'"),'standalone service must expose the authenticated Telegram broker');

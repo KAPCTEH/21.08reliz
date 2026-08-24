@@ -166,6 +166,10 @@ function writeJsonAtomic(file, value) {
   fs.writeFileSync(tmp, JSON.stringify(value, null, 2), {encoding: 'utf8', mode: 0o600});
   fs.renameSync(tmp, file);
 }
+function saveBackupPayload(payload={},rootDir=''){
+  const backup=payload?.backup;if(!backup||typeof backup!=='object'||Array.isArray(backup))throw Object.assign(new Error('Резервная копия не содержит объект данных.'),{code:'BACKUP_INVALID'});
+  const kind=['manual','safety','server'].includes(String(payload?.kind||''))?String(payload.kind):'manual',safeName=String(payload?.fileName||'justfun-backup.json').replace(/[\\/:*?"<>|]/g,'_').replace(/^\.+/,'').slice(0,160)||'justfun-backup.json',storageRoot=String(rootDir||readInstallConfig().data_dir||localRoot()),directory=path.resolve(storageRoot,'Экспорт');ensureDir(directory);let target=path.resolve(directory,safeName);if(path.dirname(target)!==directory)throw Object.assign(new Error('Недопустимое имя резервной копии.'),{code:'BACKUP_PATH_REJECTED'});if(fs.existsSync(target)){const ext=path.extname(safeName)||'.json',base=path.basename(safeName,ext);target=path.join(directory,`${base}-${Date.now()}${ext}`)}writeJsonAtomic(target,backup);const written=fs.readFileSync(target),parsed=JSON.parse(written.toString('utf8')),canonical=JSON.stringify(parsed);if(!canonical||canonical==='{}'&&Object.keys(backup).length)throw Object.assign(new Error('Проверка записанного файла не пройдена.'),{code:'BACKUP_VERIFY_FAILED'});return{ok:true,path:target,bytes:written.length,sha256:crypto.createHash('sha256').update(written).digest('hex'),kind,at:new Date().toISOString()}
+}
 function writeFailureArtifact(file,value,label) {
   try {
     writeJsonAtomic(file,value);
@@ -1012,7 +1016,9 @@ function cloudFriendlyError(code) {
     PASSWORD_MUST_CONTAIN_LETTERS_AND_NUMBERS:'Пароль должен содержать буквы и цифры.', INVALID_CREDENTIALS:'Неверный код компании, логин или пароль.',
     TOO_MANY_ATTEMPTS:'Слишком много попыток входа. Подождите и повторите позже.', USER_BLOCKED:'Пользователь заблокирован.', DEVICE_BLOCKED:'Этот компьютер заблокирован.',
     DEVICE_LIMIT_REACHED:'Достигнут лимит компьютеров для пользователя.', INVALID_SESSION:'Сессия завершена. Выполните вход снова.', ACCESS_BLOCKED:'Доступ заблокирован.',
-    INVITATION_INVALID_OR_EXPIRED:'Приглашение не найдено, уже использовано или просрочено.', LOGIN_ALREADY_EXISTS_OR_INVITATION_USED:'Логин уже занят или приглашение использовано.',
+    INVITATION_INVALID_OR_EXPIRED:'Приглашение не найдено, отозвано, уже использовано или просрочено.', INVITATION_NOT_FOUND:'Приглашение больше не найдено.',
+    INVITATION_ALREADY_USED:'Приглашение уже принято сотрудником и не может быть отозвано.', INVITATION_ALREADY_EXPIRED:'Срок приглашения уже истёк.', INVITATION_STATE_CHANGED:'Состояние приглашения изменилось на другом компьютере. Обновите список.',
+    LOGIN_ALREADY_EXISTS_OR_INVITATION_USED:'Логин уже занят или приглашение использовано.',
     EMPLOYEE_LIMIT_REACHED:'Достигнут лимит сотрудников компании.', LOGIN_ALREADY_EXISTS:'Такой логин уже существует.', DEMO_EXPIRED:'Демонстрационный период завершён.',
     USER_NOT_FOUND:'Пользователь не найден.', DEVICE_NOT_FOUND:'Компьютер не найден.', CANNOT_BLOCK_SELF:'Нельзя заблокировать собственную учётную запись.',
     OWNER_CANNOT_BE_BLOCKED_HERE:'Владельца нельзя заблокировать из этого раздела.', OWNER_CANNOT_BE_CHANGED_HERE:'Роль и права владельца нельзя изменить из этого раздела.', CANNOT_CHANGE_SELF:'Нельзя изменить собственную роль или права.', INVALID_STATUS:'Недопустимый статус.', NOT_FOUND:'Метод сервера не найден.', INTERNAL_ERROR:'Внутренняя ошибка сервера.',
@@ -2919,6 +2925,7 @@ function registerIPC(config) {
     const error=await shell.openPath(logDir());
     return error ? {ok:false,error:String(error)} : {ok:true,path:logDir()};
   });
+  handleMainIPC('desktop:backup-save', async (_event,payload) => {try{const result=saveBackupPayload(payload);appendLog('backup file verified',{kind:result.kind,path:result.path,bytes:result.bytes,sha256:result.sha256});return result}catch(error){appendLog('backup file failed',{code:String(error?.code||'BACKUP_WRITE_FAILED'),error:safeError(error)});return{ok:false,code:String(error?.code||'BACKUP_WRITE_FAILED'),message:safeError(error)}}});
   handleMainIPC('desktop:auth-license-check', async (_event, payload) => {
     try { const result=await cloudRequestWithRetry('POST','/v1/license/check',{license_key:String(payload?.licenseKey||'')}); return {ok:true,...result}; }
     catch(error){appendLog('license check failed',{code:error.code,error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};}
@@ -2942,12 +2949,14 @@ function registerIPC(config) {
     catch(error){appendLog('cloud invitation failed',{code:error.code,error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};}
   });
   handleMainIPC('desktop:auth-logout', async () => { stopTelegramCompanyPublishRetry();stopWarehouseDeleteResume();telegramCompanyPublishRetryFailures=0;clearCloudAuthState(); if(currentSession)currentSession.cloudAuth=null; appendLog('cloud logout'); return{ok:true}; });
-  handleMainIPC('desktop:auth-users', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/users'))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-invite', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('POST','/v1/users/invite',{full_name:String(payload?.fullName||''),login:String(payload?.login||''),role:String(payload?.role||'manager'),permissions:Array.isArray(payload?.permissions)?payload.permissions:[],expires_in_hours:Number(payload?.expiresInHours)||24}))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-user-status', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/users/${encodeURIComponent(String(payload?.userId||''))}/status`,{status:String(payload?.status||'')}))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-user-access', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/users/${encodeURIComponent(String(payload?.userId||''))}/access`,{role:String(payload?.role||''),permissions:Array.isArray(payload?.permissions)?payload.permissions:[]}))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-devices', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/devices'))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-device-status', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/devices/${encodeURIComponent(String(payload?.deviceId||''))}/status`,{status:String(payload?.status||'')}))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-users', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/users'))};}catch(error){appendLog('cloud user list failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-invitations', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/invitations'))};}catch(error){appendLog('cloud invitation list failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-invite', async (_event,payload) => { try{const result=await cloudAuthenticatedRequest('POST','/v1/users/invite',{full_name:String(payload?.fullName||''),login:String(payload?.login||''),role:String(payload?.role||'manager'),permissions:Array.isArray(payload?.permissions)?payload.permissions:[],expires_in_hours:Number(payload?.expiresInHours)||24});appendLog('cloud invitation created',{invitationId:result?.invitation?.id||'',login:String(payload?.login||'')});return{ok:true,...result};}catch(error){appendLog('cloud invitation create failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-invitation-revoke', async (_event,payload) => {const invitationId=String(payload?.invitationId||'');try{const result=await cloudAuthenticatedRequest('PATCH',`/v1/invitations/${encodeURIComponent(invitationId)}/revoke`,{});appendLog('cloud invitation revoked',{invitationId});return{ok:true,...result};}catch(error){appendLog('cloud invitation revoke failed',{invitationId,code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-user-status', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/users/${encodeURIComponent(String(payload?.userId||''))}/status`,{status:String(payload?.status||'')}))};}catch(error){appendLog('cloud user status failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-user-access', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/users/${encodeURIComponent(String(payload?.userId||''))}/access`,{role:String(payload?.role||''),permissions:Array.isArray(payload?.permissions)?payload.permissions:[]}))};}catch(error){appendLog('cloud user access failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-devices', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/devices'))};}catch(error){appendLog('cloud device list failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-device-status', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/devices/${encodeURIComponent(String(payload?.deviceId||''))}/status`,{status:String(payload?.status||'')}))};}catch(error){appendLog('cloud device status failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
   handleMainIPC('desktop:copy-text', (_event, text) => { clipboard.writeText(text); return true; });
   handleMainIPC('desktop:open-support', (_event, channel) => {
     const map = {telegram:SUPPORT_TELEGRAM, vk:SUPPORT_VK, email:SUPPORT_EMAIL};
@@ -3764,7 +3773,7 @@ if (DESKTOP_UNIT_TEST_MODE) {
     readInstallConfig, persistInstallConfig, buildSession,
     getMachineCode, normalizeDemoState, normalizeDemoStateWithCloud, reconcileDemoStateWithCloud, remainingDemoMs, makeDemoState,
     signObject, validSignedObject, demoLocations, persistDemoState,
-    appendLog, logCandidates, logFile, localRoot, readJson,
+    appendLog, logCandidates, logFile, localRoot, readJson, saveBackupPayload,
     validateWarehouseId, validateEnvironment, validateWarehouseSnapshot, validateSnapshotEntityIdentifiers, telegramWarehouseScope,
     telegramScopeParts, telegramScopeRoot, validateDeliveredTelegramNotification,
     normalizeFingerprint, pinnedHttpsAgent, validateWorkerState, loadWorkerState,

@@ -85,7 +85,9 @@ CREATE TABLE IF NOT EXISTS invitations (
   permissions_json TEXT NOT NULL DEFAULT '[]',
   created_by TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
   created_at TEXT NOT NULL,
-  expires_at TEXT NOT NULL
+  expires_at TEXT NOT NULL,
+  revoked_at TEXT,
+  revoked_by TEXT
 );
 
 CREATE TABLE IF NOT EXISTS invitation_claims (
@@ -93,6 +95,17 @@ CREATE TABLE IF NOT EXISTS invitation_claims (
   user_id TEXT NOT NULL UNIQUE,
   claimed_at TEXT NOT NULL
 );
+
+CREATE TRIGGER IF NOT EXISTS reject_invalid_invitation_claim
+BEFORE INSERT ON invitation_claims
+WHEN EXISTS (
+  SELECT 1 FROM invitations
+  WHERE id=NEW.invitation_id
+    AND (revoked_at IS NOT NULL OR expires_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+)
+BEGIN
+  SELECT RAISE(ABORT, 'INVITATION_INVALID_OR_EXPIRED');
+END;
 
 CREATE TABLE IF NOT EXISTS warehouse_delete_leases (
   id TEXT PRIMARY KEY,
@@ -226,7 +239,8 @@ INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES
   ('005-granular-permissions-audit', 'schema-baseline-7.8.3'),
   ('006-exact-permissions', 'schema-baseline-7.8.3'),
   ('007-warehouse-delete-leases', 'schema-baseline-7.8.3'),
-  ('008-vps-attestations', 'schema-baseline-7.8.3');
+  ('008-vps-attestations', 'schema-baseline-7.8.3'),
+  ('009-invitation-lifecycle', 'schema-baseline-7.8.3');
 
 CREATE TRIGGER IF NOT EXISTS enforce_employee_limit
 BEFORE INSERT ON users
@@ -272,6 +286,7 @@ WHEN (
      FROM invitations AS invitation,
           json_each(CASE WHEN json_valid(invitation.permissions_json) THEN invitation.permissions_json ELSE '[]' END) AS permission
      WHERE invitation.company_id = NEW.company_id
+       AND invitation.revoked_at IS NULL
        AND invitation.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')
        AND NOT EXISTS (
          SELECT 1 FROM invitation_claims AS claim WHERE claim.invitation_id = invitation.id
@@ -308,6 +323,7 @@ WHEN (
      FROM invitations AS invitation,
           json_each(CASE WHEN json_valid(invitation.permissions_json) THEN invitation.permissions_json ELSE '[]' END) AS permission
      WHERE invitation.company_id = NEW.company_id
+       AND invitation.revoked_at IS NULL
        AND invitation.expires_at > strftime('%Y-%m-%dT%H:%M:%fZ','now')
        AND NOT EXISTS (
          SELECT 1 FROM invitation_claims AS claim WHERE claim.invitation_id = invitation.id
