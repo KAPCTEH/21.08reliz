@@ -1167,6 +1167,64 @@
         "build install and live-retest every affected defect",
         "complete multi-user multi-PC and update rollback acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0056",
+      "stage": 8,
+      "action": "exercise the installed 7.8.3 local business flow and verify durability by controlled restarts",
+      "result": "LOCAL DATA PARTIAL PASS / PAYMENT AND ROUTE DURABILITY FAIL / RELEASE NO-GO",
+      "installed_build": {
+        "build_id": "jf-7.8.3-87c3619895c8",
+        "installed_exe_sha256": "6694368D3D7BE1A3BC8E898B824011B71B286A23D6876867A085F80F852EDC42",
+        "installed_asar_sha256": "776B398FAB086A7F03EBCFCF4C5CC5B8400BCABA4D85F76CB3D9286AC422FB4B"
+      },
+      "scope": {
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "warehouse_name": "Склад ТЗ3 — изоляция",
+        "orders": 4,
+        "orders_total_rub": 10400,
+        "products": 4,
+        "tracked_products": 1,
+        "tracked_stock": 11,
+        "drivers": 1,
+        "routes": 2
+      },
+      "durable_after_restart": [
+        "warehouse context",
+        "four orders and total",
+        "four product cards and stock eleven",
+        "driver and vehicle",
+        "route settings including error hints"
+      ],
+      "failed_after_restart": [
+        "confirmed order payment reverted to awaiting payment",
+        "ready and blocked calculated routes reverted to two draft routes",
+        "calculated route distance time and driver expense were lost"
+      ],
+      "defects": [
+        "JF3-DEFECT-008",
+        "JF3-DEFECT-011",
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-021",
+        "JF3-DEFECT-022",
+        "JF3-DEFECT-023",
+        "JF3-DEFECT-024",
+        "JF3-DEFECT-025"
+      ],
+      "log_evidence": [
+        "archive integrity verified on both restarts",
+        "live warehouse context 39bcd203-0a96-4dd1-9f68-df333171493c confirmed",
+        "invitation list NOT_FOUND repeats",
+        "Telegram configuration remains absent",
+        "no payment mutation or payment failure was recorded"
+      ],
+      "pending": [
+        "finish the remaining live control and visual matrix",
+        "repair all confirmed defects as one consolidated source batch",
+        "build install and repeat the affected local scenarios",
+        "run production VPS PostgreSQL migration backup restore and reconnect acceptance",
+        "complete second user second profile second PC Telegram and updater acceptance"
+      ]
     }
   ],
   "current_gate": "stage-7/production-postgresql-migration-validation-pending",
