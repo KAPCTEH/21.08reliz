@@ -610,3 +610,15 @@
 - Добавлены unit-тесты конвертации, scope/digest/duplicate/unknown-schema fail-closed, source-контракты и отдельная PostgreSQL integration-матрица V1, V1+V2, повторного запуска и архивов.
 - Фактически сейчас прошли 5 unit-тестов и все смежные REG/API/revision/source/release/security проверки. Два PostgreSQL integration-теста подготовлены, но в текущей Windows-среде корректно пропущены: тестовый DSN PostgreSQL не настроен.
 - Результат: `SOURCE IMPLEMENTED + UNIT PASS / POSTGRESQL INTEGRATION, PRODUCTION BACKUP/RESTORE AND LIVE MIGRATION NOT RUN`; релиз остаётся `NO-GO`.
+
+### JF3-S0055 — Второй пакет исправлений после полного локального живого прохода
+
+- Коммит исходников `f4db9a8` отправлен в `origin/codex/tz3-execution-baseline`.
+- Исправлены исходные причины `JF3-DEFECT-009`, `010`, `011`, `016`, `017`, `018` и `020`; журналирование `JF3-DEFECT-019` расширено, но централизованная живая сверка ещё не завершена.
+- Рейсы используют единую модель готовности; отчёт директора не может быть зелёным при низкой достоверности или важных действиях; равный габарит товара и кузова разрешён с числовой причиной отказа для превышения.
+- Владелец получает безопасный реестр приглашений и может отозвать ожидающий код. D1 migration 009 сохраняет старые приглашения и блокирует вход по отозванному/просроченному коду на уровне базы.
+- Windows подтверждает backup только после атомарной записи, перечитывания и SHA-256; восстановление не начинается без подтверждённой страховочной копии.
+- Восстановлены нативный checkbox автосохранения и применение позиций логотипа слева/по центру/справа. Общий style-ratchet прошёл без роста `!important`.
+- Прошли синтаксис, security, main/license/schema/auth, design, release и installer gates; FULL runtime прошёл order-print, order-save, atomic mutation, local-to-server migration/restart и учебный бизнес-цикл `69/69` без runtime errors.
+- PostgreSQL integration-тесты по-прежнему пропущены из-за отсутствия `JF_TEST_POSTGRES_ADMIN_DSN`. Cloudflare Worker с migration 009 ещё не опубликован. Защищённая Windows-сборка из `f4db9a8` ещё не создана и не установлена.
+- Результат: `SOURCE FIX + AUTOMATED RETEST PASS / PRODUCTION MIGRATIONS, PROTECTED BUILD AND LIVE RETEST REQUIRED`; релиз остаётся `NO-GO`.

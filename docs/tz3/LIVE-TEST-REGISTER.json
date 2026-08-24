@@ -1124,6 +1124,49 @@
         "perform migration repeat reread and real restore acceptance",
         "continue remaining P1 and P2 repair before rebuilding"
       ]
+    },
+    {
+      "step_id": "JF3-S0055",
+      "stage": 7,
+      "action": "repair the second consolidated defect batch from the completed local live pass",
+      "result": "SOURCE FIX AND AUTOMATED RETEST PASS / PRODUCTION MIGRATIONS PROTECTED BUILD AND LIVE RETEST REQUIRED",
+      "commit": "f4db9a8",
+      "evidence": [
+        "route outcome counters use one lifecycle model and separate ready blocked and draft routes",
+        "director report gate is derived from reliability critical checks and action priorities",
+        "invitation registry and owner revocation do not expose invitation codes or hashes",
+        "D1 migration 009 preserves legacy invitations and rejects revoked or expired claims",
+        "Windows backup confirmation requires atomic write reread and SHA-256",
+        "restore requires a confirmed safety backup",
+        "native autosave checkbox and three logo positions use the shared style tokens",
+        "equal cargo and body dimensions pass while overlength returns a numeric explanation",
+        "security source schema design release installer and FULL runtime gates passed",
+        "deep business runtime passed 69 of 69 checks without runtime errors"
+      ],
+      "source_fixed_defects": [
+        "JF3-DEFECT-009",
+        "JF3-DEFECT-010",
+        "JF3-DEFECT-011",
+        "JF3-DEFECT-016",
+        "JF3-DEFECT-017",
+        "JF3-DEFECT-018",
+        "JF3-DEFECT-020"
+      ],
+      "partially_fixed_defects": [
+        "JF3-DEFECT-019"
+      ],
+      "not_run": [
+        "PostgreSQL integration because JF_TEST_POSTGRES_ADMIN_DSN is not configured",
+        "Cloudflare Worker production migration and deployment",
+        "protected Windows build install and live visual retest",
+        "second user second profile second device and cross-tenant acceptance"
+      ],
+      "pending": [
+        "run isolated and production database migration acceptance with backup and restore",
+        "publish and verify the license Worker only after migration 009",
+        "build install and live-retest every affected defect",
+        "complete multi-user multi-PC and update rollback acceptance"
+      ]
     }
   ],
   "current_gate": "stage-7/production-postgresql-migration-validation-pending",
