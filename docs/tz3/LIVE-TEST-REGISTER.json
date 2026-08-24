@@ -1373,6 +1373,50 @@
         "preserve a searchable text layer",
         "verify portrait landscape and multi page report outputs"
       ]
+    },
+    {
+      "step_id": "JF3-S0061",
+      "stage": 8,
+      "action": "create edit and delete one temporary employee and one temporary expense then verify report recalculation and deletion durability after restart",
+      "result": "EMPLOYEE AND EXPENSE CRUD RECALCULATION DELETE DURABILITY PASS / MUTATION AUDIT LOGGING FAIL / RELEASE NO-GO",
+      "employee": {
+        "name": "Сотрудник ТЗ3 Тестовый",
+        "position": "Тестовый менеджер",
+        "salary_created_rub": 30000,
+        "salary_edited_rub": 31000,
+        "started_on": "2026-08-01"
+      },
+      "expense": {
+        "name": "Расход ТЗ3 Тестовый",
+        "category": "Склад",
+        "amount_created_rub": 1000,
+        "amount_edited_rub": 1100,
+        "expense_date": "2026-08-24",
+        "comment": "Проверка ТЗ3"
+      },
+      "report_totals_rub": {
+        "after_create": 31000,
+        "after_edit": 32100,
+        "after_delete": 0,
+        "after_restart": 0
+      },
+      "durability": {
+        "deleted_employee_returned_after_restart": false,
+        "deleted_expense_returned_after_restart": false
+      },
+      "log_evidence": [
+        "application exiting and clean boot recorded",
+        "release integrity and same live warehouse context confirmed",
+        "employee and expense create edit delete mutations absent from desktop log"
+      ],
+      "defects": [
+        "JF3-DEFECT-019"
+      ],
+      "pending": [
+        "add centralized mutation audit events and correlation ids for employee and expense CRUD",
+        "repeat CRUD and audit verification after the repaired build",
+        "compare the same report entities from a second authorized PC"
+      ]
     }
   ],
   "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
