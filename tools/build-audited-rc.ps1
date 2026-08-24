@@ -104,6 +104,14 @@ try {
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'order-print')
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'order-save-integrity')
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'atomic-mutation')
+  $env:JF_TEST_DATA_SERVICE_DISABLED = '1'
+  try {
+    Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-mutation-durability')
+  } finally {
+    Remove-Item Env:JF_TEST_DATA_SERVICE_DISABLED -ErrorAction SilentlyContinue
+  }
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-first-offline')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-first-retry')
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'deep-business')
   Invoke-Checked 'node' @('tests/experience-regression-v783.mjs')
   Invoke-Checked 'node' @('tests/visual-qa-contract-regression-v783.cjs')
@@ -131,6 +139,15 @@ try {
     '--output-dir', $payload
   )
   Invoke-Checked 'node' @('tests/update-payload-identity-test.mjs', $payload)
+
+  $printQa = Join-Path $evidence 'print-qa'
+  New-Item -ItemType Directory -Path $printQa -Force | Out-Null
+  $payloadApplication = Join-Path $payload 'OrdersLogistics.exe'
+  Invoke-Checked $payloadApplication @("--print-qa-output=$printQa")
+  $printQaResult = Get-Content -LiteralPath (Join-Path $printQa 'PRINT-QA.json') -Raw | ConvertFrom-Json
+  if (@($printQaResult.errors).Count -ne 0 -or @($printQaResult.documents).Count -ne 5) {
+    throw 'Проверка PDF не создала пять корректных документов.'
+  }
 
   $installerArguments = @(
     'source/installer/build_windows.py',

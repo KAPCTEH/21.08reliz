@@ -748,3 +748,24 @@
 - `desktop.log` зафиксировал отказ установки REG.RU без IP, открытие мастера Telegram, его штатный выпуск, перезапуск с проверенной целостностью ASAR, `TELEGRAM_NOT_CONFIGURED` и неудачное создание ссылки группы. Проверки связи, сохранения и восстановления VPS не получили отдельных событий с correlation-id; `JF3-DEFECT-019` остаётся открыт.
 - После случайного закрытия окна во время проверки фокуса JustFun заново запущена. Запуск штатный, `archiveHashVerified=true`, авторизация и склад A восстановлены; данные не изменились.
 - Результат: `LOCAL-FIRST VPS GUARDS AND TELEGRAM FAILURE GUIDANCE PASS / LIVE EXTERNAL SETUP PENDING OWNER CREDENTIALS / MUTATION AUDIT PARTIAL / RELEASE NO-GO`.
+
+### JF3-S0067 — Пакет исправлений живых дефектов, новый ключ обновлений и полный автоматический повтор
+
+- Старый секретный Ed25519-ключ не найден ни в доступных папках проекта, ни в локальной истории/чатах; найден только прежний открытый ключ. В пустом trust store проведена новая первичная церемония: секретный ключ создан вне репозитория с ACL текущего пользователя и SYSTEM, открытый ключ закреплён как `justfun-update-2026-08`, точное криптографическое соответствие доказано.
+- Найдена общая причина `JF3-DEFECT-021`, `027` и `033`: снимок «до изменения» содержал живые ссылки на массивы и объекты. Мутация одновременно меняла «до» и «после», поэтому оплата, архив, резерв и новый заказ могли не попасть в outbox. Снимок заменён глубокой копией.
+- Исправлены source-пути `021–025`, `027–033` и `035`: атомарная пара адрес/координаты; единицы `м³/л/кг/г/т`; доступный аккордеон груза и чистое состояние формы; PDF-preview; точные тексты самовывоза; responsive/scroll; корректный filtered-empty водителей; скрытие логотипа.
+- Runtime подтвердил оплату в локальном хранилище, outbox, restart, offline pending, fail-closed критическую операцию, повтор того же `command_id` после reconnect, миграцию двух локальных складов на сервер и возобновление прерванной миграции. Бизнес-цикл: `69/69`.
+- Скрытая Electron visual QA: 26 снимков, 8 responsive-контрактов, 0 ошибок. Проверены 1120×720, 1366×768 и масштабы 125/150/200%; стилевой ratchet не вырос (`885 !important`).
+- Реальный Electron создал 5 PDF / 11 страниц. Доставка, самовывоз, отчёт и длинный заказ имеют portrait; маршрут — landscape. Все файлы имеют текстовый слой, все страницы отрендерены и просмотрены без обрезаний и наложений. Этот gate добавлен в GitHub Actions и локальную audited-сборку.
+- Security audit проверил 185 файлов: 0 findings и 0 forbidden artifacts. Release contract: 82 теста, pass. Source, main, schema, updater, address, UI, accessibility, release и installer regressions прошли. Две PostgreSQL integration-проверки пропущены из-за отсутствия локального `JF_TEST_POSTGRES_ADMIN_DSN` и должны быть выполнены на production VPS.
+- В предоставленном секретном документе подтверждены данные VPS/SSH, Cloudflare и Telegram, но нет DaData API key и нет GitHub token. Секреты не выводились и не копировались в репозиторий.
+- Результат: `SOURCE REPAIR + AUTOMATED VISUAL/PDF/OFFLINE/MIGRATION PASS / PRODUCTION VPS, ADDRESS PROVIDER, PROTECTED INSTALL, UPDATE-ROLLBACK, TELEGRAM AND TWO-PC LIVE GATES OPEN / RELEASE NO-GO`.
+
+### JF3-S0068 — Немедленное обновление резервной копии и сквозной аудит мутаций
+
+- Исправлена связь между подтверждённой Windows-записью резервной копии и уже открытой панелью состояния: timestamp и тип копии перерисовываются в том же сеансе только после успешной записи и reread.
+- Renderer-аудит перенесён в `desktop.log` через ограниченный IPC: начало, локальная запись, pending, confirmed и rejected одной операции используют общий correlation-id.
+- В журнал разрешены только технические поля из allowlist. Модульная проверка доказала, что пароль, свободный текст и персональные данные отбрасываются.
+- Runtime оплаты подтвердил: UI paid, durable storage, outbox +1, команда `order_payment`, восстановление после открытия очереди, изменённая сущность, мгновенное обновление backup health и единый correlation-id — все `PASS`.
+- Security audit повторно проверил 185 файлов: 0 findings, 0 forbidden artifacts. Установленный живой повтор и производственные ворота остаются обязательными.
+- Результат: `SOURCE OBSERVABILITY AND BACKUP REFRESH PASS / INSTALLED LIVE RETEST AND PRODUCTION GATES OPEN / RELEASE NO-GO`.

@@ -1755,8 +1755,103 @@
         "add safe audit events and correlation ids for every VPS validation action",
         "keep VPS and Telegram acceptance independent and compare local data before and after each integration"
       ]
+    },
+    {
+      "step_id": "JF3-S0067",
+      "stage": 9,
+      "action": "repair the live defect batch bootstrap a new update trust key and rerun source runtime visual PDF offline and migration gates",
+      "result": "SOURCE REPAIR AND AUTOMATED VISUAL PDF OFFLINE MIGRATION PASS / PRODUCTION AND INSTALLED LIVE GATES OPEN / RELEASE NO-GO",
+      "update_trust": {
+        "legacy_private_key_found": false,
+        "legacy_public_key_found": true,
+        "new_primary_trust_bootstrapped": true,
+        "key_id": "justfun-update-2026-08",
+        "private_key_outside_repository": true,
+        "private_public_match_verified": true
+      },
+      "root_cause": {
+        "affected_defects": [
+          "JF3-DEFECT-021",
+          "JF3-DEFECT-027",
+          "JF3-DEFECT-033"
+        ],
+        "cause": "mutation before snapshot retained live object and array references",
+        "fix": "deep clone both before and after payloads"
+      },
+      "automated_evidence": {
+        "release_contract_tests": 82,
+        "security_files": 185,
+        "security_findings": 0,
+        "deep_business_total": 69,
+        "deep_business_failed": 0,
+        "visual_screens": 26,
+        "responsive_contracts": 8,
+        "visual_errors": 0,
+        "pdf_documents": 5,
+        "pdf_pages": 11,
+        "pdf_orientation_failures": 0,
+        "pdf_text_layer_failures": 0,
+        "style_important_count": 885,
+        "postgres_integration_skipped_without_test_dsn": 2
+      },
+      "source_fixed_defects": [
+        "JF3-DEFECT-021",
+        "JF3-DEFECT-022",
+        "JF3-DEFECT-023",
+        "JF3-DEFECT-024",
+        "JF3-DEFECT-025",
+        "JF3-DEFECT-027",
+        "JF3-DEFECT-028",
+        "JF3-DEFECT-029",
+        "JF3-DEFECT-030",
+        "JF3-DEFECT-031",
+        "JF3-DEFECT-032",
+        "JF3-DEFECT-033",
+        "JF3-DEFECT-035"
+      ],
+      "credentials_presence_without_disclosure": {
+        "vps_ssh": true,
+        "cloudflare": true,
+        "telegram": true,
+        "dadata": false,
+        "github_token": false
+      },
+      "pending": [
+        "run PostgreSQL V1 V2 to V3 integration and backup restore on the production VPS",
+        "configure a production address provider and rerun the priority region address matrix",
+        "build and install the protected candidate then repeat every repaired live defect",
+        "run Telegram end to end without exposing secrets",
+        "publish a signed staging update and prove update and rollback",
+        "repeat synchronization conflict and session continuity on two PCs"
+      ]
+    },
+    {
+      "step_id": "JF3-S0068",
+      "stage": 9,
+      "action": "repair immediate backup health refresh and bridge business mutation audit to the protected desktop log",
+      "result": "SOURCE OBSERVABILITY AND BACKUP REFRESH PASS / INSTALLED LIVE RETEST AND PRODUCTION GATES OPEN / RELEASE NO-GO",
+      "source_fixes": [
+        "JF3-DEFECT-017",
+        "JF3-DEFECT-019"
+      ],
+      "automated_evidence": {
+        "backup_same_session_refresh": true,
+        "payment_durable_storage": true,
+        "payment_outbox_increment": true,
+        "payment_command_persisted": true,
+        "audit_started": true,
+        "audit_pending": true,
+        "single_correlation_id": true,
+        "audit_secret_fields_rejected": true,
+        "security_files": 185,
+        "security_findings": 0
+      },
+      "pending": [
+        "verify the same-session backup timestamp and correlation id in the installed protected build",
+        "complete production VPS address Telegram update rollback and two PC gates"
+      ]
     }
   ],
-  "current_gate": "stage-8/installed-live-matrix-and-release-blockers-open",
+  "current_gate": "stage-9/source-repair-pass-production-live-gates-open",
   "release_status": "NO-GO"
 }

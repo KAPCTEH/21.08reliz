@@ -23,8 +23,14 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
   openLogFolder: () => ipcRenderer.invoke('desktop:open-log-folder'),
   copyText: (text) => ipcRenderer.invoke('desktop:copy-text', String(text ?? '')),
   openSupport: (channel) => ipcRenderer.invoke('desktop:open-support', channel),
+  documents: Object.freeze({
+    previewPdf: (payload={}) => ipcRenderer.invoke('desktop:document-preview-pdf', payload)
+  }),
   backups: Object.freeze({
     save: (payload={}) => ipcRenderer.invoke('desktop:backup-save', payload)
+  }),
+  audit: Object.freeze({
+    event: (payload={}) => ipcRenderer.invoke('desktop:audit-event', payload)
   }),
   updates: Object.freeze({
     status: () => ipcRenderer.invoke('desktop:update-status'),

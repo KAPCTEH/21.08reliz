@@ -228,7 +228,7 @@
   const renderProgramSettingsV597=renderProgramSettings;
   renderProgramSettings=function(){renderProgramSettingsV597();fillSmartProgramSettings()};
   const exportBackupV597=exportBackup__implV595;
-  exportBackup__implV595=function(){const result=exportBackupV597.apply(this,arguments);settings.program={...smartDefaultProgram(),...(settings.program||{}),lastBackupAt:new Date().toISOString()};persistSettings();renderSmartProgramHealth();return result};
+  exportBackup__implV595=async function(){const result=await exportBackupV597.apply(this,arguments);settings.program={...smartDefaultProgram(),...(settings.program||{})};if(result?.confirmed){settings.program.lastBackupAt=result.at||new Date().toISOString();settings.program.lastBackupKind=result.kind||'manual'}else settings.program.lastBackupRequestedAt=new Date().toISOString();persistSettings();renderSmartProgramHealth();return result};
 
   /* Улучшение вкладки товаров: категории, готовность и грузовые риски. */
   function ensureProductsIntelligence(){const summary=$('productsSummary');if(!summary||$('productIntelligencePanel'))return;const panel=document.createElement('div');panel.id='productIntelligencePanel';panel.className='product-intelligence-panel';summary.after(panel)}
@@ -392,5 +392,6 @@
     if($('movementDate')&&!$('movementDate').value)$('movementDate').value=todayISO();
     runDataDiagnostics(false);applyDefaultViewOnce();
   }
+  window.JustFunSmartProgramV783=Object.freeze({renderHealth:()=>renderSmartProgramHealth()});
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSmartV598);else initSmartV598();
 })();

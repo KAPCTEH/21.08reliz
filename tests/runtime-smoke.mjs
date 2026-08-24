@@ -13,6 +13,7 @@ const cloudSync = mode === 'cloud-sync';
 const atomicMutation = mode === 'atomic-mutation';
 const localFirstRetry = mode === 'local-first-retry';
 const localFirstOffline = mode === 'local-first-offline';
+const localMutationDurability = mode === 'local-mutation-durability';
 const localWarehouse = mode === 'local-warehouse';
 const localToServerMigrationResume = mode === 'local-to-server-migration-resume';
 const localToServerMigration = mode === 'local-to-server-migration'||localToServerMigrationResume;
@@ -165,6 +166,7 @@ window.JustFunDesktop = {
   copyText: async () => true,
   openSupport: async () => true,
   backups: { save: async () => ({ ok: true, confirmed: true, path: 'C:\\test\\Экспорт\\justfun-backup.json', bytes: 1024, sha256: 'A'.repeat(64), kind: 'manual', at: new Date().toISOString() }) },
+  audit: { event: async payload => { window.__bridgeCalls.push(`audit:${String(payload?.action||'')}:${String(payload?.correlationId||'')}`); return {ok:true,correlationId:String(payload?.correlationId||'')}; } },
   setActiveWarehouse: async payload => { window.__activeRendererWarehouse=String(payload?.warehouseId||''); return {ok:true,warehouseId:window.__activeRendererWarehouse,environment:String(payload?.environment||'live')}; },
   maps: {
     addressSearch: async payload => { window.__addressSearchPayloads.push(JSON.parse(JSON.stringify(payload||{}))); return { ok:false, configured:false }; },
@@ -309,7 +311,7 @@ if (localFirstRetry || localFirstOffline) {
           if(${localFirstRetry})await window.JustFunEntitySyncV783.flushAndConfirm();
           orders=orders.filter(item=>item.id!==id);orders.unshift(makeOrder());const persistWrapped=String(window.persistOrders).includes('scheduleCloudUpload');window.persistOrders();const statusAfterPersist=window.JustFunEntitySyncV783.status();await new Promise(resolve=>setTimeout(resolve,250));
           if(${localFirstRetry})await window.JustFunEntitySyncV783.flushAndConfirm();const statusAfterBaseline=window.JustFunEntitySyncV783.status(),baselineLocalPresent=orders.some(item=>item.id===id),baselineServerPresent=window.__serverEntityMap.has('orders:'+id);
-          window.__entitySyncPayloads.length=0;window.__entitySyncNetworkDown=${localFirstRetry};
+          window.__entitySyncPayloads.length=0;window.__entitySyncNetworkDown=${localFirstRetry||localFirstOffline};
           const deleteResult=await window.deleteOrder(id),removed=!orders.some(item=>item.id===id),before=window.JustFunEntitySyncV783.status(),queue=window.JustFunLocalOutboxV783.create(localStorage,before.scope),allAfterDelete=queue.list(),pending=allAfterDelete.filter(entry=>entry.state==='pending'||entry.state==='sending').at(-1)||null,restarted=window.JustFunLocalOutboxV783.create(localStorage,before.scope),restartPreserved=Boolean(pending&&restarted.get(pending.commandId)?.state==='pending'),simulatedServer=buildBackupPayload();simulatedServer.data.orders.push(makeOrder());const overlaid=window.__JustFunEntitySyncTestV783.overlaySnapshot(simulatedServer),bootstrapOverlayPreserved=!overlaid.data.orders.some(item=>item.id===id);
           let criticalResult=null,criticalPreserved=null,retrySameCommand=null,confirmedAfterRetry=null;
           if(${localFirstOffline}){const count=orders.length;criticalResult=await window.clearAll();criticalPreserved=orders.length===count}
@@ -325,6 +327,33 @@ if (localFirstRetry || localFirstOffline) {
       if (!expected) errors.push({ phase: 'local-first', level: 'error', text: JSON.stringify(localFirstResult) });
     } catch (error) {
       errors.push({ phase: 'local-first', level: 'error', text: error.stack || String(error) });
+    }
+  }
+}
+let localMutationDurabilityResult = null;
+if (localMutationDurability) {
+  if (testEdition !== 'full' || process.env.JF_TEST_DATA_SERVICE_DISABLED !== '1') {
+    errors.push({ phase: 'local-mutation-durability', level: 'error', text: 'Durability verification requires full edition with the data service disabled.' });
+  } else {
+    try {
+      if(!window.JustFunEntitySyncV783?.status?.().installed)window.__JustFunEntitySyncTestV783.install();
+      const durabilityScript=window.document.createElement('script');
+      durabilityScript.textContent=`window.__localMutationDurabilityPromise=(async()=>{
+        const previousConfirm=jfConfirm;jfConfirm=async()=>true;
+        try{
+          renderProgramSettings();const beforeBackupAt=String(settings.program?.lastBackupAt||''),beforeBackupHealth=String(document.querySelector('#smartProgramHealth')?.textContent||'');const backupResult=await exportBackup({kind:'manual'}),afterBackupHealth=String(document.querySelector('#smartProgramHealth')?.textContent||''),backupRefresh=backupResult?.confirmed===true&&String(settings.program?.lastBackupAt||'')!==beforeBackupAt&&afterBackupHealth!==beforeBackupHealth&&afterBackupHealth.includes('ручная');
+          const id='durable-payment-order',now=new Date().toISOString(),order=normalizeOrder({id,number:'DURABLE-001',orderType:'delivery',createdAt:now,updatedAt:now,deliveryDate:todayISO(),contactName:'Проверка долговечности',contactMethod:'',deliveryAddress:'Москва, Тверская улица, 1',geo:{lat:55.7578,lon:37.6156,region:'Москва',district:'Тверской район'},items:[],total:100,goodsTotal:100,deliveryCost:0,grandTotal:100,paymentStatus:'pending',fulfillmentStatus:'active',warehouseFlowStatus:'planned'});
+          orders=orders.filter(item=>item.id!==id);orders.unshift(order);persistOrders();
+          const before=window.JustFunEntitySyncV783.status(),queue=window.JustFunLocalOutboxV783.create(localStorage,before.scope),beforeActive=queue.status().active;
+          openDetails(id);const result=await window.toggleCurrentOrderPayment(),afterQueue=window.JustFunLocalOutboxV783.create(localStorage,before.scope),entries=afterQueue.list(),paymentEntry=entries.find(entry=>entry.intent?.kind==='order_payment'&&entry.intent?.targetId===id),stored=JSON.parse(localStorage.getItem(resolveDataStorageKey(STORAGE_KEY))||'[]').find(item=>item.id===id),restarted=window.JustFunLocalOutboxV783.create(localStorage,before.scope);
+          await new Promise(resolve=>setTimeout(resolve,0));const auditRows=window.__bridgeCalls.filter(item=>item.startsWith('audit:business_mutation_')),auditIds=auditRows.map(item=>item.split(':').at(-1)).filter(Boolean);return{result,backupRefresh,paid:order.paymentStatus==='paid',storedPaid:stored?.paymentStatus==='paid',outboxIncrement:afterQueue.status().active===beforeActive+1,paymentCommand:Boolean(paymentEntry),restartPreserved:Boolean(paymentEntry&&restarted.get(paymentEntry.commandId)?.state==='pending'),changedEntity:paymentEntry?.changes?.some(change=>change.type==='orders'&&change.id===id&&change.payload?.paymentStatus==='paid')||false,auditStarted:auditRows.some(item=>item.includes('audit:business_mutation_started:')),auditPending:auditRows.some(item=>item.includes('audit:business_mutation_pending:')),auditCorrelation:auditIds.length>=2&&new Set(auditIds).size===1};
+        }finally{jfConfirm=previousConfirm}
+      })();`;
+      window.document.body.append(durabilityScript);
+      localMutationDurabilityResult=await window.__localMutationDurabilityPromise;
+      if(!localMutationDurabilityResult.backupRefresh||!localMutationDurabilityResult.paid||!localMutationDurabilityResult.storedPaid||!localMutationDurabilityResult.outboxIncrement||!localMutationDurabilityResult.paymentCommand||!localMutationDurabilityResult.restartPreserved||!localMutationDurabilityResult.changedEntity||!localMutationDurabilityResult.auditStarted||!localMutationDurabilityResult.auditPending||!localMutationDurabilityResult.auditCorrelation)errors.push({phase:'local-mutation-durability',level:'error',text:JSON.stringify(localMutationDurabilityResult)});
+    } catch (error) {
+      errors.push({ phase: 'local-mutation-durability', level: 'error', text: error.stack || String(error) });
     }
   }
 }
@@ -1313,6 +1342,7 @@ const result = {
   securityFuzz: securityFuzzResult,
   accessibility: accessibilityResult,
   localFirst: localFirstResult,
+  localMutationDurability: localMutationDurabilityResult,
   localWarehouse: localWarehouseResult,
   localToServerMigration: localToServerMigrationResult,
   bridgeCalls: window.__bridgeCalls

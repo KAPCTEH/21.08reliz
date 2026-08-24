@@ -74,11 +74,13 @@ assert(clarity.includes('Как формируется отчёт директо
 assert(clarityCss.includes('.product-transport-presets-v783'));
 assert(clarityCss.includes('.product-loading-guide-v783'));
 assert(clarityCss.includes('.report-settings-dialog-v783'));
-assert(clarity.includes('viewScrollV783'));
+assert(clarity.includes('window.scrollTo(0,0)'));
+assert(!clarity.includes('viewScrollV783'));
 assert(clarityCss.includes('.view-enter-v783'));
 assert(clarityCss.includes('#productsView .warehouse-toolbar .searchbox'));
 
 assert(company.includes("logo.style.setProperty('background-image'"));
+assert(company.includes("logo.style.setProperty('display','none','important')"));
 assert(company.includes('safeLogoDataUrl'));
 assert(company.includes("customLogo||'assets/justfun-official-transparent.png'"));
 assert(company.includes('print-company-info-grid-v783'));

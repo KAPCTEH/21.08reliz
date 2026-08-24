@@ -70,6 +70,10 @@ assert.equal(backup.kind,'manual');
 assert.match(backup.sha256,/^[a-f0-9]{64}$/);
 assert.deepEqual(JSON.parse(fs.readFileSync(backup.path,'utf8')).data.orders,[{id:'order-1'}]);
 assert.throws(()=>main.saveBackupPayload({backup:null},backupRoot),/Резервная копия/);
+const safeAudit=main.safeRendererAuditPayload({correlationId:'audit-123',action:'business_mutation_confirmed',warehouseId:'warehouse-1',environment:'live',detail:{kind:'order_payment',targetId:'order-1',commandId:'command-1',changes:1,critical:false,password:'secret',message:'personal data'}});
+assert.deepEqual(safeAudit,{correlationId:'audit-123',action:'business_mutation_confirmed',warehouseId:'warehouse-1',environment:'live',detail:{kind:'order_payment',targetId:'order-1',commandId:'command-1',changes:1,critical:false}});
+assert.equal(JSON.stringify(safeAudit).includes('secret'),false);
+assert.equal(JSON.stringify(safeAudit).includes('personal'),false);
 
 assert.equal(main.VERSION, release.version);
 assert.match(mainSource, /directOpenStreetMapGeocode/);

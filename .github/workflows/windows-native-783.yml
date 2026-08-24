@@ -174,6 +174,14 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Order save integrity regression failed.' }
           node tests/runtime-smoke.mjs source/application/web atomic-mutation
           if ($LASTEXITCODE -ne 0) { throw 'Atomic VPS mutation regression failed.' }
+          $env:JF_TEST_DATA_SERVICE_DISABLED = '1'
+          node tests/runtime-smoke.mjs source/application/web local-mutation-durability
+          if ($LASTEXITCODE -ne 0) { throw 'Local mutation durability regression failed.' }
+          Remove-Item Env:JF_TEST_DATA_SERVICE_DISABLED -ErrorAction SilentlyContinue
+          node tests/runtime-smoke.mjs source/application/web local-first-offline
+          if ($LASTEXITCODE -ne 0) { throw 'Offline outbox durability regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web local-first-retry
+          if ($LASTEXITCODE -ne 0) { throw 'Outbox reconnect retry regression failed.' }
           node tests/runtime-smoke.mjs source/application/web local-to-server-migration
           if ($LASTEXITCODE -ne 0) { throw 'Local-to-server migration regression failed.' }
           node tests/runtime-smoke.mjs source/application/web local-to-server-migration-resume
@@ -270,6 +278,26 @@ jobs:
           }
           $result = Get-Content -LiteralPath (Join-Path $qa 'VISUAL-QA.json') -Raw | ConvertFrom-Json
           if (@($result.errors).Count -ne 0) { throw "Visual QA errors: $($result.errors -join '; ')" }
+
+      - name: Generate and validate searchable PDF documents
+        shell: pwsh
+        run: |
+          $qa = Join-Path $PWD '.release\print-qa'
+          New-Item -ItemType Directory -Path $qa -Force | Out-Null
+          $app = Join-Path $PWD '.release\payload\OrdersLogistics.exe'
+          $process = Start-Process -FilePath $app -ArgumentList "--print-qa-output=$qa" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            $resultPath = Join-Path $qa 'PRINT-QA.json'
+            if (Test-Path -LiteralPath $resultPath -PathType Leaf) { Get-Content -LiteralPath $resultPath -Raw }
+            throw "Print QA returned $($process.ExitCode)."
+          }
+          $result = Get-Content -LiteralPath (Join-Path $qa 'PRINT-QA.json') -Raw | ConvertFrom-Json
+          if (@($result.errors).Count -ne 0 -or @($result.documents).Count -ne 5) { throw 'Print QA evidence is incomplete.' }
+          foreach ($document in @($result.documents)) {
+            if ($document.contract.pdf.orientationOk -ne $true -or $document.contract.pdf.textLayer -ne $true) {
+              throw "PDF contract failed: $($document.name)"
+            }
+          }
 
       - name: Exercise interrupted update recovery
         shell: pwsh
@@ -402,6 +430,7 @@ jobs:
             '--output-dir', '.release/release-evidence',
             '--evidence', 'premium-previews=.release/premium-previews',
             '--evidence', 'visual-qa=.release/visual-qa',
+            '--evidence', 'print-qa=.release/print-qa',
             '--evidence', 'full-acceptance=.release/full-acceptance',
             '--evidence', 'native-safety=.release/native-safety'
           )
@@ -431,6 +460,7 @@ jobs:
             .release/installer/
             .release/premium-previews/
             .release/visual-qa/
+            .release/print-qa/
             .release/full-acceptance/
             .release/native-safety/
             .release/release-evidence/

@@ -61,7 +61,7 @@ let desktopSession=null,currentUser=null,users=[],guardInstalled=false,entityCom
 let telegramBindings=new Map(),telegramRouteState={},telegramRouteScope='',telegramPollTimer=null,telegramPollFailures=0,telegramPollingConfigured=null,lastTelegramStatus=null,telegramRouteGuardInstalled=false;
 const q=(s,r=document)=>r.querySelector(s),qa=(s,r=document)=>[...r.querySelectorAll(s)],esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function id(){return crypto.randomUUID?crypto.randomUUID():'u-'+Date.now().toString(36)+Math.random().toString(36).slice(2)}
-function audit(action,detail={}){try{const a=JSON.parse(localStorage.getItem(AUDIT_KEY)||'[]');a.unshift({id:id(),at:new Date().toISOString(),userId:currentUser?.id||null,login:currentUser?.login||'',warehouseId:activeWarehouseId(),action,detail});localStorage.setItem(AUDIT_KEY,JSON.stringify(a.slice(0,3000)))}catch{}}
+function audit(action,detail={},correlationId=''){const eventId=String(correlationId||id());try{const warehouseId=activeWarehouseId(),event={id:eventId,at:new Date().toISOString(),userId:currentUser?.id||null,login:currentUser?.login||'',warehouseId,action,detail};const a=JSON.parse(localStorage.getItem(AUDIT_KEY)||'[]');a.unshift(event);localStorage.setItem(AUDIT_KEY,JSON.stringify(a.slice(0,3000)));window.JustFunDesktop?.audit?.event?.({correlationId:eventId,action,warehouseId,environment:activeEnvironment(),detail})?.catch?.(()=>{})}catch{}return eventId}
 function registry(){return window.TeplitsaWarehouseBootstrap?.getRegistry?.()||{activeWarehouseId:'',warehouses:[]}}
 function activeWarehouseId(){return String(window.TeplitsaWarehouseBootstrap?.activeWarehouse?.()?.id||'')}
 function allowedWarehouseIds(user=currentUser){if(!user)return[];const all=registry().warehouses.filter(w=>w.status!=='archived').map(w=>String(w.id));return user.allWarehouses?all:(user.warehouseIds||[]).map(String).filter(x=>all.includes(x))}
@@ -777,7 +777,9 @@ let entityCommandChain=Promise.resolve();
 function commitEntityMutation(intent,mutation){
   if(isTrainingEnvironment())return Promise.resolve().then(mutation);
   const critical=intent?.critical!==false;
-  if(critical&&!onlineEntitySyncAvailable()){const message='Эта критическая операция требует подтверждения рабочего VPS. Обычные данные можно продолжать сохранять локально.';toast(message,'error');audit('critical_server_mutation_offline_blocked',{kind:intent?.kind||'',targetId:intent?.targetId||''});return Promise.resolve(false)}
+  const correlationId=id(),auditDetail={kind:intent?.kind||'',targetId:intent?.targetId||'',critical};
+  audit('business_mutation_started',auditDetail,correlationId);
+  if(critical&&!onlineEntitySyncAvailable()){const message='Эта критическая операция требует подтверждения рабочего VPS. Обычные данные можно продолжать сохранять локально.';toast(message,'error');audit('critical_server_mutation_offline_blocked',auditDetail,correlationId);return Promise.resolve(false)}
   const execute=async()=>{
     let rollbackSnapshot=null,localCommandPersisted=false;
     try{
@@ -787,26 +789,29 @@ function commitEntityMutation(intent,mutation){
       }else if(onlineEntitySyncAvailable()){
         try{await waitForEntitySyncIdle();if(cloudSyncState.dirty)await backgroundCloudUpload();else{await bootstrapEntitySync();await drainLocalOutbox()}}catch(error){reportCloudSyncFailure(error)}
       }
-      rollbackSnapshot=buildBackupPayload();cloudSyncState.suspended++;let mutationResult;try{mutationResult=await mutation();await window.TeplitsaWarehouseV600?.whenPersisted?.()}finally{cloudSyncState.suspended--}const afterSnapshot=buildBackupPayload(),changes=entityChangesBetween(rollbackSnapshot,afterSnapshot,{includeOutbox:!critical});
-      if(!changes.length)return mutationResult;
+      // The application mutates many records and arrays in place.  A live reference here
+      // makes the "before" snapshot change together with the UI and hides the mutation
+      // from the durable outbox (payments, new orders, archive and pickup reservations).
+      rollbackSnapshot=cloneValue(buildBackupPayload());cloudSyncState.suspended++;let mutationResult;try{mutationResult=await mutation();await window.TeplitsaWarehouseV600?.whenPersisted?.()}finally{cloudSyncState.suspended--}const afterSnapshot=cloneValue(buildBackupPayload()),changes=entityChangesBetween(rollbackSnapshot,afterSnapshot,{includeOutbox:!critical});
+      if(!changes.length){audit('business_mutation_no_change',auditDetail,correlationId);return mutationResult}
       if(changes.length>1000)throw new Error('Операция изменила больше 1000 записей и безопасно остановлена. Разделите действие на несколько частей.');
       const blocked=queue.blockedEntityKeys(),blockedChange=changes.find(change=>blocked.has(entityKey(change.type,change.id)));if(blockedChange)throw outboxError('OUTBOX_ENTITY_BLOCKED',`Запись ${blockedChange.type}/${blockedChange.id} уже требует разрешения конфликта. Новое изменение отменено.`);
       if(!critical){
-        const entry=queue.enqueue(localOutboxEntry(intent,changes));localCommandPersisted=true;cloudSyncState.dirty=true;cloudSyncState.serial++;renderLocalOutboxStatus();audit('local_entity_command_saved',{kind:intent?.kind||'',targetId:intent?.targetId||'',commandId:entry.commandId,changes:changes.length,warehouseId:entry.warehouseId,environment:entry.environment});
-        if(!onlineEntitySyncAvailable()){toast('Изменение сохранено на этом компьютере и ожидает синхронизации.','success');return mutationResult}
+        const entry=queue.enqueue(localOutboxEntry(intent,changes));localCommandPersisted=true;cloudSyncState.dirty=true;cloudSyncState.serial++;renderLocalOutboxStatus();audit('local_entity_command_saved',{...auditDetail,commandId:entry.commandId,changes:changes.length,warehouseId:entry.warehouseId,environment:entry.environment},correlationId);
+        if(!onlineEntitySyncAvailable()){audit('business_mutation_pending',{...auditDetail,commandId:entry.commandId,changes:changes.length,state:'offline'},correlationId);toast('Изменение сохранено на этом компьютере и ожидает синхронизации.','success');return mutationResult}
         const sent=await drainLocalOutbox({targetCommandId:entry.commandId});
         if(sent.state==='rejected'){
           if(await rollbackLocalSnapshot(rollbackSnapshot)){queue.markRejected(entry.commandId,asObject(sent.entry?.lastError),false);for(const change of changes)cloudSyncState.conflicts.delete(entityKey(change.type,change.id));cloudSyncState.dirty=queue.status().active>0;saveEntitySyncState();renderLocalOutboxStatus()}
           throw outboxError(String(sent.entry?.lastError?.code||'ENTITY_COMMAND_REJECTED'),String(sent.entry?.lastError?.message||'VPS отклонил локальное изменение.'),asObject(sent.entry?.lastError?.details))
         }
-        if(sent.state==='confirmed')toast('Изменение сохранено локально и подтверждено VPS.','success');else if(sent.state==='conflict')toast('Изменение сохранено локально, но конфликтует с серверной версией. Данные не потеряны.','error');else toast('Изменение сохранено локально и будет отправлено повторно.','success');return mutationResult
+        audit(sent.state==='confirmed'?'business_mutation_confirmed':'business_mutation_pending',{...auditDetail,commandId:entry.commandId,changes:changes.length,state:sent.state},correlationId);if(sent.state==='confirmed')toast('Изменение сохранено локально и подтверждено VPS.','success');else if(sent.state==='conflict')toast('Изменение сохранено локально, но конфликтует с серверной версией. Данные не потеряны.','error');else toast('Изменение сохранено локально и будет отправлено повторно.','success');return mutationResult
       }
       clearTimeout(cloudSyncState.uploadTimer);cloudSyncState.inFlight=true;const warehouseId=activeWarehouseId(),environment=activeEnvironment(),commandId=newEntityCommandId(),result=await window.JustFunDesktop.regVps.syncEntities({warehouseId,environment,commandId,changes:changes.map(({_fingerprint,...item})=>item),intent});
       if(!result?.ok)throw Object.assign(new Error(result?.error||'VPS отклонил изменение.'),{code:result?.code||'ENTITY_COMMAND_FAILED',details:result?.details||{}});
-      acceptEntityBatchResult(result,changes);integrationBadge('jfRegBadge','Операция подтверждена сервером','ready');const success=({route_approve:'Согласование рейса подтверждено сервером.',route_picking:'Комплектация рейса подтверждена сервером.',route_cancel:'Рейс отменён, складской резерв освобождён.',route_start:'Выезд подтверждён сервером.',route_return:'Возврат машины подтверждён сервером.',route_close:'Рейс закрыт, склад и архив обновлены.',pickup_ready:'Резерв самовывоза подтверждён сервером.',pickup_collected:'Выдача и списание подтверждены сервером.'})[intent?.kind];if(success)toast(success,'success');return mutationResult
+      acceptEntityBatchResult(result,changes);audit('business_mutation_confirmed',{...auditDetail,commandId,changes:changes.length,state:'confirmed'},correlationId);integrationBadge('jfRegBadge','Операция подтверждена сервером','ready');const success=({route_approve:'Согласование рейса подтверждено сервером.',route_picking:'Комплектация рейса подтверждена сервером.',route_cancel:'Рейс отменён, складской резерв освобождён.',route_start:'Выезд подтверждён сервером.',route_return:'Возврат машины подтверждён сервером.',route_close:'Рейс закрыт, склад и архив обновлены.',pickup_ready:'Резерв самовывоза подтверждён сервером.',pickup_collected:'Выдача и списание подтверждены сервером.'})[intent?.kind];if(success)toast(success,'success');return mutationResult
     }catch(error){
       if(rollbackSnapshot&&(critical||!localCommandPersisted))await rollbackLocalSnapshot(rollbackSnapshot);if(['route_return','route_close'].includes(intent?.kind))window.closeRouteCloseModal?.();
-      integrationBadge('jfRegBadge','Изменение отклонено','error');integrationStatus('jfRegStatus',error?.message||String(error),'error');toast(error?.message||String(error),'error');audit('server_entity_command_rejected',{kind:intent?.kind||'',targetId:intent?.targetId||'',code:error?.code||'',details:error?.details||{}});return false
+      integrationBadge('jfRegBadge','Изменение отклонено','error');integrationStatus('jfRegStatus',error?.message||String(error),'error');toast(error?.message||String(error),'error');audit('business_mutation_rejected',{...auditDetail,code:error?.code||'',state:'rejected'},correlationId);return false
     }finally{cloudSyncState.inFlight=false}
   };
   entityCommandChain=entityCommandChain.then(execute,execute);return entityCommandChain

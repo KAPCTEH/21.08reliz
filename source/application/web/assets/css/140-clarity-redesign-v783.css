@@ -107,3 +107,16 @@ html{scrollbar-gutter:stable}.view-enter-v783{animation:viewEnterV783 .13s ease-
 .order-line-details-v783{grid-column:1/-1;margin-top:1px;border-top:1px dashed #dce8e2}.order-line-details-v783>summary{padding:8px 2px 0;color:#4d6c5f;font-size:9px;font-weight:850;cursor:pointer}.order-line-details-v783>div{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:8px;padding:10px;border-radius:11px;background:var(--jf-color-surface-soft)}.order-line-details-v783 .item-config-panel{grid-column:1/-1}
 @media(max-width:980px){#items>.order-item-list-row-v783,#pickupItems>.order-item-list-row-v783{grid-template-columns:minmax(220px,1fr) minmax(170px,.8fr) minmax(135px,.65fr) 38px}.order-item-list-row-v783>.order-line-total{grid-column:3}.order-list-remove-v783{grid-column:4}.order-item-list-row-v783>.order-line-price{grid-column:2}}
 @media(max-width:680px){#items>.order-item-list-row-v783,#pickupItems>.order-item-list-row-v783{grid-template-columns:1fr 1fr 38px}.order-list-product-v783{grid-column:1/-1}.order-item-list-row-v783>.order-line-qty{grid-column:1}.order-item-list-row-v783>.order-line-price{grid-column:2}.order-item-list-row-v783>.order-line-total{grid-column:1/3}.order-list-remove-v783{grid-column:3;grid-row:2;margin-top:12px}.order-line-details-v783>div{grid-template-columns:1fr}}
+
+/* Keep the complete command surface visible on ordinary 1280/1100px Windows screens. */
+@media(max-width:1320px){
+  .nav .company-brand,.nav .actions{min-width:0;max-width:100%}
+  .nav .actions{display:flex;flex-wrap:wrap}
+  .director-professional-v610 .director-toolbar{grid-template-columns:minmax(0,1fr)}
+  .director-professional-v610 .director-date-grid,.director-professional-v610 .director-filter-grid{min-width:0}
+  .tabs{max-width:100%;padding-right:42px;scroll-padding-inline:10px}
+}
+@media(max-width:1100px){
+  .nav .company-brand,.nav .actions{width:100%}
+  .nav .actions>button{flex:0 1 auto}
+}

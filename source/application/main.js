@@ -170,6 +170,24 @@ function saveBackupPayload(payload={},rootDir=''){
   const backup=payload?.backup;if(!backup||typeof backup!=='object'||Array.isArray(backup))throw Object.assign(new Error('Резервная копия не содержит объект данных.'),{code:'BACKUP_INVALID'});
   const kind=['manual','safety','server'].includes(String(payload?.kind||''))?String(payload.kind):'manual',safeName=String(payload?.fileName||'justfun-backup.json').replace(/[\\/:*?"<>|]/g,'_').replace(/^\.+/,'').slice(0,160)||'justfun-backup.json',storageRoot=String(rootDir||readInstallConfig().data_dir||localRoot()),directory=path.resolve(storageRoot,'Экспорт');ensureDir(directory);let target=path.resolve(directory,safeName);if(path.dirname(target)!==directory)throw Object.assign(new Error('Недопустимое имя резервной копии.'),{code:'BACKUP_PATH_REJECTED'});if(fs.existsSync(target)){const ext=path.extname(safeName)||'.json',base=path.basename(safeName,ext);target=path.join(directory,`${base}-${Date.now()}${ext}`)}writeJsonAtomic(target,backup);const written=fs.readFileSync(target),parsed=JSON.parse(written.toString('utf8')),canonical=JSON.stringify(parsed);if(!canonical||canonical==='{}'&&Object.keys(backup).length)throw Object.assign(new Error('Проверка записанного файла не пройдена.'),{code:'BACKUP_VERIFY_FAILED'});return{ok:true,path:target,bytes:written.length,sha256:crypto.createHash('sha256').update(written).digest('hex'),kind,at:new Date().toISOString()}
 }
+function safeRendererAuditPayload(payload={}){
+  const safeToken=(value,max=120)=>String(value??'').replace(/[^A-Za-z0-9_.:-]/g,'').slice(0,max);
+  const allowedDetailKeys=new Set(['kind','targetId','commandId','changes','code','state','critical','warehouseId','environment']);
+  const detail={};
+  for(const[key,value]of Object.entries(payload?.detail&&typeof payload.detail==='object'?payload.detail:{})){
+    if(!allowedDetailKeys.has(key))continue;
+    if(key==='changes')detail[key]=Math.max(0,Math.min(1000,Number(value)||0));
+    else if(key==='critical')detail[key]=value===true;
+    else detail[key]=safeToken(value);
+  }
+  return{
+    correlationId:safeToken(payload?.correlationId,80),
+    action:safeToken(payload?.action,100)||'renderer_audit_event',
+    warehouseId:safeToken(payload?.warehouseId,120),
+    environment:['live','demo'].includes(String(payload?.environment||''))?String(payload.environment):'unknown',
+    detail
+  };
+}
 function writeFailureArtifact(file,value,label) {
   try {
     writeJsonAtomic(file,value);
@@ -2926,6 +2944,7 @@ function registerIPC(config) {
     return error ? {ok:false,error:String(error)} : {ok:true,path:logDir()};
   });
   handleMainIPC('desktop:backup-save', async (_event,payload) => {try{const result=saveBackupPayload(payload);appendLog('backup file verified',{kind:result.kind,path:result.path,bytes:result.bytes,sha256:result.sha256});return result}catch(error){appendLog('backup file failed',{code:String(error?.code||'BACKUP_WRITE_FAILED'),error:safeError(error)});return{ok:false,code:String(error?.code||'BACKUP_WRITE_FAILED'),message:safeError(error)}}});
+  handleMainIPC('desktop:audit-event', async (_event,payload) => {const event=safeRendererAuditPayload(payload);appendLog('renderer business audit',event);return{ok:true,correlationId:event.correlationId};});
   handleMainIPC('desktop:auth-license-check', async (_event, payload) => {
     try { const result=await cloudRequestWithRetry('POST','/v1/license/check',{license_key:String(payload?.licenseKey||'')}); return {ok:true,...result}; }
     catch(error){appendLog('license check failed',{code:error.code,error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};}
@@ -3075,6 +3094,32 @@ function registerIPC(config) {
   handleMainIPC('desktop:telegram-bindings', async (_event, payload) => {
     try { requireActiveRendererWarehouse(payload?.warehouseId); return await getTelegramBindings(payload); }
     catch(error) { appendLog('Telegram bindings failed',{code:String(error?.code||''),error:safeIntegrationError(error)}); return {ok:false,error:safeIntegrationError(error),code:String(error?.code||'TELEGRAM_BINDINGS_FAILED')}; }
+  });
+  handleMainIPC('desktop:document-preview-pdf', async (event, payload) => {
+    try {
+      const landscape = payload?.landscape === true;
+      const previewDirectory = path.join(app.getPath('temp'), 'JustFun', 'print-preview');
+      ensureDir(previewDirectory);
+      const fileName = `justfun-${landscape ? 'landscape' : 'portrait'}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
+      const filePath = path.join(previewDirectory, fileName);
+      const pdf = await event.sender.printToPDF({
+        printBackground:true,
+        pageSize:'A4',
+        landscape,
+        preferCSSPageSize:true,
+        margins:{top:0.25,bottom:0.25,left:0.25,right:0.25},
+        displayHeaderFooter:false
+      });
+      if (pdf.length < 10000 || pdf.subarray(0,5).toString('ascii') !== '%PDF-') throw new Error('Сформированный PDF пуст или повреждён.');
+      fs.writeFileSync(filePath, pdf);
+      const openError = await shell.openPath(filePath);
+      if (openError) throw new Error(openError);
+      appendLog('print preview opened',{landscape,bytes:pdf.length});
+      return {ok:true,bytes:pdf.length};
+    } catch (error) {
+      appendLog('print preview failed',{error:safeError(error)});
+      return {ok:false,error:'Не удалось открыть предварительный просмотр PDF.'};
+    }
   });
   handleMainIPC('desktop:save-text-file', async (_event, payload) => {
     const name = String(payload?.name || 'export.txt').replace(/[\\/:*?"<>|]/g,'_');
@@ -3683,7 +3728,10 @@ async function runPrintQa() {
       fs.writeFileSync(target,pdf);
       const bytes=fs.statSync(target).size;
       if(bytes<10000||pdf.subarray(0,5).toString('ascii')!=='%PDF-')throw new Error(`${document.name}: PDF пуст или повреждён (${bytes} байт)`);
-      result.documents.push({name:document.name,file:path.basename(target),bytes,context,contract});
+      const pdfSource=pdf.toString('latin1'),mediaBoxes=[...pdfSource.matchAll(/\/MediaBox\s*\[([^\]]+)\]/g)].map(match=>match[1].trim()),pageSizes=mediaBoxes.map(value=>value.split(/\s+/).map(Number)).filter(values=>values.length===4&&values.every(Number.isFinite)).map(values=>({width:values[2]-values[0],height:values[3]-values[1]})),expectsLandscape=context.type==='route',orientationOk=pageSizes.length>0&&pageSizes.every(size=>expectsLandscape?size.width>size.height:size.height>size.width),textLayer=pdfSource.includes('/Font')&&pdfSource.includes('/ToUnicode');
+      if(!orientationOk)throw new Error(`${document.name}: неверная ориентация PDF`);
+      if(!textLayer)throw new Error(`${document.name}: PDF не содержит проверяемого текстового слоя`);
+      result.documents.push({name:document.name,file:path.basename(target),bytes,context,contract:{...contract,pdf:{pages:pageSizes.length,orientation:expectsLandscape?'landscape':'portrait',orientationOk,textLayer}}});
       await win.webContents.executeJavaScript(`(() => {const area=document.getElementById('printArea');area.style.display='none';area.innerHTML=''})()`);
     }
   }catch(error){
@@ -3776,7 +3824,7 @@ if (DESKTOP_UNIT_TEST_MODE) {
     readInstallConfig, persistInstallConfig, buildSession,
     getMachineCode, normalizeDemoState, normalizeDemoStateWithCloud, reconcileDemoStateWithCloud, remainingDemoMs, makeDemoState,
     signObject, validSignedObject, demoLocations, persistDemoState,
-    appendLog, logCandidates, logFile, localRoot, readJson, saveBackupPayload,
+    appendLog, logCandidates, logFile, localRoot, readJson, saveBackupPayload, safeRendererAuditPayload,
     validateWarehouseId, validateEnvironment, validateWarehouseSnapshot, validateSnapshotEntityIdentifiers, telegramWarehouseScope,
     telegramScopeParts, telegramScopeRoot, validateDeliveredTelegramNotification,
     normalizeFingerprint, pinnedHttpsAgent, validateWorkerState, loadWorkerState,
