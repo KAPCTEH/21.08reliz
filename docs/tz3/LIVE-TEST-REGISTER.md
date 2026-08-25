@@ -810,3 +810,13 @@
 - Полный мастер VPS получил пароль только из локального защищённого файла. Текущий SSH fingerprint независимо прочитан отдельным соединением и совпал с диалогом клиента; секреты не выводились и не сохранялись в Git.
 - Production-обновление создало backup, но остановилось на `pg_restore ... Permission denied`. Автоматический откат восстановил прежний сервер; контрольный `/health` после отката: `ok=true`, `version=7.8.3`, `database=ready`, API contract `4`. Открыты `JF3-DEFECT-038` и отдельный UX-дефект тайм-аута `JF3-DEFECT-039`.
 - Результат: `PROTECTED INSTALL AND MULTIPLE LIVE FIXES PASS / LOCAL-FIRST RESTART, TYPO ADDRESS, VPS MIGRATION AND UPDATE CHANNEL FAIL / AUTO-ROLLBACK PASS / RELEASE NO-GO`.
+
+### JF3-S0073 — Production Telegram/Cloudflare: backup, действующий bot и proxy-блокер
+
+- Перед внешним действием снята локальная резервная копия существующей общей Telegram D1, текущего Worker и истории deployment: `.release/cloudflare-backups/20260825-081953`. D1 export: `4 909` байт, SHA-256 `e191cf0f6b385ae3b4a7be1dcba04ce9909bb80d4ee257d02a480fdc096d5c`; Worker multipart: `29 326` байт, SHA-256 `d20d9f825d7cd258c72e70dda968027c8a768efc7f25da06b4a0df09f29578ee`.
+- Предоставленный Cloudflare token подтверждён как active и имеет доступ к одному аккаунту. Из двух найденных bot token первый недействителен, второй подтверждён Telegram как действующий bot; его webhook уже настроен, pending updates равны нулю. Значения секретов не выводились и не сохранялись в Git.
+- Живой мастер успешно подтвердил владельца компании и Cloudflare account, затем остановился на `telegram_verification`: `connect ETIMEDOUT 149.154.166.110:443`, код `TG-CF-UNEXPECTED`. `desktop.log` зафиксировал стадии 4→8→16→24%, release мастера и безопасную ошибку без токенов.
+- Сетевой контроль доказал причину: Windows использует системный proxy `127.0.0.1:10809`; Telegram API доступен через системный стек, прямой TCP к текущему Telegram IPv4:443 недоступен. Provisioner применяет прямой `https.request` и игнорирует системный proxy. Открыт `JF3-DEFECT-040`.
+- Ошибка возникла до D1 migrations и Worker upload. Повторная Cloudflare-инвентаризация подтвердила прежние 2 D1 и 4 Worker, новые ресурсы не появились; откат не требовался.
+- Проверены остальные кнопки: `Проверить webhook` сообщает об отсутствии общего профиля; `Подключить группу склада` возвращает `TELEGRAM_NOT_CONFIGURED`; `Проверить и восстановить` объясняет, что сначала нужна исходная настройка. После ошибки на экране ошибочно остаётся progress `24%`; открыт `JF3-DEFECT-041`.
+- Результат: `CLOUDFLARE BACKUP + TOKEN/BOT VALIDATION PASS / TELEGRAM SETUP BLOCKED BY SYSTEM-PROXY BYPASS / NO CLOUDFLARE MUTATION / RELEASE NO-GO`.
