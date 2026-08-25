@@ -2152,8 +2152,57 @@
         "publish and verify signed update catalog then complete live update and rollback",
         "complete remaining group migration second user PC address and diagnostics gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0079",
+      "stage": 13,
+      "action": "rebuild exact desktop 7.8.4 verify manifest fix acceptance harness race and complete full setup uninstall data preservation acceptance",
+      "result": "EXACT 7.8.4 BUILD MANIFEST AND FULL INSTALLER ACCEPTANCE PASS / SIGNED CATALOG LIVE UPDATE AND ROLLBACK OPEN / RELEASE NO-GO",
+      "commits": [
+        "00ee971a6665e848ee20ae9c7ddc2c5528ff74be"
+      ],
+      "build_evidence": {
+        "build_id": "jf-7.8.4-00ee971a6665",
+        "release_contract_tests": 83,
+        "security_files": 197,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "payload_files": 81,
+        "asar_sha256": "0d2531a88992018d6dde53aa7f2619b48ebc3258942170edde0330f6c8eb83f1",
+        "setup_sha256": "c0c79003db54e0f18e4008e5fad9c00536f2e674e0ae6ffc3d7bf28a5e9959e9",
+        "setup_bytes": 209882192,
+        "payload_sha256": "b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0",
+        "payload_bytes": 183201489
+      },
+      "installer_acceptance": {
+        "setup_exit": 0,
+        "uninstall_exit": 0,
+        "uninstall_completion_seconds": 24.524,
+        "uninstall_log_confirmed": true,
+        "program_files_removed": true,
+        "empty_program_directory_remaining": false,
+        "data_preserved_by_default": true,
+        "previous_local_state_restored": true,
+        "errors": []
+      },
+      "acceptance_harness_repair": {
+        "defect": "JF3-DEFECT-045",
+        "cause": "program directory removed between Test-Path and Get-ChildItem",
+        "same_artifact_retested": true,
+        "powershell_syntax_passed": true
+      },
+      "closed_defects": [
+        "JF3-DEFECT-044",
+        "JF3-DEFECT-045"
+      ],
+      "pending": [
+        "package the exact owner archive without changing product provenance",
+        "publish and verify signed staging then stable update catalog",
+        "complete live 7.8.3 to 7.8.4 update and proven rollback",
+        "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
+      ]
     }
   ],
-  "current_gate": "stage-12/exact-7.8.4-built-uninstaller-probe-defect-source-fixed-clean-rebuild-open",
+  "current_gate": "stage-13/exact-7.8.4-build-and-full-installer-acceptance-pass-signed-update-open",
   "release_status": "NO-GO"
 }

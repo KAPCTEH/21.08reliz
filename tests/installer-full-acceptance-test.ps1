@@ -67,6 +67,18 @@ function Invoke-Native([string]$File, [string[]]$Arguments) {
   return $process.ExitCode
 }
 
+function Get-RemainingProgramFiles([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return }
+  try {
+    Get-ChildItem -LiteralPath $Path -Recurse -Force -File -ErrorAction Stop
+  } catch {
+    # The temporary NSIS process can remove the directory after Test-Path but
+    # before Get-ChildItem opens it. That race is the successful uninstall
+    # outcome, not a test failure. Preserve every other enumeration error.
+    if (Test-Path -LiteralPath $Path -PathType Container) { throw }
+  }
+}
+
 function Export-RegistryKey([string]$NativePath, [string]$Destination) {
   $exitCode = Invoke-Native "$env:WINDIR\System32\reg.exe" @('export', $NativePath, $Destination, '/y')
   if ($exitCode -ne 0) { throw "Registry backup failed for $NativePath with code $exitCode" }
@@ -147,9 +159,7 @@ try {
   $uninstallWatch = [Diagnostics.Stopwatch]::StartNew()
   $uninstallDeadline = [TimeSpan]::FromSeconds(120)
   do {
-    $remainingProgramFiles = @(
-      Get-ChildItem -LiteralPath $program -Recurse -Force -File -ErrorAction SilentlyContinue
-    )
+    $remainingProgramFiles = @(Get-RemainingProgramFiles $program)
     $uninstallLogText = if (Test-Path -LiteralPath $uninstallLog -PathType Leaf) {
       Get-Content -LiteralPath $uninstallLog -Raw -ErrorAction SilentlyContinue
     } else { '' }
@@ -163,9 +173,7 @@ try {
   if (Test-Path -LiteralPath $uninstallLog -PathType Leaf) {
     Copy-Item -LiteralPath $uninstallLog -Destination $evidenceUninstallLog -Force
   }
-  $remainingProgramFiles = @(
-    Get-ChildItem -LiteralPath $program -Recurse -Force -File -ErrorAction SilentlyContinue
-  )
+  $remainingProgramFiles = @(Get-RemainingProgramFiles $program)
   Assert-True ($remainingProgramFiles.Count -eq 0) "Program files remain after uninstall: $($remainingProgramFiles.FullName -join ', ')"
   Assert-True $uninstallConfirmed 'Uninstaller did not record PROGRAM removed before the acceptance deadline.'
   Assert-True $uninstallLogText.Contains('START uninstall') 'Uninstaller log is missing START uninstall.'

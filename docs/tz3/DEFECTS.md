@@ -865,11 +865,26 @@ JF3-S0076 подтвердил success-path: после `completed=100%` progres
 | Тип | Windows uninstaller / process lifecycle / release gate |
 | Приоритет | P0 до релиза |
 | Обнаружено | JF3-S0078 |
-| Состояние | SOURCE FIX + REAL ELECTRON PROBE PASS / EXACT INSTALLER REBUILD OPEN |
+| Состояние | CLOSED — EXACT 7.8.4 REBUILD + FULL INSTALLER ACCEPTANCE PASS |
 
 Первый точный кандидат desktop 7.8.4 установился и прошёл smoke-test, но полная приёмка остановила релиз: uninstaller вернул управление, а программные файлы остались. Журнал доказал точную причину: служебный `running-instance-probe` синхронно записал `NOT_RUNNING`, но Electron не завершился за 15 секунд (`FAIL application probe returned timeout state=NOT_RUNNING`). Удаление правильно сохранило программу и данные, а общий `RELEASE-GATE` остался false.
 
-Исправление JF3-S0078: после синхронной записи результата и освобождения single-instance lock служебный режим гарантированно завершает настоящий процесс; unit-test режим сохраняет подменяемый `app.exit` без завершения тестового процесса. Main unit и 21 installer-source тест прошли. Реальный source Electron probe завершился кодом `0` за `2786` мс и записал `NOT_RUNNING`. Для закрытия нужен новый точный защищённый Setup и полный повтор setup→smoke→uninstall→data preservation.
+Исправление JF3-S0078: после синхронной записи результата и освобождения single-instance lock служебный режим гарантированно завершает настоящий процесс; unit-test режим сохраняет подменяемый `app.exit` без завершения тестового процесса. Main unit и 21 installer-source тест прошли. Реальный source Electron probe завершился кодом `0` за `2786` мс и записал `NOT_RUNNING`.
+
+Закрытие JF3-S0079: точный Setup из `00ee971a6665e848ee20ae9c7ddc2c5528ff74be` прошёл полный setup→uninstall→data preservation. Setup и uninstaller вернули `0`, журнал подтвердил `PROGRAM removed` за `24.524` секунды, файлы программы удалены, данные сохранены и прежнее состояние восстановлено.
+
+### JF3-DEFECT-045 — Race при перечислении уже удалённого временного каталога
+
+| Поле | Значение |
+|---|---|
+| Тип | Release harness / Windows filesystem race |
+| Приоритет | P1 для доказательства релиза |
+| Обнаружено | JF3-S0079 |
+| Состояние | CLOSED — TEST FIX + SAME-ARTIFACT RETEST PASS |
+
+После успешного удаления временной тестовой установки каталог мог исчезнуть между `Test-Path` и `Get-ChildItem`. Windows PowerShell выдавал `Win32Exception`, из-за чего единый build-gate завершался ошибкой, хотя программа была удалена корректно.
+
+Исправление JF3-S0079: чтение оставшихся файлов вынесено в helper с повторной проверкой пути после исключения. Только реально исчезнувший каталог означает пустой результат; любая ошибка при существующем каталоге по-прежнему аварийно останавливает gate. Синтаксис PowerShell прошёл, повтор того же Setup завершил full acceptance без ошибок.
 
 ## Актуализация JF3-BLOCKER-002 — Живые адресные результаты новой сборки
 

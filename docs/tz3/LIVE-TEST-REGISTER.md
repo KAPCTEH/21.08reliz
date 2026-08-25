@@ -872,3 +872,12 @@
 - Открыт `JF3-DEFECT-044`. Причина: probe успевал синхронно записать отсутствие второго процесса, но `app.exit()` до normal ready lifecycle не гарантировал своевременное завершение Electron при активных top-level handles.
 - Исправление гарантирует process exit только в реальном короткоживущем probe после записи результата и освобождения lock. Main unit и installer-source `21/21` прошли; реальный source Electron probe вернул `0`, записал `NOT_RUNNING` и завершился за `2786` мс.
 - Результат: `EXACT 7.8.4 PAYLOAD + SETUP BUILD PASS / FULL ACCEPTANCE FOUND FAIL-CLOSED UNINSTALLER DEFECT / SOURCE FIX + REAL PROBE PASS / CLEAN REBUILD REQUIRED / RELEASE NO-GO`.
+
+### JF3-S0079 — Исправленный точный build 7.8.4 и полная приёмка установщика
+
+- Из чистого коммита `00ee971a6665e848ee20ae9c7ddc2c5528ff74be` создан build `jf-7.8.4-00ee971a6665`. Release contract прошёл `83/83`, security audit проверил 197 файлов без findings, deep business — `69/69`, payload manifest — 81/81 файл.
+- Setup SHA-256 `c0c79003db54e0f18e4008e5fad9c00536f2e674e0ae6ffc3d7bf28a5e9959e9`, размер `209882192` байта. Update ZIP SHA-256 `b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0`, размер `183201489` байт. Защищённый ASAR SHA-256 `0d2531a88992018d6dde53aa7f2619b48ebc3258942170edde0330f6c8eb83f1`.
+- Первый единый прогон обнаружил не дефект программы, а race в приёмочном тесте: NSIS уже удалил временный каталог, а `Get-ChildItem` открыл исчезнувший путь между проверкой существования и перечислением. Рабочая 7.8.3 была восстановлена и подтверждена по версии и прежнему ASAR `e8bfde1630cc2d70fa122ef22a488fd22fa1713851568ec8eef287d21cc92821`.
+- Тест получил fail-safe helper: исчезновение каталога во время успешного удаления трактуется как пустой результат, остальные ошибки перечисления остаются критическими. Повтор неизменённого Setup прошёл: setup `0`, uninstall `0`, `PROGRAM removed` подтверждено за `24.524` секунды, программных файлов и пустого каталога не осталось, пользовательские данные сохранены, прежнее локальное состояние восстановлено, errors `0`.
+- `JF3-DEFECT-044` закрыт точной пересборкой и полной приёмкой. Отдельный `JF3-DEFECT-045` (race тестового harness) найден, исправлен и повторно проверен в этом же шаге.
+- Результат: `EXACT 7.8.4 BUILD + MANIFEST + FULL INSTALLER ACCEPTANCE PASS / SIGNED CATALOG, LIVE UPDATE AND ROLLBACK OPEN / RELEASE NO-GO`.

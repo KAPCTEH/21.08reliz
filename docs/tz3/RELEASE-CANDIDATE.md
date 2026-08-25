@@ -1,8 +1,25 @@
 # Кандидат в релиз ТЗ №3
 
-## Текущее состояние после JF3-S0078
+## Текущее состояние после JF3-S0079
 
-Переходная защищённая 7.8.3 установлена и сохранила рабочие данные. Первый точный desktop 7.8.4 из `4c19539d03d6a9e5e27a7b47b4059f5448fed82c` успешно прошёл исходные, security и бизнес-проверки и создал Setup/update ZIP, но полная приёмка обнаружила fail-closed дефект служебного Electron probe: удаление безопасно отказалось и сохранило файлы. Причина исправлена и подтверждена реальным source Electron probe за `2786` мс; требуется новая точная пересборка. Общий gate: `NO-GO`.
+Переходная защищённая 7.8.3 установлена и сохранила рабочие данные. Точный desktop 7.8.4 из `00ee971a6665e848ee20ae9c7ddc2c5528ff74be` собран и прошёл полный setup→uninstall→data preservation; `JF3-DEFECT-044` закрыт. Локальный Windows build-gate готов, но signed catalog, живое обновление 7.8.3→7.8.4, доказанный rollback и остальные cross-device/адресные/Telegram gates ещё открыты. Общий gate: `NO-GO`.
+
+## Текущий кандидат RC-7.8.4-00ee971
+
+| Поле | Значение |
+|---|---|
+| Статус | WINDOWS BUILD PASS — signed catalog, live update и rollback впереди |
+| Git SHA продукта | `00ee971a6665e848ee20ae9c7ddc2c5528ff74be` |
+| Build ID | `jf-7.8.4-00ee971a6665` |
+| Release contract | `83/83` |
+| Security audit | 197 файлов, 0 findings |
+| Business runtime | `69/69` |
+| Payload manifest | 81/81 файл |
+| Setup | SHA-256 `c0c79003db54e0f18e4008e5fad9c00536f2e674e0ae6ffc3d7bf28a5e9959e9`, `209882192` байта |
+| Update ZIP | SHA-256 `b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0`, `183201489` байт |
+| Защищённый ASAR | SHA-256 `0d2531a88992018d6dde53aa7f2619b48ebc3258942170edde0330f6c8eb83f1` |
+| Full installer acceptance | PASS: setup `0`, uninstall `0`, удаление `24.524` с, данные сохранены, errors `0` |
+| Authenticode | Не обязателен по решению владельца |
 
 ## Отклонённый кандидат RC-7.8.4-4c19539
 
@@ -106,7 +123,7 @@
 
 ## Почему текущий RC ещё не финальный
 
-1. Финальный desktop 7.8.4 ещё не собран из чистого точного Git SHA и не установлен через живое обновление.
+1. Финальный desktop 7.8.4 собран и локально принят, но ещё не установлен через живое подписанное обновление.
 2. Доверенный Ed25519-ключ включён, но подписанные staging/stable каталоги и GitHub Release payload ещё не опубликованы.
 3. Production VPS и Telegram provisioning прошли, но реальная группа Telegram и полный update/rollback ещё не приняты.
 4. Реальный адресный provider и эталонный корпус адресов не проверены.

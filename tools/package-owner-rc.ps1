@@ -11,6 +11,8 @@ $installer = (Resolve-Path -LiteralPath $InstallerDirectory).Path
 $gatePath = (Resolve-Path -LiteralPath $ReleaseGate).Path
 $output = [IO.Path]::GetFullPath($OutputDirectory)
 $gate = Get-Content -LiteralPath $gatePath -Raw -Encoding UTF8 | ConvertFrom-Json
+$manifestPath = Join-Path $installer 'BUILD-MANIFEST.json'
+$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $release = Get-Content -LiteralPath (Join-Path $repo 'source\application\release.json') -Raw | ConvertFrom-Json
 $version = [string]$release.version
 if ($version -notmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$') {
@@ -21,6 +23,20 @@ if ([string]$gate.version -ne $version) {
 }
 if (-not $gate.release_eligible -and -not $AllowBlockedOwnerRc) {
   throw 'Сборка не прошла обязательную проверку установщика. Архив владельца не создан.'
+}
+$buildCommit = ([string]$manifest.commit_sha).Trim().ToLowerInvariant()
+if ($buildCommit -notmatch '^[0-9a-f]{40}$') {
+  throw 'BUILD-MANIFEST.json не содержит точный Git SHA сборки.'
+}
+$sourceArchiveInput = Join-Path $output ([string]$manifest.source_archive.path)
+if (-not (Test-Path -LiteralPath $sourceArchiveInput -PathType Leaf)) {
+  throw "Отсутствует исходный архив точной сборки: $sourceArchiveInput"
+}
+$sourceArchiveInfo = Get-Item -LiteralPath $sourceArchiveInput
+$sourceArchiveHash = (Get-FileHash -LiteralPath $sourceArchiveInput -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($sourceArchiveInfo.Length -ne [long]$manifest.source_archive.bytes -or
+    $sourceArchiveHash -ne ([string]$manifest.source_archive.sha256).ToLowerInvariant()) {
+  throw 'SOURCE.zip не совпадает с BUILD-MANIFEST.json.'
 }
 
 $required = @(
@@ -48,6 +64,8 @@ try {
   if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($head)) {
     throw 'Не удалось определить коммит исходников.'
   }
+  & git cat-file -e "$buildCommit^{commit}"
+  if ($LASTEXITCODE -ne 0) { throw "Коммит точной сборки отсутствует в Git: $buildCommit" }
 } finally {
   Pop-Location
 }
@@ -66,18 +84,13 @@ try {
   }
   Copy-Item -LiteralPath $gatePath -Destination (Join-Path $stage 'RELEASE-GATE.json') -Force
 
-  Push-Location $repo
-  try {
-    & git archive --format=zip --output=$sourceArchive HEAD
-    if ($LASTEXITCODE -ne 0) { throw 'Git не создал архив исходников.' }
-  } finally {
-    Pop-Location
-  }
+  Copy-Item -LiteralPath $sourceArchiveInput -Destination $sourceArchive -Force
 
   [ordered]@{
     product = 'JustFun Логистика'
     version = $version
-    commit = $head
+    commit = $buildCommit
+    packaging_commit = $head
     release_eligible = [bool]$gate.release_eligible
     generated_at = (Get-Date).ToUniversalTime().ToString('o')
   } | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $stage 'PACKAGE.json') -Encoding UTF8
