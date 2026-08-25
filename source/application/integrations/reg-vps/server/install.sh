@@ -112,10 +112,11 @@ if ! id -u orderslogistics >/dev/null 2>&1; then
 fi
 install -d -o root -g orderslogistics -m 0750 /opt/justfun
 install -d -o orderslogistics -g orderslogistics -m 0750 /opt/justfun/orders-logistics
-install -d -o root -g root -m 0750 /etc/orders-logistics /var/backups/justfun-orders-logistics
+install -d -o root -g root -m 0750 /etc/orders-logistics
+install -d -o root -g postgres -m 0710 /var/backups/justfun-orders-logistics
 BACKUP_DIR="/var/backups/justfun-orders-logistics/$(date -u +%Y%m%dT%H%M%SZ)"
 EXISTING_DB="$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='orderslogistics'" 2>/dev/null | tr -d '[:space:]' || true)"
-install -d -m 0700 "$BACKUP_DIR"
+install -d -m 0710 -o root -g postgres "$BACKUP_DIR"
 if systemctl is-active --quiet orders-logistics 2>/dev/null; then
   SERVICE_WAS_ACTIVE=1
   systemctl stop orders-logistics
@@ -130,7 +131,8 @@ if [[ -f /opt/justfun/orders-logistics/server.py || -f /etc/orders-logistics/ser
   [[ -f /etc/nginx/conf.d/00-orders-logistics.conf ]] && cp -a /etc/nginx/conf.d/00-orders-logistics.conf "$BACKUP_DIR/00-orders-logistics.conf"
   if [[ "$EXISTING_DB" == 1 ]]; then
     sudo -u postgres pg_dump --format=custom orderslogistics > "$BACKUP_DIR/orderslogistics.dump"
-    chmod 0600 "$BACKUP_DIR/orderslogistics.dump"
+    chown root:postgres "$BACKUP_DIR/orderslogistics.dump"
+    chmod 0640 "$BACKUP_DIR/orderslogistics.dump"
     sudo -u postgres pg_restore --list "$BACKUP_DIR/orderslogistics.dump" > "$BACKUP_DIR/orderslogistics.restore-list"
     sha256sum "$BACKUP_DIR/orderslogistics.dump" > "$BACKUP_DIR/orderslogistics.dump.sha256"
     chmod 0600 "$BACKUP_DIR/orderslogistics.restore-list" "$BACKUP_DIR/orderslogistics.dump.sha256"
@@ -183,6 +185,7 @@ JF_DB_POOL_MAX=48
 JF_INSTALLATION_ID=$INSTALLATION_ID
 JF_DADATA_ORIGIN=https://suggestions.dadata.ru
 JF_DADATA_API_KEY=$DADATA_API_KEY
+JF_PHOTON_ORIGIN=https://photon.komoot.io
 JF_ADDRESS_CACHE_SECONDS=900
 EOF_ENV
 chmod 0600 /etc/orders-logistics/server.env

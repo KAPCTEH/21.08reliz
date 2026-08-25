@@ -162,6 +162,13 @@ class AddressSearchTests(unittest.TestCase):
         self.assertEqual(rows[0]["house"], "д 7")
         self.assertEqual(rows[0]["latitude"], 60.0191)
 
+    def test_generic_token_typo_score_prefers_city_over_similar_district(self):
+        query = "Всеволожк"
+        self.assertGreater(
+            SERVER.address_token_similarity(query, "Всеволожск"),
+            SERVER.address_token_similarity(query, "Всеволожский район"),
+        )
+
     def test_provider_payload_is_sanitized_and_invalid_fias_is_not_trusted(self):
         request = SERVER.validate_address_search_payload(valid_payload())
         suggestion = dadata_suggestion()
@@ -182,19 +189,30 @@ class AddressSearchTests(unittest.TestCase):
         }], request, datetime(2026, 8, 23, tzinfo=timezone.utc))
         self.assertEqual(nominatim[0]["text_score"], 0.68)
 
-    def test_autocomplete_requires_configured_provider(self):
-        original_key = SERVER.DADATA_API_KEY
+    def test_autocomplete_uses_generic_typo_provider_without_address_database(self):
+        original_key, original_photon = SERVER.DADATA_API_KEY, SERVER.fetch_photon_suggestions
         SERVER.DADATA_API_KEY = ""
+        SERVER.fetch_photon_suggestions = lambda _request: {
+            "type": "FeatureCollection",
+            "features": [{
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [30.646042, 60.024006]},
+                "properties": {"osm_type": "N", "osm_id": 17498777, "type": "city", "name": "Всеволожск", "state": "Ленинградская область", "country": "Россия"},
+            }],
+        }
         try:
-            with self.assertRaises(SERVER.ApiError) as caught:
-                SERVER.search_address_providers(valid_payload(interaction="autocomplete"))
+            result = SERVER.search_address_providers(valid_payload(query="Всеволожк, Ленинградская область", interaction="autocomplete"))
         finally:
-            SERVER.DADATA_API_KEY = original_key
-        self.assertEqual(caught.exception.code, "address_autocomplete_not_configured")
+            SERVER.DADATA_API_KEY, SERVER.fetch_photon_suggestions = original_key, original_photon
+        self.assertEqual(result["provider"]["name"], "openstreetmap_federated")
+        self.assertEqual(result["results"][0]["components"]["settlement"], "Всеволожск")
+        self.assertEqual(result["results"][0]["coordinates"]["lat"], 60.024006)
+        self.assertEqual(result["results"][0]["fias_id"], "")
 
     def test_explicit_search_uses_nominatim_without_persistent_database(self):
-        original_key, original_proxy = SERVER.DADATA_API_KEY, SERVER.proxy_geocode
+        original_key, original_proxy, original_photon = SERVER.DADATA_API_KEY, SERVER.proxy_geocode, SERVER.fetch_photon_suggestions
         SERVER.DADATA_API_KEY = ""
+        SERVER.fetch_photon_suggestions = lambda _request: {"type": "FeatureCollection", "features": []}
         SERVER.proxy_geocode = lambda _payload: [{
             "place_id": 123,
             "osm_type": "way",
@@ -209,8 +227,8 @@ class AddressSearchTests(unittest.TestCase):
         try:
             result = SERVER.search_address_providers(valid_payload(interaction="explicit"))
         finally:
-            SERVER.DADATA_API_KEY, SERVER.proxy_geocode = original_key, original_proxy
-        self.assertEqual(result["provider"]["name"], "nominatim")
+            SERVER.DADATA_API_KEY, SERVER.proxy_geocode, SERVER.fetch_photon_suggestions = original_key, original_proxy, original_photon
+        self.assertEqual(result["provider"]["name"], "openstreetmap_federated")
         self.assertEqual(result["provider"]["reference"], "openstreetmap")
         self.assertEqual(len(result["results"]), 1)
         self.assertEqual(result["results"][0]["coordinates"]["lat"], 60.0191)
@@ -248,6 +266,7 @@ class AddressSearchTests(unittest.TestCase):
         self.assertIn("ADDRESS_SEARCH_PATH_RE.fullmatch", source)
         self.assertIn("query_sha256", source)
         self.assertIn("JF_DADATA_API_KEY=$DADATA_API_KEY", installer)
+        self.assertIn("JF_PHOTON_ORIGIN=https://photon.komoot.io", installer)
         self.assertIsNotNone(SERVER.ADDRESS_SEARCH_PATH_RE.fullmatch(
             "/v1/workspaces/company_workspace_12345/warehouses/warehouse-1/address-search/live"
         ))

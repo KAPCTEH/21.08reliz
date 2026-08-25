@@ -433,7 +433,7 @@ async function enterWorkspace(){
   try{await confirmActiveWarehouseContext()}catch(error){audit('warehouse_context_rejected',{warehouseId:current,code:error?.code||'',error:String(error?.message||error)});renderNoWarehouse('Не удалось безопасно подтвердить активный склад. Повторите проверку.');return false}
   mountWorkspace();setTimeout(()=>synchronizeWorkspaceInBackground(),0);return true
 }
-async function installLogDiagnostics(){const button=q('#jfOpenLogs'),label=q('#jfLogPath');if(!button||button.dataset.bound)return;button.dataset.bound='1';try{const info=await window.JustFunDesktop?.getAppInfo?.();if(info?.logDir)label.textContent=info.logDir}catch{}button.onclick=async()=>{const result=await window.JustFunDesktop?.openLogFolder?.();if(!result?.ok)toast(result?.error||'Не удалось открыть папку журналов.','error')}}
+async function installLogDiagnostics(){const diagnosticButton=q('#jfRunDataDiagnostics');if(diagnosticButton&&!diagnosticButton.dataset.bound){diagnosticButton.dataset.bound='1';diagnosticButton.onclick=()=>{const fixes=runDataDiagnostics(true);audit('manual_data_diagnostics_completed',{fixes:Number(fixes)||0});return fixes}}const button=q('#jfOpenLogs'),label=q('#jfLogPath');if(!button||button.dataset.bound)return;button.dataset.bound='1';try{const info=await window.JustFunDesktop?.getAppInfo?.();if(info?.logDir)label.textContent=info.logDir}catch{}button.onclick=async()=>{const result=await window.JustFunDesktop?.openLogFolder?.();if(!result?.ok)toast(result?.error||'Не удалось открыть папку журналов.','error')}}
 function enableLicensedDemo(){document.body.classList.add('jf-demo-lock');const B=window.TeplitsaWarehouseBootstrap;if(B&&!B.isDemo()){B.setDemo(true);setSession(currentUser);location.reload();return}setTimeout(()=>{try{const scenarioKey=B?.dataKey?.('scenario_version','demo',activeWarehouseId());if(scenarioKey&&!localStorage.getItem(scenarioKey)&&typeof window.createDemonstrationScenario==='function')window.createDemonstrationScenario({showMessage:false});window.syncDemonstrationModeUI?.()}catch(e){console.error('Demo init',e)}},50)}
 function toast(message,type='ok'){let stack=q('#jfToastStack');if(!stack){stack=document.createElement('div');stack.id='jfToastStack';stack.className='jf-toast-stack';stack.setAttribute('aria-live','polite');stack.setAttribute('aria-relevant','additions');document.body.append(stack)}const item=document.createElement('div');item.className='jf-toast'+(type==='error'?' error':'');item.setAttribute('role',type==='error'?'alert':'status');item.textContent=String(message);stack.append(item);setTimeout(()=>item.remove(),5000)}
 let desktopDecisionQueue=Promise.resolve();
@@ -667,6 +667,14 @@ function overlayLocalOutbox(snapshot){
   for(const entry of queue.overlayEntries())for(const change of entry.changes){applyEntityToSnapshot(snapshot,change,change.deleted===true);applied++;if(entry.state==='conflict'||entry.state==='rejected')cloudSyncState.conflicts.set(entityKey(change.type,change.id),{type:change.type,id:change.id,commandId:entry.commandId,state:entry.state,...asObject(entry.lastError),detectedAt:entry.updatedAt})}
   return applied
 }
+async function restoreLocalOutboxOverlay(){
+  if(isTrainingEnvironment())return false;
+  resetEntityScope();const queue=requireLocalOutbox(),status=queue.status();if(!status.active)return false;
+  const localSnapshot=cloneValue(buildBackupPayload()),applied=overlayLocalOutbox(localSnapshot);if(!applied)return false;
+  if(typeof window.TeplitsaWarehouseV600?.importServerSnapshot!=='function')throw outboxError('OUTBOX_RESTORE_UNAVAILABLE','Локальная очередь сохранена, но модуль восстановления данных не загружен.');
+  cloudSyncState.suspended++;try{await window.TeplitsaWarehouseV600.importServerSnapshot(localSnapshot);await window.TeplitsaWarehouseV600?.whenPersisted?.()}finally{cloudSyncState.suspended--}
+  cloudSyncState.dirty=true;window.renderAll?.();renderLocalOutboxStatus();audit('local_outbox_overlay_restored',{commands:status.active,changes:applied,warehouseId:activeWarehouseId(),environment:activeEnvironment()});return true
+}
 async function bootstrapEntitySync(force=false){
   if(isTrainingEnvironment()||desktopSession?.auth?.offline||!desktopSession?.auth?.company?.data_service||!window.JustFunDesktop?.regVps?.bootstrapEntities)return false;
   resetEntityScope();if(cloudSyncState.bootstrapped&&!force)return true;if(cloudSyncState.bootstrapPromise)return cloudSyncState.bootstrapPromise;
@@ -702,7 +710,7 @@ function installAutomaticCloudSync(){
   if(!isTrainingEnvironment()){resetEntityScope();renderLocalOutboxStatus()}
   const names=['persistOrders','persistProducts','persistInventoryMovements','persistDrivers','persistSettings','persistRoutes','persistRouteAssignments','persistRouteDrivers','persistRouteLocks','persistRouteOverrides','persistRouteExecutions','persistRouteArchives','persistWarehouseReservations','persistReporting'];
   for(const name of names){const base=window[name];if(typeof base!=='function')continue;window[name]=function(){const result=base.apply(this,arguments);scheduleCloudUpload();return result}}
-  setTimeout(()=>{if(onlineEntitySyncAvailable())bootstrapEntitySync().catch(reportCloudSyncFailure);else if(cloudSyncState.dirty)scheduleOutboxDrain(1000)},250);
+  setTimeout(async()=>{try{await restoreLocalOutboxOverlay();if(onlineEntitySyncAvailable())await bootstrapEntitySync();else if(cloudSyncState.dirty)scheduleOutboxDrain(1000)}catch(error){reportCloudSyncFailure(error)}},250);
   cloudSyncState.pollTimer=setInterval(()=>pollCloudRevision().catch(error=>console.error('Background entity check failed',error)),5000);
 }
 function buildPendingEntityChanges(){
@@ -857,7 +865,7 @@ async function flushEntitySyncBeforeContextChange(){
   return true
 }
 window.JustFunEntitySyncV783=Object.freeze({flushAndConfirm:flushEntitySyncBeforeContextChange,status:()=>{resetEntityScope();const outbox=cloudSyncState.outbox&&!cloudSyncState.outboxError?cloudSyncState.outbox.status():{active:0,corrupt:Boolean(cloudSyncState.outboxError)};return{bootstrapped:cloudSyncState.bootstrapped,dirty:cloudSyncState.dirty,inFlight:cloudSyncState.inFlight,conflicts:cloudSyncState.conflicts.size,scope:cloudSyncState.scope,cursor:cloudSyncState.cursor,outbox,...(window.__JF_RUNTIME_TEST__?{serial:cloudSyncState.serial,suspended:cloudSyncState.suspended,installed:cloudSyncState.installed}:{})}}});
-if(window.__JF_RUNTIME_TEST__)window.__JustFunEntitySyncTestV783=Object.freeze({install:()=>{installAutomaticCloudSync();installEntityCommandGuards()},overlaySnapshot:snapshot=>{const copy=cloneValue(snapshot);overlayLocalOutbox(copy);return copy}});
+if(window.__JF_RUNTIME_TEST__)window.__JustFunEntitySyncTestV783=Object.freeze({install:()=>{installAutomaticCloudSync();installEntityCommandGuards()},overlaySnapshot:snapshot=>{const copy=cloneValue(snapshot);overlayLocalOutbox(copy);return copy},restoreLocalOutboxOverlay});
 let nextWarehouseRegistryRefreshAtV783=0;
 async function refreshWarehouseRegistryDuringPollingV783(force=false,reason='warehouse-registry-periodic'){
   const now=Date.now();if(!force&&now<nextWarehouseRegistryRefreshAtV783)return false;nextWarehouseRegistryRefreshAtV783=now+30000;
@@ -908,6 +916,7 @@ function renderTelegramProgress(payload={}){
   const value=Math.max(0,Math.min(100,Number(payload.percent||0)));wrap.hidden=false;if(bar)bar.style.width=value+'%';if(percent)percent.textContent=Math.round(value)+'%';if(text)text.textContent=payload.title||payload.message||TELEGRAM_STAGE_LABELS[payload.stage]||'Выполняется настройка…';
   if(payload.stage==='completed')setTimeout(()=>{if(wrap)wrap.hidden=true},1600);
 }
+function clearTelegramProgress(){const wrap=q('#jfTelegramProgress'),bar=q('#jfTelegramProgressBar'),percent=q('#jfTelegramProgressPercent'),text=q('#jfTelegramProgressText');if(wrap)wrap.hidden=true;if(bar)bar.style.width='0%';if(percent)percent.textContent='0%';if(text)text.textContent='Подготовка…'}
 async function refreshTelegramStatus(){
   const status=await window.JustFunDesktop?.telegramCloudflare?.status?.({warehouseId:activeWarehouseId()});if(!status)return;
   lastTelegramStatus=status;telegramPollingConfigured=Boolean(status.configured&&status.online);renderTelegramWarehouseContext();
@@ -919,8 +928,8 @@ async function refreshTelegramStatus(){
 function renderTelegramWarehouseContext(){const context=q('#jfTelegramWarehouseContext');if(!context)return;const warehouseId=activeWarehouseId(),binding=telegramBindings.get(telegramBindingKey('warehouse',warehouseId)),status=lastTelegramStatus,checked=status?.checkedAt?new Date(status.checkedAt).toLocaleString('ru-RU'):'ещё не проверено',bot=status?.configured?`@${status.botUsername||'имя не получено'}`:'не подключён',group=binding?(binding.title||binding.username?`${binding.title||''}${binding.username?` @${binding.username}`:''}`:'подключена'):'не подключена',problem=status?.lastError||(!status?.online&&status?.error)||'';context.textContent=`Склад: ${activeWarehouseLabel()} · бот: ${bot} · группа: ${group} · проверка: ${checked}${problem?` · ошибка: ${problem}`:''}`}
 async function configureTelegram(reconnect=false){
   const button=q(reconnect?'#jfTelegramReconnect':'#jfTelegramConfigure');if(integrationWizardBusy)return integrationStatus('jfTelegramStatus','Сначала завершите уже открытый системный мастер.','error');setIntegrationWizardBusy(button,true);integrationStatus('jfTelegramStatus','Открывается отдельное защищённое окно. Введите временный Cloudflare API-токен и токен своего бота от @BotFather. Cloudflare-токен не будет сохранён.');
-  try{const result=await window.JustFunDesktop?.telegramCloudflare?.configure?.(reconnect,activeWarehouseId());if(result?.canceled)return integrationStatus('jfTelegramStatus','Настройка отменена. Введённые токены очищены и не сохранены.');if(!result?.ok)throw new Error(result?.error||'Подключение не завершено');integrationStatus('jfTelegramStatus',result?.companyPublishPending?`${result.error||'Worker, D1 и webhook созданы, но профиль компании ещё не сохранён.'} Временный Cloudflare API-токен можно удалить.`:'Инфраструктура создана и проверена. Теперь удалите временный Cloudflare API-токен в личном кабинете Cloudflare.',result?.companyPublishPending?'error':'ok');await refreshTelegramStatus();await refreshTelegramBindings().catch(()=>false);startTelegramPolling()}
-  catch(error){integrationBadge('jfTelegramBadge','Ошибка','error');integrationStatus('jfTelegramStatus',error?.message||error,'error')}
+  try{const result=await window.JustFunDesktop?.telegramCloudflare?.configure?.(reconnect,activeWarehouseId());if(result?.canceled){clearTelegramProgress();return integrationStatus('jfTelegramStatus','Настройка отменена. Введённые токены очищены и не сохранены.')}if(!result?.ok)throw new Error(result?.error||'Подключение не завершено');integrationStatus('jfTelegramStatus',result?.companyPublishPending?`${result.error||'Worker, D1 и webhook созданы, но профиль компании ещё не сохранён.'} Временный Cloudflare API-токен можно удалить.`:'Инфраструктура создана и проверена. Теперь удалите временный Cloudflare API-токен в личном кабинете Cloudflare.',result?.companyPublishPending?'error':'ok');await refreshTelegramStatus();await refreshTelegramBindings().catch(()=>false);startTelegramPolling()}
+  catch(error){clearTelegramProgress();integrationBadge('jfTelegramBadge','Ошибка','error');integrationStatus('jfTelegramStatus',error?.message||error,'error')}
   finally{setIntegrationWizardBusy(button,false)}
 }
 async function repairTelegram(){

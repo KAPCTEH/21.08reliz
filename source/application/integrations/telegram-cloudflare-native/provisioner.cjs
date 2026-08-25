@@ -63,7 +63,14 @@ function emit(onProgress, stage, title, detail, percent) {
   }
 }
 
-function requestBuffer({hostname, method = 'GET', requestPath = '/', headers = {}, body = null, timeoutMs = REQUEST_TIMEOUT_MS, maxBytes = 8 * 1024 * 1024}) {
+function transportError(error) {
+  if (error?.code === 'RESPONSE_TOO_LARGE' || error?.code === 'NETWORK_TIMEOUT') return error;
+  const rawCode = safeText(error?.code || error?.errno || '', 80).toUpperCase();
+  const code = /^[A-Z0-9_:-]{2,80}$/.test(rawCode) ? rawCode : 'NETWORK_ERROR';
+  return Object.assign(new Error(`Не удалось установить защищённое сетевое соединение (${code}).`), {code});
+}
+
+function nodeRequestBuffer({hostname, method = 'GET', requestPath = '/', headers = {}, body = null, timeoutMs = REQUEST_TIMEOUT_MS, maxBytes = 8 * 1024 * 1024}) {
   return new Promise((resolve, reject) => {
     const payload = body == null ? null : (Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8'));
     const req = https.request({
@@ -85,7 +92,7 @@ function requestBuffer({hostname, method = 'GET', requestPath = '/', headers = {
       response.on('data', chunk => {
         size += chunk.length;
         if (size > maxBytes) {
-          req.destroy(new Error('Ответ сервера превышает допустимый размер.'));
+          req.destroy(Object.assign(new Error('Ответ сервера превышает допустимый размер.'), {code: 'RESPONSE_TOO_LARGE'}));
           return;
         }
         chunks.push(chunk);
@@ -96,12 +103,84 @@ function requestBuffer({hostname, method = 'GET', requestPath = '/', headers = {
         body: Buffer.concat(chunks)
       }));
     });
-    req.once('timeout', () => req.destroy(new Error('Сервер не ответил за отведённое время.')));
-    req.once('error', reject);
+    req.once('timeout', () => req.destroy(Object.assign(new Error('Сервер не ответил за отведённое время.'), {code: 'NETWORK_TIMEOUT'})));
+    req.once('error', error => reject(transportError(error)));
     if (payload) req.write(payload);
     req.end();
   });
 }
+
+function loadElectronNet() {
+  try {
+    const electron = require('electron');
+    return electron && typeof electron === 'object' && typeof electron.net?.request === 'function' ? electron.net : null;
+  } catch {
+    return null;
+  }
+}
+
+function electronRequestBuffer(electronNet, {hostname, method = 'GET', requestPath = '/', headers = {}, body = null, timeoutMs = REQUEST_TIMEOUT_MS, maxBytes = 8 * 1024 * 1024}) {
+  return new Promise((resolve, reject) => {
+    const payload = body == null ? null : (Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8'));
+    const requestHeaders = {
+      Accept: 'application/json',
+      'User-Agent': `JustFunOrdersLogistics/${DEPLOYMENT_VERSION}`,
+      ...(payload ? {'Content-Length': String(payload.length)} : {}),
+      ...headers
+    };
+    let req = null;
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn(value);
+    };
+    const timer = setTimeout(() => {
+      const error = Object.assign(new Error('Сервер не ответил за отведённое время.'), {code: 'NETWORK_TIMEOUT'});
+      try { req?.abort?.(); } catch {}
+      finish(reject, error);
+    }, timeoutMs);
+    try {
+      req = electronNet.request({method, url: `https://${hostname}${requestPath}`, redirect: 'error'});
+      for (const [name, value] of Object.entries(requestHeaders)) req.setHeader(name, value);
+      req.once('response', response => {
+        const chunks = [];
+        let size = 0;
+        response.on('data', chunk => {
+          if (settled) return;
+          const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          size += buffer.length;
+          if (size > maxBytes) {
+            try { response.destroy?.(); } catch {}
+            finish(reject, Object.assign(new Error('Ответ сервера превышает допустимый размер.'), {code: 'RESPONSE_TOO_LARGE'}));
+            return;
+          }
+          chunks.push(buffer);
+        });
+        response.once('end', () => finish(resolve, {
+          status: Number(response.statusCode || 0),
+          headers: response.headers || {},
+          body: Buffer.concat(chunks)
+        }));
+        response.once('error', error => finish(reject, transportError(error)));
+      });
+      req.once('error', error => finish(reject, transportError(error)));
+      if (payload) req.write(payload);
+      req.end();
+    } catch (error) {
+      finish(reject, transportError(error));
+    }
+  });
+}
+
+function createRequestBuffer(electronNet = loadElectronNet()) {
+  return options => electronNet && typeof electronNet.request === 'function'
+    ? electronRequestBuffer(electronNet, options)
+    : nodeRequestBuffer(options);
+}
+
+const requestBuffer = createRequestBuffer();
 
 function parseJsonResponse(response, service) {
   let parsed;
@@ -852,5 +931,6 @@ module.exports = {
   validResourceName,
   scopedResourceName,
   sharedDatabaseName,
-  selectSharedDatabase
+  selectSharedDatabase,
+  createRequestBuffer
 };

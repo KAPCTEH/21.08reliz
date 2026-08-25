@@ -31,6 +31,8 @@ const context={
   ENTITY_SETTINGS_WAREHOUSE_FIELDS:['warehouse'],
   ENTITY_SETTINGS_ROUTE_FIELDS:['routeStartTime'],
   ENTITY_SETTINGS_INTEGRATION_FIELDS:['nominatimUrl'],
+  cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlight:false,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),outbox:null,outboxError:null},
+  clearTimeout:()=>{},
 };
 context.isTrainingEnvironment=()=>context.activeEnvironment()==='demo';
 vm.createContext(context);
@@ -46,11 +48,33 @@ const readable=[...context.ENTITY_SINGLETON_SECTIONS,...context.ENTITY_ARRAY_SEC
 const order=(name,version=1)=>({type:'orders',id:'order-1',version,payload:{id:'order-1',warehouseId:'warehouse-1',createdAt:'2026-08-01T01:00:00Z',name}});
 const base=order('base');
 
+async function verifyOfflineOutboxStartupOverlay(){
+  let imported=null;
+  context.q=()=>null;
+  context.audit=()=>{};
+  context.currentUser=null;
+  context.buildBackupPayload=()=>snapshot(base.payload);
+  context.window.TeplitsaWarehouseV600={
+    importServerSnapshot:async value=>{imported=structuredClone(value)},
+    whenPersisted:async()=>{},
+  };
+  context.window.JustFunLocalOutboxV783={create:()=>({
+    isCorrupt:()=>false,
+    status:()=>({active:1}),
+    overlayEntries:()=>[{commandId:'client:offline',state:'pending',updatedAt:'2026-08-25T00:00:00Z',changes:[{type:'orders',id:'order-1',deleted:false,payload:{...base.payload,name:'offline-pending'}}]}],
+  })};
+  vm.runInContext('globalThis.__restoreLocalOutboxOverlay=restoreLocalOutboxOverlay',context);
+  assert.equal(await context.__restoreLocalOutboxOverlay(),true,'an active durable outbox must be restored without a VPS');
+  assert.equal(imported.data.orders[0].name,'offline-pending','the restarted UI must contain the pending local mutation');
+  assert.equal(context.cloudSyncState.dirty,true,'the restored command remains pending for later server delivery');
+}
+
 {
   const local={...base.payload,name:'local'};
   const result=context.__fromServer(snapshot(local),[base],readable);
   assert.equal(result.data.orders[0].name,'base');
 }
+
 {
   const remote=order('remote',2);
   const result=context.__fromServer(snapshot(base.payload),[remote],readable);
@@ -410,6 +434,6 @@ async function verifyWarehouseRegistryTransitions(){
   assert.equal(classes.has('jf-authenticated'),false);
 }
 
-Promise.all([verifyWarehouseRegistryReconciliation(),verifyWarehouseStorageIsolation(),verifyWarehouseRegistryTransitions(),verifyRouteCalculationRejectsStaleDepot(),verifyWarehouseCreateAccessExport(),verifyAuthoritativeEmptyCreateAction(),verifyWarehouseLifecycleUiSource()])
+Promise.all([verifyOfflineOutboxStartupOverlay(),verifyWarehouseRegistryReconciliation(),verifyWarehouseStorageIsolation(),verifyWarehouseRegistryTransitions(),verifyRouteCalculationRejectsStaleDepot(),verifyWarehouseCreateAccessExport(),verifyAuthoritativeEmptyCreateAction(),verifyWarehouseLifecycleUiSource()])
   .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true})))
   .catch(error=>{console.error(error);process.exitCode=1});

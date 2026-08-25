@@ -44,6 +44,7 @@ WAREHOUSE_DELETE_RELEASE_OUTBOX_CONTRACT = 1
 WAREHOUSE_DELETE_RELEASE_RETRY_SECONDS = 30
 AUTH_CACHE_SECONDS = max(5, min(60, int(os.environ.get("JF_AUTH_CACHE_SECONDS", "20"))))
 NOMINATIM_ORIGIN = os.environ.get("JF_NOMINATIM_ORIGIN", "https://nominatim.openstreetmap.org").rstrip("/")
+PHOTON_ORIGIN = os.environ.get("JF_PHOTON_ORIGIN", "https://photon.komoot.io").rstrip("/")
 OSRM_ORIGIN = os.environ.get("JF_OSRM_ORIGIN", "https://router.project-osrm.org").rstrip("/")
 DADATA_ORIGIN = os.environ.get("JF_DADATA_ORIGIN", "https://suggestions.dadata.ru").rstrip("/")
 DADATA_API_KEY = os.environ.get("JF_DADATA_API_KEY", "").strip()
@@ -4017,6 +4018,19 @@ def address_text_similarity(query: str, candidate: str) -> float:
     return max(sequence, overlap)
 
 
+def address_token_similarity(query: str, candidate: str) -> float:
+    generic = {"россия", "область", "район", "город", "деревня", "село", "поселок", "улица", "дом", "участок", "республика", "край"}
+    query_tokens = [token for token in normalize_address_text(query).split() if len(token) >= 4 and token not in generic]
+    candidate_tokens = [token for token in normalize_address_text(candidate).split() if len(token) >= 4 and token not in generic]
+    if not query_tokens or not candidate_tokens:
+        return 0.0
+    scores = []
+    for query_token in query_tokens:
+        compatible = [SequenceMatcher(None, query_token, candidate_token).ratio() for candidate_token in candidate_tokens if candidate_token[0] == query_token[0]]
+        scores.append(max(compatible, default=0.0))
+    return sum(scores) / len(scores)
+
+
 def dadata_house(data: dict) -> str:
     parts = []
     if data.get("stead"):
@@ -4123,6 +4137,70 @@ def nominatim_rows(suggestions: object, request: dict, queried_at: datetime) -> 
     return rows
 
 
+def photon_rows(collection: object, request: dict, queried_at: datetime) -> list[dict]:
+    if not isinstance(collection, dict) or not isinstance(collection.get("features"), list):
+        raise ApiError(502, "address_provider_invalid_response", "Нечёткий сервис адресов вернул неверный список результатов")
+    rows = []
+    for index, feature in enumerate(collection["features"][:20]):
+        if not isinstance(feature, dict) or not isinstance(feature.get("properties"), dict):
+            continue
+        properties = feature["properties"]
+        geometry = feature.get("geometry") if isinstance(feature.get("geometry"), dict) else {}
+        coordinates = geometry.get("coordinates") if isinstance(geometry.get("coordinates"), list) else []
+        longitude = provider_coordinate(coordinates[0] if len(coordinates) > 0 else None, -180, 180)
+        latitude = provider_coordinate(coordinates[1] if len(coordinates) > 1 else None, -90, 90)
+        object_type = provider_text(properties.get("type") or properties.get("osm_value") or "address", 80)
+        name = provider_text(properties.get("name"), 300)
+        region = provider_text(properties.get("state"), 160)
+        district = provider_text(properties.get("county") or properties.get("district"), 200)
+        city = provider_text(properties.get("city") or properties.get("town") or properties.get("village"), 200)
+        settlement = city or (name if object_type in {"city", "town", "village", "hamlet", "locality"} else "")
+        street = provider_text(properties.get("street"), 240)
+        house = provider_text(properties.get("housenumber"), 80)
+        display_parts = []
+        for value in (name, street, house, city, district, region, properties.get("country")):
+            text = provider_text(value, 300)
+            if text and text not in display_parts:
+                display_parts.append(text)
+        display_name = ", ".join(display_parts)[:1000]
+        if not display_name:
+            continue
+        osm_type = re.sub(r"[^A-Za-z0-9_-]", "", str(properties.get("osm_type") or "place"))[:30] or "place"
+        osm_id = re.sub(r"[^A-Za-z0-9_-]", "", str(properties.get("osm_id") or properties.get("extent") or ""))[:80]
+        if not osm_id:
+            osm_id = hashlib.sha256(f"{display_name}|{latitude}|{longitude}".encode("utf-8")).hexdigest()[:32]
+        rows.append({
+            "internal_id": f"photon:{osm_type}:{osm_id}",
+            "display_name": display_name,
+            "object_type": object_type,
+            "region": region,
+            "district": district,
+            "settlement": settlement,
+            "territory": provider_text(properties.get("locality") or properties.get("district"), 200),
+            "street": street,
+            "house": house,
+            "postal_code": provider_text(properties.get("postcode"), 16),
+            "latitude": latitude,
+            "longitude": longitude,
+            "coordinate_accuracy": "provider",
+            "fias_id": "",
+            "source_name": "photon",
+            "source_id": f"{osm_type}:{osm_id}",
+            "source_version": "api_v1",
+            "source_date": queried_at.date(),
+            "official_status": False,
+            "provider_warnings": ["Нечёткое совпадение OpenStreetMap необходимо проверить перед сохранением"],
+            "text_score": max(address_text_similarity(request["normalized_query"], display_name), address_token_similarity(request["normalized_query"].replace(request["normalized_region"], " "), name) * 0.98, max(0.48, 0.78 - index * 0.025)),
+        })
+    return rows
+
+
+def fetch_photon_suggestions(request: dict) -> object:
+    origin = validated_provider_origin(PHOTON_ORIGIN, "нечёткого поиска адресов")
+    params = urlencode({"q": request["original_query"], "limit": "20"})
+    return fetch_map_json(f"{origin}/api/?{params}", ADDRESS_CACHE_SECONDS)
+
+
 def fetch_dadata_suggestions(request: dict) -> object:
     if not re.fullmatch(r"[A-Za-z0-9._-]{16,240}", DADATA_API_KEY):
         raise ApiError(503, "address_autocomplete_not_configured", "Автоподсказки адресов ещё не подключены. Нажмите кнопку поиска")
@@ -4166,11 +4244,12 @@ def search_address_providers(payload: object) -> dict:
     if DADATA_API_KEY:
         rows = dadata_rows(fetch_dadata_suggestions(request), request, queried_at)
         provider = {"name": "dadata", "api_version": "4_1", "reference": "gar-fias", "queried_at": queried_at.isoformat().replace("+00:00", "Z"), "cache_ttl_seconds": ADDRESS_CACHE_SECONDS}
-    elif request["interaction"] == "explicit":
-        rows = nominatim_rows(proxy_geocode({"mode": "search", "query": request["original_query"], "limit": 10, "addressOnly": True}), request, queried_at)
-        provider = {"name": "nominatim", "api_version": "search-jsonv2", "reference": "openstreetmap", "queried_at": queried_at.isoformat().replace("+00:00", "Z"), "cache_ttl_seconds": 24 * 60 * 60}
     else:
-        raise ApiError(503, "address_autocomplete_not_configured", "Автоподсказки адресов ещё не подключены. Нажмите кнопку поиска")
+        rows = []
+        if request["interaction"] == "explicit":
+            rows.extend(nominatim_rows(proxy_geocode({"mode": "search", "query": request["original_query"], "limit": 10, "addressOnly": True}), request, queried_at))
+        rows.extend(photon_rows(fetch_photon_suggestions(request), request, queried_at))
+        provider = {"name": "openstreetmap_federated", "api_version": "nominatim_photon_v1", "reference": "openstreetmap", "queried_at": queried_at.isoformat().replace("+00:00", "Z"), "cache_ttl_seconds": ADDRESS_CACHE_SECONDS}
     results = rank_address_rows(rows, request)
     LOG.info(
         "address search request=%s interaction=%s query_sha256=%s candidates=%d results=%d provider=%s",

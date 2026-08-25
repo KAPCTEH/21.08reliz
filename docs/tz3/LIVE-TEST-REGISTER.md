@@ -828,3 +828,14 @@
 - `Скачать копию` уже имеет установленный PASS в JF3-S0072; `Открыть папку logs` — в JF3-S0065/0066. Повтор разрушительного восстановления рабочей базы в этом проходе не выполнялся.
 - `Проверить систему` не выполнило действие после обычного клика. Контрольный физический клик, UI Automation Invoke и фокус + Enter также не изменили видимый статус диагностики, не показали результат и не дали нового события журнала. Открыт `JF3-DEFECT-042`.
 - Результат: `OSM SETTINGS + RESTORE PICKER PASS / LIVE DATABASE DIAGNOSTICS CONTROL FAIL / DATA UNCHANGED / RELEASE NO-GO`.
+
+### JF3-S0075 — Пакет исправлений по итогам непрерывного живого прохода
+
+- Исправлено восстановление local-first состояния из durable outbox до server bootstrap. Изолированный restart-тест и entity source contract прошли.
+- Исправлены Linux-права backup/dump для `postgres`; SSH ready timeout увеличен до 10 минут. Installer, migration и native SSH тесты прошли.
+- Telegram provisioner в Electron переведён на proxy-aware Chromium `net.request`; добавлен транспортный тест. Error/cancel сбрасывают progress.
+- Кнопка диагностики получила прямой handler и безопасный audit-event. Source regression прошёл.
+- Адресный provider федерирует Nominatim и Photon без зашитого списка адресов. 10 тестов прошли; реальный ошибочный запрос вернул Всеволожск первым кандидатом. Публичный Photon не имеет SLA, поэтому production acceptance остаётся открытой.
+- Единый release contract прошёл `83/83`; security audit проверил 188 файлов, findings `0`, forbidden artifacts `0`; source hygiene — 312 tracked files. Accessibility, print, save integrity, atomic mutation, local durability, offline/retry, deep business `69/69`, visual, experience, release и installer-source прогоны прошли.
+- Ни один дефект `036–042` ещё не закрыт: нужны новый точный установщик, живой повтор, production VPS/Telegram, update/rollback и второй ПК.
+- Результат: `SOURCE FIX BATCH + AUTOMATED REGRESSION PASS / EXACT INSTALLER AND PRODUCTION LIVE RETEST OPEN / RELEASE NO-GO`.

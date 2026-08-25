@@ -85,3 +85,22 @@
 | Release contract / security | PASS | 80 тестов; 173 файла, 0 findings |
 
 Всего в update/catalog наборе: 223 успешные проверки. Production-обновление остаётся выключенным: доверенный приватный/публичный Ed25519-ключ отсутствует, каталог и реальный payload не опубликованы.
+
+## JF3-S0075 — source-fix batch после живого прохода
+
+| Проверка | Результ |
+|---|---|
+| Release contract | PASS, 83/83 |
+| Security audit | PASS, 188 файлов, 0 findings, 0 forbidden artifacts |
+| Source hygiene | PASS, 312 tracked files |
+| Deep business runtime | PASS, 69/69 |
+| Accessibility runtime | PASS, 969 controls |
+| Print / save / atomic / local durability | PASS |
+| Offline restart / retry / idempotency | PASS |
+| Address provider | PASS, 10 тестов + реальный typo-запрос |
+| Telegram proxy transport | PASS, Electron `net.request` adapter |
+| VPS backup permissions / SSH timeout | PASS, source/installer/native tests |
+| Diagnostics action dispatch and audit | PASS |
+| Experience / visual / release / installer source | PASS |
+
+Эти проверки доказывают состояние исходников. Они не доказывают исправление в старой установленной сборке. До закрытия нужны exact-commit build, полная приёмка установщика и живой production-повтор.

@@ -1937,8 +1937,36 @@
         "complete protected production VPS bootstrap and PostgreSQL acceptance",
         "complete production address Telegram update rollback and two PC gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0075",
+      "stage": 9,
+      "action": "repair the source defects discovered during installed live sessions JF3-S0072 through JF3-S0074 and run the complete affected regression set",
+      "result": "SOURCE FIX BATCH + AUTOMATED REGRESSION PASS / EXACT INSTALLER AND PRODUCTION LIVE RETEST OPEN / RELEASE NO-GO",
+      "source_evidence": {
+        "offline_outbox_restart_overlay": "passed",
+        "vps_backup_permissions": "passed",
+        "ssh_fingerprint_wait_lifecycle": "passed",
+        "telegram_system_proxy_transport": "passed",
+        "telegram_terminal_progress": "passed",
+        "data_diagnostics_dispatch_and_audit": "passed",
+        "address_typo_federation": "passed",
+        "real_typo_query_first_result": "Всеволожск",
+        "release_contract_tests": 83,
+        "security_files": 188,
+        "security_findings": 0,
+        "security_forbidden_artifacts": 0,
+        "source_hygiene_files": 312,
+        "deep_business_passed": 69
+      },
+      "pending": [
+        "commit and push the exact source repair batch",
+        "build and fully accept a new protected Windows installer",
+        "install it and repeat JF3-DEFECT-036 through JF3-DEFECT-042 live",
+        "complete production VPS Telegram address update rollback and second PC gates"
+      ]
     }
   ],
-  "current_gate": "stage-9/protected-installer-pass-production-live-gates-open",
+  "current_gate": "stage-9/source-fix-batch-pass-exact-installer-and-production-live-retest-open",
   "release_status": "NO-GO"
 }

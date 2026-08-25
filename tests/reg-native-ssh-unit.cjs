@@ -49,6 +49,8 @@ assert(mainSource.includes('confirmRegVpsFingerprint'));
 assert(mainSource.includes('ssh_host_sha256'));
 assert(mainSource.includes('openRegVpsPasswordWindow'));
 assert(nativeSource.includes('hostVerifier'));
+assert(nativeSource.includes('const SSH_READY_TIMEOUT_MS = 10 * 60 * 1000'));
+assert(nativeSource.includes('readyTimeout: SSH_READY_TIMEOUT_MS'));
 assert(nativeSource.includes('sudo -S -p'));
 assert(nativeSource.includes('mode: 0o600'));
 assert(nativeSource.includes("sftpCall(sftp, 'writeFile', `${remoteDir}/install.sh`, installerPayload"));
@@ -60,5 +62,8 @@ assert(installerSource.includes('proxy_set_header Host $host;'));
 assert(installerSource.includes('rollback_installation()'));
 assert(installerSource.includes('previous server state restored after setup failure'));
 assert(installerSource.includes('pg_dump --format=custom orderslogistics'));
+assert(installerSource.includes('install -d -o root -g postgres -m 0710 /var/backups/justfun-orders-logistics'));
+assert(installerSource.includes('install -d -m 0710 -o root -g postgres "$BACKUP_DIR"'));
+assert(installerSource.includes('chmod 0640 "$BACKUP_DIR/orderslogistics.dump"'));
 
 console.log('REG.RU native SSH unit tests: PASS');

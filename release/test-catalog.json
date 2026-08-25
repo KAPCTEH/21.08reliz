@@ -2450,6 +2450,35 @@
       "class": "integration-isolated"
     },
     {
+      "id": "JF-TEST-TELEGRAM-SYSTEM-PROXY-TRANSPORT",
+      "name": "Telegram System Proxy Transport",
+      "level": "source",
+      "path": "tests/telegram-system-proxy-transport-unit.cjs",
+      "command": "node tests/telegram-system-proxy-transport-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application"
+      ],
+      "contracts": [
+        "telegram-native-provisioning"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when Telegram provisioning transport changes",
+      "invalidation_rule": "invalidate when the provisioner, Electron runtime, test file, dependency lock, or proxy policy changes",
+      "class": "source-isolated"
+    },
+    {
       "id": "JF-TEST-TELEGRAM-SCOPE-REGRESSION-V783",
       "name": "Telegram Scope Regression V783",
       "level": "integration",

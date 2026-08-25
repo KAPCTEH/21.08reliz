@@ -8,6 +8,7 @@ const path = require('path');
 const { Client } = require('ssh2');
 
 const MAX_OUTPUT_BYTES = 3 * 1024 * 1024;
+const SSH_READY_TIMEOUT_MS = 10 * 60 * 1000;
 
 function conventionalFingerprint(key) {
   return `SHA256:${crypto.createHash('sha256').update(key).digest('base64').replace(/=+$/g, '')}`;
@@ -61,7 +62,9 @@ function connect(options, confirmFingerprint) {
       port: options.port,
       username: options.username,
       password: options.password,
-      readyTimeout: 30000,
+      // Host verification waits for an explicit human decision. A short SSH
+      // ready timeout can expire behind the still-visible fingerprint dialog.
+      readyTimeout: SSH_READY_TIMEOUT_MS,
       keepaliveInterval: 15000,
       keepaliveCountMax: 4,
       algorithms: {

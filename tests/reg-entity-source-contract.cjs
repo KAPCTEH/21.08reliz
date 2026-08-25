@@ -143,6 +143,7 @@ assert.ok(renderer.includes('function canonicalServerEntity(entity)'),'renderer 
 assert.ok(renderer.includes('snapshotFromServerEntities(localSnapshot,entities,readableTypes)'),'bootstrap must replace the cache from authoritative server records');
 assert.ok(!renderer.includes('function mergeBootstrapEntities('),'bootstrap must never merge stale local business data into an authoritative server state');
 assert.ok(renderer.includes('const overlaid=overlayLocalOutbox(serverSnapshot)'),'bootstrap must restore only durable local intents over the authoritative server snapshot');
+assert.ok(renderer.includes('await restoreLocalOutboxOverlay();if(onlineEntitySyncAvailable())await bootstrapEntitySync()'),'startup must restore the durable local outbox before any optional server bootstrap');
 assert.ok(renderer.includes('cloudSyncState.dirty=requireLocalOutbox().status().active>0'),'bootstrap must preserve the exact durable outbox state');
 assert.ok(renderer.includes('flushEntitySyncBeforeContextChange'),'warehouse switching must wait for VPS confirmation');
 assert.ok(renderer.includes('Не сохранено на VPS'),'background write failures must be visible to the user');

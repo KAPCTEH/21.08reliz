@@ -325,7 +325,7 @@
 <div class="maintenance-grid">
 <div class="maintenance-card"><b>Резервная копия</b><span>Сохраните заказы, складские остатки, движения товаров, водителей, рейсы и настройки в один файл.</span><button class="btn-soft" data-jf-onclick="exportBackup()" style="margin-top:10px">Скачать копию</button></div>
 <div class="maintenance-card"><b>Восстановление</b><span>Загрузите ранее сохранённую копию. Перед импортом автоматически создаётся страховочная копия.</span><button class="btn-blue" data-jf-onclick="chooseBackupFile()" style="margin-top:10px">Загрузить копию</button><input accept="application/json,.json" id="backupFileInput" data-jf-onchange="importBackupFile(event)" style="display:none" type="file"/></div>
-<div class="maintenance-card"><b>Проверка базы</b><span>Исправляет повреждённые связи, дубли идентификаторов и устаревшие назначения рейсов.</span><button class="btn-primary" data-jf-onclick="runDataDiagnostics(true)" style="margin-top:10px">Проверить систему</button></div>
+<div class="maintenance-card"><b>Проверка базы</b><span>Исправляет повреждённые связи, дубли идентификаторов и устаревшие назначения рейсов.</span><button class="btn-primary" id="jfRunDataDiagnostics" style="margin-top:10px" type="button">Проверить систему</button></div>
 <div class="maintenance-card"><b>Журналы запуска</b><span id="jfLogPath">%LOCALAPPDATA%\JustFun\OrdersLogistics\logs</span><button class="btn-gray" id="jfOpenLogs" type="button" style="margin-top:10px">Открыть папку logs</button></div>
 </div>
 <div class="notice notice-info" id="diagnosticStatus" style="margin-top:12px">Версия системы: 7.8.3 · автоматическая проверка изоляции склада, LIVE/DEMO, заказов, рейсов, оплат и архива выполняется при каждом запуске.</div>

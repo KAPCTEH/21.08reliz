@@ -104,6 +104,10 @@ class LegacyMigrationUnitTests(unittest.TestCase):
         self.assertIn('"schema_migrations": schema_migrations', source)
 
         installer = (SERVER_PATH.parent / "install.sh").read_text(encoding="utf-8")
+        self.assertIn('install -d -o root -g postgres -m 0710 /var/backups/justfun-orders-logistics', installer)
+        self.assertIn('install -d -m 0710 -o root -g postgres "$BACKUP_DIR"', installer)
+        self.assertIn('chown root:postgres "$BACKUP_DIR/orderslogistics.dump"', installer)
+        self.assertIn('chmod 0640 "$BACKUP_DIR/orderslogistics.dump"', installer)
         self.assertIn('pg_restore --list "$BACKUP_DIR/orderslogistics.dump"', installer)
         self.assertIn('orderslogistics.dump.sha256', installer)
         self.assertIn('pg_restore --exit-on-error --dbname=orderslogistics', installer)
