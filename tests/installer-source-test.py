@@ -230,6 +230,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
             "releaseSingleInstanceLock()",
             "acquired ? 'NOT_RUNNING' : 'RUNNING'",
             "acquired ? 0 : 30",
+            "if (!DESKTOP_UNIT_TEST_MODE) process.exit(exitCode)",
         ):
             self.assertIn(marker, main_source)
         self.assertLess(

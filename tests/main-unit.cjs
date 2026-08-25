@@ -101,6 +101,7 @@ assert.equal(main.runRunningInstanceProbe(probeOutput), 30);
 assert.equal(singleInstanceReleaseCount, 0);
 assert.equal(appExitCode, 30);
 assert.equal(fs.readFileSync(probeOutput, 'ascii'), 'RUNNING');
+assert.equal(mainSource.includes('if (!DESKTOP_UNIT_TEST_MODE) process.exit(exitCode)'), true);
 assert.match(main.getMachineCode(), /^JF75-(?:[A-Z0-9_-]{5}-){4}[A-Z0-9_-]{5}$/);
 assert.equal(main.validateWarehouseId('warehouse_01'), 'warehouse_01');
 assert.throws(() => main.validateWarehouseId('../warehouse'));

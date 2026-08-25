@@ -863,3 +863,12 @@
 - Центр обновлений теперь показывает 7.8.3/stable, состояние `Готово` и активную проверку. Production и staging Worker `/health` отвечают, но каталоги ещё не опубликованы. Безопасная проверка завершилась `UPDATE_CATALOG_HTTP` 404; скачивание и применение остались недоступны.
 - Открыт `JF3-DEFECT-043`: HTTP 404 ошибочно показан как failure проверки безопасности. В исходниках desktop 7.8.4 ошибка разделена на HTTP/network/timeout и cryptographic/integrity классы; update UI `60`, core `44`, controller `48`, main-unit, release regression, REG auth contract и current-cycle тесты прошли.
 - Результат: `UPDATER BOOTSTRAP BUILD + BACKUP + INSTALL + DATA PRESERVATION + LIVE CHECK PASS / 7.8.4 SOURCE FIX READY / SIGNED CATALOG, LIVE UPDATE AND ROLLBACK OPEN / RELEASE NO-GO`.
+
+### JF3-S0078 — Первый точный build 7.8.4 и fail-closed дефект uninstaller probe
+
+- Из чистого коммита `4c19539d03d6a9e5e27a7b47b4059f5448fed82c` создан build `jf-7.8.4-4c19539d03d6`. Release contract прошёл `83/83`, security audit проверил 195 файлов без findings, deep business — `69/69`, protected ASAR SHA-256 `9d7867295b67e942b204a6487c4da18fb4de2bdadcb22440665ce27c08c5827c`.
+- Setup SHA-256 `af6c9773aab5596a92f987b5a33fdced43fd5f9f19a7d9132c93659c764caa2d`, размер `209836624` байта. Update ZIP SHA-256 `94dda02047de0f77f80056267d8544f4cc64e5736009bf56f4646917f3239e53`, размер `183201483` байта, 81 файл.
+- Full installer acceptance: setup `0` и smoke-test PASS; uninstall process вернул `0`, но за `120.111` секунды не удалил программные файлы и не записал `PROGRAM removed`. Точный uninstaller log: `FAIL application probe returned timeout state=NOT_RUNNING`. Пользовательское состояние восстановлено; общий `RELEASE-GATE` остался false.
+- Открыт `JF3-DEFECT-044`. Причина: probe успевал синхронно записать отсутствие второго процесса, но `app.exit()` до normal ready lifecycle не гарантировал своевременное завершение Electron при активных top-level handles.
+- Исправление гарантирует process exit только в реальном короткоживущем probe после записи результата и освобождения lock. Main unit и installer-source `21/21` прошли; реальный source Electron probe вернул `0`, записал `NOT_RUNNING` и завершился за `2786` мс.
+- Результат: `EXACT 7.8.4 PAYLOAD + SETUP BUILD PASS / FULL ACCEPTANCE FOUND FAIL-CLOSED UNINSTALLER DEFECT / SOURCE FIX + REAL PROBE PASS / CLEAN REBUILD REQUIRED / RELEASE NO-GO`.

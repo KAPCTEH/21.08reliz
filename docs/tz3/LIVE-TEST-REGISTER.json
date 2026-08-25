@@ -2101,8 +2101,59 @@
         "complete live 7.8.3 to 7.8.4 update and proven rollback",
         "complete Telegram group fresh migration second user PC address and diagnostics gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0078",
+      "stage": 12,
+      "action": "build exact desktop 7.8.4 run full installer acceptance diagnose fail closed uninstaller probe and verify source fix in real Electron",
+      "result": "EXACT 7.8.4 PAYLOAD AND SETUP BUILD PASS / FULL ACCEPTANCE FOUND FAIL CLOSED UNINSTALLER DEFECT / SOURCE FIX AND REAL PROBE PASS / CLEAN REBUILD REQUIRED / RELEASE NO-GO",
+      "commits": [
+        "4c19539d03d6a9e5e27a7b47b4059f5448fed82c"
+      ],
+      "build_evidence": {
+        "build_id": "jf-7.8.4-4c19539d03d6",
+        "release_contract_tests": 83,
+        "security_files": 195,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "asar_sha256": "9d7867295b67e942b204a6487c4da18fb4de2bdadcb22440665ce27c08c5827c",
+        "setup_sha256": "af6c9773aab5596a92f987b5a33fdced43fd5f9f19a7d9132c93659c764caa2d",
+        "setup_bytes": 209836624,
+        "payload_sha256": "94dda02047de0f77f80056267d8544f4cc64e5736009bf56f4646917f3239e53",
+        "payload_bytes": 183201483,
+        "payload_files": 81,
+        "release_gate": false
+      },
+      "installer_acceptance": {
+        "setup_exit": 0,
+        "uninstall_exit": 0,
+        "uninstall_completion_seconds": 120.111,
+        "program_files_removed": false,
+        "data_preservation_not_asserted_after_failure": true,
+        "previous_local_state_restored": true,
+        "exact_log": "FAIL application probe returned timeout state=NOT_RUNNING"
+      },
+      "source_fix": {
+        "probe_result_written_synchronously": true,
+        "single_instance_lock_released": true,
+        "real_probe_forced_exit": true,
+        "main_unit_passed": true,
+        "installer_source_tests": "21/21",
+        "real_electron_probe_exit": 0,
+        "real_electron_probe_state": "NOT_RUNNING",
+        "real_electron_probe_milliseconds": 2786
+      },
+      "opened_defects": [
+        "JF3-DEFECT-044"
+      ],
+      "pending": [
+        "commit the probe lifecycle repair and build from the new exact SHA",
+        "repeat full installer acceptance and close JF3-DEFECT-044",
+        "publish and verify signed update catalog then complete live update and rollback",
+        "complete remaining group migration second user PC address and diagnostics gates"
+      ]
     }
   ],
-  "current_gate": "stage-11/updater-bootstrap-installed-final-7.8.4-source-ready-catalog-live-update-and-rollback-open",
+  "current_gate": "stage-12/exact-7.8.4-built-uninstaller-probe-defect-source-fixed-clean-rebuild-open",
   "release_status": "NO-GO"
 }

@@ -3815,6 +3815,13 @@ function runRunningInstanceProbe(outputPath = '') {
   if (outputPath) fs.writeFileSync(path.resolve(outputPath), acquired ? 'NOT_RUNNING' : 'RUNNING', 'ascii');
   const exitCode = acquired ? 0 : 30;
   app.exit(exitCode);
+  // This mode is a short-lived native probe used by the uninstaller.  It runs
+  // before Electron reaches the normal ready lifecycle, so app.exit() may set
+  // the exit code without terminating promptly while top-level Node handles
+  // are still active.  The result file is written synchronously and the
+  // single-instance lock is already released; a hard process exit is therefore
+  // both safe and required to avoid keeping the installation directory locked.
+  if (!DESKTOP_UNIT_TEST_MODE) process.exit(exitCode);
   return exitCode;
 }
 
