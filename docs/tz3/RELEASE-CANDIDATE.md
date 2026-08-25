@@ -1,8 +1,27 @@
 # Кандидат в релиз ТЗ №3
 
-## Текущее состояние после JF3-S0075
+## Текущее состояние после JF3-S0076
 
-Старый защищённый кандидат `0748a21a323eb2adf4f75c5d46854b384e4e501e` был собран и изолированно проверен, но живой проход открыл дефекты `JF3-DEFECT-036–042`. Их исправления прошли source-регрессию JF3-S0075, но новый exact-commit установщик ещё не собран и не проверен вживую. Production VPS, Telegram, address acceptance, update/rollback и второй ПК остаются открыты. Текущий общий gate: `NO-GO`.
+Точный защищённый кандидат `f7c6324cad3def8aba6075ab5405cb9098d637d3` собран, прошёл full installer acceptance, установлен на физический ПК и проверен в production VPS, Telegram/Cloudflare и серверной мутации заказа с повторным запуском. Production VPS и основной Telegram provisioning теперь проходят. Открыты привязка реальной Telegram-группы, свежая local→server миграция с pending outbox, совместимый invitation lifecycle для второго пользователя, второй ПК, signed update/rollback и оставшаяся адресная/диагностическая матрица. Текущий общий gate: `NO-GO`.
+
+## Текущий защищённый кандидат RC-7.8.3-f7c6324
+
+| Поле | Значение |
+|---|---|
+| Статус | УСТАНОВЛЕН — VPS, Telegram provisioning и online sync/restart прошли; финальные cross-device/update gates открыты |
+| Git SHA | `f7c6324cad3def8aba6075ab5405cb9098d637d3` |
+| Build ID | `jf-7.8.3-f7c6324cad3d` |
+| Release contract | `83/83` |
+| Security audit | 191 файл, 0 findings |
+| Business runtime | `69/69` |
+| Full installer acceptance | PASS |
+| Установщик | SHA-256 `b0993eff67e60c89fae86cb0a8dbaa7e4f192eee4cf5782eecffdc691770400c`, `209918032` байта |
+| Комплект владельца | SHA-256 `6e050ecb86109653f7e52f3b978375c87d3daa8f7c7f612955e70662dd5907f9`, `426634852` байта |
+| Установленный ASAR | SHA-256 `b00ded40ee7952e6c990a318f0053118996496818d550c8570283239ee537ad4`, совпадает с кандидатом |
+| Production VPS | 7.8.3, PostgreSQL ready, миграция и SSH fingerprint wait PASS |
+| Telegram | Worker + shared D1 schema 3 + webhook PASS; временный Cloudflare token не сохранён |
+| Серверная команда | `ORD-2026-0005` подтверждён cursor 379; после restart 4 заказа / 10 400 ₽ |
+| Authenticode | Не обязателен по решению владельца |
 
 ## Новый защищённый кандидат RC-7.8.3-0748a21
 

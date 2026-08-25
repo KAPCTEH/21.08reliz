@@ -1965,8 +1965,83 @@
         "install it and repeat JF3-DEFECT-036 through JF3-DEFECT-042 live",
         "complete production VPS Telegram address update rollback and second PC gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0076",
+      "stage": 10,
+      "action": "build install and live verify exact f7c6324 candidate production VPS Telegram and online order synchronization restart",
+      "result": "EXACT BUILD + INSTALL + PRODUCTION VPS + TELEGRAM + ONLINE MUTATION RESTART PASS / GROUP FRESH MIGRATION UPDATE ROLLBACK AND SECOND USER PC OPEN / RELEASE NO-GO",
+      "commits": [
+        "6f8c9804aad5c9ef96bbde746f79d0cdd2fc4971",
+        "f7c6324cad3def8aba6075ab5405cb9098d637d3"
+      ],
+      "build_evidence": {
+        "source_commit": "f7c6324cad3def8aba6075ab5405cb9098d637d3",
+        "source_dirty": false,
+        "build_id": "jf-7.8.3-f7c6324cad3d",
+        "release_contract_tests": 83,
+        "npm_vulnerabilities": 0,
+        "security_files": 191,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "installer_acceptance": "passed",
+        "setup_sha256": "b0993eff67e60c89fae86cb0a8dbaa7e4f192eee4cf5782eecffdc691770400c",
+        "setup_bytes": 209918032,
+        "owner_archive_sha256": "6e050ecb86109653f7e52f3b978375c87d3daa8f7c7f612955e70662dd5907f9",
+        "owner_archive_bytes": 426634852,
+        "installed_asar_sha256": "b00ded40ee7952e6c990a318f0053118996496818d550c8570283239ee537ad4"
+      },
+      "production_vps": {
+        "setup_passed": true,
+        "https_version": "7.8.3",
+        "database_ready": true,
+        "legacy_data_preserved": true,
+        "ssh_fingerprint_wait_passed": true,
+        "closed_defects": [
+          "JF3-DEFECT-038",
+          "JF3-DEFECT-039"
+        ]
+      },
+      "telegram": {
+        "provision_completed": true,
+        "proxy_aware_transport_live_passed": true,
+        "d1_schema": 3,
+        "deployment_version": "7.8.3",
+        "shared_database": true,
+        "webhook_verified": true,
+        "repair_diagnostic_passed": true,
+        "cloudflare_token_saved": false,
+        "group_link_created": true,
+        "group_command_sent": false,
+        "closed_defects": [
+          "JF3-DEFECT-040"
+        ],
+        "partially_retested_defects": [
+          "JF3-DEFECT-041"
+        ]
+      },
+      "online_mutation_restart": {
+        "order_id": "ORD-2026-0005",
+        "kind": "order_not_relevant",
+        "server_cursor": 379,
+        "batch_entities": 1,
+        "replayed": false,
+        "confirmed": true,
+        "active_orders_after": 4,
+        "active_total_rub_after": 10400,
+        "restart_bootstrap_cursor": 379,
+        "restart_bootstrap_entities": 24,
+        "ui_reread_matches": true
+      },
+      "pending": [
+        "send the one time command in the real Telegram warehouse group and verify inbound and outbound bot events",
+        "repeat pending outbox migration on a fresh empty server scope and compare a second PC",
+        "deploy the compatible invitation lifecycle worker and complete second user and device isolation",
+        "publish a signed update catalog and prove canary update and automatic rollback",
+        "complete the priority address corpus and installed database diagnostics error path"
+      ]
     }
   ],
-  "current_gate": "stage-9/source-fix-batch-pass-exact-installer-and-production-live-retest-open",
+  "current_gate": "stage-10/exact-installed-vps-telegram-online-sync-pass-final-cross-device-update-and-group-gates-open",
   "release_status": "NO-GO"
 }

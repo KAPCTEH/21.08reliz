@@ -765,7 +765,7 @@ Microsoft Print to PDF создал читаемый файл на одном к
 | Тип | Production deployment / PostgreSQL backup permissions / rollback |
 | Приоритет | P0 до релиза |
 | Обнаружено | JF3-S0072 |
-| Состояние | SOURCE FIX + TEST PASS / PRODUCTION DEPLOY AND ROLLBACK RETEST OPEN |
+| Состояние | CLOSED — PRODUCTION DEPLOY, MIGRATION AND HEALTH RETEST PASS |
 
 Полный мастер установленного клиента подключился по SSH только после проверки актуального отпечатка отдельным соединением. На production создана резервная копия и началось обновление. Затем `pg_restore` завершился ошибкой `Permission denied` при чтении `/var/backups/justfun-orders-logistics/<timestamp>/orderslogistics.dump`.
 
@@ -775,6 +775,8 @@ Microsoft Print to PDF создал читаемый файл на одном к
 
 Исправление JF3-S0075: backup-каталоги переведены в `root:postgres 0710`, dump — в `root:postgres 0640`; checksum и restore-list остались закрыты `0600`. Изолированные installer/SSH/migration-тесты прошли. Production-закрытие ещё не выполнено.
 
+Живой повтор JF3-S0076: production-мастер завершил установку 7.8.3 и PostgreSQL migration, HTTPS health вернул `database=ready`, старые данные сохранились. Дефект закрыт.
+
 ### JF3-DEFECT-039 — Диалог отпечатка SSH остаётся открытым после тайм-аута handshake
 
 | Поле | Значение |
@@ -782,13 +784,15 @@ Microsoft Print to PDF создал читаемый файл на одном к
 | Тип | VPS setup UX / timeout lifecycle / stale modal |
 | Приоритет | P2 |
 | Обнаружено | JF3-S0072 |
-| Состояние | SOURCE FIX + TEST PASS / INSTALLED LIVE RETEST OPEN |
+| Состояние | CLOSED — INSTALLED PRODUCTION HANDSHAKE RETEST PASS |
 
 Если подтверждение отпечатка занимает около 30 секунд, SSH-клиент завершает handshake по тайм-ауту, но системный диалог продолжает оставаться на экране. Нажатие `Подключиться` после этого уже не продолжает настройку, а основной экран позже показывает `Timed out while waiting for handshake`.
 
 Условие закрытия: время ручной сверки отпечатка не должно расходовать сетевой handshake timeout либо диалог должен автоматически закрываться при отмене подключения и явно предлагать безопасный повтор.
 
 Исправление JF3-S0075: лимит ожидания первого SSH ready увеличен до 10 минут и покрыт source-тестом. Повтор в установленном клиенте обязателен.
+
+Живой повтор JF3-S0076: отпечаток подтверждён в установленном мастере, handshake не завершился по старому тайм-ауту, production setup продолжился до успешного результата. Дефект закрыт.
 
 ### JF3-DEFECT-040 — Telegram setup игнорирует системный Windows-прокси
 
@@ -797,7 +801,7 @@ Microsoft Print to PDF создал читаемый файл на одном к
 | Тип | Telegram setup / Windows proxy routing / external integration |
 | Приоритет | P0 до релиза |
 | Обнаружено | JF3-S0073 |
-| Состояние | SOURCE FIX + TRANSPORT TEST PASS / PRODUCTION TELEGRAM RETEST OPEN |
+| Состояние | CLOSED — PRODUCTION TELEGRAM/CLOUDFLARE RETEST PASS |
 
 Cloudflare API-токен подтверждён как active, а действующий Telegram bot token успешно прошёл `getMe` и `getWebhookInfo` средствами Windows. Установленный JustFun дошёл до этапа `telegram_verification` и завершился `connect ETIMEDOUT 149.154.166.110:443` с кодом `TG-CF-UNEXPECTED`.
 
@@ -806,6 +810,8 @@ Cloudflare API-токен подтверждён как active, а действ�
 Условие закрытия: все Cloudflare и Telegram HTTPS-запросы основного процесса должны использовать единый proxy-aware транспорт с системным Windows proxy resolver, корректным TLS hostname, тайм-аутом, ограничением ответа и безопасной диагностикой без URL с bot token. Нужны тесты direct/no-proxy, HTTP proxy, недоступный proxy, proxy auth, IPv4/IPv6, retry и отмена, затем живой полный setup, webhook, Worker status и группа склада.
 
 Исправление JF3-S0075: в Electron main process запросы provisioner переведены на Chromium `net.request`, который использует системную proxy-конфигурацию; Node fallback сохранён для изолированных тестов. Новый транспортный тест прошёл, но production Cloudflare/Telegram ещё не изменялись этим кодом.
+
+Живой повтор JF3-S0076 в точной установленной сборке прошёл Telegram verification, D1 migration, Worker upload/check, webhook и final check до `completed=100%`. Временный Cloudflare token не сохранён. Дефект закрыт.
 
 ### JF3-DEFECT-041 — После ошибки Telegram остаётся незавершённый progress 24%
 
@@ -821,6 +827,8 @@ Cloudflare API-токен подтверждён как active, а действ�
 Условие закрытия: success, error и cancel обязаны переводить индикатор в явное конечное состояние; старый процент не должен выглядеть как продолжающаяся операция после release мастера.
 
 Исправление JF3-S0075: terminal error и cancel теперь скрывают и сбрасывают progress. Source regression прошёл; живой повтор ещё открыт.
+
+JF3-S0076 подтвердил success-path: после `completed=100%` progress исчез, основной экран показал рабочий статус. Для полного закрытия error/cancel-path нужно один раз повторить в установленной сборке с безопасно недействительным тестовым значением без изменения рабочей конфигурации.
 
 ### JF3-DEFECT-042 — Кнопка «Проверить систему» не запускает диагностику
 
