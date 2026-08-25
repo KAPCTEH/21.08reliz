@@ -2185,6 +2185,15 @@
         "previous_local_state_restored": true,
         "errors": []
       },
+      "owner_package": {
+        "path": "JUSTFUN-7.8.4-WINDOWS.zip",
+        "bytes": 426606543,
+        "sha256": "d21ff3384907009527de987087733b688eb753c0bc1129bd51134e75b32ecb2f",
+        "entry_count": 9,
+        "source_archive_sha256": "ecb32374123cb946e88806ad224fc205549e4066cda31944e6f1ad704e1b4384",
+        "product_commit": "00ee971a6665e848ee20ae9c7ddc2c5528ff74be",
+        "packaging_commit": "13f74f90ad7bed0748176c3948ea54c67f63b0e5"
+      },
       "acceptance_harness_repair": {
         "defect": "JF3-DEFECT-045",
         "cause": "program directory removed between Test-Path and Get-ChildItem",
@@ -2196,7 +2205,6 @@
         "JF3-DEFECT-045"
       ],
       "pending": [
-        "package the exact owner archive without changing product provenance",
         "publish and verify signed staging then stable update catalog",
         "complete live 7.8.3 to 7.8.4 update and proven rollback",
         "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
