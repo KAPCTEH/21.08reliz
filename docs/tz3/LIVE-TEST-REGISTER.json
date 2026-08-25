@@ -1905,8 +1905,40 @@
         "repeat the clean exact commit audited build",
         "pass full installer acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0071",
+      "stage": 9,
+      "action": "repeat the exact commit protected build pass full isolated installer acceptance and package the owner release set",
+      "result": "EXACT BUILD + FULL INSTALLER ACCEPTANCE + OWNER PACKAGE PASS / INSTALLED LIVE, PRODUCTION INTEGRATIONS, UPDATE-ROLLBACK AND TWO-PC GATES OPEN / RELEASE NO-GO",
+      "build_evidence": {
+        "source_commit": "0748a21a323eb2adf4f75c5d46854b384e4e501e",
+        "source_dirty": false,
+        "release_contract_tests": 82,
+        "security_files": 187,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "pdf_documents_created": 5,
+        "installer_acceptance": "passed",
+        "setup_exit": 0,
+        "uninstall_exit": 0,
+        "data_preserved_by_default": true,
+        "previous_local_state_restored": true,
+        "setup_sha256": "5b13db0557ffed0c90d2c6e16e41a2ccf9e024247a4cb824719e419fa338c879",
+        "setup_bytes": 209843792,
+        "owner_archive_sha256": "a0a6ebef0fa2922b58e300fa954cd64c08bae19038e976e738f3b8769ab34faf",
+        "owner_archive_bytes": 426542490,
+        "owner_archive_entries": 9,
+        "release_gate_eligible": true
+      },
+      "pending": [
+        "install the accepted protected candidate over the owner installation with a verified backup",
+        "repeat repaired live defects and read the protected desktop log delta",
+        "complete protected production VPS bootstrap and PostgreSQL acceptance",
+        "complete production address Telegram update rollback and two PC gates"
+      ]
     }
   ],
-  "current_gate": "stage-9/source-repair-pass-production-live-gates-open",
+  "current_gate": "stage-9/protected-installer-pass-production-live-gates-open",
   "release_status": "NO-GO"
 }

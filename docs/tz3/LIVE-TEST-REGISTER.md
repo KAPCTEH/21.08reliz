@@ -785,3 +785,13 @@
 - Защищённый payload и ASAR были созданы и прошли проверку хеша/целостности, но PowerShell запустил GUI EXE асинхронно и попытался прочитать `PRINT-QA.json` раньше завершения. Сам payload позже корректно создал 5 PDF и итоговый JSON; установщик не собирался, gate остался false.
 - Build-оркестратор исправлен: GUI-процесс запускается через `Start-Process -PassThru -Wait -WindowStyle Hidden`, проверяется его exit code, и только затем читается PDF-отчёт. Добавлен source-тест, исключающий возврат гонки.
 - Результат: `PROTECTED PAYLOAD PASS / BUILD ORCHESTRATOR RACE FIXED / CLEAN REBUILD REQUIRED / RELEASE NO-GO`.
+
+### JF3-S0071 — Точная пересборка, полная приёмка установщика и комплект владельца
+
+- Из чистого коммита `0748a21a323eb2adf4f75c5d46854b384e4e501e` повторно собран защищённый Windows-кандидат 7.8.3. Исходники перед сборкой не имели отслеживаемых изменений.
+- Release contract прошёл `82/82`, security audit проверил 187 файлов: 0 findings и 0 forbidden artifacts; business runtime прошёл `69/69`; PDF-gate создал 5 документов и подтвердил их структуру.
+- Полная изолированная проверка установщика прошла: setup exit `0`, uninstall exit `0`, удаление программных файлов подтверждено, пользовательские данные по умолчанию сохранены, прежнее локальное состояние тестовой машины восстановлено.
+- SHA-256 установщика: `5b13db0557ffed0c90d2c6e16e41a2ccf9e024247a4cb824719e419fa338c879`; размер `209843792` байта.
+- Создан комплект владельца `JUSTFUN-7.8.3-WINDOWS.zip`: 9 обязательных элементов, размер `426542490` байт, SHA-256 `a0a6ebef0fa2922b58e300fa954cd64c08bae19038e976e738f3b8769ab34faf`.
+- `RELEASE-GATE.json` переведён в `release_eligible=true` только после отдельного успешного прогона `FULL-INSTALLER-QA.json`.
+- Результат: `EXACT BUILD + FULL INSTALLER ACCEPTANCE + OWNER PACKAGE PASS / INSTALLED LIVE, PRODUCTION INTEGRATIONS, UPDATE-ROLLBACK AND TWO-PC GATES OPEN / RELEASE NO-GO`.
