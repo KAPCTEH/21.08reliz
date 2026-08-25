@@ -43,6 +43,7 @@ async function main() {
   assert.equal(captured.options.url, 'https://api.telegram.org/bot000000:test/getMe');
   assert.equal(captured.options.redirect, 'error');
   assert.equal(captured.headers['content-type'], 'application/json');
+  assert.equal(captured.headers['content-length'], undefined, 'Electron net must calculate Content-Length after proxy negotiation');
   assert.equal(captured.body.toString('utf8'), '{}');
   console.log(JSON.stringify({ok:true,electronSystemProxyTransport:true,boundedResponse:true}));
 }

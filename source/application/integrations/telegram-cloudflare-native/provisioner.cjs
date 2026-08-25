@@ -125,7 +125,6 @@ function electronRequestBuffer(electronNet, {hostname, method = 'GET', requestPa
     const requestHeaders = {
       Accept: 'application/json',
       'User-Agent': `JustFunOrdersLogistics/${DEPLOYMENT_VERSION}`,
-      ...(payload ? {'Content-Length': String(payload.length)} : {}),
       ...headers
     };
     let req = null;
