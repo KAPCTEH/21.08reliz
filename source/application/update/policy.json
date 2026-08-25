@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "enabled": false,
+  "enabled": true,
   "catalog_endpoints": {
     "internal": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/internal",
     "staging": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/staging",
