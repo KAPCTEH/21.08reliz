@@ -2,7 +2,7 @@
   "schema_version": 1,
   "product_id": "justfun-logistics",
   "product_name": "JustFun Логистика",
-  "version": "7.8.3",
+  "version": "7.8.4",
   "version_scheme": "semver",
   "release_status": "candidate",
   "default_channel": "stable",
@@ -29,7 +29,7 @@
     "warehouse_delete_release_outbox": 1
   },
   "service_versions": {
-    "desktop": "7.8.3",
+    "desktop": "7.8.4",
     "reg_api": "7.8.3",
     "license_api": "7.8.3",
     "telegram_worker": "7.8.3",

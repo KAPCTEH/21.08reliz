@@ -2040,8 +2040,69 @@
         "publish a signed update catalog and prove canary update and automatic rollback",
         "complete the priority address corpus and installed database diagnostics error path"
       ]
+    },
+    {
+      "step_id": "JF3-S0077",
+      "stage": 11,
+      "action": "build backup install and live verify updater enabled 7.8.3 transition then prepare desktop 7.8.4 error classification fix",
+      "result": "UPDATER BOOTSTRAP BUILD BACKUP INSTALL DATA PRESERVATION AND LIVE CHECK PASS / 7.8.4 SOURCE FIX READY / SIGNED CATALOG LIVE UPDATE AND ROLLBACK OPEN / RELEASE NO-GO",
+      "commits": [
+        "8981380ea6af11a2d4bd6f58e61a5420b3d1e0e7"
+      ],
+      "bootstrap_build": {
+        "build_id": "jf-7.8.3-8981380ea6af",
+        "release_contract_tests": 83,
+        "security_files": 193,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "setup_sha256": "4c7a3fed57a21e3f3dcb6e0c1e0fa720a16499beaab047f01fbb6ef51c5bfce4",
+        "setup_bytes": 209844304,
+        "payload_sha256": "1bb6103087425e5641a0b01310f47e4ccf05710c9b67cc6c50e14b57bbb9a016",
+        "payload_bytes": 183201291,
+        "asar_sha256": "e8bfde1630cc2d70fa122ef22a488fd22fa1713851568ec8eef287d21cc92821",
+        "initial_combined_gate": "stopped because installed application was running",
+        "standalone_full_installer_acceptance": "passed"
+      },
+      "backup_and_install": {
+        "backup_data_files": 280,
+        "backup_data_bytes": 19524900,
+        "backup_data_digest": "d55e33dc8569103ef31f3355f6a28ced17c1c5e3719cb0d9436dc2b9cd447f53",
+        "backup_manifest_sha256": "858041699d09ddb3ae5e365a1b7536110ca3781e99f7290016123b7fb40ccce5",
+        "installer_exit": 0,
+        "installed_files_matched": "80/80",
+        "user_data_files_preserved": "280/280",
+        "installed_asar_matched": true
+      },
+      "live_update_center": {
+        "enabled": true,
+        "installed_version": "7.8.3",
+        "channel": "stable",
+        "worker_health": "passed",
+        "catalog_http_status": 404,
+        "error_code": "UPDATE_CATALOG_HTTP",
+        "download_enabled": false,
+        "apply_enabled": false,
+        "data_after_restart": "4 active orders / 10400 RUB / server cursor 379 / 24 entities"
+      },
+      "source_7_8_4": {
+        "desktop_version": "7.8.4",
+        "http_network_timeout_error_classification_fixed": true,
+        "update_ui_checks": 60,
+        "update_core_checks": 44,
+        "update_controller_checks": 48,
+        "release_contract_tests": 83
+      },
+      "opened_defects": [
+        "JF3-DEFECT-043"
+      ],
+      "pending": [
+        "commit and build the exact 7.8.4 source",
+        "publish and verify the signed update catalog",
+        "complete live 7.8.3 to 7.8.4 update and proven rollback",
+        "complete Telegram group fresh migration second user PC address and diagnostics gates"
+      ]
     }
   ],
-  "current_gate": "stage-10/exact-installed-vps-telegram-online-sync-pass-final-cross-device-update-and-group-gates-open",
+  "current_gate": "stage-11/updater-bootstrap-installed-final-7.8.4-source-ready-catalog-live-update-and-rollback-open",
   "release_status": "NO-GO"
 }

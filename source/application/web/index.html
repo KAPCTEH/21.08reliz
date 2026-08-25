@@ -6,7 +6,7 @@
 <meta content="default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; font-src 'self' data:; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'self'" http-equiv="Content-Security-Policy"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <meta content="origin-when-cross-origin" name="referrer"/>
-<title>JustFun Логистика · 7.8.3</title>
+<title>JustFun Логистика · 7.8.4</title>
 <link href="assets/vendor/leaflet/leaflet.css" rel="stylesheet"/>
 <link href="assets/css/00-base.css" rel="stylesheet"/>
 <link href="assets/css/01-design-tokens-v783.css" id="design-tokens-v783" rel="stylesheet"/>
@@ -17,7 +17,7 @@
 <link href="assets/css/20-demonstration.css" id="demonstration-mode-5-2-0" rel="stylesheet"/>
 <link href="assets/css/30-full-audit.css" id="full-audit-5-0-1-fixes" rel="stylesheet"/>
 <link href="assets/css/40-premium-extension.css" rel="stylesheet"/>
-<link href="assets/css/99-stability-v595.css" id="stability-style-v595" rel="stylesheet"/><meta content="JustFun Логистика 7.8.3" name="application-name"/><meta content="7.8.3-warehouse-isolation" name="justfun-build"/><link href="assets/css/110-desktop-platform-v750.css" id="desktop-platform-style-v750" rel="stylesheet"/></head>
+<link href="assets/css/99-stability-v595.css" id="stability-style-v595" rel="stylesheet"/><meta content="JustFun Логистика 7.8.4" name="application-name"/><meta content="7.8.4-warehouse-isolation" name="justfun-build"/><link href="assets/css/110-desktop-platform-v750.css" id="desktop-platform-style-v750" rel="stylesheet"/></head>
 <body>
 <header class="topbar">
 <div class="nav">
@@ -328,11 +328,11 @@
 <div class="maintenance-card"><b>Проверка базы</b><span>Исправляет повреждённые связи, дубли идентификаторов и устаревшие назначения рейсов.</span><button class="btn-primary" id="jfRunDataDiagnostics" style="margin-top:10px" type="button">Проверить систему</button></div>
 <div class="maintenance-card"><b>Журналы запуска</b><span id="jfLogPath">%LOCALAPPDATA%\JustFun\OrdersLogistics\logs</span><button class="btn-gray" id="jfOpenLogs" type="button" style="margin-top:10px">Открыть папку logs</button></div>
 </div>
-<div class="notice notice-info" id="diagnosticStatus" style="margin-top:12px">Версия системы: 7.8.3 · автоматическая проверка изоляции склада, LIVE/DEMO, заказов, рейсов, оплат и архива выполняется при каждом запуске.</div>
+<div class="notice notice-info" id="diagnosticStatus" style="margin-top:12px">Версия системы: 7.8.4 · автоматическая проверка изоляции склада, LIVE/DEMO, заказов, рейсов, оплат и архива выполняется при каждом запуске.</div>
 </div>
 <div class="settings-box span-2 jf-update-center" id="jfUpdateCenter" aria-labelledby="jfUpdateTitle">
 <div class="jf-update-head"><div><h3 id="jfUpdateTitle">Обновление программы</h3><p class="jf-integration-lead">Новые версии скачиваются только после проверки цифровой подписи и устанавливаются с автоматическим возвратом к рабочей версии при сбое.</p></div><span class="jf-update-badge" id="jfUpdateBadge">Проверяется…</span></div>
-<div class="jf-update-versions" aria-label="Сведения о версии"><div><span>Установлена</span><b id="jfUpdateCurrentVersion">7.8.3</b></div><div><span>Доступна</span><b id="jfUpdateTargetVersion">—</b></div><div><span>Канал</span><b id="jfUpdateChannel">Стабильный</b></div><div><span>Последняя проверка</span><b id="jfUpdateLastChecked">Ещё не выполнялась</b></div><div><span>Размер загрузки</span><b id="jfUpdatePayloadSize">—</b></div></div>
+<div class="jf-update-versions" aria-label="Сведения о версии"><div><span>Установлена</span><b id="jfUpdateCurrentVersion">7.8.4</b></div><div><span>Доступна</span><b id="jfUpdateTargetVersion">—</b></div><div><span>Канал</span><b id="jfUpdateChannel">Стабильный</b></div><div><span>Последняя проверка</span><b id="jfUpdateLastChecked">Ещё не выполнялась</b></div><div><span>Размер загрузки</span><b id="jfUpdatePayloadSize">—</b></div></div>
 <div class="jf-update-status" id="jfUpdateStatus" role="status" aria-live="polite">Получаем состояние системы обновлений…</div>
 <div class="jf-update-summary" id="jfUpdateReleaseSummary" hidden></div>
 <div class="jf-update-progress" id="jfUpdateProgress" hidden><div><span id="jfUpdateProgressText">Скачивание обновления</span><b id="jfUpdateProgressPercent">0%</b></div><div class="jf-update-progress-track" id="jfUpdateProgressTrack" role="progressbar" aria-label="Скачивание обновления" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="jfUpdateProgressBar"></i></div></div>

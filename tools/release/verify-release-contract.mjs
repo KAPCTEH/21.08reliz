@@ -112,8 +112,7 @@ checked('package-versions', () => {
     ['source/update-catalog-service', release?.service_versions?.update_catalog_service],
   ]);
   assert(release?.service_versions?.desktop === release?.version, 'desktop service version must equal product version');
-  assert(release?.service_versions?.reg_api === release?.version, 'REG API service version must equal product version');
-  assert(release?.service_versions?.telegram_worker === release?.version, 'Telegram Worker version must equal product version');
+  for (const [service, version] of Object.entries(release?.service_versions || {})) assert(semverPattern.test(version || ''), `${service} service version is not SemVer`);
   for (const [directory, expectedVersion] of expected) {
     const packageJson = readJson(`${directory}/package.json`);
     const packageLock = readJson(`${directory}/package-lock.json`);
@@ -163,8 +162,8 @@ checked('runtime-version-consumers', () => {
   assert(!installerAcceptance.includes(`version = '${release.version}'`), 'installer acceptance contains a hard-coded result version');
   assert(preload.includes("startsWith('--jf-version=')") && preload.includes('version: bootstrapVersion'), 'sandboxed preload does not consume the canonical version argument');
   assert(main.includes('`--jf-version=${VERSION}`'), 'main process does not pass the canonical version into sandboxed preloads');
-  assert(nativeSsh.includes("require('../../release.json')") && nativeSsh.includes('version: RELEASE.version'), 'VPS provisioning version is not derived from release.json');
-  assert(provisioner.includes("require('../../release.json')") && provisioner.includes('const DEPLOYMENT_VERSION = RELEASE.version;'), 'Telegram provisioning version is not derived from release.json');
+  assert(nativeSsh.includes("require('../../release.json')") && nativeSsh.includes('version: RELEASE.service_versions.reg_api'), 'VPS provisioning version is not derived from its release service version');
+  assert(provisioner.includes("require('../../release.json')") && provisioner.includes('const DEPLOYMENT_VERSION = RELEASE.service_versions.telegram_worker;'), 'Telegram provisioning version is not derived from its release service version');
   assert(!main.includes(`'JustFun-OrdersLogistics-self-test-${release.version}.json'`), 'main self-test path contains a hard-coded product version');
   assert(!main.includes(`'JustFun-OrdersLogistics-installer-smoke-${release.version}.json'`), 'main installer smoke path contains a hard-coded product version');
   assert(!premiumProject.includes(`<Version>${release.version}</Version>`), '.NET installer metadata contains a hard-coded product version');

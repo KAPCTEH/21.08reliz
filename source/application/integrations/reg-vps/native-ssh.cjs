@@ -198,7 +198,7 @@ async function installRegVps(rawOptions) {
     if (!match) throw new Error('VPS не вернул подтверждённый отпечаток TLS-сертификата.');
     return {
       format: 2,
-      version: RELEASE.version,
+      version: RELEASE.service_versions.reg_api,
       address: options.host,
       ssh_user: options.username,
       ssh_port: options.port,

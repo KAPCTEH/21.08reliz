@@ -8,7 +8,7 @@ const RELEASE = require('../../release.json');
 
 const CLOUDFLARE_HOST = 'api.cloudflare.com';
 const TELEGRAM_HOST = 'api.telegram.org';
-const DEPLOYMENT_VERSION = RELEASE.version;
+const DEPLOYMENT_VERSION = RELEASE.service_versions.telegram_worker;
 const SCHEMA_VERSION = 3;
 const DEFAULT_WORKER_NAME = 'justfun-logistics-bot';
 const DEFAULT_DATABASE_NAME = 'justfun-logistics-bot-db';

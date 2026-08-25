@@ -105,6 +105,9 @@ async function main(){
   center.render({enabled:true,channel:'stable',currentVersion:'7.8.3',state:'FAILED',error:{code:'UPDATE_SIGNATURE_INVALID',message:'raw internal text'}},'');
   checked(()=>assert.match(byId('jfUpdateStatus').textContent,/Цифровая подпись/));
   checked(()=>assert.doesNotMatch(byId('jfUpdateStatus').textContent,/raw internal text/));
+  center.render({enabled:true,channel:'stable',currentVersion:'7.8.3',state:'IDLE',error:{code:'UPDATE_CATALOG_HTTP',message:'Catalog server returned HTTP 404.'}},'');
+  checked(()=>assert.match(byId('jfUpdateStatus').textContent,/Каталог обновлений пока не опубликован/));
+  checked(()=>assert.doesNotMatch(byId('jfUpdateStatus').textContent,/безопасности/));
   center.render({enabled:false,channel:'stable',currentVersion:'7.8.3',state:'IDLE'},'');
   checked(()=>assert.equal(byId('jfUpdateBadge').textContent,'Не подключено'));
   checked(()=>assert.equal(byId('jfUpdateCheck').disabled,true));
