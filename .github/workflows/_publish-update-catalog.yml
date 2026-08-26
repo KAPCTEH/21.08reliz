@@ -196,4 +196,5 @@ jobs:
             .release-published-catalog.json
             .release-publication-evidence.json
           if-no-files-found: warn
+          include-hidden-files: true
           retention-days: 90

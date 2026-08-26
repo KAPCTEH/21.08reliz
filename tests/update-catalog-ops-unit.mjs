@@ -36,6 +36,7 @@ try {
   checked(() => assert.match(publishWorkflow, /Ensure immutable history, then activate when required[\s\S]*ensure_immutable "\$PREVIOUS_KEY"[\s\S]*ensure_immutable "\$IMMUTABLE_KEY"[\s\S]*case "\$PUBLICATION_ACTION" in[\s\S]*publish\) "\$\{wrangler\[@\]\}" put "\$ACTIVE_KEY"[\s\S]*noop\) ;;/));
   checked(() => assert.doesNotMatch(publishWorkflow, /if: steps\.plan\.outputs\.publication_action == 'publish'/));
   checked(() => assert.match(publishWorkflow, /Confirm published bytes after KV propagation[\s\S]*cmp --silent/));
+  checked(() => assert.match(publishWorkflow, /Upload publication and backup evidence[\s\S]*include-hidden-files: true/));
   checked(() => assert.equal(
     publishCallers.every(workflow => workflow.includes('secrets: inherit')),
     true,
