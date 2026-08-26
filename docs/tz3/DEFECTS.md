@@ -908,3 +908,20 @@ Reusable workflow ожидал текст `Value not found`, но Wrangler 4.125
 - Поэтому статус адресного блока остаётся `PARTIAL LIVE PASS / RELEASE BLOCKER OPEN`; production provider и утверждённый массовый корпус ещё не проверены.
 - В установленной сборке `jf-7.8.3-87c3619895c8` журнал прямо сообщает `Development address search used public fallback` и `configured=false`. Точный и ошибочный запрос Невского проспекта не нашли адрес, а реальное СНТ нашлось. Это не production-конфигурация; блокер остаётся открыт.
 - Дополнительная матрица деревень провалила шесть точных/сокращённых запросов, хотя ошибочная сокращённая Жуковка прошла с `92%`; см. `JF3-DEFECT-026`.
+
+### JF3-DEFECT-047 — Канал staging теряется после установки обновления
+
+| Поле | Значение |
+|---|---|
+| Тип | Updater / signed channel persistence / health confirmation / rollback safety |
+| Приоритет | P0 до живого обновления |
+| Обнаружено | JF3-S0085 |
+| Состояние | SOURCE FIX + 87/87 + INDEPENDENT REVIEW GO / EXACT WINDOWS BUILD AND LIVE RETEST OPEN |
+
+Установленная переходная 7.8.3 и прежний payload 7.8.4 выбирали канал только из встроенного `release.json`. Поэтому 7.8.3 с `default_channel=stable` не могла штатно открыть опубликованный staging-каталог, а 7.8.4 после внешнего staging-bootstrap снова переключилась бы на `stable`. Сохранённый `catalog-state.json` при этом содержал `staging`; перезапуск завершился бы `UPDATE_STATE_INVALID`, блокировкой health confirmation и безопасным откатом. Опубликованный sequence 2 не изменялся, но исключён из живого применения.
+
+Исправление `609b99dfe77186ddbe07b95903bd2263718cec60` восстанавливает канал только из сохранённого каталога после повторной проверки схемы, Ed25519-подписи, digest, sequence, build ID и разрешённого endpoint. Активный journal точно сопоставляется с channel/build/sequence/version/commit. Отсутствующий, повреждённый или относящийся к другой сборке proof работает fail-closed: основная программа продолжает работать, stable endpoint не запрашивается, health-файл не создаётся, recovery остаётся доступным.
+
+Дополнительно исправлены два граничных случая: rollback-каталог проверяет все разрешённые исходные версии, а новая sequence той же сборки до apply безопасно создаёт новую операцию; во время apply/recovery новая проверка каталога блокируется. `update-controller-unit` прошёл `87/87`; main, core, downloader, UI, helper, release, hygiene, static и security регрессии прошли, security audit проверил 198 файлов без findings. Независимый review не нашёл оставшихся замечаний.
+
+Условие закрытия: получить зелёный Windows gate точного коммита, собрать новый payload/build ID, опубликовать immutable staging sequence 3, установить отдельный проверенный staging-bootstrap 7.8.3, выполнить живые download/apply/restart/health/data/log проверки, затем доказать подписанный rollback. До этого статус дефекта остаётся открытым, а stable не публикуется.

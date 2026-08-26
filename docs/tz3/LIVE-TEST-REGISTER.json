@@ -2489,8 +2489,99 @@
         "complete the full live TZ3 business UI database migration and two user two PC acceptance",
         "publish stable canary only after complete staging acceptance"
       ]
+    },
+    {
+      "step_id": "JF3-S0085",
+      "stage": 19,
+      "action": "create an exact pre-update backup verify the installed 7.8.3 owner warehouse orders and update center baseline then stop the unsafe staging apply before mutation",
+      "result": "FULL BACKUP + INSTALLED 7.8.3 OWNER WAREHOUSE ORDERS BASELINE PASS / SEQUENCE 2 APPLY SAFELY STOPPED BEFORE MUTATION / CHANNEL PERSISTENCE FIX AND NEW SEQUENCE REQUIRED / RELEASE NO-GO",
+      "backup": {
+        "directory": "pre-update-20260826-155021-7.8.3-to-7.8.4",
+        "program": "83 files / 411490104 bytes / exact",
+        "local_state": "20 files / 902335 bytes / exact",
+        "release_keys": "2 files / 464 bytes / exact",
+        "roaming_vps": "3 files / 4127 bytes / exact",
+        "business_data": "282 files / 19614825 bytes / exact",
+        "registry_exported": true,
+        "source_data_modified": false
+      },
+      "installed_baseline": {
+        "version": "7.8.3",
+        "edition": "full",
+        "owner": "local owner account verified; personal name omitted",
+        "warehouse": "Склад ТЗ3 — изоляция",
+        "orders": 4,
+        "orders_total_rub": 10400,
+        "unsaved_changes": false,
+        "critical_self_check_errors": false
+      },
+      "safe_stop": {
+        "embedded_runtime_channel": "stable",
+        "stable_catalog_http": 404,
+        "staging_runtime_override_available": false,
+        "sequence_2_applied": false,
+        "program_or_business_data_mutated": false,
+        "defect": "JF3-DEFECT-047"
+      },
+      "pending": [
+        "complete the signed channel persistence fix and exact Windows gate",
+        "build and publish a new immutable staging sequence 3",
+        "install the audited 7.8.3 staging bootstrap",
+        "apply restart confirm health verify data and exercise signed rollback"
+      ]
+    },
+    {
+      "step_id": "JF3-S0086",
+      "stage": 20,
+      "action": "persist the accepted update channel only from a reverified signed catalog correlate proof with the active journal and cover fail-closed restart rollback and same-build sequence rotation",
+      "result": "SIGNED CHANNEL PERSISTENCE SOURCE FIX + ADVERSARIAL TESTS + INDEPENDENT REVIEW + AUDIT CI PASS / WINDOWS ARTIFACT STAGING SEQUENCE 3 LIVE APPLY AND ROLLBACK OPEN / RELEASE NO-GO",
+      "source_fix": {
+        "commit": "609b99dfe77186ddbe07b95903bd2263718cec60",
+        "pushed": true,
+        "missing_state_fail_closed": true,
+        "tampered_or_unrelated_proof_fail_closed": true,
+        "journal_proof_fields": [
+          "channel",
+          "build_id",
+          "catalog_sequence",
+          "to_version",
+          "commit_sha"
+        ],
+        "rollback_source_not_first_supported": true,
+        "same_build_new_sequence_rotated": true,
+        "catalog_fetch_blocked_during_apply_or_recovery": true,
+        "independent_review": "GO"
+      },
+      "local_verification": {
+        "update_controller": "87/87",
+        "update_core": "44/44",
+        "update_downloader": "19/19",
+        "update_ui": "60/60",
+        "update_helper_runner": "16/16",
+        "source_hygiene_tracked_files": 315,
+        "static_implementation_bindings": 56,
+        "static_implementation_overrides": 23,
+        "security_files": 198,
+        "security_findings": 0
+      },
+      "github_gate": {
+        "audit_incremental_run": 32983630712,
+        "audit_incremental_result": "success",
+        "windows_release_gate_run": 32983630661,
+        "windows_release_gate_result": "success_pr_merge_sha_not_used_as_release_artifact",
+        "pr_merge_sha": "9dc93854e97639fa791f92edb66b5151e1e168dc",
+        "exact_commit_dispatch_run": 32984663174,
+        "exact_commit_dispatch_sha": "609b99dfe77186ddbe07b95903bd2263718cec60",
+        "exact_commit_dispatch_result": "queued_at_record_time"
+      },
+      "pending": [
+        "obtain the completed green Windows gate and download its exact evidence artifact",
+        "publish the rebuilt 7.8.4 payload and signed staging sequence 3",
+        "install the audited staging bootstrap and perform live update health data and log acceptance",
+        "exercise signed rollback and complete the remaining TZ3 gates before stable"
+      ]
     }
   ],
-  "current_gate": "stage-18/exact-head-ci-and-staging-sequence-2-pass-live-apply-rollback-full-tz3-and-stable-open",
+  "current_gate": "stage-20/channel-persistence-fix-audit-pass-windows-build-sequence-3-live-apply-rollback-open",
   "release_status": "NO-GO"
 }
