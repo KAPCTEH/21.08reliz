@@ -2,9 +2,9 @@
   "schema_version": 1,
   "product_id": "justfun-logistics",
   "channel": "staging",
-  "catalog_sequence": 1,
-  "generated_at": "2026-08-25T14:15:20.921Z",
-  "expires_at": "2026-09-01T14:15:20.921Z",
+  "catalog_sequence": 2,
+  "generated_at": "2026-08-26T10:53:46.463Z",
+  "expires_at": "2026-09-02T10:53:46.463Z",
   "directive": {
     "mode": "release",
     "withdrawn_build_ids": [],
@@ -47,6 +47,6 @@
   "signature": {
     "algorithm": "Ed25519",
     "key_id": "justfun-update-2026-08",
-    "value": "wjmzAcZy7mrflhEZ7U3NHH9tV8nfffau5jbKwaNeiYGCd6B5om/HFxwTY27UMhVIiYtATk5ttC1VMptAXKrYCw=="
+    "value": "nBVk1lZsY3FT2jo4zhxPMh1GplWqW8JMsujvIYV2xYHb6ZGP7Aayr2km2TuxyGCoc+PxmxRPtCjkU1tqYDEtAQ=="
   }
 }

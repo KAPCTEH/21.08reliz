@@ -16,8 +16,27 @@ const root = fs.mkdtempSync(path.join(os.tmpdir(), 'justfun-catalog-ops-'));
 try {
   const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const publishWorkflow = fs.readFileSync(path.join(repositoryRoot, '.github', 'workflows', '_publish-update-catalog.yml'), 'utf8');
+  const publishCallers = ['publish-staging.yml', 'publish-stable.yml', 'rollback-release.yml']
+    .map(name => fs.readFileSync(path.join(repositoryRoot, '.github', 'workflows', name), 'utf8'));
+  const publishJobEnv = publishWorkflow.match(/\n    env:\n([\s\S]*?)\n    steps:/)?.[1] || '';
+  const publishSteps = publishWorkflow.split('\n      - name: ').slice(1);
+  const cloudflareSecretSteps = publishSteps.filter(step => step.includes('CLOUDFLARE_API_TOKEN:'));
   checked(() => assert.match(publishWorkflow, /404: Not Found/));
   checked(() => assert.equal(publishWorkflow.includes('--text'), false, 'KV reads must preserve exact catalog bytes'));
+  checked(() => assert.match(publishWorkflow, /environment: \$\{\{ inputs\.protected_environment \}\}/));
+  checked(() => assert.equal(publishWorkflow.includes('      CLOUDFLARE_API_TOKEN:\n        required: true'), false));
+  checked(() => assert.equal(publishWorkflow.includes('      CLOUDFLARE_ACCOUNT_ID:\n        required: true'), false));
+  checked(() => assert.doesNotMatch(publishJobEnv, /CLOUDFLARE_(?:API_TOKEN|ACCOUNT_ID)/));
+  checked(() => assert.deepEqual(cloudflareSecretSteps.map(step => step.split('\n', 1)[0]), [
+    'Read and preserve the current catalog',
+    'Ensure immutable history, then activate when required',
+    'Confirm published bytes after KV propagation',
+  ]));
+  checked(() => assert.equal(cloudflareSecretSteps.every(step => step.includes('CLOUDFLARE_ACCOUNT_ID:') && step.includes('wrangler')), true));
+  checked(() => assert.match(publishWorkflow, /Ensure immutable history, then activate when required[\s\S]*ensure_immutable "\$PREVIOUS_KEY"[\s\S]*ensure_immutable "\$IMMUTABLE_KEY"[\s\S]*case "\$PUBLICATION_ACTION" in[\s\S]*publish\) "\$\{wrangler\[@\]\}" put "\$ACTIVE_KEY"[\s\S]*noop\) ;;/));
+  checked(() => assert.doesNotMatch(publishWorkflow, /if: steps\.plan\.outputs\.publication_action == 'publish'/));
+  checked(() => assert.match(publishWorkflow, /Confirm published bytes after KV propagation[\s\S]*cmp --silent/));
+  checked(() => assert.equal(publishCallers.some(workflow => workflow.includes('secrets: inherit')), false));
 
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const trustStore = { schema_version: 1, keys: [{
@@ -59,6 +78,14 @@ try {
   const first = planPublication(canary, trustFile, null, { now: new Date('2026-08-22T12:00:00.000Z') });
   checked(() => assert.equal(first.active_key, 'catalog:stable'));
   checked(() => assert.match(first.immutable_key, /^history:stable:1:[0-9a-f]{64}$/));
+  checked(() => assert.equal(first.publication_action, 'publish'));
+
+  const repeated = planPublication(canary, trustFile, canary, { now: new Date('2026-08-22T12:00:00.000Z') });
+  checked(() => assert.equal(repeated.publication_action, 'noop'));
+
+  const conflicting = path.join(root, 'conflicting.json');
+  fs.writeFileSync(conflicting, JSON.stringify(JSON.parse(fs.readFileSync(canary, 'utf8'))));
+  expectCode('CATALOG_SEQUENCE_CONFLICT', () => planPublication(conflicting, trustFile, canary, { now: new Date('2026-08-22T12:00:00.000Z') }));
 
   const quarterValue = unsigned(2, 25);
   quarterValue.generated_at = '2026-08-22T13:00:00.000Z';
@@ -67,6 +94,7 @@ try {
   const next = planPublication(quarter, trustFile, canary, { now: new Date('2026-08-22T14:00:00.000Z') });
   checked(() => assert.equal(next.previous.catalog_sequence, 1));
   checked(() => assert.equal(next.rollout_percent, 25));
+  expectCode('CATALOG_SEQUENCE_NOT_ADVANCED', () => planPublication(canary, trustFile, quarter, { now: new Date('2026-08-22T14:00:00.000Z') }));
 
   const fullValue = unsigned(3, 100);
   fullValue.generated_at = '2026-08-22T15:00:00.000Z';

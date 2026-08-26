@@ -21,4 +21,3 @@ jobs:
       wrangler_environment: staging
       protected_environment: update-staging
       required_directive: release
-    secrets: inherit

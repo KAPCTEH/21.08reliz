@@ -72,25 +72,31 @@ function planPublication(targetFile, trustStoreFile, currentFile = null, options
   const validation = verifyForPublication(target.value, trust, options);
   let current = null;
   let currentValidation = null;
+  let publicationAction = 'publish';
   if (currentFile && fs.existsSync(currentFile) && fs.statSync(currentFile).size > 0) {
     current = readJsonFile(currentFile);
     const verificationTime = new Date(new Date(current.value.generated_at).getTime() + 1_000);
     currentValidation = verifyForPublication(current.value, trust, { now: verificationTime });
     if (current.value.channel !== target.value.channel) fail('Current and target catalogs use different channels.', 'CATALOG_CHANNEL_MISMATCH');
-    if (target.value.catalog_sequence <= current.value.catalog_sequence) fail('Target catalog sequence must be greater than the published sequence.', 'CATALOG_SEQUENCE_NOT_ADVANCED');
-    if (new Date(target.value.generated_at) < new Date(current.value.generated_at)) fail('Target catalog generation time moved backwards.', 'CATALOG_TIME_REGRESSION');
-    const sameBuild = current.value.release.build_id === target.value.release.build_id;
-    if (target.value.directive.mode === 'halt' && !target.value.directive.withdrawn_build_ids.includes(current.value.release.build_id)) fail('A halt directive must withdraw the currently published build.', 'CATALOG_HALT_CURRENT_BUILD');
-    if (target.value.directive.mode === 'rollback') {
-      if (!target.value.directive.withdrawn_build_ids.includes(current.value.release.build_id) || !target.value.directive.rollback_from_versions.includes(current.value.release.version)) fail('A rollback directive must withdraw and name the currently published release.', 'CATALOG_ROLLBACK_CURRENT_BUILD');
-      if (target.value.directive.rollback_from_versions.some(version => compareSemver(target.value.release.version, version) >= 0)) fail('A rollback target must be lower than every named source version.', 'CATALOG_ROLLBACK_DIRECTION');
-    }
-    if (target.value.channel === 'stable' && target.value.directive.mode === 'release') {
-      const before = current.value.release.rollout_percent;
-      const after = target.value.release.rollout_percent;
-      if (!sameBuild && after > 5) fail('A new stable build must start at no more than 5 percent.', 'CATALOG_CANARY_REQUIRED');
-      if (sameBuild && after < before) fail('A stable release rollout cannot move backwards; use a signed halt or rollback directive.', 'CATALOG_ROLLOUT_REGRESSION');
-      if (sameBuild && ((before === 5 && after === 100) || (before === 0 && after > 5))) fail('Stable rollout cannot skip the 25 percent stage.', 'CATALOG_ROLLOUT_STAGE_SKIPPED');
+    if (target.value.catalog_sequence === current.value.catalog_sequence) {
+      if (!target.bytes.equals(current.bytes)) fail('Published catalog sequence already contains different bytes.', 'CATALOG_SEQUENCE_CONFLICT');
+      publicationAction = 'noop';
+    } else {
+      if (target.value.catalog_sequence < current.value.catalog_sequence) fail('Target catalog sequence must not be lower than the published sequence.', 'CATALOG_SEQUENCE_NOT_ADVANCED');
+      if (new Date(target.value.generated_at) < new Date(current.value.generated_at)) fail('Target catalog generation time moved backwards.', 'CATALOG_TIME_REGRESSION');
+      const sameBuild = current.value.release.build_id === target.value.release.build_id;
+      if (target.value.directive.mode === 'halt' && !target.value.directive.withdrawn_build_ids.includes(current.value.release.build_id)) fail('A halt directive must withdraw the currently published build.', 'CATALOG_HALT_CURRENT_BUILD');
+      if (target.value.directive.mode === 'rollback') {
+        if (!target.value.directive.withdrawn_build_ids.includes(current.value.release.build_id) || !target.value.directive.rollback_from_versions.includes(current.value.release.version)) fail('A rollback directive must withdraw and name the currently published release.', 'CATALOG_ROLLBACK_CURRENT_BUILD');
+        if (target.value.directive.rollback_from_versions.some(version => compareSemver(target.value.release.version, version) >= 0)) fail('A rollback target must be lower than every named source version.', 'CATALOG_ROLLBACK_DIRECTION');
+      }
+      if (target.value.channel === 'stable' && target.value.directive.mode === 'release') {
+        const before = current.value.release.rollout_percent;
+        const after = target.value.release.rollout_percent;
+        if (!sameBuild && after > 5) fail('A new stable build must start at no more than 5 percent.', 'CATALOG_CANARY_REQUIRED');
+        if (sameBuild && after < before) fail('A stable release rollout cannot move backwards; use a signed halt or rollback directive.', 'CATALOG_ROLLOUT_REGRESSION');
+        if (sameBuild && ((before === 5 && after === 100) || (before === 0 && after > 5))) fail('Stable rollout cannot skip the 25 percent stage.', 'CATALOG_ROLLOUT_STAGE_SKIPPED');
+      }
     }
   } else {
     if (target.value.directive.mode !== 'release') fail('A halt or rollback directive requires a currently published catalog.', 'CATALOG_DIRECTIVE_REQUIRES_CURRENT');
@@ -104,6 +110,7 @@ function planPublication(targetFile, trustStoreFile, currentFile = null, options
     build_id: target.value.release.build_id,
     version: target.value.release.version,
     directive: target.value.directive.mode,
+    publication_action: publicationAction,
     rollout_percent: target.value.release.rollout_percent,
     signing_key_id: validation.keyId,
     signing_digest: catalogDigest(target.value),

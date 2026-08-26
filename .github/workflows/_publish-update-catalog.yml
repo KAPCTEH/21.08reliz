@@ -18,12 +18,6 @@ on:
       required_directive:
         required: true
         type: string
-    secrets:
-      CLOUDFLARE_API_TOKEN:
-        required: true
-      CLOUDFLARE_ACCOUNT_ID:
-        required: true
-
 permissions:
   contents: read
 
@@ -40,8 +34,6 @@ jobs:
       CATALOG_PATH: ${{ inputs.catalog_path }}
       WRANGLER_ENVIRONMENT: ${{ inputs.wrangler_environment }}
       REQUIRED_DIRECTIVE: ${{ inputs.required_directive }}
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: Checkout exact approved revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -91,6 +83,9 @@ jobs:
         id: current
         working-directory: source/update-catalog-service
         shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           current="$GITHUB_WORKSPACE/.release-current-catalog.json"
@@ -126,14 +121,18 @@ jobs:
           echo "active_key=$(node -p "require('./.release-catalog-plan.json').active_key")" >> "$GITHUB_OUTPUT"
           echo "immutable_key=$(node -p "require('./.release-catalog-plan.json').immutable_key")" >> "$GITHUB_OUTPUT"
           echo "previous_key=$(node -p "require('./.release-catalog-plan.json').previous?.immutable_key || ''")" >> "$GITHUB_OUTPUT"
+          echo "publication_action=$(node -p "require('./.release-catalog-plan.json').publication_action")" >> "$GITHUB_OUTPUT"
 
-      - name: Write immutable backup and candidate, then activate
+      - name: Ensure immutable history, then activate when required
         working-directory: source/update-catalog-service
         shell: bash
         env:
           ACTIVE_KEY: ${{ steps.plan.outputs.active_key }}
           IMMUTABLE_KEY: ${{ steps.plan.outputs.immutable_key }}
           PREVIOUS_KEY: ${{ steps.plan.outputs.previous_key }}
+          PUBLICATION_ACTION: ${{ steps.plan.outputs.publication_action }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           wrangler=(./node_modules/.bin/wrangler kv key)
@@ -155,13 +154,19 @@ jobs:
           }
           if [[ -n "$PREVIOUS_KEY" ]]; then ensure_immutable "$PREVIOUS_KEY" "$GITHUB_WORKSPACE/.release-current-catalog.json"; fi
           ensure_immutable "$IMMUTABLE_KEY" "$GITHUB_WORKSPACE/$CATALOG_PATH"
-          "${wrangler[@]}" put "$ACTIVE_KEY" "${common[@]}" --path "$GITHUB_WORKSPACE/$CATALOG_PATH"
+          case "$PUBLICATION_ACTION" in
+            publish) "${wrangler[@]}" put "$ACTIVE_KEY" "${common[@]}" --path "$GITHUB_WORKSPACE/$CATALOG_PATH" ;;
+            noop) ;;
+            *) echo "Unsupported publication action: $PUBLICATION_ACTION" >&2; exit 2 ;;
+          esac
 
       - name: Confirm published bytes after KV propagation
         working-directory: source/update-catalog-service
         shell: bash
         env:
           ACTIVE_KEY: ${{ steps.plan.outputs.active_key }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           verified=false

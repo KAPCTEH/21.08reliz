@@ -21,4 +21,3 @@ jobs:
       wrangler_environment: production
       protected_environment: update-production
       required_directive: halt-or-rollback
-    secrets: inherit
