@@ -14,11 +14,102 @@ function publicFailure(error) {
   return { ok: false, code: String(error?.code || 'UPDATE_FAILED').slice(0, 80), message: String(error?.message || 'Update operation failed.').slice(0, 500) };
 }
 
+const ACCEPTED_STATE_KEYS = Object.freeze(['build_id', 'catalog_digest', 'catalog_sequence', 'channel', 'schema_version', 'updated_at']);
+const JOURNAL_PROOF_STATES = new Set([
+  'CHECKING', 'UPDATE_AVAILABLE', 'DOWNLOADING', 'VERIFYING', 'READY_TO_APPLY',
+  'APPLYING', 'AWAITING_HEALTH_CONFIRMATION', 'ROLLING_BACK',
+]);
+const JOURNAL_PRE_APPLY_STATES = new Set(['CHECKING', 'UPDATE_AVAILABLE', 'DOWNLOADING', 'VERIFYING', 'READY_TO_APPLY']);
+const JOURNAL_APPLY_STATES = new Set(['APPLYING', 'AWAITING_HEALTH_CONFIRMATION', 'ROLLING_BACK']);
+
+function invalidAcceptedState() {
+  return Object.assign(new Error('Saved update catalog state is invalid.'), { code: 'UPDATE_STATE_INVALID' });
+}
+
+function parseAcceptedState(value, expectedChannel = null) {
+  try {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid state');
+    if (JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(ACCEPTED_STATE_KEYS)) throw new Error('invalid state keys');
+    if (value.schema_version !== 1 || !Number.isSafeInteger(value.catalog_sequence) || value.catalog_sequence < 1) throw new Error('invalid sequence');
+    if (!/^[0-9a-f]{64}$/.test(String(value.catalog_digest || ''))) throw new Error('invalid digest');
+    if (!/^[A-Za-z0-9._-]{1,160}$/.test(String(value.channel || ''))) throw new Error('invalid channel');
+    if (expectedChannel !== null && value.channel !== expectedChannel) throw new Error('channel mismatch');
+    if (typeof value.build_id !== 'string' || !/^[A-Za-z0-9._-]{1,160}$/.test(value.build_id)) throw new Error('invalid build');
+    if (typeof value.updated_at !== 'string' || Number.isNaN(Date.parse(value.updated_at))) throw new Error('invalid timestamp');
+    return value;
+  } catch {
+    throw invalidAcceptedState();
+  }
+}
+
+function validateAcceptedCatalogProof(catalog, options) {
+  const versions = catalog?.directive?.mode === 'rollback'
+    ? catalog?.directive?.rollback_from_versions
+    : [catalog?.release?.version];
+  if (!Array.isArray(versions) || versions.length === 0) throw invalidAcceptedState();
+  let lastError = null;
+  for (const currentVersion of versions) {
+    try {
+      return validateSignedCatalog(catalog, { ...options, currentVersion: String(currentVersion || '') });
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || invalidAcceptedState();
+}
+
+function resolveUpdateChannelBinding(options) {
+  const fallback = String(options.channel || '');
+  const stateFile = path.join(path.resolve(options.rootDirectory), 'Update', 'catalog-state.json');
+  try {
+    const journal = options.journal == null ? null : validateJournal(options.journal);
+    if (!fs.existsSync(stateFile)) {
+      if (journal) throw invalidAcceptedState();
+      return { channel: fallback, error: null };
+    }
+    const state = parseAcceptedState(JSON.parse(fs.readFileSync(stateFile, 'utf8').replace(/^\uFEFF/, '')));
+    const endpoint = options.policy?.catalog_endpoints?.[state.channel];
+    if (typeof endpoint !== 'string' || endpoint.trim() === '') throw invalidAcceptedState();
+    const catalogFile = path.join(path.dirname(stateFile), 'catalogs', `${state.catalog_digest}.json`);
+    if (!fs.existsSync(catalogFile)) throw invalidAcceptedState();
+    const catalog = JSON.parse(fs.readFileSync(catalogFile, 'utf8').replace(/^\uFEFF/, ''));
+    const validation = validateAcceptedCatalogProof(catalog, {
+      now: new Date(state.updated_at),
+      productId: options.productId,
+      allowedChannels: [state.channel],
+      allowedPayloadHosts: options.policy?.allowed_payload_hosts,
+      allowedReleaseNotesHosts: options.policy?.allowed_release_notes_hosts,
+      maximumPayloadBytes: options.policy?.max_payload_bytes,
+      trustStore: options.trustStore,
+      availableContracts: options.availableContracts,
+      previousSequence: state.catalog_sequence,
+      previousDigest: state.catalog_digest,
+      installationId: options.installationId,
+    });
+    if (validation.digest !== state.catalog_digest
+      || catalog.catalog_sequence !== state.catalog_sequence
+      || catalog.channel !== state.channel
+      || catalog.release.build_id !== state.build_id) throw invalidAcceptedState();
+    if (journal && JOURNAL_PROOF_STATES.has(journal.state) && (
+      journal.channel !== state.channel
+      || journal.build_id !== state.build_id
+      || journal.catalog_sequence !== state.catalog_sequence
+      || journal.to_version !== catalog.release.version
+      || journal.commit_sha !== catalog.release.commit_sha
+    )) throw invalidAcceptedState();
+    return { channel: state.channel, error: null };
+  } catch (cause) {
+    const error = invalidAcceptedState();
+    error.cause = cause;
+    return { channel: fallback, error };
+  }
+}
+
 class UpdateController {
   constructor(options) {
     this.productId = String(options.productId || '');
     this.currentVersion = String(options.currentVersion || '');
-    this.channel = String(options.channel || '');
+    this.defaultChannel = String(options.channel || '');
     this.currentCommitSha = String(options.currentCommitSha || '').toLowerCase();
     this.availableContracts = Object.freeze({ ...(options.availableContracts || {}) });
     this.policy = options.policy || {};
@@ -43,16 +134,36 @@ class UpdateController {
     this.onStatus = typeof options.onStatus === 'function' ? options.onStatus : () => {};
     this.log = typeof options.log === 'function' ? options.log : () => {};
     this.active = null;
+    let binding;
+    try {
+      binding = resolveUpdateChannelBinding({
+        channel: this.defaultChannel,
+        productId: this.productId,
+        availableContracts: this.availableContracts,
+        policy: this.policy,
+        trustStore: this.trustStore,
+        rootDirectory: this.root,
+        installationId: this.installationId,
+        journal: this.journal.read(),
+      });
+    } catch (error) {
+      binding = { channel: this.defaultChannel, error };
+    }
+    this.channel = binding.channel;
+    this.channelBindingError = binding.error;
+  }
+
+  assertChannelBinding() {
+    if (this.channelBindingError) throw this.channelBindingError;
   }
 
   acceptedState() {
+    this.assertChannelBinding();
     if (!fs.existsSync(this.stateFile)) return { schema_version: 1, catalog_sequence: 0, catalog_digest: null, channel: this.channel, build_id: null, updated_at: null };
     try {
-      const state = JSON.parse(fs.readFileSync(this.stateFile, 'utf8').replace(/^\uFEFF/, ''));
-      if (state.schema_version !== 1 || !Number.isSafeInteger(state.catalog_sequence) || state.catalog_sequence < 1 || !/^[0-9a-f]{64}$/.test(state.catalog_digest) || state.channel !== this.channel || typeof state.build_id !== 'string' || Number.isNaN(Date.parse(state.updated_at))) throw new Error('invalid state');
-      return state;
+      return parseAcceptedState(JSON.parse(fs.readFileSync(this.stateFile, 'utf8').replace(/^\uFEFF/, '')), this.channel);
     } catch {
-      throw Object.assign(new Error('Saved update catalog state is invalid.'), { code: 'UPDATE_STATE_INVALID' });
+      throw invalidAcceptedState();
     }
   }
 
@@ -60,6 +171,16 @@ class UpdateController {
     let journal = null;
     let accepted = null;
     try { journal = this.journal.read(); } catch (error) { return { enabled: this.policy.enabled === true, channel: this.channel, currentVersion: this.currentVersion, state: 'FAILED', code: error.code, message: error.message }; }
+    if (this.channelBindingError) return {
+      enabled: this.policy.enabled === true,
+      channel: this.channel,
+      currentVersion: this.currentVersion,
+      state: 'FAILED',
+      targetVersion: journal && journal.state !== 'IDLE' ? journal.to_version : null,
+      diagnosticId: this.diagnosticId(journal),
+      error: publicFailure(this.channelBindingError),
+      rollback: journal?.rollback || null,
+    };
     try { accepted = this.acceptedState(); } catch {}
     if (!this.active && accepted?.catalog_sequence > 0) { try { this.loadActiveCatalog(); } catch {} }
     const schedule = this.readSchedule(journal);
@@ -139,6 +260,7 @@ class UpdateController {
 
   defer(mode) {
     try {
+      this.assertChannelBinding();
       const journal = this.journal.read();
       const validState = mode === 'after_close' ? journal?.state === 'READY_TO_APPLY' : ['UPDATE_AVAILABLE', 'READY_TO_APPLY'].includes(journal?.state);
       if (!validState || !['after_close', 'remind_later'].includes(mode)) throw Object.assign(new Error('The update cannot be deferred in its current state.'), { code: 'UPDATE_DEFER_NOT_AVAILABLE' });
@@ -160,6 +282,7 @@ class UpdateController {
   }
 
   shouldApplyOnClose() {
+    if (this.channelBindingError) return false;
     const journal = this.journal.read();
     const schedule = this.readSchedule(journal);
     return Boolean(journal?.state === 'READY_TO_APPLY' && schedule?.mode === 'after_close');
@@ -190,6 +313,39 @@ class UpdateController {
     return withdrawn ? 'withdrawn' : (superseded ? 'superseded' : 'unavailable');
   }
 
+  assertCatalogCheckAllowed() {
+    const journal = this.journal.read();
+    if (journal && JOURNAL_APPLY_STATES.has(journal.state)) {
+      throw Object.assign(new Error('An update is being applied or recovered. A new catalog check is temporarily blocked.'), { code: 'UPDATE_OPERATION_ACTIVE' });
+    }
+  }
+
+  rotatePendingUpdateProof(validation) {
+    const journal = this.journal.read();
+    if (!journal || !JOURNAL_PRE_APPLY_STATES.has(journal.state)) return false;
+    const catalog = validation.catalog;
+    const sameProof = journal.channel === catalog.channel
+      && journal.build_id === catalog.release.build_id
+      && journal.catalog_sequence === catalog.catalog_sequence
+      && journal.to_version === catalog.release.version
+      && journal.commit_sha === catalog.release.commit_sha;
+    if (sameProof) return false;
+    if (['UPDATE_AVAILABLE', 'READY_TO_APPLY'].includes(journal.state)) {
+      this.journal.transition('IDLE');
+    } else {
+      this.journal.transition('FAILED', {
+        error: { code: 'UPDATE_PROOF_REPLACED', message: 'A newer signed catalog proof replaced the pending update operation.' },
+      });
+    }
+    this.clearSchedule();
+    this.log('pending update proof rotated', {
+      buildId: journal.build_id,
+      previousSequence: journal.catalog_sequence,
+      acceptedSequence: catalog.catalog_sequence,
+    });
+    return true;
+  }
+
   emitStatus() {
     const status = this.status();
     this.onStatus(status);
@@ -197,6 +353,8 @@ class UpdateController {
   }
 
   async check() {
+    this.assertChannelBinding();
+    this.assertCatalogCheckAllowed();
     if (this.policy.enabled !== true) return { ok: false, code: 'UPDATE_DISABLED', message: 'Automatic updates are not configured for this development build.', status: this.emitStatus() };
     const endpoint = this.policy.catalog_endpoints?.[this.channel];
     if (!endpoint) return { ok: false, code: 'UPDATE_ENDPOINT_MISSING', message: 'Update catalog endpoint is not configured.', status: this.emitStatus() };
@@ -207,6 +365,7 @@ class UpdateController {
       timeoutMs: this.policy.download_timeout_seconds * 1000,
       clientVersion: this.currentVersion,
     });
+    this.assertCatalogCheckAllowed();
     const previous = this.acceptedState();
     const validation = validateSignedCatalog(catalog, {
       now: this.now(),
@@ -225,6 +384,8 @@ class UpdateController {
     fs.mkdirSync(this.catalogRoot, { recursive: true });
     const catalogFile = path.join(this.catalogRoot, `${validation.digest}.json`);
     writeJsonAtomic(catalogFile, catalog);
+    const cancellationReason = this.cancelPendingUpdate(validation);
+    this.rotatePendingUpdateProof(validation);
     writeJsonAtomic(this.stateFile, {
       schema_version: 1,
       catalog_sequence: catalog.catalog_sequence,
@@ -234,14 +395,19 @@ class UpdateController {
       updated_at: this.now().toISOString(),
     });
     this.active = { catalog, validation, catalogFile };
-    const cancellationReason = this.cancelPendingUpdate(validation);
     if (!validation.updateAvailable || !validation.rolloutEligible) {
       this.log('update catalog checked', { sequence: catalog.catalog_sequence, updateAvailable: validation.updateAvailable, rolloutEligible: validation.rolloutEligible });
       const reason = validation.directive.mode === 'halt' ? 'halt' : (cancellationReason || (validation.updateAvailable ? 'rollout' : 'current'));
       return { ok: true, updateAvailable: false, reason, status: this.emitStatus() };
     }
     const existing = this.journal.read();
-    if (!existing || existing.build_id !== catalog.release.build_id || ['FAILED', 'CONFIRMED', 'ROLLED_BACK'].includes(existing.state)) {
+    const sameOperationProof = existing
+      && existing.channel === catalog.channel
+      && existing.build_id === catalog.release.build_id
+      && existing.catalog_sequence === catalog.catalog_sequence
+      && existing.to_version === catalog.release.version
+      && existing.commit_sha === catalog.release.commit_sha;
+    if (!sameOperationProof || ['FAILED', 'CONFIRMED', 'ROLLED_BACK'].includes(existing.state)) {
       this.clearSchedule();
       this.journal.begin({
         installation_id_hash: crypto.createHash('sha256').update(this.installationId, 'utf8').digest('hex'),
@@ -256,6 +422,8 @@ class UpdateController {
       this.journal.transition('UPDATE_AVAILABLE');
     } else if (existing.state === 'IDLE') {
       this.journal.transition('CHECKING');
+      this.journal.transition('UPDATE_AVAILABLE');
+    } else if (existing.state === 'CHECKING') {
       this.journal.transition('UPDATE_AVAILABLE');
     }
     this.log('signed update available', { sequence: catalog.catalog_sequence, version: catalog.release.version, buildId: catalog.release.build_id, mandatory: validation.mandatory });
@@ -280,6 +448,7 @@ class UpdateController {
 
   async download() {
     try {
+      this.assertChannelBinding();
       const active = this.active || this.loadActiveCatalog();
       const journal = this.journal.read();
       if (!journal || journal.build_id !== active.catalog.release.build_id || !['UPDATE_AVAILABLE', 'DOWNLOADING', 'VERIFYING'].includes(journal.state)) throw Object.assign(new Error('No verified update is ready to download.'), { code: 'UPDATE_NOT_AVAILABLE' });
@@ -343,6 +512,7 @@ class UpdateController {
 
   async apply() {
     try {
+      this.assertChannelBinding();
       const active = this.active || this.loadActiveCatalog();
       const journal = this.journal.read();
       if (!journal || journal.state !== 'READY_TO_APPLY' || journal.build_id !== active.catalog.release.build_id) throw Object.assign(new Error('Verified update is not ready to apply.'), { code: 'UPDATE_NOT_READY' });
@@ -395,6 +565,7 @@ class UpdateController {
 
   confirmHealth(operationId) {
     this.reconcileHelperState();
+    this.assertChannelBinding();
     const journal = this.journal.read();
     if (!journal || journal.operation_id !== String(operationId || '') || journal.to_version !== this.currentVersion || !['APPLYING', 'AWAITING_HEALTH_CONFIRMATION'].includes(journal.state)) throw Object.assign(new Error('Update health confirmation does not match this application build.'), { code: 'UPDATE_HEALTH_MISMATCH' });
     if (journal.state === 'APPLYING') this.journal.transition('AWAITING_HEALTH_CONFIRMATION');
@@ -426,4 +597,4 @@ class UpdateController {
   }
 }
 
-module.exports = { publicFailure, UpdateController };
+module.exports = { publicFailure, parseAcceptedState, resolveUpdateChannelBinding, UpdateController };
