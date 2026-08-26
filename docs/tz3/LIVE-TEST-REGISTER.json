@@ -2280,8 +2280,49 @@
         "publish stable canary only after staging acceptance",
         "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0081",
+      "stage": 15,
+      "action": "use the installed bootstrap updater production modules to fetch validate and fully download the real staging update without applying it",
+      "result": "REAL STAGING FETCH ED25519 ROLLOUT AND FULL PAYLOAD SIZE SHA256 PASS / APPLY RESTART HEALTH CONFIRMATION AND ROLLBACK OPEN / RELEASE NO-GO",
+      "source_parity": {
+        "installed_bootstrap_commit": "8981380ea6af11a2d4bd6f58e61a5420b3d1e0e7",
+        "catalog_client_unchanged": true,
+        "catalog_validator_unchanged": true,
+        "payload_downloader_unchanged": true
+      },
+      "live_staging_probe": {
+        "catalog_url": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/staging",
+        "signature_verified": true,
+        "signing_key_id": "justfun-update-2026-08",
+        "signing_digest": "c67b11c0b92b98e81b344f2b4c036d9607e72ca99c81b7fbc1a5f4667ac55583",
+        "installed_version": "7.8.3",
+        "target_version": "7.8.4",
+        "rollout_eligible": true,
+        "payload_bytes_verified": true,
+        "payload_bytes": 183201489,
+        "payload_sha256_verified": true,
+        "payload_sha256": "b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0"
+      },
+      "mutation_scope": {
+        "temporary_download_only": true,
+        "temporary_directory_removed_after_pass": true,
+        "application_files_changed": false,
+        "user_database_changed": false,
+        "registry_changed": false,
+        "payload_applied": false,
+        "application_restarted": false
+      },
+      "pending": [
+        "replace the GitHub environment API token and rerun the staging publication workflow",
+        "confirm update apply and restart then verify installed 7.8.4 health and data preservation",
+        "exercise a signed rollback catalog and prove automatic restoration",
+        "publish stable canary only after complete staging acceptance",
+        "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
+      ]
     }
   ],
-  "current_gate": "stage-14/signed-staging-catalog-public-exact-bytes-pass-live-update-and-stable-open",
+  "current_gate": "stage-15/real-staging-signature-and-full-download-pass-apply-rollback-and-stable-open",
   "release_status": "NO-GO"
 }

@@ -892,3 +892,11 @@
 - Первый GitHub Actions run `32858886678` не стартовал без environment secrets. В `update-staging` и `update-production` созданы по два secret с правильными именами, но скопированный API token оказался ограничен другим Cloudflare-аккаунтом. Локальная публикация не использовала этот token; его замена в GitHub остаётся обязательной.
 - Найден отдельный дефект reusable workflow: Wrangler возвращает exit `1`/HTTP `404` для отсутствующего первого ключа, а режим `--text` добавляет перевод строки и ломает точное `cmp`. Workflow исправлен: `404` обрабатывается как отсутствие каталога, остальные ошибки fail-closed, чтение выполняется в raw-режиме без изменения байтов. YAML parse, Worker dry-run/check, catalog operations `17/17` и Worker unit `23/23` прошли; GitHub-повтор ожидает правильный token.
 - Результат: `GITHUB PRERELEASE + SIGNED STAGING CATALOG + IMMUTABLE KV HISTORY + PUBLIC EXACT-BYTE VERIFICATION PASS / GITHUB TOKEN, LIVE UPDATE, ROLLBACK AND STABLE CANARY OPEN / RELEASE NO-GO`.
+
+### JF3-S0081 — Живая проверка staging-подписи и полного update payload без применения
+
+- Production-модули `catalog-client.cjs`, `catalog.cjs` и `downloader.cjs` побайтово не изменились относительно исходного коммита установленной переходной 7.8.3 `8981380ea6af11a2d4bd6f58e61a5420b3d1e0e7`.
+- Этими штатными модулями выполнено реальное чтение публичного staging endpoint. Ed25519-подпись принята доверенным ключом `justfun-update-2026-08`; signing digest `c67b11c0b92b98e81b344f2b4c036d9607e72ca99c81b7fbc1a5f4667ac55583`; установка `7.8.3` попала в rollout `100%`.
+- Полностью скачан GitHub Release payload размером `183201489` байт. Downloader подтвердил ожидаемый размер и SHA-256 `b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0`.
+- Проверка была намеренно немутирующей: архив находился только в проверенном временном каталоге и после PASS удалён. Установленная JustFun, рабочая база, реестр, Update Helper и журналы программы не изменялись; распаковка, применение и перезапуск не выполнялись.
+- Результат: `REAL STAGING FETCH + ED25519 + ROLLOUT + FULL PAYLOAD SIZE/SHA256 PASS / APPLY, RESTART, HEALTH CONFIRMATION AND ROLLBACK OPEN / RELEASE NO-GO`.
