@@ -2430,8 +2430,67 @@
         "complete the stable canary only after staging acceptance",
         "complete the remaining address Telegram database migration second user second PC and full business UI gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0084",
+      "stage": 18,
+      "action": "obtain green CI on the exact final workflow revision publish signed staging sequence 2 preserve immutable history and prove exact public bytes signature and idempotent evidence",
+      "result": "EXACT HEAD CI + IMMUTABLE STAGING SEQUENCE 2 + PUBLIC SIGNATURE/BYTES + IDEMPOTENT NOOP EVIDENCE PASS / LIVE APPLY RESTART HEALTH CONFIRMATION ROLLBACK FULL TZ3 AND STABLE OPEN / RELEASE NO-GO",
+      "exact_head": {
+        "branch": "codex/tz3-execution-baseline",
+        "commit": "fa9a1245f232317c14194ae6597fcf669f02e25c",
+        "remote_match": true,
+        "audit_incremental_run": 32968320704,
+        "audit_incremental_result": "success",
+        "windows_release_gate_run": 32968320625,
+        "windows_release_gate_result": "success"
+      },
+      "workflow_repairs": {
+        "environment_secret_bridge_commit": "0c10e82f0fec6f8b936ede592a6740db562fc676",
+        "environment_secret_bridge": "secrets: inherit required by current GitHub reusable-workflow runner behavior",
+        "secret_values_disclosed": false,
+        "cloudflare_secrets_limited_to_wrangler_steps": true,
+        "hidden_evidence_commit": "fa9a1245f232317c14194ae6597fcf669f02e25c",
+        "include_hidden_files": true,
+        "catalog_operations_checks": "32/32",
+        "workflow_yaml": "9/9",
+        "source_hygiene": "PASS"
+      },
+      "staging_publication": {
+        "failed_prewrite_run": 32966343858,
+        "failed_prewrite_reason": "GitHub reusable workflow resolved environment secrets as empty without secrets inherit",
+        "publish_run": 32968060479,
+        "publish_result": "success",
+        "publish_action": "publish",
+        "control_run": 32969389305,
+        "control_result": "success",
+        "control_action": "noop",
+        "evidence_artifact_files": 6,
+        "active_key": "catalog:staging",
+        "previous_immutable_key": "history:staging:1:04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "current_immutable_key": "history:staging:2:d9bad4f4fa2cafcdc23759bc3bf012018fbc07a3deb72f7cd31d6f6a3ff21ae5"
+      },
+      "public_verification": {
+        "url": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/staging",
+        "http_status": 200,
+        "catalog_sequence": 2,
+        "bytes": 2032,
+        "exact_document_sha256": "d9bad4f4fa2cafcdc23759bc3bf012018fbc07a3deb72f7cd31d6f6a3ff21ae5",
+        "exact_match": true,
+        "signature_verified": true,
+        "signing_key_id": "justfun-update-2026-08",
+        "signing_digest": "cb0eca16a91ae45a76f2169d8efdb2e09ae280ba26fa23205da2443a381c52d9",
+        "stable_catalog_http": 404
+      },
+      "pending": [
+        "back up the installed 7.8.3 and apply the signed 7.8.4 update",
+        "restart and verify installed version owner login warehouse data integrations and logs",
+        "exercise a signed rollback and prove automatic restoration",
+        "complete the full live TZ3 business UI database migration and two user two PC acceptance",
+        "publish stable canary only after complete staging acceptance"
+      ]
     }
   ],
-  "current_gate": "stage-17/ci-repairs-and-signed-sequence-2-local-pass-github-ci-staging-publish-apply-rollback-and-stable-open",
+  "current_gate": "stage-18/exact-head-ci-and-staging-sequence-2-pass-live-apply-rollback-full-tz3-and-stable-open",
   "release_status": "NO-GO"
 }
