@@ -74,7 +74,7 @@ for(const [literal,token] of [
   ['#5c7067','--jf-color-text-soft'],
   ['#d5e2dc','--jf-color-line'],
   ['#1769aa','--jf-color-info'],
-  ['#b76100','--jf-color-warning'],
+  ['#a65c00','--jf-color-warning'],
   ['#b72b38','--jf-color-danger'],
 ]){
   assert(!new RegExp(`${literal}\\b`,'i').test(componentCss),`${literal} must use var(${token})`);
