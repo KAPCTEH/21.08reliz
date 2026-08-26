@@ -1,14 +1,14 @@
 # Кандидат в релиз ТЗ №3
 
-## Текущее состояние после JF3-S0079
+## Текущее состояние после JF3-S0080
 
-Переходная защищённая 7.8.3 установлена и сохранила рабочие данные. Точный desktop 7.8.4 из `00ee971a6665e848ee20ae9c7ddc2c5528ff74be` собран и прошёл полный setup→uninstall→data preservation; `JF3-DEFECT-044` закрыт. Локальный Windows build-gate готов, но signed catalog, живое обновление 7.8.3→7.8.4, доказанный rollback и остальные cross-device/адресные/Telegram gates ещё открыты. Общий gate: `NO-GO`.
+Переходная защищённая 7.8.3 установлена и сохранила рабочие данные. Точный desktop 7.8.4 из `00ee971a6665e848ee20ae9c7ddc2c5528ff74be` собран и прошёл полный setup→uninstall→data preservation; `JF3-DEFECT-044` закрыт. GitHub prerelease и подписанный staging-каталог опубликованы, а публичные байты каталога точно совпали с Git. Живое обновление 7.8.3→7.8.4, доказанный rollback, stable-canary и остальные cross-device/адресные/Telegram gates ещё открыты. Общий gate: `NO-GO`.
 
 ## Текущий кандидат RC-7.8.4-00ee971
 
 | Поле | Значение |
 |---|---|
-| Статус | WINDOWS BUILD PASS — signed catalog, live update и rollback впереди |
+| Статус | WINDOWS BUILD + SIGNED STAGING CATALOG PASS — live update, rollback и stable-canary впереди |
 | Git SHA продукта | `00ee971a6665e848ee20ae9c7ddc2c5528ff74be` |
 | Build ID | `jf-7.8.4-00ee971a6665` |
 | Release contract | `83/83` |
@@ -124,8 +124,8 @@
 
 ## Почему текущий RC ещё не финальный
 
-1. Финальный desktop 7.8.4 собран и локально принят, но ещё не установлен через живое подписанное обновление.
-2. Доверенный Ed25519-ключ включён, но подписанные staging/stable каталоги и GitHub Release payload ещё не опубликованы.
+1. Финальный desktop 7.8.4 собран и локально принят, staging-каталог опубликован, но версия ещё не установлена через живое подписанное обновление.
+2. Доверенный Ed25519-ключ, GitHub prerelease payload и подписанный staging-каталог подтверждены; stable-каталог и canary ещё не опубликованы.
 3. Production VPS и Telegram provisioning прошли, но реальная группа Telegram и полный update/rollback ещё не приняты.
 4. Реальный адресный provider и эталонный корпус адресов не проверены.
 5. Полная проверка каждого раздела, кнопки и бизнес-функции на установленном ПК не завершена.

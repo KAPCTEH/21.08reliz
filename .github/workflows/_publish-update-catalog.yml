@@ -94,14 +94,22 @@ jobs:
         run: |
           set -euo pipefail
           current="$GITHUB_WORKSPACE/.release-current-catalog.json"
+          error_log="$GITHUB_WORKSPACE/.release-current-catalog.error.log"
+          set +e
           ./node_modules/.bin/wrangler kv key get "catalog:$CATALOG_CHANNEL" \
-            --binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT" --text > "$current"
-          if grep -qx "Value not found" "$current"; then
+            --binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT" \
+            > "$current" 2> "$error_log"
+          status=$?
+          set -e
+          if [[ "$status" -eq 0 ]]; then
+            node -e "JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8'))" "$current"
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          elif grep -q "404: Not Found" "$error_log"; then
             : > "$current"
             echo "present=false" >> "$GITHUB_OUTPUT"
           else
-            node -e "JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8'))" "$current"
-            echo "present=true" >> "$GITHUB_OUTPUT"
+            cat "$error_log" >&2
+            exit "$status"
           fi
 
       - name: Build immutable publication plan
@@ -131,12 +139,18 @@ jobs:
           wrangler=(./node_modules/.bin/wrangler kv key)
           common=(--binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT")
           ensure_immutable() {
-            local key="$1" file="$2" existing="$GITHUB_WORKSPACE/.release-existing.json"
-            "${wrangler[@]}" get "$key" "${common[@]}" --text > "$existing"
-            if grep -qx "Value not found" "$existing"; then
+            local key="$1" file="$2" existing="$GITHUB_WORKSPACE/.release-existing.json" error_log="$GITHUB_WORKSPACE/.release-existing.error.log" status
+            set +e
+            "${wrangler[@]}" get "$key" "${common[@]}" > "$existing" 2> "$error_log"
+            status=$?
+            set -e
+            if [[ "$status" -eq 0 ]]; then
+              cmp --silent "$file" "$existing" || { echo "Immutable history key already contains different bytes." >&2; exit 3; }
+            elif grep -q "404: Not Found" "$error_log"; then
               "${wrangler[@]}" put "$key" "${common[@]}" --path "$file"
             else
-              cmp --silent "$file" "$existing" || { echo "Immutable history key already contains different bytes." >&2; exit 3; }
+              cat "$error_log" >&2
+              exit "$status"
             fi
           }
           if [[ -n "$PREVIOUS_KEY" ]]; then ensure_immutable "$PREVIOUS_KEY" "$GITHUB_WORKSPACE/.release-current-catalog.json"; fi
@@ -153,7 +167,7 @@ jobs:
           verified=false
           for attempt in 1 2 3 4 5 6 7; do
             ./node_modules/.bin/wrangler kv key get "$ACTIVE_KEY" \
-              --binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT" --text \
+              --binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT" \
               > "$GITHUB_WORKSPACE/.release-published-catalog.json"
             if cmp --silent "$GITHUB_WORKSPACE/$CATALOG_PATH" "$GITHUB_WORKSPACE/.release-published-catalog.json"; then verified=true; break; fi
             sleep 10

@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { signCatalog, planPublication, verifyForPublication } from '../tools/release/update-catalog-ops.mjs';
 
 let checks = 0;
@@ -13,6 +14,11 @@ function expectCode(code, action) { assert.throws(action, error => error?.code =
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'justfun-catalog-ops-'));
 try {
+  const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const publishWorkflow = fs.readFileSync(path.join(repositoryRoot, '.github', 'workflows', '_publish-update-catalog.yml'), 'utf8');
+  checked(() => assert.match(publishWorkflow, /404: Not Found/));
+  checked(() => assert.equal(publishWorkflow.includes('--text'), false, 'KV reads must preserve exact catalog bytes'));
+
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const trustStore = { schema_version: 1, keys: [{
     key_id: 'unit-key', algorithm: 'Ed25519', status: 'active',

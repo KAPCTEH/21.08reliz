@@ -2209,8 +2209,79 @@
         "complete live 7.8.3 to 7.8.4 update and proven rollback",
         "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0080",
+      "stage": 14,
+      "action": "publish the exact 7.8.4 prerelease asset sign and publish staging catalog with immutable Cloudflare KV history and repair first publication workflow semantics",
+      "result": "GITHUB PRERELEASE SIGNED STAGING CATALOG IMMUTABLE KV HISTORY AND PUBLIC EXACT BYTE VERIFICATION PASS / GITHUB TOKEN LIVE UPDATE ROLLBACK AND STABLE CANARY OPEN / RELEASE NO-GO",
+      "github_release": {
+        "tag": "v7.8.4-rc1",
+        "release_id": 376459003,
+        "prerelease": true,
+        "asset_name": "JustFun-7.8.4-win-x64.zip",
+        "asset_id": 529300132,
+        "asset_bytes": 183201489,
+        "asset_sha256": "b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0"
+      },
+      "signed_catalog": {
+        "path": "release/catalogs/staging.json",
+        "channel": "staging",
+        "catalog_sequence": 1,
+        "build_id": "jf-7.8.4-00ee971a6665",
+        "version": "7.8.4",
+        "rollout_percent": 100,
+        "signing_key_id": "justfun-update-2026-08",
+        "signing_digest": "c67b11c0b92b98e81b344f2b4c036d9607e72ca99c81b7fbc1a5f4667ac55583",
+        "exact_document_sha256": "04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "bytes": 2032
+      },
+      "cloudflare_publication": {
+        "account_name": "Pw-fanat@mail.ru's Account",
+        "account_id": "e8df719511b420cbd7a4b146525a8a3b",
+        "oauth_authenticated": true,
+        "workers_kv_write": true,
+        "namespace_id": "e40a786ac97947f5b574a3162381827a",
+        "active_key_preexisting": false,
+        "immutable_key_preexisting": false,
+        "immutable_key": "history:staging:1:04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "active_key": "catalog:staging",
+        "public_url": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/staging",
+        "http_status": 200,
+        "published_bytes": 2032,
+        "published_sha256": "04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "exact_match": true,
+        "etag": "sha256-04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6"
+      },
+      "github_automation": {
+        "first_run_id": 32858886678,
+        "first_run_started": false,
+        "first_run_reason": "required environment secrets were absent",
+        "staging_environment_secret_names_present": true,
+        "production_environment_secret_names_present": true,
+        "api_token_target_account_correct": false,
+        "api_token_replacement_required": true
+      },
+      "workflow_repair": {
+        "defect": "JF3-DEFECT-046",
+        "missing_key_behavior": "wrangler exits 1 with HTTP 404",
+        "text_mode_appended_lf": true,
+        "raw_read_exact_bytes": true,
+        "yaml_parse_passed": true,
+        "worker_check_and_dry_run_passed": true,
+        "catalog_operations_checks": "17/17",
+        "worker_unit_checks": "23/23",
+        "github_actions_retest_pending": true
+      },
+      "pending": [
+        "replace the GitHub environment API token with one scoped to Cloudflare account e8df719511b420cbd7a4b146525a8a3b and rerun the staging workflow",
+        "complete non mutating live staging check and payload download verification",
+        "confirm apply and restart then prove live 7.8.3 to 7.8.4 update and rollback",
+        "publish stable canary only after staging acceptance",
+        "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
+      ]
     }
   ],
-  "current_gate": "stage-13/exact-7.8.4-build-and-full-installer-acceptance-pass-signed-update-open",
+  "current_gate": "stage-14/signed-staging-catalog-public-exact-bytes-pass-live-update-and-stable-open",
   "release_status": "NO-GO"
 }
