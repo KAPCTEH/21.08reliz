@@ -2321,8 +2321,117 @@
         "publish stable canary only after complete staging acceptance",
         "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
       ]
+    },
+    {
+      "step_id": "JF3-S0082",
+      "stage": 16,
+      "action": "validate the replacement Cloudflare API token update protected GitHub environment secrets recheck live catalog endpoints and refresh the release gate status",
+      "result": "CLOUDFLARE TOKEN + GITHUB ENVIRONMENT SECRET ROTATION + LIVE ENDPOINT RECHECK PASS / STAGING ACTION RETEST TWO CI REPAIRS UPDATE APPLY ROLLBACK AND STABLE OPEN / RELEASE NO-GO",
+      "cloudflare_token_validation": {
+        "token_active_http": 200,
+        "workers_kv_http": 200,
+        "workers_scripts_read_http": 200,
+        "account_id": "e8df719511b420cbd7a4b146525a8a3b",
+        "secret_value_disclosed": false
+      },
+      "github_environment_secrets": {
+        "environments": [
+          "update-staging",
+          "update-production"
+        ],
+        "updated_secret_names": [
+          "CLOUDFLARE_API_TOKEN",
+          "CLOUDFLARE_ACCOUNT_ID"
+        ],
+        "updated_at_utc_range": "2026-08-26T09:57:29Z/2026-08-26T09:57:34Z",
+        "values_read_back": false,
+        "post_rotation_workflow_run": false
+      },
+      "live_update_catalog": {
+        "staging_health_http": 200,
+        "staging_catalog_http": 200,
+        "staging_catalog_bytes": 2032,
+        "staging_catalog_sha256": "04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "staging_exact_match": true,
+        "production_health_http": 200,
+        "stable_catalog_http": 404
+      },
+      "github_gate_status": {
+        "branch": "codex/tz3-execution-baseline",
+        "head": "5cb39abae50e410e59d4ad89fac8f03d34eb948d",
+        "audit_incremental_run": 32945436332,
+        "audit_incremental_result": "failure:test_map_catalog_mismatch",
+        "windows_release_gate_run": 32945436369,
+        "windows_release_gate_result": "failure:source_hygiene_packager_contract_mismatch",
+        "last_staging_publish_run": 32858886678,
+        "last_staging_publish_predates_secret_rotation": true,
+        "pull_request": 26,
+        "pull_request_draft": true,
+        "pull_request_blocked": true
+      },
+      "pending": [
+        "repair the permanent audit ledger test map and source hygiene packager contract then obtain two green GitHub checks",
+        "rerun the staging publication workflow with the rotated secrets and obtain success",
+        "apply the signed update restart and verify installed 7.8.4 health login data and logs",
+        "exercise a signed rollback and prove automatic restoration",
+        "complete the stable canary only after staging acceptance",
+        "complete the remaining address Telegram database migration second user second PC and full business UI gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0083",
+      "stage": 17,
+      "action": "repair the two mandatory CI failures harden the update publication workflow and owner package path then prepare a newly signed staging sequence for a real GitHub Actions write",
+      "result": "AUDIT LEDGER + SOURCE HYGIENE + PUBLICATION HARDENING + SIGNED STAGING SEQUENCE 2 LOCAL PASS / GITHUB CI AND ACTIONS PUBLICATION OPEN / RELEASE NO-GO",
+      "audit_ledger": {
+        "branch": "audit-ledger",
+        "commit": "088a1dcabffb1e76d89b05ff441b59b18348cf27",
+        "test_catalog_count": 83,
+        "verification_passed": true,
+        "failures": [],
+        "pushed": true
+      },
+      "release_branch_repairs": {
+        "publication_commit": "298ea06aa707d4f074557ddb4deeaf869faa6666",
+        "packager_commit": "c5396fe6703e719350a5043c75e36131a040b0bd",
+        "source_hygiene_passed": true,
+        "owner_archive_path_confined_to_output": true,
+        "environment_secrets_consumed_by_protected_job": true,
+        "cloudflare_secrets_limited_to_wrangler_steps": true,
+        "exact_sequence_repeat_action": "noop-with-immutable-history-verification",
+        "same_sequence_different_bytes": "fail-closed:CATALOG_SEQUENCE_CONFLICT",
+        "lower_sequence": "fail-closed:CATALOG_SEQUENCE_NOT_ADVANCED"
+      },
+      "signed_staging_candidate": {
+        "catalog_sequence": 2,
+        "build_id": "jf-7.8.4-00ee971a6665",
+        "signing_key_id": "justfun-update-2026-08",
+        "private_key_matches_trust_store": true,
+        "private_key_disclosed": false,
+        "signing_digest": "cb0eca16a91ae45a76f2169d8efdb2e09ae280ba26fa23205da2443a381c52d9",
+        "exact_document_sha256": "d9bad4f4fa2cafcdc23759bc3bf012018fbc07a3deb72f7cd31d6f6a3ff21ae5",
+        "previous_live_sequence": 1,
+        "previous_live_sha256": "04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "publication_action": "publish"
+      },
+      "local_verification": {
+        "catalog_operations": "31/31",
+        "catalog_worker": "23/23",
+        "workflow_yaml": "9/9",
+        "release_contract": "83/83",
+        "powershell_syntax": "PASS",
+        "git_diff_check": "PASS"
+      },
+      "pending": [
+        "obtain green Audit incremental and Windows native release gate runs on the exact branch head",
+        "dispatch staging sequence 2 from that approved revision and compare public bytes with the signed Git file",
+        "apply the signed update restart and verify installed 7.8.4 health login data and logs",
+        "exercise a signed rollback and prove automatic restoration",
+        "complete the stable canary only after staging acceptance",
+        "complete the remaining address Telegram database migration second user second PC and full business UI gates"
+      ]
     }
   ],
-  "current_gate": "stage-15/real-staging-signature-and-full-download-pass-apply-rollback-and-stable-open",
+  "current_gate": "stage-17/ci-repairs-and-signed-sequence-2-local-pass-github-ci-staging-publish-apply-rollback-and-stable-open",
   "release_status": "NO-GO"
 }

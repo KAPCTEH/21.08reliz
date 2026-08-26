@@ -900,3 +900,22 @@
 - Полностью скачан GitHub Release payload размером `183201489` байт. Downloader подтвердил ожидаемый размер и SHA-256 `b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0`.
 - Проверка была намеренно немутирующей: архив находился только в проверенном временном каталоге и после PASS удалён. Установленная JustFun, рабочая база, реестр, Update Helper и журналы программы не изменялись; распаковка, применение и перезапуск не выполнялись.
 - Результат: `REAL STAGING FETCH + ED25519 + ROLLOUT + FULL PAYLOAD SIZE/SHA256 PASS / APPLY, RESTART, HEALTH CONFIRMATION AND ROLLBACK OPEN / RELEASE NO-GO`.
+
+### JF3-S0082 — Новый Cloudflare-токен, GitHub secrets и актуальный релизный gate
+
+- Новый Cloudflare API Token проверен без раскрытия значения: verify, Workers KV и Workers Scripts Read вернули HTTP `200` для аккаунта `e8df719511b420cbd7a4b146525a8a3b`.
+- В защищённых GitHub Environments `update-staging` и `update-production` заменены `CLOUDFLARE_API_TOKEN` и `CLOUDFLARE_ACCOUNT_ID`. GitHub подтвердил обновление четырёх секретов в диапазоне `2026-08-26T09:57:29Z`–`2026-08-26T09:57:34Z`; значения обратно не читались и не выводились.
+- Живой повтор внешнего контура: staging `/health` и каталог отвечают HTTP `200`; каталог имеет точные `2032` байта и SHA-256 `04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6`. Production `/health` отвечает HTTP `200`, stable-каталог ещё не опубликован и отвечает HTTP `404`.
+- После замены секретов staging workflow ещё не перезапускался. Последний run `32858886678` относится к старому состоянию до ротации и не доказывает новый token в GitHub Actions.
+- Текущий HEAD `5cb39abae50e410e59d4ad89fac8f03d34eb948d` имеет два красных обязательных check: `Audit incremental` run `32945436332` (`test_map_catalog_mismatch`) и `Windows native release gate` run `32945436369` (устаревшее ожидание команды упаковки в source-hygiene regression). PR #26 остаётся Draft и blocked.
+- Создан единый понятный статус `docs/tz3/RELEASE-STATUS.md`. До исправления двух CI, успешного staging run, применения 7.8.4, health/data проверки, rollback, второго ПК/пользователя и остальных gates публичный выпуск запрещён.
+- Результат: `CLOUDFLARE TOKEN + GITHUB ENVIRONMENT SECRET ROTATION + LIVE ENDPOINT RECHECK PASS / STAGING ACTION RETEST, TWO CI REPAIRS, UPDATE APPLY, ROLLBACK AND STABLE OPEN / RELEASE NO-GO`.
+
+### JF3-S0083 — Исправление CI, защита публикации и staging sequence 2
+
+- Постоянный `audit-ledger` синхронизирован с каталогом из 83 тестов и отправлен коммитом `088a1dcabffb1e76d89b05ff441b59b18348cf27`; точный `verify-ledger` прошёл с `failures: []`.
+- Устаревший source-hygiene контракт заменён проверкой текущей упаковки точного исходного архива. Одновременно закрыт выход пути архива за пределы каталога выпуска. Изменение зафиксировано коммитом `c5396fe6703e719350a5043c75e36131a040b0bd`.
+- Reusable workflow теперь получает секреты из выбранного GitHub Environment, не наследует их от caller и передаёт Cloudflare token/account только трём шагам с Wrangler. Точный повтор байтов выполняет безопасный `noop`, но всё равно проверяет или восстанавливает immutable history; конфликт той же sequence и регрессия блокируются. Изменение зафиксировано коммитом `298ea06aa707d4f074557ddb4deeaf869faa6666`.
+- Ранее созданный защищённый Ed25519-ключ найден вне репозитория, его публичная часть точно совпала с активным ключом `justfun-update-2026-08`; приватный материал не читался в чат и не публиковался. Подписан staging sequence `2`, SHA-256 документа `d9bad4f4fa2cafcdc23759bc3bf012018fbc07a3deb72f7cd31d6f6a3ff21ae5`; план относительно живого sequence `1` вернул `publication_action: publish` и резервирование предыдущего SHA-256 `04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6`.
+- Локальные проверки: catalog operations `31/31`, Worker `23/23`, YAML `9/9`, release contract `83/83`, source-hygiene, PowerShell syntax и `git diff --check` — PASS. GitHub CI и фактическая публикация sequence `2` ещё должны завершиться успешно.
+- Результат: `AUDIT LEDGER + SOURCE HYGIENE + PUBLICATION HARDENING + SIGNED STAGING SEQUENCE 2 LOCAL PASS / GITHUB CI AND ACTIONS PUBLICATION OPEN / RELEASE NO-GO`.
