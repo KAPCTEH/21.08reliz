@@ -36,7 +36,11 @@ try {
   checked(() => assert.match(publishWorkflow, /Ensure immutable history, then activate when required[\s\S]*ensure_immutable "\$PREVIOUS_KEY"[\s\S]*ensure_immutable "\$IMMUTABLE_KEY"[\s\S]*case "\$PUBLICATION_ACTION" in[\s\S]*publish\) "\$\{wrangler\[@\]\}" put "\$ACTIVE_KEY"[\s\S]*noop\) ;;/));
   checked(() => assert.doesNotMatch(publishWorkflow, /if: steps\.plan\.outputs\.publication_action == 'publish'/));
   checked(() => assert.match(publishWorkflow, /Confirm published bytes after KV propagation[\s\S]*cmp --silent/));
-  checked(() => assert.equal(publishCallers.some(workflow => workflow.includes('secrets: inherit')), false));
+  checked(() => assert.equal(
+    publishCallers.every(workflow => workflow.includes('secrets: inherit')),
+    true,
+    'GitHub environment secrets require explicit inheritance at reusable-workflow call sites',
+  ));
 
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   const trustStore = { schema_version: 1, keys: [{

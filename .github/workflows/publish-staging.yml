@@ -15,6 +15,7 @@ permissions:
 jobs:
   publish:
     uses: ./.github/workflows/_publish-update-catalog.yml
+    secrets: inherit
     with:
       channel: staging
       catalog_path: ${{ inputs.catalog_path }}
