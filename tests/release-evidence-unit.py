@@ -33,6 +33,9 @@ def main() -> None:
     WORK.mkdir(parents=True)
     checks = []
     try:
+        fixture_version = json.loads(
+            (ROOT / "source/application/release.json").read_text(encoding="utf-8")
+        )["version"]
         npm_lock = WORK / "package-lock.json"
         nuget_lock = WORK / "packages.lock.json"
         write_json(
@@ -64,10 +67,10 @@ def main() -> None:
                 },
             },
         )
-        release = {"product_id": "justfun-logistics", "product_name": "JustFun", "version": "7.8.3"}
+        release = {"product_id": "justfun-logistics", "product_name": "JustFun", "version": fixture_version}
         identity = {
             "commit_sha": "a" * 40,
-            "build_id": "jf-7.8.3-aaaaaaaaaaaa",
+            "build_id": f"jf-{fixture_version}-aaaaaaaaaaaa",
             "generated_at_utc": "2026-08-23T00:00:00Z",
             "repository": "KAPCTEH/21.08reliz",
         }
@@ -128,7 +131,7 @@ def main() -> None:
                 **identity,
                 "product_id": "justfun-logistics",
                 "product_name": "JustFun Логистика",
-                "version": "7.8.3",
+                "version": fixture_version,
             },
         )
         real_lock = ROOT / "source/application/package-lock.json"
@@ -136,7 +139,7 @@ def main() -> None:
         write_json(
             manifest_path,
             {
-                "version": "7.8.3",
+                "version": fixture_version,
                 "commit_sha": identity["commit_sha"],
                 "source_archive": MODULE.file_record(source_archive),
                 "artifacts": artifact_records,
@@ -170,11 +173,11 @@ def main() -> None:
         )
         assert result.returncode == 0, result.stderr
         expected = {
-            "JustFun-7.8.3-Setup.exe",
-            "JustFun-7.8.3-Recovery.exe",
-            "JustFun-7.8.3-UpdateHelper.exe",
-            "JustFun-7.8.3-win-x64.zip",
-            "JustFun-7.8.3-clean-source.zip",
+            f"JustFun-{fixture_version}-Setup.exe",
+            f"JustFun-{fixture_version}-Recovery.exe",
+            f"JustFun-{fixture_version}-UpdateHelper.exe",
+            f"JustFun-{fixture_version}-win-x64.zip",
+            f"JustFun-{fixture_version}-clean-source.zip",
             "SBOM.spdx.json",
             "SHA256SUMS.txt",
             "RELEASE-EVIDENCE.zip",
