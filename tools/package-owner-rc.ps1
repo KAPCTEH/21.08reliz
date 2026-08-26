@@ -28,7 +28,16 @@ $buildCommit = ([string]$manifest.commit_sha).Trim().ToLowerInvariant()
 if ($buildCommit -notmatch '^[0-9a-f]{40}$') {
   throw 'BUILD-MANIFEST.json не содержит точный Git SHA сборки.'
 }
-$sourceArchiveInput = Join-Path $output ([string]$manifest.source_archive.path)
+$sourceArchiveRelative = ([string]$manifest.source_archive.path).Trim()
+if ([string]::IsNullOrWhiteSpace($sourceArchiveRelative) -or [IO.Path]::IsPathRooted($sourceArchiveRelative)) {
+  throw 'BUILD-MANIFEST.json содержит недопустимый путь исходного архива.'
+}
+$outputRoot = $output.TrimEnd([char[]]@([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar))
+$outputPrefix = $outputRoot + [IO.Path]::DirectorySeparatorChar
+$sourceArchiveInput = [IO.Path]::GetFullPath((Join-Path $output $sourceArchiveRelative))
+if (-not $sourceArchiveInput.StartsWith($outputPrefix, [StringComparison]::OrdinalIgnoreCase)) {
+  throw 'Путь исходного архива выходит за пределы каталога выпуска.'
+}
 if (-not (Test-Path -LiteralPath $sourceArchiveInput -PathType Leaf)) {
   throw "Отсутствует исходный архив точной сборки: $sourceArchiveInput"
 }
