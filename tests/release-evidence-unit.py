@@ -116,6 +116,9 @@ def main() -> None:
             "update_helper": "fixture-helper.exe",
             "update_payload": "fixture-payload.zip",
             "update_file_manifest": "fixture-update-files.json",
+            "pe_resource_evidence": "PE-RESOURCE-QA.json",
+            "crash_recovery_evidence": "INSTALLER-CRASH-RECOVERY-QA.json",
+            "protected_payload_security": "PROTECTED-PAYLOAD-SECURITY.json",
         }.items():
             artifact = installer / name
             artifact.write_bytes((key + "\n").encode("ascii"))
@@ -177,6 +180,9 @@ def main() -> None:
             f"JustFun-{fixture_version}-Recovery.exe",
             f"JustFun-{fixture_version}-UpdateHelper.exe",
             f"JustFun-{fixture_version}-win-x64.zip",
+            "PE-RESOURCE-QA.json",
+            "INSTALLER-CRASH-RECOVERY-QA.json",
+            "PROTECTED-PAYLOAD-SECURITY.json",
             f"JustFun-{fixture_version}-clean-source.zip",
             "SBOM.spdx.json",
             "SHA256SUMS.txt",

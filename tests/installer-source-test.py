@@ -30,6 +30,13 @@ def read_windows_workflow():
 
 
 class NativeInstallerSourceTests(unittest.TestCase):
+    def test_native_installers_use_fast_non_solid_zlib_with_crc(self):
+        for name in ("Setup.nsi", "Recovery.nsi"):
+            source = (INSTALLER / name).read_text(encoding="utf-8")
+            self.assertIn("CRCCheck force", source)
+            self.assertIn("SetCompressor zlib", source)
+            self.assertNotIn("SetCompressor /SOLID", source)
+
     def test_protected_payload_print_gate_waits_for_gui_process(self):
         source = AUDITED_BUILD.read_text(encoding="utf-8")
         self.assertIn("Start-Process -FilePath $payloadApplication", source)
@@ -245,12 +252,16 @@ class NativeInstallerSourceTests(unittest.TestCase):
 
     def test_interrupted_update_recovery_is_exercised_on_windows(self):
         test = CRASH_RECOVERY_TEST.read_text(encoding="utf-8")
+        full_acceptance = (ROOT / "tests" / "installer-full-acceptance-test.ps1").read_text(encoding="utf-8")
         setup = (INSTALLER / "Setup.nsi").read_text(encoding="utf-8")
+        builder = (INSTALLER / "build_windows.py").read_text(encoding="utf-8")
         workflow = read_windows_workflow()
         for marker in (
             "restore-interrupted",
             "cleanup-completed",
             "preserve-corrupt",
+            "Invoke-FailClosedArtifactProbe",
+            "Built Premium Setup",
             ".justfun-superseded",
             "2000000000",
         ):
@@ -262,8 +273,17 @@ class NativeInstallerSourceTests(unittest.TestCase):
             "RECOVERY corrupt-backup detected",
         ):
             self.assertIn(marker, setup)
-        self.assertIn("installer-crash-recovery-test.ps1", workflow)
-        self.assertIn("if (-not $?) { throw 'Installer crash recovery test failed.' }", workflow)
+        self.assertIn('"installer-crash-recovery-test.ps1"', builder)
+        self.assertIn('"INSTALLER-CRASH-RECOVERY-QA.json"', builder)
+        self.assertIn("python source/installer/build_windows.py", workflow)
+        for marker in (
+            "InterruptedUpdate",
+            "RECOVERY interrupted-update-backup detected",
+            "RECOVERY previous installation restored",
+            "full-installer-interrupted-recovery.log",
+            "interruptedRecoveryConfirmed",
+        ):
+            self.assertIn(marker, full_acceptance)
 
     def test_full_installer_acceptance_uses_powershell_invocation_status(self):
         workflow = read_windows_workflow()
@@ -304,6 +324,7 @@ class NativeInstallerSourceTests(unittest.TestCase):
         self.assertIn("--installer-smoke-test", source)
         self.assertIn("Целостность и безопасный запуск программы подтверждены", source)
         self.assertIn('VIAddVersionKey /LANG=1049 "LegalCopyright" "JustFun"', source)
+        self.assertIn('VIAddVersionKey /LANG=1049 "ProductVersion" "${VERSION}"', source)
         self.assertIn("!insertmacro MUI_PAGE_INSTFILES", source)
         self.assertLess(
             source.index('!insertmacro MUI_PAGE_WELCOME'),

@@ -12,6 +12,101 @@ const mapReliability=read('source/application/web/assets/js/105-map-reliability-
 const smartRoutes=read('source/application/web/assets/js/98-smart-automation-v598.js');
 const desktopPlatform=read('source/application/web/assets/js/110-desktop-platform-v750.js');
 const routeWorkspace=read('source/application/web/assets/js/94-route-workspace-final.js');
+const windowsWorkflow=read('.github/workflows/windows-native-783.yml');
+const localReleaseBuilder=read('tools/build-audited-rc.ps1');
+const windowsInstallerBuilder=read('source/installer/build_windows.py');
+const testCatalog=JSON.parse(read('release/test-catalog.json'));
+const normalizedWindowsWorkflow=windowsWorkflow.replaceAll('\r\n','\n');
+
+assert(
+  fs.readFileSync(path.join(root,'.github/workflows/windows-native-783.yml')).equals(
+    fs.readFileSync(path.join(root,'tests/fixtures/windows-native-783.yml'))
+  ),
+  'the Windows workflow fixture must be byte-identical to the executable workflow'
+);
+const catalogIds=new Set(),catalogPaths=new Set(),catalogCommands=new Set();
+for(const test of testCatalog.tests||[]){
+  assert(!catalogIds.has(test.id),`duplicate test catalog id: ${test.id}`);
+  catalogIds.add(test.id);
+  catalogPaths.add(String(test.path||'').replaceAll('\\','/'));
+  catalogCommands.add(String(test.command||''));
+}
+const runnableTestFiles=fs.readdirSync(path.join(root,'tests'),{withFileTypes:true})
+  .filter(entry=>entry.isFile()&&['.cjs','.mjs','.ps1','.py'].includes(path.extname(entry.name)))
+  .map(entry=>`tests/${entry.name}`)
+  .sort();
+for(const testPath of runnableTestFiles){
+  assert(catalogPaths.has(testPath),`runnable test is missing from release/test-catalog.json: ${testPath}`);
+}
+
+const requiredGateCommands=[
+  'node tests/audit-tools-unit.mjs',
+  'node tests/security-manifest-unit.cjs',
+  'node tests/security-regression-v783.mjs',
+  'node tests/action-dispatch-unit.cjs',
+  'node tests/startup-auth-regression.cjs',
+  'node tests/tz3-live-defects-unit.cjs',
+  'python tests/license-custom-role-migration-test.py',
+  'python tests/license-exact-permission-migration-test.py',
+  'python tests/license-granular-permission-migration-test.py',
+  'python tests/reg-legacy-migration-unit.py',
+  'python tests/reg-legacy-migration-integration.py',
+  'node tests/company-scope-test.mjs',
+  'node tests/local-outbox-v783-unit.cjs',
+  'node tests/atomic-mutation-async-regression-v783.cjs',
+  'python tests/installer-builder-unit.py',
+  'python tests/reg-api-contract-test.py',
+  'python tests/reg-entity-protocol-test.py',
+  'python tests/reg-map-proxy-test.py',
+  'node tests/reg-native-ssh-unit.cjs',
+  'node tests/reg-tls-source-test.cjs',
+  'python tests/company-telegram-broker-schema-test.py',
+  'node tests/company-telegram-broker-unit.mjs',
+  'node tests/telegram-scope-regression-v783.cjs',
+  'node tests/telegram-shared-d1-schema.cjs',
+  'node tests/telegram-system-proxy-transport-unit.cjs',
+  'node tests/telegram-wizard-open-regression-v783.cjs',
+  'node tests/telegram-worker-unit.mjs',
+  'node tests/dead-override-regression-v783.cjs',
+  'node tests/deep-business-fixture-regression-v783.cjs',
+  'node tests/desktop-dialog-regression-v783.cjs',
+  'node tests/error-boundary-regression-v783.cjs',
+  'node tests/icon-system-regression-v783.cjs',
+  'python tests/logo-transparency-test.py',
+  'node tests/map-diagnostic-regression-v783.cjs',
+  'node tests/route-stage-pagination-unit.cjs',
+  'node tests/runtime-overrides-regression-v783.cjs',
+  'node tests/role-matrix-all.mjs',
+  'node tests/runtime-smoke.mjs source/application/web entity-ack-validation'
+];
+for(const command of requiredGateCommands){
+  assert(windowsWorkflow.includes(command),`Windows workflow is missing mandatory safe test: ${command}`);
+  const [runtime,...argumentsList]=command.split(' ');
+  const builderInvocation=`Invoke-Checked '${runtime==='python'?'python':'node'}' @(${argumentsList.map(value=>`'${value}'`).join(', ')})`;
+  assert(localReleaseBuilder.includes(builderInvocation),`local release builder is missing mandatory safe test: ${command}`);
+}
+assert(normalizedWindowsWorkflow.includes("npm run check\n            if ($LASTEXITCODE -ne 0) { throw 'Update catalog service check failed.' }"));
+assert(windowsWorkflow.includes('source/update-catalog-service/package-lock.json'));
+assert(windowsWorkflow.includes("'source/update-catalog-service','tests'"));
+assert(localReleaseBuilder.includes("Invoke-Checked 'npm.cmd' @('run', 'check') (Join-Path $repo 'source/update-catalog-service')"));
+assert(localReleaseBuilder.includes("'source/update-catalog-service',\n      'tests'".replaceAll('\n','\r\n'))||localReleaseBuilder.includes("'source/update-catalog-service',\n      'tests'"));
+for(const command of [
+  'node tests/local-outbox-v783-unit.cjs',
+  'python tests/reg-legacy-migration-integration.py',
+  'python tests/reg-legacy-migration-unit.py',
+  'node tests/role-matrix-all.mjs',
+  'node tests/route-stage-pagination-unit.cjs',
+  'node tests/tz3-live-defects-unit.cjs',
+  'node tests/verify-pe-icon.mjs <executable> <icon>',
+  'node tests/runtime-smoke.mjs source/application/web entity-ack-validation'
+]) assert(catalogCommands.has(command),`mandatory release catalog command is missing: ${command}`);
+assert(localReleaseBuilder.includes("'source/installer/build_windows.py'"),'local release builder must invoke the hardened Windows installer builder');
+for(const requiredInstallerGate of [
+  'verify_pe_resources.mjs',
+  'installer-crash-recovery-test.ps1',
+  'PE-RESOURCE-QA.json',
+  'INSTALLER-CRASH-RECOVERY-QA.json'
+]) assert(windowsInstallerBuilder.includes(requiredInstallerGate),`hardened installer builder is missing ${requiredInstallerGate}`);
 
 assert(main.includes("String(active.id)===String(primary.id)&&active.catalogMode==='catalog'"));
 assert(warehouses.includes("write(PRODUCTS_KEY,[])"));
@@ -52,8 +147,8 @@ assert(deleteWarehouseBlock.indexOf("refreshAuthoritativeWarehouseRegistryV760('
 assert(!deleteWarehouseBlock.includes('B.saveRegistry(r)'));
 assert(!desktopPlatform.includes("!byId.has(String(item.id))&&String(item.origin||'local')!=='server'"));
 assert(desktopPlatform.includes('revision:Number(item?.entity_version??item?.revision)||0'));
-assert(desktopPlatform.includes("activeEnvironment()===WAREHOUSE_REGISTRY_ENVIRONMENT&&id===activeWarehouseId()&&cloudSyncState.scope===entityScope()"));
-assert(desktopPlatform.includes("if(activeEnvironment()===WAREHOUSE_REGISTRY_ENVIRONMENT)add('warehouse',warehouseId,warehouse)"));
+assert(desktopPlatform.includes("activeEnvironment()===WAREHOUSE_REGISTRY_ENVIRONMENT&&id===activeWarehouseId()&&entityScopeIsCurrent(expectedScope,expectedEpoch)"));
+assert(desktopPlatform.includes("if(environment===WAREHOUSE_REGISTRY_ENVIRONMENT)add('warehouse',warehouseId,warehouse)"));
 assert(desktopPlatform.includes("warehouses?.({environment:'live'})"));
 assert(desktopPlatform.includes("environment:WAREHOUSE_REGISTRY_ENVIRONMENT,commandId:newEntityCommandId(),changes"));
 assert(desktopPlatform.includes("const WAREHOUSE_REGISTRY_ENVIRONMENT='live'"));
@@ -82,6 +177,16 @@ assert(desktopPlatform.includes("canCreate:()=>!isTrainingEnvironment()"));
 assert(desktopPlatform.includes("if(isTrainingEnvironment()){boxes.forEach"));
 assert(desktopPlatform.includes("function telegramEnvironment(){return activeEnvironment()}"));
 assert(desktopPlatform.includes("if(typeof window.TeplitsaWarehouseV600?.applyBranding==='function')"));
+assert(warehouses.includes('criticalRecovery:Object.freeze({prepare:prepareCriticalRecoveryV783,read:readCriticalRecoveryV783,clear:clearCriticalRecoveryV783})'));
+assert(warehouses.includes("CRITICAL_RECOVERY_FALLBACK_MAX=1500000"));
+assert(desktopPlatform.includes('await prepareCriticalEntityRecovery(rollbackSnapshot,operationContext,criticalCommandId,intent)'));
+assert(desktopPlatform.includes('async function recoverCriticalEntityMutation()'));
+assert(desktopPlatform.includes("try{await recoverCriticalEntityMutation()}catch(error){audit('critical_recovery_startup_blocked'"));
+assert(desktopPlatform.includes('setTimeout(async()=>{try{await restoreLocalOutboxOverlay();'));
+assert(desktopPlatform.includes("state:'stale-scope-captured',captured"));
+assert(desktopPlatform.includes('dirtyGenerationAtStart=entityDirtyGeneration(expectedScope)'));
+assert.match(windowsWorkflow,/node tests\/runtime-smoke\.mjs source\/application\/web critical-scope-guard\r?\n\s+if \(\$LASTEXITCODE -ne 0\) \{ throw 'Critical scope-guard regression failed\.' \}/);
+assert.match(windowsWorkflow,/node tests\/runtime-smoke\.mjs source\/application\/web critical-crash-recovery\r?\n\s+if \(\$LASTEXITCODE -ne 0\) \{ throw 'Critical crash-recovery regression failed\.' \}/);
 assert(desktopPlatform.includes("resultBox.textContent=userVisibleError(error,'Ссылка не создана')"));
 assert(desktopPlatform.includes('if(!telegramProgressActive)return;'));
 assert(desktopPlatform.includes('function clearTelegramProgress(){telegramProgressActive=false;'));

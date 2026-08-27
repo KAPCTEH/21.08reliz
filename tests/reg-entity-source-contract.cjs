@@ -29,6 +29,10 @@ assert.ok(server.includes('validate_entity_intent_current'),'VPS must guard crit
 assert.ok(server.includes('"route_cancel"'),'VPS must support atomic pre-departure route cancellation');
 assert.ok(server.includes('"route_approve"'),'VPS must store manual approval as an authenticated server intent');
 assert.ok(server.includes('ENTITY_INTENT_PERMISSIONS'),'VPS must enforce a distinct permission for every critical transition');
+assert.ok(server.includes('LOCAL_MIGRATION_INTENT_KIND = "local_migration_import"'),'VPS must expose a dedicated local migration intent without weakening ordinary transitions');
+assert.ok(server.includes('def require_local_migration_import_access('),'VPS must independently enforce owner-only global warehouse migration access');
+assert.ok(server.includes('set(raw_intent) != {"kind", "target_id", "metadata"}'),'VPS must strictly validate local migration metadata shape');
+assert.ok(server.includes('if intent and intent["kind"] == LOCAL_MIGRATION_INTENT_KIND:'),'protected entity writes must bypass ordinary intent rules only through the dedicated migration intent');
 assert.ok(server.includes('validate_entity_field_permissions'),'VPS must authorize each changed field inside the row transaction');
 assert.ok(server.includes('intent_field_access_denied'),'critical intents must not mutate unrelated business fields');
 assert.ok(server.includes('inventory_ledger_immutable'),'inventory history must use reversal entries instead of deletion');
@@ -79,6 +83,10 @@ assert.ok(server.includes('if environment != "live" and str(entity_type) == "war
 
 assert.ok(main.includes("handleMainIPC('desktop:reg-entity-bootstrap'"),'main process must expose entity bootstrap');
 assert.ok(main.includes("handleMainIPC('desktop:reg-entity-sync'"),'main process must expose row-level writes');
+assert.ok(main.includes('canImportLocalMigration(currentSession?.cloudAuth)'),'main process must reject local migration before network delivery unless the current user is the global owner');
+assert.ok(main.includes("writeOutcome:definitive?'definitive_rejection':'uncertain'"),'main process must distinguish authoritative rejection from an uncertain write outcome');
+assert.ok(main.includes("failureOrigin:preflight?'client_preflight':definitiveServerRejection?'server_rejection':ackValidation?'ack_validation':'transport_or_response'"),'main process must identify transport and acknowledgement uncertainty without treating it as a server rejection');
+assert.ok(main.includes('snapshot_fingerprint:snapshotFingerprint,chunk_index:chunkIndex,chunk_count:chunkCount'),'main process must translate strict renderer migration metadata to the server contract');
 assert.ok(main.includes("handleMainIPC('desktop:reg-entity-changes'"),'main process must expose the change feed');
 assert.ok(main.includes('const REG_API_CONTRACT=3'),'desktop must require the server-authoritative API contract');
 assert.ok(!main.includes("handleMainIPC('desktop:reg-sync'"),'legacy whole-snapshot IPC must be removed');
@@ -136,15 +144,18 @@ assert.match(preload,/bootstrapEntities:\s*\(payload\)\s*=>\s*ipcRenderer\.invok
 assert.match(preload,/syncEntities:\s*\(payload\)\s*=>\s*ipcRenderer\.invoke\('desktop:reg-entity-sync'/,'preload must expose row-level writes only through IPC');
 assert.match(preload,/entityChanges:\s*\(payload\)\s*=>\s*ipcRenderer\.invoke\('desktop:reg-entity-changes'/,'preload must expose the change feed only through IPC');
 
-assert.ok(renderer.includes('function buildPendingEntityChanges()'),'renderer must diff individual records');
+assert.ok(renderer.includes('function buildPendingEntityChanges({'),'renderer must diff individual records and accept an explicit captured scope');
+assert.ok(renderer.includes('queued=latestQueuedEntityChanges(queue)'),'renderer must deduplicate durable queued records when rebuilding a captured snapshot');
 assert.ok(renderer.includes('await confirmActiveWarehouseContext()'),'renderer must confirm the active warehouse before installing background synchronization');
+assert.ok(renderer.includes("function canImportLocalMigrationV783(user=currentUser)" )&&renderer.includes("user?.role==='owner'&&user?.allWarehouses===true"),'renderer migration must require an owner with explicit all-warehouse access before any registry or entity write');
+assert.ok(renderer.includes("function definitiveEntityRejection(value){return value?.writeOutcome==='definitive_rejection'}"),'renderer must consume the explicit write-outcome contract fail-closed');
 assert.ok(renderer.includes('requiresAuthoritativeWarehouseRegistry()'),'cloud login must defer mounting integrations until the authoritative warehouse registry is available');
 assert.ok(renderer.includes('function canonicalServerEntity(entity)'),'renderer must preserve authoritative entity identity during bootstrap and polling');
 assert.ok(renderer.includes('snapshotFromServerEntities(localSnapshot,entities,readableTypes)'),'bootstrap must replace the cache from authoritative server records');
 assert.ok(!renderer.includes('function mergeBootstrapEntities('),'bootstrap must never merge stale local business data into an authoritative server state');
-assert.ok(renderer.includes('const overlaid=overlayLocalOutbox(serverSnapshot)'),'bootstrap must restore only durable local intents over the authoritative server snapshot');
+assert.ok(renderer.includes('const overlaid=overlayLocalOutbox(serverSnapshot,queue)'),'bootstrap must restore only durable local intents from the captured scope queue over the authoritative server snapshot');
 assert.ok(renderer.includes('await restoreLocalOutboxOverlay();if(onlineEntitySyncAvailable())await bootstrapEntitySync()'),'startup must restore the durable local outbox before any optional server bootstrap');
-assert.ok(renderer.includes('cloudSyncState.dirty=requireLocalOutbox().status().active>0'),'bootstrap must preserve the exact durable outbox state');
+assert.ok(renderer.includes('settleEntityDirty(expectedScope,queue,{generationAtStart:dirtyGenerationAtStart,serialAtStart:bootstrapSerial})'),'bootstrap must preserve the captured scope outbox, durable dirty generation and mutations that arrived during bootstrap');
 assert.ok(renderer.includes('flushEntitySyncBeforeContextChange'),'warehouse switching must wait for VPS confirmation');
 assert.ok(renderer.includes('Не сохранено на VPS'),'background write failures must be visible to the user');
 assert.ok(renderer.includes("failure.code.toLowerCase()==='entity_version_conflict'"),'renderer must preserve local state on row conflict');
@@ -152,13 +163,18 @@ assert.ok(renderer.includes('entityTypeSetSignature(result.readableTypes)'), 'pe
 assert.ok(renderer.includes('function commitEntityMutation(intent,mutation)'), 'entity mutations must use the durable local and server confirmation policy');
 assert.ok(renderer.includes("saveOrder:{kind:'order_save',critical:false"), 'ordinary order saves must use the durable local-first path');
 assert.ok(renderer.includes("savePickup:{kind:'pickup_save',critical:false,target:editId('#editingPickupId')"), 'pickup saves must use the pickup editor id as their mutation target');
+assert.ok(renderer.includes("if(name==='savePickup')return q('#editingPickupId')?.value?'orders.update':'orders.create'"), 'pickup save permissions must distinguish create from edit using the pickup editor id');
+assert.ok(renderer.includes("if(form.id==='pickupForm')return q('#editingPickupId')?.value?'orders.update':'orders.create'"), 'pickup form permissions must distinguish create from edit using the pickup editor id');
 assert.ok(renderer.includes("deleteOrder:{kind:'order_delete',critical:false"), 'ordinary order deletion must use the durable local-first path');
 assert.ok(renderer.includes("clearAll:{kind:'workspace_clear',target:"), 'bulk clearing must remain fail-closed');
 assert.ok(renderer.includes("startRoutePicking:{kind:'route_picking',critical:false"), 'route picking preparation must remain locally durable without a VPS');
 assert.ok(renderer.includes("markCurrentPickupReady:{kind:'pickup_ready',critical:false"), 'pickup reservation preparation must remain locally durable without a VPS');
 assert.ok(renderer.includes("startRoute:{kind:'route_start',target:"), 'route departure must remain server-confirmed');
 assert.ok(renderer.includes("markCurrentPickupCollected:{kind:'pickup_collected',target:"), 'final pickup stock write-off must remain server-confirmed');
-assert.ok(renderer.includes('queue.enqueue(localOutboxEntry(intent,changes))'), 'ordinary record batches must be persisted before network delivery');
+assert.ok(renderer.includes('queue.enqueue(localOutboxEntry(intent,changes,{...operationContext,commandId:ordinaryCommandId}))'), 'ordinary record batches must be persisted with their captured scope and recovery command id before network delivery');
+assert.ok(renderer.includes("ENTITY_LOCAL_CHANGES_PERMISSION_REVOKED"), 'permission revocation must quarantine and block unsent local changes before authoritative import');
+assert.ok(renderer.includes('function localEntitySnapshotFingerprint(snapshot=buildBackupPayload()){const records=splitEntitySnapshot(snapshot)'), 'automatic persistence hooks must compare stable entity records instead of volatile backup metadata');
+assert.ok(renderer.includes('if(!changed||cloudSyncState.suspended)return;cloudSyncState.dirty=true'), 'no-op persistence and authoritative imports must not create false local dirty state');
 assert.ok(renderer.includes("commitRouteClosure:{kind:'route_close'"), 'route closure must use a named server intent');
 assert.ok(renderer.includes("cancelRouteBeforeStart:{kind:'route_cancel'"), 'route cancellation must use a named server intent');
 assert.ok(renderer.includes("approveRouteManually:{kind:'route_approve'"), 'manual approval must use a named server intent');
@@ -169,7 +185,7 @@ assert.ok(outbox.includes('OUTBOX_COMMAND_COLLISION'), 'a reused command id must
 assert.ok(outbox.includes('dataContractVersion:DATA_CONTRACT_VERSION'), 'every durable command must preserve its source data contract version');
 assert.ok(!renderer.includes('if(cloudSyncState.dirty)return;'), 'local edits must not stop unrelated remote polling');
 assert.ok(renderer.includes('revision:Number(item?.entity_version??item?.revision)||0'),'warehouse registry reconciliation must prefer the authoritative entity row version');
-assert.ok(renderer.includes("id===activeWarehouseId()&&cloudSyncState.scope===entityScope()"),'writing a non-active warehouse must not contaminate the active warehouse entity cache');
+assert.ok(renderer.includes("id===activeWarehouseId()&&entityScopeIsCurrent(expectedScope,expectedEpoch)"),'writing a non-active or stale warehouse scope must not contaminate the active warehouse entity cache');
 assert.ok(!renderer.includes('async function assertWarehouseDeletionAssignments(record)'),'renderer must not duplicate the atomic server-side assignment lease with a stale users-list check');
 assert.ok(!renderer.includes('window.JustFunDesktop?.auth?.users?.()'),'renderer warehouse deletion must not depend on a broad users-list read permission');
 assert.ok(!renderer.includes('String(item.origin||\'local\')!==\'server\''),'local-only warehouse records must never be merged into a nonempty authoritative server registry');

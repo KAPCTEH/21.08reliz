@@ -1578,6 +1578,11 @@ function canCreateCompanyWarehouses(authState) {
   const role=String(authState?.user?.role||''),permissions=Array.isArray(authState?.user?.permissions)?authState.user.permissions.map(String):[];
   return canManageCompanyWarehouses(authState)&&(role==='owner'||permissions.includes('*')||permissions.includes('jf.warehouse:*'));
 }
+function canImportLocalMigration(authState) {
+  const role=String(authState?.user?.role||''),permissions=Array.isArray(authState?.user?.permissions)?authState.user.permissions.map(String):[];
+  const allWarehouses=permissions.includes('*')||permissions.includes('jf.warehouse:*'),managesWarehouses=permissions.includes('*')||permissions.includes('warehouses.manage')||permissions.includes('warehouses.*');
+  return role==='owner'&&allWarehouses&&managesWarehouses;
+}
 function canDeleteCompanyWarehouses(authState) {
   return canCreateCompanyWarehouses(authState);
 }
@@ -1940,7 +1945,8 @@ const REG_ENTITY_TYPES=new Set([
   'routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides',
   'routeExecutions','routeArchives','warehouseReservations','manualRouteSequences'
 ]);
-const REG_ENTITY_INTENTS=new Set(['route_approve','route_picking','route_cancel','route_start','route_return','route_close','pickup_ready','pickup_collected']);
+const REG_LOCAL_MIGRATION_INTENT='local_migration_import',REG_LOCAL_MIGRATION_FINGERPRINT=/^[0-9a-z]{1,7}:[0-9a-z]{1,7}:[1-9][0-9]{0,9}$/,REG_LOCAL_MIGRATION_MAX_CHUNKS=10000;
+const REG_ENTITY_INTENTS=new Set(['route_approve','route_picking','route_cancel','route_start','route_return','route_close','pickup_ready','pickup_collected',REG_LOCAL_MIGRATION_INTENT]);
 const REG_API_CONTRACT=3;
 const ADDRESS_API_CONTRACT=1;
 const ADDRESS_PUBLIC_FALLBACK_ALLOWED=RELEASE.release_status==='development';
@@ -1977,7 +1983,7 @@ function validateRegEntity(item,warehouseId,{event=false}={}){
   if(declaredWarehouse&&declaredWarehouse!==warehouseId)throw new Error('VPS вернул сущность другого склада.');
   return{...item,type,id,version,payload,operation};
 }
-function validateRegEntityBatch(payload,warehouseId){
+function validateRegEntityBatch(payload,warehouseId,environment=''){
   const commandId=String(payload?.commandId||'');
   if(!/^[A-Za-z0-9_.:-]{16,180}$/.test(commandId))throw new Error('Для записи не создан безопасный идентификатор команды.');
   const source=Array.isArray(payload?.changes)?payload.changes:[];
@@ -1994,15 +2000,32 @@ function validateRegEntityBatch(payload,warehouseId){
   });
   let intent=null;
   if(payload?.intent!=null){
-    const kind=String(payload.intent?.kind||''),targetId=String(payload.intent?.targetId||'');
+    const sourceIntent=payload.intent,kind=String(sourceIntent?.kind||''),targetId=String(sourceIntent?.targetId||'');
     if(!REG_ENTITY_INTENTS.has(kind)||!/^[A-Za-z0-9_-]{1,160}$/.test(targetId))throw new Error('Назначение серверной команды повреждено.');
-    intent={kind,target_id:targetId};
+    if(kind===REG_LOCAL_MIGRATION_INTENT){
+      const keys=sourceIntent&&typeof sourceIntent==='object'&&!Array.isArray(sourceIntent)?Object.keys(sourceIntent).sort().join(','):'';
+      const snapshotFingerprint=String(sourceIntent?.snapshotFingerprint||''),chunkIndex=sourceIntent?.chunkIndex,chunkCount=sourceIntent?.chunkCount;
+      if(keys!=='chunkCount,chunkIndex,kind,snapshotFingerprint,targetId'||targetId!==warehouseId||environment!=='live'||!REG_LOCAL_MIGRATION_FINGERPRINT.test(snapshotFingerprint)||!Number.isSafeInteger(chunkIndex)||!Number.isSafeInteger(chunkCount)||chunkCount<1||chunkCount>REG_LOCAL_MIGRATION_MAX_CHUNKS||chunkIndex<0||chunkIndex>=chunkCount||changes.some(item=>item.base_version!==0||item.deleted))throw Object.assign(new Error('Пакет переноса локальной базы повреждён или относится к другой области данных.'),{code:'LOCAL_MIGRATION_METADATA_INVALID'});
+      intent={kind,target_id:targetId,metadata:{snapshot_fingerprint:snapshotFingerprint,chunk_index:chunkIndex,chunk_count:chunkCount}};
+    }else intent={kind,target_id:targetId};
   }
   return{command_id:commandId,changes,intent};
+}
+function validateRegEntityBatchAck(entities,cursor,batch){
+  const expected=new Map(batch.changes.map(item=>[`${item.type}:${item.id}`,item]));
+  if(entities.length!==expected.size)throw Object.assign(new Error('VPS вернул неполное подтверждение пакета сущностей.'),{code:'REG_ENTITY_ACK_INCOMPLETE'});
+  const seen=new Set();let maxEventId=0;
+  for(const item of entities){const key=`${item.type}:${item.id}`,change=expected.get(key),expectedVersion=item.unchanged===true?Number(change?.base_version):Number(change?.base_version)+1;if(!change||seen.has(key)||(item.deleted===true)!==(change.deleted===true)||!Number.isSafeInteger(expectedVersion)||item.version!==expectedVersion||!/^[a-f0-9]{64}$/i.test(item.digest)||(item.unchanged!==true&&item.eventId<=0))throw Object.assign(new Error('VPS вернул повреждённое подтверждение записи пакета.'),{code:'REG_ENTITY_ACK_INVALID'});seen.add(key);maxEventId=Math.max(maxEventId,item.eventId)}
+  if(seen.size!==expected.size||cursor<maxEventId)throw Object.assign(new Error('VPS не подтвердил каждую запись пакета или вернул устаревший курсор.'),{code:'REG_ENTITY_ACK_INCOMPLETE'});return true
+}
+function regWriteFailureContract(error,{requestAttempted=false}={}){
+  const status=Number(error?.status),preflight=requestAttempted!==true,definitiveServerRejection=requestAttempted===true&&Number.isInteger(status)&&status>=400&&status<500,definitive=preflight||definitiveServerRejection,ackValidation=error?.regWritePhase==='ack_validation'||String(error?.code||'').startsWith('REG_ENTITY_ACK_');
+  return{writeOutcome:definitive?'definitive_rejection':'uncertain',failureOrigin:preflight?'client_preflight':definitiveServerRejection?'server_rejection':ackValidation?'ack_validation':'transport_or_response',retrySameCommand:!definitive}
 }
 async function submitRegEntityBatch(state,warehouseId,environment,batch){
   const warehouseDelete=batch?.changes?.length===1&&batch.changes[0]?.type==='warehouse'&&batch.changes[0]?.deleted===true;
   const result=await regApiRequest('POST',regEntityPath(state,warehouseId,environment,'batch'),batch,{timeoutMs:warehouseDelete?120000:30000});
+  try{
   if(String(result.workspace_id||'')!==String(state.workspace_id||'')||String(result.warehouse_id||'')!==warehouseId||String(result.environment||'')!==environment||String(result.command_id||'')!==batch.command_id)throw new Error('VPS вернул подтверждение другой команды или области данных.');
   const cursor=Number(result.cursor);if(!Number.isSafeInteger(cursor)||cursor<0)throw new Error('VPS вернул повреждённый курсор изменений.');
   const entities=(Array.isArray(result.entities)?result.entities:[]).map(item=>{
@@ -2010,11 +2033,13 @@ async function submitRegEntityBatch(state,warehouseId,environment,batch){
     if(!REG_ENTITY_TYPES.has(type)||!/^[A-Za-z0-9_-]{1,160}$/.test(id)||!Number.isSafeInteger(version)||version<0||!Number.isSafeInteger(eventId)||eventId<0)throw new Error('VPS вернул повреждённое подтверждение сущности.');
     return{type,id,version,eventId,digest:String(item?.digest_sha256||''),deleted:item?.deleted===true,unchanged:item?.unchanged===true};
   });
+  validateRegEntityBatchAck(entities,cursor,batch);
   const cascadeDeleted=Number(result.cascade_deleted??0),rawCascadeByEnvironment=result.cascade_by_environment??{live:0,demo:0};if(!Number.isSafeInteger(cascadeDeleted)||cascadeDeleted<0||!rawCascadeByEnvironment||typeof rawCascadeByEnvironment!=='object'||Array.isArray(rawCascadeByEnvironment))throw new Error('VPS вернул повреждённый результат каскадного удаления.');
   const cascadeByEnvironment={};for(const environmentName of ['live','demo']){const count=Number(rawCascadeByEnvironment[environmentName]??0);if(!Number.isSafeInteger(count)||count<0)throw new Error('VPS вернул повреждённый результат каскадного удаления.');cascadeByEnvironment[environmentName]=count}if(cascadeByEnvironment.live+cascadeByEnvironment.demo!==cascadeDeleted)throw new Error('VPS вернул несогласованный результат каскадного удаления.');
   const historyPayloadsRedacted=Number(result.history_payloads_redacted??0);if(!Number.isSafeInteger(historyPayloadsRedacted)||historyPayloadsRedacted<0)throw new Error('VPS вернул повреждённый результат очистки истории склада.');
   if(warehouseDelete&&(Number(result.delete_prepare_contract)!==1||String(result.delete_operation_status||'')!=='completed'||result.delete_operation_completed!==true||result.telegram_deprovisioned!==true||Number(result.delete_operation_base_version)!==Number(batch.changes[0].base_version)||String(result.delete_operation_warehouse_code||'')!==String(batch.warehouse_delete_warehouse_code||'')||(String(result.telegram_installation_id||'')&&!/^[A-Za-z0-9._:-]{8,160}$/.test(String(result.telegram_installation_id)))))throw Object.assign(new Error('VPS не подтвердил завершение подготовленной операции удаления и отключение Telegram.'),{code:'WAREHOUSE_DELETE_COMPLETION_UNCONFIRMED'});
   return{cursor,entities,replayed:result.replayed===true,cascade_deleted:cascadeDeleted,cascade_by_environment:cascadeByEnvironment,history_payloads_redacted:historyPayloadsRedacted,delete_operation_completed:warehouseDelete,telegram_deprovisioned:warehouseDelete&&result.telegram_deprovisioned===true,telegram_already_deprovisioned:warehouseDelete&&result.telegram_already_deprovisioned===true,telegram_installation_id:warehouseDelete?String(result.telegram_installation_id||''):''}
+  }catch(error){error.regWritePhase='ack_validation';throw error}
 }
 async function prepareRegWarehouseDelete(state,journal,leaseToken){
   const change=journal?.batch?.changes?.[0],body={
@@ -3032,30 +3057,33 @@ function registerIPC(config) {
     }catch(error){appendRecurringLog('VPS entity bootstrap failed',{code:String(error?.code||''),error:safeIntegrationError(error)});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||'')}}
   });
   handleMainIPC('desktop:reg-entity-sync',async(_event,payload)=>{
+    let requestAttempted=false;
     try{
-      const warehouseId=requireActiveRendererWarehouse(payload?.warehouseId),environment=requireCurrentEnvironment(payload?.environment),state=regState(),batch=validateRegEntityBatch(payload,warehouseId);
+      const warehouseId=requireActiveRendererWarehouse(payload?.warehouseId),environment=requireCurrentEnvironment(payload?.environment),state=regState(),batch=validateRegEntityBatch(payload,warehouseId,environment);
+      if(batch.intent?.kind===REG_LOCAL_MIGRATION_INTENT&&!canImportLocalMigration(currentSession?.cloudAuth))throw Object.assign(new Error('Перенос локальной базы может выполнить только владелец с доступом ко всем складам.'),{code:'LOCAL_MIGRATION_PERMISSION_DENIED'});
       const createsWarehouse=batch.changes.some(item=>item.type==='warehouse'&&item.id===warehouseId&&item.deleted===false&&item.base_version===0);
       if(createsWarehouse&&!canCreateCompanyWarehouses(currentSession?.cloudAuth))throw Object.assign(new Error('Создать склад может владелец или администратор с доступом ко всем складам.'),{code:'WAREHOUSE_CREATE_GLOBAL_ACCESS_REQUIRED'});
-      const result=await submitRegEntityBatch(state,warehouseId,environment,batch);
+      requestAttempted=true;const result=await submitRegEntityBatch(state,warehouseId,environment,batch);
       appendLog('VPS entity batch committed',{warehouseId,environment,cursor:result.cursor,entities:result.entities.length,replayed:result.replayed});
       return{ok:true,warehouseId,environment,commandId:batch.command_id,...result};
-    }catch(error){appendLog('VPS entity batch failed',{code:String(error?.code||''),error:safeIntegrationError(error),details:error?.details||{}});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||''),details:error?.details||{}}}
+    }catch(error){const failure=regWriteFailureContract(error,{requestAttempted});appendLog('VPS entity batch failed',{code:String(error?.code||''),error:safeIntegrationError(error),details:error?.details||{},...failure});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||''),details:error?.details||{},...failure}}
   });
   handleMainIPC('desktop:reg-warehouse-write',async(_event,payload)=>{
+    let requestAttempted=false;
     try{
       if(!canManageCompanyWarehouses(currentSession?.cloudAuth))throw Object.assign(new Error('Нет права изменять склады компании.'),{code:'WAREHOUSE_ACCESS_DENIED'});
-      const warehouseId=validateWarehouseId(payload?.warehouseId),environment=validateEnvironment(payload?.environment),state=regState(),batch=validateRegEntityBatch(payload,warehouseId);
+      const warehouseId=validateWarehouseId(payload?.warehouseId),environment=validateEnvironment(payload?.environment),state=regState(),batch=validateRegEntityBatch(payload,warehouseId,environment);
       if(environment!=='live')throw Object.assign(new Error('Реестр складов можно изменять только в LIVE-контуре.'),{code:'WAREHOUSE_ENVIRONMENT_INVALID'});
       const warehouseChanges=batch.changes.filter(item=>item.type==='warehouse'&&item.id===warehouseId),warehouseChange=warehouseChanges[0],supplemental=batch.changes.filter(item=>item!==warehouseChange),creating=warehouseChange?.deleted===false&&warehouseChange?.base_version===0,supplementalKeys=supplemental.map(item=>`${item.type}:${item.id}`);
       if(creating&&!canCreateCompanyWarehouses(currentSession?.cloudAuth))throw Object.assign(new Error('Создать склад может владелец или администратор с доступом ко всем складам.'),{code:'WAREHOUSE_CREATE_GLOBAL_ACCESS_REQUIRED'});
       if(warehouseChange?.deleted&&!canDeleteCompanyWarehouses(currentSession?.cloudAuth))throw Object.assign(new Error('Удалить склад может только владелец или администратор с доступом ко всем складам.'),{code:'WAREHOUSE_DELETE_GLOBAL_ACCESS_REQUIRED'});
       const validSupplemental=creating&&supplemental.length<=2&&new Set(supplementalKeys).size===supplemental.length&&supplemental.every(item=>item.deleted===false&&item.base_version===0&&((item.type==='settings'&&item.id==='settings')||(item.type==='company'&&item.id==='company')));
       if(batch.intent||warehouseChanges.length!==1||(!validSupplemental&&supplemental.length))throw new Error('Команда склада содержит посторонние данные.');
-      const deletion=warehouseChange.deleted?await completeWarehouseDeleteOperation({warehouseId,warehouseCode:validateWarehouseCode(payload?.warehouseCode),batch,state}):null;
+      requestAttempted=true;const deletion=warehouseChange.deleted?await completeWarehouseDeleteOperation({warehouseId,warehouseCode:validateWarehouseCode(payload?.warehouseCode),batch,state}):null;
       const result=deletion?.result||await submitRegEntityBatch(state,warehouseId,environment,batch),commandId=deletion?.commandId||batch.command_id;
       const confirmed=result.entities.find(item=>item.type==='warehouse'&&item.id===warehouseId);appendLog('VPS warehouse record committed',{warehouseId,environment,deleted:warehouseChange.deleted,version:confirmed?.version||0,cascadeDeleted:result.cascade_deleted,telegramDeprovisioned:Boolean(deletion),telegramLocalCleanupPending:deletion?.localCleanupPending===true});
       return{ok:true,warehouseId,environment,commandId,...result,telegram_deprovisioned:Boolean(deletion),telegram_local_cleanup_pending:deletion?.localCleanupPending===true};
-    }catch(error){appendLog('VPS warehouse record failed',{code:String(error?.code||''),error:safeIntegrationError(error),details:error?.details||{}});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||''),details:error?.details||{}}}
+    }catch(error){const failure=regWriteFailureContract(error,{requestAttempted});appendLog('VPS warehouse record failed',{code:String(error?.code||''),error:safeIntegrationError(error),details:error?.details||{},...failure});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||''),details:error?.details||{},...failure}}
   });
   handleMainIPC('desktop:reg-entity-changes',async(_event,payload)=>{
     try{
@@ -3837,7 +3865,7 @@ if (DESKTOP_UNIT_TEST_MODE) {
     normalizeFingerprint, pinnedHttpsAgent, validateWorkerState, loadWorkerState,
     cloudFriendlyError, friendlyCloudNetworkError, isRetryableCloudNetworkError, isTemporaryCompanyServiceError, telegramCompanyPublishRetryDelay, telegramCompanyPublishPendingMessage, withCloudNetworkRetry, decodeJwtPayload, tokenExpiresAt, justFunTokenClaims, combinedCloudClaims, normalizeCloudUser, normalizeCloudCompany, normalizeCloudAuthState, publicCloudAuth,
     readCloudAuthState, writeCloudAuthState, clearCloudAuthState, saveCloudSession, cloudSessionComplete,
-    companyWorkspaceId, cloudRegState, selectRegState, canConfigureCompanyServer, canManageCompanyWarehouses, canCreateCompanyWarehouses, canDeleteCompanyWarehouses, validateWarehouseCode, validateWarehouseDeleteLease, validateTelegramDeprovisionResult, normalizeWarehouseDeleteBatch, warehouseDeleteLeaseSecretName, warehouseDeletePrepareFailureAction, withWarehouseDeleteOperationLock, regWarehouseDeletePreparePath,
+    companyWorkspaceId, cloudRegState, selectRegState, canConfigureCompanyServer, canManageCompanyWarehouses, canCreateCompanyWarehouses, canImportLocalMigration, canDeleteCompanyWarehouses, validateWarehouseCode, validateWarehouseDeleteLease, validateTelegramDeprovisionResult, normalizeWarehouseDeleteBatch, validateRegEntityBatch, validateRegEntityBatchAck, regWriteFailureContract, warehouseDeleteLeaseSecretName, warehouseDeletePrepareFailureAction, withWarehouseDeleteOperationLock, regWarehouseDeletePreparePath,
     regStatePath, regApiSecretName, regVpsAttestationSecretName, readLocalRegState, regDiagnosticStage,
     installerSmokeOutputPath, setInstallerSmokeSessionDefaults, runInstallerSmokeTest, runRunningInstanceProbe, parseCssColor, contrastRatio,
     appRendererUrl, resolveAppRendererPath, isTrustedAppUrl, verifyPackagedApplicationIntegrity,

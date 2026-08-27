@@ -11,14 +11,16 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   publish:
     uses: ./.github/workflows/_publish-update-catalog.yml
-    secrets: inherit
     with:
       channel: stable
       catalog_path: ${{ inputs.catalog_path }}
       wrangler_environment: production
       protected_environment: update-production
       required_directive: halt-or-rollback
+      production_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_PRODUCTION_KV_NAMESPACE_ID }}
+      staging_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_STAGING_KV_NAMESPACE_ID }}

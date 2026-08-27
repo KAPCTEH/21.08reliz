@@ -14,7 +14,7 @@ permissions:
 jobs:
   build-and-accept:
     runs-on: windows-2022
-    timeout-minutes: 90
+    timeout-minutes: 180
     env:
       ELECTRON_CACHE: ${{ github.workspace }}\.cache\electron
       ELECTRON_BUILDER_CACHE: ${{ github.workspace }}\.cache\electron-builder
@@ -32,6 +32,7 @@ jobs:
             source/application/package-lock.json
             source/desktop-runtime/package-lock.json
             source/installer/package-lock.json
+            source/update-catalog-service/package-lock.json
             tests/package-lock.json
 
       - name: Resolve and verify canonical release contract
@@ -89,7 +90,7 @@ jobs:
       - name: Install pinned Node dependencies
         shell: pwsh
         run: |
-          foreach ($directory in @('source/application','source/desktop-runtime','source/installer','tests')) {
+          foreach ($directory in @('source/application','source/desktop-runtime','source/installer','source/update-catalog-service','tests')) {
             Push-Location $directory
             npm ci
             if ($LASTEXITCODE -ne 0) { throw "npm ci failed in $directory" }
@@ -114,8 +115,14 @@ jobs:
       - name: Run source, security and release contracts
         shell: pwsh
         run: |
+          node tests/audit-tools-unit.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Audit tools unit tests failed.' }
           node tests/security-audit.mjs source tools .github
           if ($LASTEXITCODE -ne 0) { throw 'Security audit failed.' }
+          node tests/security-manifest-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Security manifest unit tests failed.' }
+          node tests/security-regression-v783.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Security regression failed.' }
           node tests/source-hygiene-regression-v783.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Source hygiene regression failed.' }
           node tests/static-audit-regression-v783.cjs
@@ -124,12 +131,30 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Main unit tests failed.' }
           node tests/tz3-live-defects-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'TZ3 live-defect regressions failed.' }
+          node tests/action-dispatch-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Action dispatch unit tests failed.' }
+          node tests/startup-auth-regression.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Startup authorization regression failed.' }
           node tests/license-server-unit.mjs
           if ($LASTEXITCODE -ne 0) { throw 'License server unit tests failed.' }
           python tests/license-schema-test.py
           if ($LASTEXITCODE -ne 0) { throw 'License schema and migration tests failed.' }
+          python tests/license-custom-role-migration-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Custom-role license migration failed.' }
+          python tests/license-exact-permission-migration-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Exact-permission license migration failed.' }
+          python tests/license-granular-permission-migration-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Granular-permission license migration failed.' }
           node tests/auth-reg-source-contract.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Authorization source contract failed.' }
+          node tests/permission-compat-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Permission compatibility regression failed.' }
+          node tests/company-scope-test.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Company scope isolation tests failed.' }
+          node tests/local-outbox-v783-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Local outbox unit tests failed.' }
+          node tests/atomic-mutation-async-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Async atomic mutation regression failed.' }
           node tests/update-core-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Update core unit tests failed.' }
           node tests/update-downloader-unit.cjs
@@ -140,10 +165,33 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Update UI unit tests failed.' }
           node tests/update-helper-runner-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Update Helper runner unit tests failed.' }
+          node tests/update-catalog-ops-unit.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Update catalog operations tests failed.' }
+          node tests/update-catalog-worker-unit.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Update catalog Worker tests failed.' }
+          Push-Location 'source/update-catalog-service'
+          try {
+            npm run check
+            if ($LASTEXITCODE -ne 0) { throw 'Update catalog service check failed.' }
+          } finally {
+            Pop-Location
+          }
           python tests/release-evidence-unit.py
           if ($LASTEXITCODE -ne 0) { throw 'Release evidence unit tests failed.' }
+          python tests/installer-builder-unit.py
+          if ($LASTEXITCODE -ne 0) { throw 'Installer builder unit tests failed.' }
           node tests/reg-entity-source-contract.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Entity source contract failed.' }
+          python tests/reg-api-contract-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'REG API contract tests failed.' }
+          python tests/reg-entity-protocol-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'REG entity protocol tests failed.' }
+          python tests/reg-map-proxy-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'REG map proxy tests failed.' }
+          node tests/reg-native-ssh-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'REG native SSH unit tests failed.' }
+          node tests/reg-tls-source-test.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'REG TLS source tests failed.' }
           python tests/reg-legacy-migration-unit.py
           if ($LASTEXITCODE -ne 0) { throw 'Legacy storage migration unit tests failed.' }
           python tests/reg-legacy-migration-integration.py
@@ -154,6 +202,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Storage v3 revision tests failed.' }
           node tests/background-cloud-sync-failure-regression-v783.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Background VPS sync failure regression failed.' }
+          python tests/company-telegram-broker-schema-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Company Telegram broker schema tests failed.' }
+          node tests/company-telegram-broker-unit.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Company Telegram broker unit tests failed.' }
+          node tests/telegram-scope-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Telegram scope regression failed.' }
+          node tests/telegram-shared-d1-schema.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Telegram shared D1 schema tests failed.' }
+          node tests/telegram-system-proxy-transport-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Telegram system proxy transport tests failed.' }
+          node tests/telegram-wizard-open-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Telegram wizard regression failed.' }
+          node tests/telegram-worker-unit.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Telegram Worker unit tests failed.' }
           node tests/current-cycle-regression-v783.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Current-cycle regression failed.' }
           node tests/address-intelligence-unit-v783.cjs
@@ -164,6 +226,26 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Design-token regression failed.' }
           node tests/product-drawer-accessibility-v783.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Product drawer accessibility regression failed.' }
+          node tests/dead-override-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Dead override regression failed.' }
+          node tests/deep-business-fixture-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Deep business fixture regression failed.' }
+          node tests/desktop-dialog-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Desktop dialog regression failed.' }
+          node tests/error-boundary-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Error boundary regression failed.' }
+          node tests/icon-system-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Icon system regression failed.' }
+          python tests/logo-transparency-test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Logo transparency test failed.' }
+          node tests/map-diagnostic-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Map diagnostic regression failed.' }
+          node tests/route-stage-pagination-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Route stage pagination unit tests failed.' }
+          node tests/runtime-overrides-regression-v783.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime overrides regression failed.' }
+          node tests/role-matrix-all.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'All-role runtime matrix failed.' }
           $env:JF_TEST_EDITION = 'demo'
           node tests/runtime-smoke.mjs source/application/web accessibility
           if ($LASTEXITCODE -ne 0) { throw 'Training accessibility regression failed.' }
@@ -172,16 +254,38 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Order print regression failed.' }
           node tests/runtime-smoke.mjs source/application/web order-save-integrity
           if ($LASTEXITCODE -ne 0) { throw 'Order save integrity regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web security-fuzz
+          if ($LASTEXITCODE -ne 0) { throw 'Runtime security fuzz regression failed.' }
           node tests/runtime-smoke.mjs source/application/web atomic-mutation
           if ($LASTEXITCODE -ne 0) { throw 'Atomic VPS mutation regression failed.' }
           $env:JF_TEST_DATA_SERVICE_DISABLED = '1'
           node tests/runtime-smoke.mjs source/application/web local-mutation-durability
           if ($LASTEXITCODE -ne 0) { throw 'Local mutation durability regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web local-warehouse
+          if ($LASTEXITCODE -ne 0) { throw 'Local warehouse isolation regression failed.' }
           Remove-Item Env:JF_TEST_DATA_SERVICE_DISABLED -ErrorAction SilentlyContinue
           node tests/runtime-smoke.mjs source/application/web local-first-offline
           if ($LASTEXITCODE -ne 0) { throw 'Offline outbox durability regression failed.' }
           node tests/runtime-smoke.mjs source/application/web local-first-retry
           if ($LASTEXITCODE -ne 0) { throw 'Outbox reconnect retry regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web bootstrap-version-conflict
+          if ($LASTEXITCODE -ne 0) { throw 'Bootstrap version-conflict regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web bootstrap-scope-isolation
+          if ($LASTEXITCODE -ne 0) { throw 'Bootstrap scope-isolation regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web background-scope-race
+          if ($LASTEXITCODE -ne 0) { throw 'Background scope-race regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web outbox-aba-race
+          if ($LASTEXITCODE -ne 0) { throw 'Outbox A-B-A serialization regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web critical-scope-guard
+          if ($LASTEXITCODE -ne 0) { throw 'Critical scope-guard regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web critical-crash-recovery
+          if ($LASTEXITCODE -ne 0) { throw 'Critical crash-recovery regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web critical-storage-failover
+          if ($LASTEXITCODE -ne 0) { throw 'Critical dual-storage failover regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web ordinary-crash-recovery
+          if ($LASTEXITCODE -ne 0) { throw 'Ordinary mutation crash-recovery regression failed.' }
+          node tests/runtime-smoke.mjs source/application/web entity-ack-validation
+          if ($LASTEXITCODE -ne 0) { throw 'Entity acknowledgement validation regression failed.' }
           node tests/runtime-smoke.mjs source/application/web local-to-server-migration
           if ($LASTEXITCODE -ne 0) { throw 'Local-to-server migration regression failed.' }
           node tests/runtime-smoke.mjs source/application/web local-to-server-migration-resume
@@ -298,12 +402,6 @@ jobs:
               throw "PDF contract failed: $($document.name)"
             }
           }
-
-      - name: Exercise interrupted update recovery
-        shell: pwsh
-        run: |
-          & tests/installer-crash-recovery-test.ps1 -Makensis $env:NSIS_MAKENSIS -AssetsDir (Join-Path $PWD '.release\assets')
-          if (-not $?) { throw 'Installer crash recovery test failed.' }
 
       - name: Run isolated full installer acceptance
         shell: pwsh
@@ -465,4 +563,4 @@ jobs:
             .release/native-safety/
             .release/release-evidence/
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 90

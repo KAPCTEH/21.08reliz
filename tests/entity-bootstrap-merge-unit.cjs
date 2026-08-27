@@ -17,7 +17,7 @@ const context={
   console,
   structuredClone,
   window:{},
-  localStorage:{getItem:()=>null,setItem:()=>{}},
+  localStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}},
   desktopSession:{auth:{company:{id:'company-1'}}},
   activeWarehouseId:()=> 'warehouse-1',
   activeEnvironment:()=> 'live',
@@ -31,7 +31,8 @@ const context={
   ENTITY_SETTINGS_WAREHOUSE_FIELDS:['warehouse'],
   ENTITY_SETTINGS_ROUTE_FIELDS:['routeStartTime'],
   ENTITY_SETTINGS_INTEGRATION_FIELDS:['nominatimUrl'],
-  cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlight:false,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),outbox:null,outboxError:null},
+  cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,bootstrapFlights:new Map(),scopeEpoch:0,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlightScopes:new Map(),criticalFlights:new Map(),contextBlockedError:null,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),outboxes:new Map(),outbox:null,outboxError:null,localBaseline:null},
+  q:()=>null,
   clearTimeout:()=>{},
 };
 context.isTrainingEnvironment=()=>context.activeEnvironment()==='demo';

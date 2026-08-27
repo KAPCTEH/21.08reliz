@@ -17,18 +17,18 @@ const localStorage = {
   removeItem(key) { values.delete(String(key)); },
 };
 
-function loadCompany(companyId) {
+function loadCompany(companyId, storage=localStorage, edition='full') {
   let warehouseSerial=0;
   const window = {
     JustFunDesktop: {
-      bootstrapEdition: 'full',
+      bootstrapEdition: edition,
       bootstrapCompanyId: companyId,
       startupStage() {},
     },
   };
   const context = {
     window,
-    localStorage,
+    localStorage: storage,
     crypto: { randomUUID: () => `${companyId}-warehouse-${++warehouseSerial}` },
     console,
     Date,
@@ -108,6 +108,57 @@ const companyBReloaded=loadCompany('cmp_company_b_12345');
 assert.deepEqual(companyBReloaded.getRegistry().warehouses,[],'server-confirmed empty access must survive restart without creating a local warehouse');
 assert.equal(companyBReloaded.getRegistry().serverAuthoritativeEmpty,true);
 
+for(let failAt=1;failAt<=7;failAt+=1){
+  const companyId=`cmp_migration_resume_${failAt}`,warehouseId='legacy-warehouse-1',legacyRegistry=JSON.stringify({version:2,activeWarehouseId:warehouseId,warehouses:[{id:warehouseId,name:'Старый склад',code:'СТР',status:'active',origin:'local'}]}),backing=new Map([
+    ['teplitsa_warehouses_registry_v600',legacyRegistry],
+    ['teplitsa_warehouses_migration_v600',JSON.stringify({completed:true,activeWarehouseId:warehouseId})],
+    [`teplitsa_wh_v600__${warehouseId}__live__orders_2gis_tms_v1`,JSON.stringify([{id:`legacy-order-${failAt}`}])],
+    [`teplitsa_wh_v600__${warehouseId}__live__orders_osm_leaflet_products_v1`,JSON.stringify([{id:`legacy-product-${failAt}`}])],
+  ]),makeStorage=limit=>{let writes=0;return{get length(){return backing.size},key:index=>[...backing.keys()][index]??null,getItem:key=>backing.has(String(key))?backing.get(String(key)):null,setItem(key,value){writes+=1;if(writes===limit)throw new Error(`simulated migration crash ${limit}`);backing.set(String(key),String(value))},removeItem:key=>backing.delete(String(key))}};
+  try{loadCompany(companyId,makeStorage(failAt))}catch(error){assert.match(String(error?.message||error),/simulated migration crash/)}
+  const resumed=loadCompany(companyId,makeStorage(Number.POSITIVE_INFINITY)),prefix=`teplitsa_company_${companyId}__`,dataPrefix=`${prefix}wh_v600__${warehouseId}__live__`;
+  assert.equal(resumed.raw.get('teplitsa_company_scope_claimed_v783'),companyId,`claim must survive crash point ${failAt}`);
+  assert.equal(JSON.parse(resumed.raw.get(`${prefix}company_scope_migration_v783`)).state,'completed',`migration must complete after crash point ${failAt}`);
+  const resumedRegistry=JSON.parse(resumed.raw.get(`${prefix}warehouses_registry_v600`));assert.equal(resumedRegistry.activeWarehouseId,warehouseId,`registry must resume after crash point ${failAt}`);assert.equal(resumedRegistry.warehouses[0].name,'Старый склад');
+  assert.equal(JSON.parse(resumed.raw.get(`${dataPrefix}orders_2gis_tms_v1`))[0].id,`legacy-order-${failAt}`);
+  assert.equal(JSON.parse(resumed.raw.get(`${dataPrefix}orders_osm_leaflet_products_v1`))[0].id,`legacy-product-${failAt}`);
+  resumed.raw.remove(`${dataPrefix}orders_osm_leaflet_products_v1`);const completedReload=loadCompany(companyId,makeStorage(Number.POSITIVE_INFINITY));assert.equal(completedReload.raw.get(`${dataPrefix}orders_osm_leaflet_products_v1`),null,`completed migration must not resurrect deleted data after crash point ${failAt}`);
+}
+
+const completedCompanyId='cmp_completed_legacy_marker',completedWarehouseId='completed-warehouse',completedPrefix=`teplitsa_company_${completedCompanyId}__`,completedBacking=new Map([
+  ['teplitsa_company_scope_claimed_v783',completedCompanyId],
+  [`${completedPrefix}warehouses_registry_v600`,JSON.stringify({version:2,activeWarehouseId:completedWarehouseId,warehouses:[{id:completedWarehouseId,name:'Перенесённый склад',code:'ПРН',status:'active',origin:'local'}]})],
+  [`${completedPrefix}warehouses_migration_v600`,JSON.stringify({completed:true,activeWarehouseId:completedWarehouseId})],
+  ['orders_osm_leaflet_drivers_v1',JSON.stringify([{id:'must-not-resurrect'}])],
+]),completedStorage={get length(){return completedBacking.size},key:index=>[...completedBacking.keys()][index]??null,getItem:key=>completedBacking.has(String(key))?completedBacking.get(String(key)):null,setItem:(key,value)=>completedBacking.set(String(key),String(value)),removeItem:key=>completedBacking.delete(String(key))};
+const completedCompany=loadCompany(completedCompanyId,completedStorage),completedTarget=completedCompany.dataKey('orders_osm_leaflet_drivers_v1','live',completedWarehouseId),upgradedCompletedMarker=JSON.parse(completedCompany.raw.get(`${completedPrefix}warehouses_migration_v600`));
+assert.equal(completedCompany.raw.get(completedTarget),null,'an already completed legacy migration must never resurrect a deliberately deleted scoped value');
+assert.equal(upgradedCompletedMarker.companyId,completedCompanyId);
+assert.equal(upgradedCompletedMarker.scopeVersion,2);
+
+const globalBacking=new Map([
+  ['orders_osm_leaflet_drivers_v1',JSON.stringify([{id:'legacy-secret-driver',name:'Секрет старой компании'}])],
+  ['orders_osm_leaflet_settings_v1',JSON.stringify({warehouse:{address:'Секретный адрес старой компании'}})],
+  ['orders_teplitsa_demonstration_mode_v1','0'],
+]);
+const globalStorage={get length(){return globalBacking.size},key:index=>[...globalBacking.keys()][index]??null,getItem:key=>globalBacking.has(String(key))?globalBacking.get(String(key)):null,setItem:(key,value)=>globalBacking.set(String(key),String(value)),removeItem:key=>globalBacking.delete(String(key))};
+const legacyGlobalsBefore=new Map(globalBacking);
+const legacyOwner=loadCompany('cmp_global_legacy_owner',globalStorage),legacyOwnerWarehouse=legacyOwner.activeWarehouse();
+assert.equal(JSON.parse(legacyOwner.raw.get(legacyOwner.dataKey('orders_osm_leaflet_drivers_v1','live',legacyOwnerWarehouse.id)))[0].id,'legacy-secret-driver');
+assert.equal(legacyOwner.raw.get('teplitsa_company_scope_claimed_v783'),'cmp_global_legacy_owner');
+assert.equal(legacyOwner.raw.get(legacyOwner.systemKey('demo_mode',legacyOwnerWarehouse.id)),'0','legacy live mode must be copied into company-scoped state');
+assert.equal(legacyOwner.raw.get('orders_teplitsa_demonstration_mode_v1'),'0','company migration must preserve the global legacy mode flag');
+const otherCompany=loadCompany('cmp_global_legacy_other',globalStorage),otherWarehouse=otherCompany.activeWarehouse();
+assert.equal(otherCompany.raw.get(otherCompany.dataKey('orders_osm_leaflet_drivers_v1','live',otherWarehouse.id)),null,'a second company must not import globally claimed legacy data');
+assert.notEqual(otherWarehouse.address,'Секретный адрес старой компании','a second company must not derive its default warehouse from claimed global settings');
+otherCompany.setDemo(true,otherWarehouse.id);otherCompany.setDemo(false,otherWarehouse.id);
+assert.equal(otherCompany.raw.get(otherCompany.systemKey('demo_mode',otherWarehouse.id)),'0','the second company must persist its own live mode in its scoped key');
+for(const [key,value] of legacyGlobalsBefore)assert.equal(globalBacking.get(key),value,`company-scoped demo changes must preserve global legacy key ${key}`);
+const signedOut=loadCompany('',globalStorage),signedOutWarehouse=signedOut.activeWarehouse();
+assert.equal(signedOut.raw.get(signedOut.dataKey('orders_osm_leaflet_drivers_v1','live',signedOutWarehouse.id)),null,'signed-out bootstrap must not import global legacy data');
+const demo=loadCompany('',globalStorage,'demo'),demoWarehouse=demo.activeWarehouse();
+assert.equal(demo.raw.get(demo.dataKey('orders_osm_leaflet_drivers_v1','demo',demoWarehouse.id)),null,'demo bootstrap must not import live global legacy data');
+
 console.log(JSON.stringify({
   ok: true,
   companyA: companyA.companyScope,
@@ -116,5 +167,9 @@ console.log(JSON.stringify({
   isolatedWarehouseCatalogs: true,
   pendingServerDeleteSurvivesRestart: true,
   authoritativeAllArchivedInactive: true,
+  globalLegacyClaimIsolation: true,
+  globalLegacyPreservedAcrossCompanies: true,
+  completedLegacyMigrationDoesNotResurrect: true,
   authoritativeEmptyRegistry: true,
+  legacyMigrationCrashResumePoints: 7,
 }));

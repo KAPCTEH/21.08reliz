@@ -1,20 +1,16 @@
-name: Publish staging update catalog
+name: Halt or roll back staging update release
 
 on:
   workflow_dispatch:
     inputs:
       catalog_path:
-        description: Signed staging catalog tracked under release/catalogs
+        description: Newly signed higher-sequence staging halt or rollback catalog
         required: true
-        default: release/catalogs/staging.json
-        type: string
-      build_run_id:
-        description: Successful exact-SHA Windows native release gate run ID
-        required: true
+        default: release/catalogs/staging-rollback.json
         type: string
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 jobs:
@@ -25,7 +21,6 @@ jobs:
       catalog_path: ${{ inputs.catalog_path }}
       wrangler_environment: staging
       protected_environment: update-staging
-      required_directive: release
-      build_run_id: ${{ inputs.build_run_id }}
+      required_directive: halt-or-rollback
       production_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_PRODUCTION_KV_NAMESPACE_ID }}
       staging_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_STAGING_KV_NAMESPACE_ID }}

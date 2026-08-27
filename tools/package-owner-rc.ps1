@@ -54,6 +54,9 @@ $required = @(
   "JustFun-$version-UpdateHelper.exe",
   "JustFun-$version-win-x64.zip",
   'UPDATE-FILES.json',
+  'PE-RESOURCE-QA.json',
+  'INSTALLER-CRASH-RECOVERY-QA.json',
+  'PROTECTED-PAYLOAD-SECURITY.json',
   'BUILD-MANIFEST.json'
 )
 foreach ($name in $required) {

@@ -9,6 +9,7 @@
     <RootNamespace>JustFun.PremiumSetup</RootNamespace>
     <Product>JustFun Логистика</Product>
     <Company>JustFun</Company>
+    <AssemblyTitle>Премиальный установщик JustFun Логистика</AssemblyTitle>
     <Description>Премиальный установщик JustFun Логистика</Description>
     <Copyright>JustFun</Copyright>
     <Version>$(JustFunProductVersion)</Version>

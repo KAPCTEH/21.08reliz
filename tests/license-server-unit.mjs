@@ -1093,8 +1093,10 @@ const malformedSignatureAttestation = await vpsAttestationRequest('/v1/vps-attes
 });
 assert.equal(malformedSignatureAttestation.status, 401);
 for (const [label, timestamp] of [
-  ['old', Math.floor(Date.now() / 1000) - 91],
-  ['future', Math.floor(Date.now() / 1000) + 91],
+  // Keep a deterministic margin beyond the 90-second acceptance boundary.
+  // A +91 timestamp can become exactly +90 while the async request is built.
+  ['old', Math.floor(Date.now() / 1000) - 120],
+  ['future', Math.floor(Date.now() / 1000) + 120],
 ]) {
   const staleResponse = await vpsAttestationRequest('/v1/vps-attestations/verify', attestationPayload, {
     nonce: `nonce_${label}_timestamp_0123456789`,

@@ -2,16 +2,40 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$Makensis,
   [Parameter(Mandatory = $true)]
-  [string]$AssetsDir
+  [string]$AssetsDir,
+  [string]$BuiltSetupEngine,
+  [string]$BuiltSetup,
+  [string]$EvidenceFile
 )
 
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $Makensis = (Resolve-Path -LiteralPath $Makensis).Path
 $AssetsDir = (Resolve-Path -LiteralPath $AssetsDir).Path
+if ([string]::IsNullOrWhiteSpace($BuiltSetupEngine) -xor [string]::IsNullOrWhiteSpace($BuiltSetup)) {
+  throw 'BuiltSetupEngine and BuiltSetup must be supplied together.'
+}
+if (-not [string]::IsNullOrWhiteSpace($BuiltSetupEngine)) {
+  $BuiltSetupEngine = (Resolve-Path -LiteralPath $BuiltSetupEngine).Path
+  $BuiltSetup = (Resolve-Path -LiteralPath $BuiltSetup).Path
+}
+if (-not [string]::IsNullOrWhiteSpace($EvidenceFile)) {
+  $EvidenceFile = [IO.Path]::GetFullPath($EvidenceFile)
+}
 
 function Assert-True([bool]$Condition, [string]$Message) {
   if (-not $Condition) { throw $Message }
+}
+
+function Assert-WindowsExecutable([string]$Path, [string]$Label) {
+  $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+  try {
+    $first = $stream.ReadByte()
+    $second = $stream.ReadByte()
+  } finally {
+    $stream.Dispose()
+  }
+  Assert-True ($first -eq 0x4D -and $second -eq 0x5A) "$Label is not a Windows PE executable."
 }
 
 function Invoke-Setup([string]$Engine, [string]$ProgramDir, [string]$DataDir, [string]$LogPath) {
@@ -40,6 +64,25 @@ function New-KnownInstallation([string]$Directory, [string]$Sentinel) {
   Copy-Item -LiteralPath "$env:WINDIR\System32\notepad.exe" -Destination "$Directory\OrdersLogistics.exe" -Force
   $Sentinel | Set-Content -LiteralPath "$Directory\resources\app.asar" -Encoding utf8
   $Sentinel | Set-Content -LiteralPath "$Directory\$Sentinel.txt" -Encoding utf8
+}
+
+function Invoke-FailClosedArtifactProbe([string]$Executable, [string]$ProbeRoot, [string]$Label) {
+  New-Item -ItemType Directory -Path $ProbeRoot -Force | Out-Null
+  $sameTarget = Join-Path $ProbeRoot 'ProgramAndDataMustDiffer'
+  $probeLog = Join-Path $ProbeRoot 'probe.log'
+  $exitCode = Invoke-Setup $Executable $sameTarget $sameTarget $probeLog
+  Assert-True ($exitCode -eq 10) "$Label runtime probe returned $exitCode instead of fail-closed code 10."
+  Assert-True (Test-Path -LiteralPath $probeLog -PathType Leaf) "$Label runtime probe did not create its installer log."
+  $probeText = Get-Content -LiteralPath $probeLog -Raw
+  Assert-True ($probeText -match 'START version=') "$Label runtime probe did not start the native installer."
+  Assert-True ($probeText -match 'FAIL ') "$Label runtime probe did not record its deliberate path refusal."
+  Assert-True ($probeText -notmatch 'STEP extract-stage') "$Label runtime probe unexpectedly began payload extraction."
+  return [ordered]@{
+    exit_code = $exitCode
+    fail_closed = $true
+    extraction_started = $false
+    log_sha256 = (Get-FileHash -LiteralPath $probeLog -Algorithm SHA256).Hash.ToLowerInvariant()
+  }
 }
 
 $tempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
@@ -123,6 +166,45 @@ try {
   Assert-True (Test-Path -LiteralPath "$program3\current-safe.txt") 'Current installation was deleted despite a corrupt backup.'
   Assert-True (Test-Path -LiteralPath "$backup3\OrdersLogistics.exe") 'Corrupt backup evidence was deleted.'
   Assert-True ((Get-Content -LiteralPath (Join-Path $case3 'setup.log') -Raw) -match 'RECOVERY corrupt-backup detected') 'Corrupt-backup diagnosis was not logged.'
+
+  $boundArtifacts = $null
+  $runtimeProbes = $null
+  if (-not [string]::IsNullOrWhiteSpace($BuiltSetupEngine)) {
+    Assert-WindowsExecutable $BuiltSetupEngine 'Built Setup engine'
+    Assert-WindowsExecutable $BuiltSetup 'Built Premium Setup'
+    Assert-True ((Get-Item -LiteralPath $BuiltSetupEngine).Length -gt 100000) 'Built Setup engine is unexpectedly small.'
+    Assert-True ((Get-Item -LiteralPath $BuiltSetup).Length -gt 1000000) 'Built Premium Setup is unexpectedly small.'
+    $runtimeProbes = [ordered]@{
+      setup_engine = Invoke-FailClosedArtifactProbe $BuiltSetupEngine (Join-Path $tempRoot 'built-engine-probe') 'Built Setup engine'
+      premium_setup = Invoke-FailClosedArtifactProbe $BuiltSetup (Join-Path $tempRoot 'built-premium-probe') 'Built Premium Setup'
+    }
+    $boundArtifacts = [ordered]@{
+      setup_engine = [ordered]@{
+        file = [IO.Path]::GetFileName($BuiltSetupEngine)
+        bytes = (Get-Item -LiteralPath $BuiltSetupEngine).Length
+        sha256 = (Get-FileHash -LiteralPath $BuiltSetupEngine -Algorithm SHA256).Hash.ToLowerInvariant()
+      }
+      premium_setup = [ordered]@{
+        file = [IO.Path]::GetFileName($BuiltSetup)
+        bytes = (Get-Item -LiteralPath $BuiltSetup).Length
+        sha256 = (Get-FileHash -LiteralPath $BuiltSetup -Algorithm SHA256).Hash.ToLowerInvariant()
+      }
+    }
+  }
+
+  if (-not [string]::IsNullOrWhiteSpace($EvidenceFile)) {
+    New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($EvidenceFile)) -Force | Out-Null
+    [ordered]@{
+      schema_version = 1
+      status = 'passed'
+      scope = 'compiled-nsis-transaction-recovery'
+      scenarios = @('fresh-target-disk', 'restore-interrupted', 'cleanup-completed', 'preserve-corrupt')
+      setup_source_sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot '..\source\installer\Setup.nsi') -Algorithm SHA256).Hash.ToLowerInvariant()
+      test_sha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+      bound_artifacts = $boundArtifacts
+      runtime_probes = $runtimeProbes
+    } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $EvidenceFile -Encoding UTF8
+  }
 
   Write-Output 'Installer crash recovery: PASS (fresh-target disk, restore interrupted, clean completed, preserve corrupt)'
 }

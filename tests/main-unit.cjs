@@ -261,6 +261,37 @@ assert.equal(main.canCreateCompanyWarehouses(repaired),true);
 assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:*']}}),true);
 assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:warehouse_1234567890']}}),false);
 assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage']}}),false);
+assert.equal(main.canImportLocalMigration({user:{role:'owner',permissions:['*']}}),true);
+assert.equal(main.canImportLocalMigration({user:{role:'owner',permissions:['warehouses.manage','jf.warehouse:*']}}),true);
+assert.equal(main.canImportLocalMigration({user:{role:'manager',permissions:['*']}}),false);
+assert.equal(main.canImportLocalMigration({user:{role:'owner',permissions:['warehouses.manage']}}),false);
+const migrationWarehouse='warehouse_1234567890',migrationChanges=[
+  {type:'routeExecutions',id:'route-1',baseVersion:0,deleted:false,payload:{id:'route-1',warehouseId:migrationWarehouse}},
+  {type:'routeArchives',id:'archive-1',baseVersion:0,deleted:false,payload:{id:'archive-1',warehouseId:migrationWarehouse}},
+  {type:'warehouseReservations',id:'reservation-1',baseVersion:0,deleted:false,payload:{id:'reservation-1',warehouseId:migrationWarehouse}},
+],migrationPayload={
+  commandId:'client:migrate-v783:entities:warehouse_1234567890:0',
+  changes:migrationChanges,
+  intent:{kind:'local_migration_import',targetId:migrationWarehouse,snapshotFingerprint:'1a2b3c:4d5e6f:12345',chunkIndex:0,chunkCount:1},
+};
+const migrationBatch=main.validateRegEntityBatch(migrationPayload,migrationWarehouse,'live');
+assert.deepEqual(migrationBatch.intent,{kind:'local_migration_import',target_id:migrationWarehouse,metadata:{snapshot_fingerprint:'1a2b3c:4d5e6f:12345',chunk_index:0,chunk_count:1}});
+assert.deepEqual(migrationBatch.changes.map(item=>item.type),['routeExecutions','routeArchives','warehouseReservations']);
+const migrationAck=migrationBatch.changes.map((item,index)=>({type:item.type,id:item.id,version:1,eventId:index+1,digest:'a'.repeat(64),deleted:false,unchanged:false}));
+assert.equal(main.validateRegEntityBatchAck(migrationAck,3,migrationBatch),true);
+assert.throws(()=>main.validateRegEntityBatchAck(migrationAck.slice(0,2),3,migrationBatch),error=>error.code==='REG_ENTITY_ACK_INCOMPLETE');
+assert.throws(()=>main.validateRegEntityBatchAck(migrationAck.map((item,index)=>index?item:{...item,version:2}),3,migrationBatch),error=>error.code==='REG_ENTITY_ACK_INVALID');
+assert.throws(()=>main.validateRegEntityBatchAck(migrationAck.map((item,index)=>index?item:{...item,digest:'bad'}),3,migrationBatch),error=>error.code==='REG_ENTITY_ACK_INVALID');
+assert.throws(()=>main.validateRegEntityBatchAck(migrationAck,2,migrationBatch),error=>error.code==='REG_ENTITY_ACK_INCOMPLETE');
+assert.deepEqual(main.regWriteFailureContract(Object.assign(new Error('permission denied'),{code:'warehouse_access_denied'}),{requestAttempted:false}),{writeOutcome:'definitive_rejection',failureOrigin:'client_preflight',retrySameCommand:false});
+assert.deepEqual(main.regWriteFailureContract(Object.assign(new Error('version conflict'),{code:'entity_version_conflict',status:409}),{requestAttempted:true}),{writeOutcome:'definitive_rejection',failureOrigin:'server_rejection',retrySameCommand:false});
+assert.deepEqual(main.regWriteFailureContract(Object.assign(new Error('lost response'),{code:'NETWORK_TIMEOUT'}),{requestAttempted:true}),{writeOutcome:'uncertain',failureOrigin:'transport_or_response',retrySameCommand:true});
+assert.deepEqual(main.regWriteFailureContract(Object.assign(new Error('malformed acknowledgement'),{code:'REG_ENTITY_ACK_INVALID',regWritePhase:'ack_validation'}),{requestAttempted:true}),{writeOutcome:'uncertain',failureOrigin:'ack_validation',retrySameCommand:true});
+assert.throws(()=>main.validateRegEntityBatch({...migrationPayload,intent:{...migrationPayload.intent,targetId:'warehouse_other'}},migrationWarehouse,'live'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.throws(()=>main.validateRegEntityBatch({...migrationPayload,intent:{...migrationPayload.intent,snapshotFingerprint:'INVALID'}},migrationWarehouse,'live'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.throws(()=>main.validateRegEntityBatch({...migrationPayload,intent:{...migrationPayload.intent,chunkIndex:1}},migrationWarehouse,'live'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.throws(()=>main.validateRegEntityBatch(migrationPayload,migrationWarehouse,'demo'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.throws(()=>main.validateRegEntityBatch({...migrationPayload,changes:[{...migrationChanges[0],baseVersion:1}]},migrationWarehouse,'live'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
 assert.equal(main.canDeleteCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:*']}}),true);
 assert.equal(main.canDeleteCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:warehouse_1234567890']}}),false);
 assert.equal(main.validateWarehouseCode('СПБ'),'СПБ');

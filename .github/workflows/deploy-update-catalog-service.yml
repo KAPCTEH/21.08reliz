@@ -25,8 +25,6 @@ jobs:
     timeout-minutes: 20
     environment: ${{ inputs.target == 'production' && 'update-production' || 'update-staging' }}
     env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       WRANGLER_ENVIRONMENT: ${{ inputs.target }}
     steps:
       - name: Checkout exact approved revision
@@ -35,6 +33,17 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Require exact current main revision
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          current_main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main_sha" = "$GITHUB_SHA"
 
       - name: Configure Node.js 24
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
@@ -48,12 +57,57 @@ jobs:
           npm ci --ignore-scripts --no-audit --no-fund --prefix source/update-catalog-service
           npm run check --prefix source/update-catalog-service
 
+      - name: Validate isolated deploy credentials and generate explicit bindings
+        shell: bash
+        env:
+          DEPLOY_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_API_TOKEN }}
+          DEPLOY_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_DEPLOY_ACCOUNT_ID }}
+          PRODUCTION_KV_NAMESPACE_ID: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_PRODUCTION_KV_NAMESPACE_ID }}
+          STAGING_KV_NAMESPACE_ID: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_STAGING_KV_NAMESPACE_ID }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_API_TOKEN"
+          [[ "$DEPLOY_ACCOUNT_ID" =~ ^[0-9a-fA-F]{32}$ ]]
+          [[ "$PRODUCTION_KV_NAMESPACE_ID" =~ ^[0-9a-fA-F]{32}$ ]]
+          [[ "$STAGING_KV_NAMESPACE_ID" =~ ^[0-9a-fA-F]{32}$ ]]
+          production_id="${PRODUCTION_KV_NAMESPACE_ID,,}"
+          staging_id="${STAGING_KV_NAMESPACE_ID,,}"
+          test "$production_id" != "$staging_id"
+          case "$WRANGLER_ENVIRONMENT" in
+            production) namespace_id="$production_id" ;;
+            staging) namespace_id="$staging_id" ;;
+            *) echo "Unsupported Cloudflare environment." >&2; exit 2 ;;
+          esac
+          config="$GITHUB_WORKSPACE/source/update-catalog-service/wrangler.release.generated.json"
+          export GENERATED_WRANGLER_CONFIG="$config"
+          export NORMALIZED_PRODUCTION_KV_NAMESPACE_ID="$production_id"
+          export NORMALIZED_STAGING_KV_NAMESPACE_ID="$staging_id"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const source = 'source/update-catalog-service/wrangler.jsonc';
+          const config = JSON.parse(fs.readFileSync(source, 'utf8'));
+          const bind = (entries, id, label) => {
+            const matches = entries.filter(entry => entry?.binding === 'UPDATE_CATALOGS');
+            if (matches.length !== 1) throw new Error(`${label} must contain exactly one UPDATE_CATALOGS binding`);
+            matches[0].id = id;
+          };
+          bind(config.kv_namespaces, process.env.NORMALIZED_PRODUCTION_KV_NAMESPACE_ID, 'default');
+          bind(config.env?.production?.kv_namespaces, process.env.NORMALIZED_PRODUCTION_KV_NAMESPACE_ID, 'production');
+          bind(config.env?.staging?.kv_namespaces, process.env.NORMALIZED_STAGING_KV_NAMESPACE_ID, 'staging');
+          fs.writeFileSync(process.env.GENERATED_WRANGLER_CONFIG, `${JSON.stringify(config, null, 2)}\n`, { flag: 'wx' });
+          NODE
+          echo "KV_NAMESPACE_ID=$namespace_id" >> "$GITHUB_ENV"
+          echo "WRANGLER_CONFIG=$config" >> "$GITHUB_ENV"
+
       - name: Capture currently deployed versions
         working-directory: source/update-catalog-service
         shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_DEPLOY_ACCOUNT_ID }}
         run: |
           set -euo pipefail
-          if ! ./node_modules/.bin/wrangler versions list --env="$WRANGLER_ENVIRONMENT" --json > "$GITHUB_WORKSPACE/.worker-versions-before.json" 2> "$GITHUB_WORKSPACE/.worker-versions-before.error"; then
+          if ! ./node_modules/.bin/wrangler versions list --config "$WRANGLER_CONFIG" --env="$WRANGLER_ENVIRONMENT" --json > "$GITHUB_WORKSPACE/.worker-versions-before.json" 2> "$GITHUB_WORKSPACE/.worker-versions-before.error"; then
             if grep -q "code: 10007" "$GITHUB_WORKSPACE/.worker-versions-before.error"; then
               node -e "require('node:fs').writeFileSync(process.argv[1], JSON.stringify({schema_version:1,available:false,reason:'worker was not deployed before this operation'},null,2)+'\n')" "$GITHUB_WORKSPACE/.worker-versions-before.json"
             else
@@ -65,12 +119,39 @@ jobs:
       - name: Deploy exact Worker revision
         working-directory: source/update-catalog-service
         shell: bash
-        run: ./node_modules/.bin/wrangler deploy --env="$WRANGLER_ENVIRONMENT"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_DEPLOY_ACCOUNT_ID }}
+        run: ./node_modules/.bin/wrangler deploy --config "$WRANGLER_CONFIG" --env="$WRANGLER_ENVIRONMENT"
 
       - name: Capture deployed versions
         working-directory: source/update-catalog-service
         shell: bash
-        run: ./node_modules/.bin/wrangler versions list --env="$WRANGLER_ENVIRONMENT" --json > "$GITHUB_WORKSPACE/.worker-versions-after.json"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_DEPLOY_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_DEPLOY_ACCOUNT_ID }}
+        run: ./node_modules/.bin/wrangler versions list --config "$WRANGLER_CONFIG" --env="$WRANGLER_ENVIRONMENT" --json > "$GITHUB_WORKSPACE/.worker-versions-after.json"
+
+      - name: Create Worker rollback evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const evidence = {
+            schema_version: 1,
+            repository: process.env.GITHUB_REPOSITORY,
+            workflow_run_id: Number(process.env.GITHUB_RUN_ID),
+            workflow_run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            workflow_commit_sha: process.env.GITHUB_SHA,
+            cloudflare_environment: process.env.WRANGLER_ENVIRONMENT,
+            kv_namespace_id: process.env.KV_NAMESPACE_ID,
+            versions_before: JSON.parse(fs.readFileSync('.worker-versions-before.json', 'utf8')),
+            versions_after: JSON.parse(fs.readFileSync('.worker-versions-after.json', 'utf8')),
+            created_at: new Date().toISOString(),
+          };
+          fs.writeFileSync('.worker-rollback-evidence.json', `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
 
       - name: Upload deployment rollback evidence
         if: always()
@@ -80,5 +161,7 @@ jobs:
           path: |
             .worker-versions-before.json
             .worker-versions-after.json
-          if-no-files-found: warn
+            .worker-rollback-evidence.json
+          if-no-files-found: error
+          include-hidden-files: true
           retention-days: 90

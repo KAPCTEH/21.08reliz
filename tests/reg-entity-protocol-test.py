@@ -318,6 +318,143 @@ class EntityProtocolTests(unittest.TestCase):
         intent = SERVER.validate_entity_intent({"kind": "pickup_collected", "target_id": "order-1"}, changes)
         self.assertEqual(intent["kind"], "pickup_collected")
 
+    def local_migration_changes(self):
+        return [
+            SERVER.validate_entity_change(
+                {
+                    "type": entity_type,
+                    "id": entity_id,
+                    "base_version": 0,
+                    "payload": {"id": entity_id, "warehouseId": self.warehouse_id},
+                },
+                self.warehouse_id,
+                self.environment,
+            )
+            for entity_type, entity_id in (
+                ("routeExecutions", "route-1"),
+                ("routeArchives", "archive-1"),
+                ("warehouseReservations", "reservation-1"),
+            )
+        ]
+
+    def local_migration_intent(self, **metadata_overrides):
+        metadata = {
+            "snapshot_fingerprint": "1a2b3c:4d5e6f:12345",
+            "chunk_index": 0,
+            "chunk_count": 1,
+            **metadata_overrides,
+        }
+        return {
+            "kind": SERVER.LOCAL_MIGRATION_INTENT_KIND,
+            "target_id": self.warehouse_id,
+            "metadata": metadata,
+        }
+
+    def test_owner_local_migration_can_create_protected_entities(self):
+        changes = self.local_migration_changes()
+        intent = SERVER.validate_entity_intent(self.local_migration_intent(), changes)
+        auth = {
+            "role": "owner",
+            "permissions": {"warehouses.manage", "jf.warehouse:*"},
+            "legacy": False,
+        }
+        SERVER.validate_local_migration_import_request(
+            intent,
+            auth,
+            self.warehouse_id,
+            self.environment,
+            changes,
+        )
+        for item in changes:
+            SERVER.validate_entity_field_permissions(auth, item, None, False, intent)
+
+    def test_ordinary_write_still_rejects_protected_entity(self):
+        item = self.local_migration_changes()[0]
+        with self.assertRaises(SERVER.ApiError) as caught:
+            SERVER.validate_entity_field_permissions(
+                {"role": "owner", "permissions": {"*"}},
+                item,
+                None,
+                False,
+                None,
+            )
+        self.assertEqual(caught.exception.code, "server_intent_required")
+
+    def test_local_migration_rejects_non_owner_even_with_global_permissions(self):
+        changes = self.local_migration_changes()
+        intent = SERVER.validate_entity_intent(self.local_migration_intent(), changes)
+        with self.assertRaises(SERVER.ApiError) as caught:
+            SERVER.validate_local_migration_import_request(
+                intent,
+                {"role": "administrator", "permissions": {"*"}, "legacy": False},
+                self.warehouse_id,
+                self.environment,
+                changes,
+            )
+        self.assertEqual(caught.exception.code, "local_migration_access_denied")
+
+    def test_local_migration_rejects_owner_without_global_warehouse_scope(self):
+        changes = self.local_migration_changes()
+        intent = SERVER.validate_entity_intent(self.local_migration_intent(), changes)
+        with self.assertRaises(SERVER.ApiError) as caught:
+            SERVER.validate_local_migration_import_request(
+                intent,
+                {"role": "owner", "permissions": {"warehouses.manage"}, "legacy": False},
+                self.warehouse_id,
+                self.environment,
+                changes,
+            )
+        self.assertEqual(caught.exception.code, "local_migration_access_denied")
+
+    def test_local_migration_rejects_malformed_metadata(self):
+        changes = self.local_migration_changes()
+        malformed = [
+            self.local_migration_intent(snapshot_fingerprint="ABC:def:1"),
+            self.local_migration_intent(chunk_index=True),
+            self.local_migration_intent(chunk_index=1, chunk_count=1),
+            self.local_migration_intent(chunk_count=0),
+            self.local_migration_intent(chunk_count=SERVER.LOCAL_MIGRATION_MAX_CHUNKS + 1),
+            {**self.local_migration_intent(), "unexpected": True},
+            {**self.local_migration_intent(), "metadata": {"snapshot_fingerprint": "a:b:1"}},
+        ]
+        for raw_intent in malformed:
+            with self.subTest(raw_intent=raw_intent):
+                with self.assertRaises(SERVER.ApiError) as caught:
+                    SERVER.validate_entity_intent(raw_intent, changes)
+                self.assertEqual(caught.exception.code, "invalid_local_migration_metadata")
+
+    def test_local_migration_requires_exact_live_warehouse_and_create_only_changes(self):
+        changes = self.local_migration_changes()
+        intent = SERVER.validate_entity_intent(self.local_migration_intent(), changes)
+        auth = {"role": "owner", "permissions": {"*"}, "legacy": False}
+        cases = [
+            ("warehouse-2", "live", changes, "local_migration_scope_mismatch"),
+            (self.warehouse_id, "demo", changes, "local_migration_live_only"),
+            (
+                self.warehouse_id,
+                "live",
+                [{**changes[0], "base_version": 1}],
+                "local_migration_create_only",
+            ),
+            (
+                self.warehouse_id,
+                "live",
+                [{**changes[0], "deleted": True, "payload": None}],
+                "local_migration_create_only",
+            ),
+        ]
+        for warehouse_id, environment, candidate_changes, code in cases:
+            with self.subTest(code=code):
+                with self.assertRaises(SERVER.ApiError) as caught:
+                    SERVER.validate_local_migration_import_request(
+                        intent,
+                        auth,
+                        warehouse_id,
+                        environment,
+                        candidate_changes,
+                    )
+                self.assertEqual(caught.exception.code, code)
+
     def test_inventory_conflict_includes_route_and_pickup_reservations(self):
         maps = {
             "products": {

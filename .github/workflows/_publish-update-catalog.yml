@@ -18,8 +18,19 @@ on:
       required_directive:
         required: true
         type: string
+      build_run_id:
+        required: false
+        type: string
+        default: ''
+      production_kv_namespace_id:
+        required: true
+        type: string
+      staging_kv_namespace_id:
+        required: true
+        type: string
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 jobs:
   publish:
@@ -49,6 +60,92 @@ jobs:
           cache: npm
           cache-dependency-path: source/update-catalog-service/package-lock.json
 
+      - name: Validate publication workflow source
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLICATION_REF: ${{ github.ref }}
+          PUBLICATION_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$PUBLICATION_REF" = "refs/heads/main"
+          [[ "$PUBLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          current_main_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          test "$PUBLICATION_SHA" = "$current_main_sha"
+
+      - name: Validate isolated Cloudflare publication credentials and namespaces
+        shell: bash
+        env:
+          PUBLISH_API_TOKEN: ${{ secrets.CLOUDFLARE_PUBLISH_API_TOKEN }}
+          PUBLISH_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PUBLISH_ACCOUNT_ID }}
+          PRODUCTION_KV_NAMESPACE_ID: ${{ inputs.production_kv_namespace_id }}
+          STAGING_KV_NAMESPACE_ID: ${{ inputs.staging_kv_namespace_id }}
+        run: |
+          set -euo pipefail
+          test -n "$PUBLISH_API_TOKEN"
+          [[ "$PUBLISH_ACCOUNT_ID" =~ ^[0-9a-fA-F]{32}$ ]]
+          [[ "$PRODUCTION_KV_NAMESPACE_ID" =~ ^[0-9a-fA-F]{32}$ ]]
+          [[ "$STAGING_KV_NAMESPACE_ID" =~ ^[0-9a-fA-F]{32}$ ]]
+          production_id="${PRODUCTION_KV_NAMESPACE_ID,,}"
+          staging_id="${STAGING_KV_NAMESPACE_ID,,}"
+          test "$production_id" != "$staging_id"
+          case "$CATALOG_CHANNEL:$WRANGLER_ENVIRONMENT" in
+            stable:production) namespace_id="$production_id" ;;
+            staging:staging) namespace_id="$staging_id" ;;
+            *) echo "Catalog channel and Cloudflare environment do not match." >&2; exit 2 ;;
+          esac
+          echo "KV_NAMESPACE_ID=$namespace_id" >> "$GITHUB_ENV"
+
+      - name: Validate exact successful Windows build run
+        if: inputs.required_directive == 'release'
+        id: build_run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN_ID")"
+          test "$(jq -r '.conclusion' <<< "$run_json")" = "success"
+          test "$(jq -r '.head_repository.full_name' <<< "$run_json")" = "$GITHUB_REPOSITORY"
+          event="$(jq -r '.event' <<< "$run_json")"
+          [[ "$event" = "workflow_dispatch" || "$event" = "push" ]]
+          workflow_id="$(jq -r '.workflow_id' <<< "$run_json")"
+          workflow_path="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_id" --jq '.path')"
+          test "$workflow_path" = ".github/workflows/windows-native-783.yml"
+          head_branch="$(jq -r '.head_branch' <<< "$run_json")"
+          if [[ "$CATALOG_CHANNEL" = "stable" ]]; then test "$head_branch" = "main"; fi
+          head_sha="$(jq -r '.head_sha' <<< "$run_json")"
+          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Download trusted Windows build evidence
+        if: inputs.required_directive == 'release'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: justfun-windows-${{ steps.build_run.outputs.head_sha }}
+          path: .release-build-evidence
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.build_run_id }}
+
+      - name: Validate trusted build evidence source
+        if: inputs.required_directive == 'release'
+        shell: bash
+        env:
+          EXPECTED_BUILD_SHA: ${{ steps.build_run.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          identity="$GITHUB_WORKSPACE/.release-build-evidence/build-identity.json"
+          manifest="$GITHUB_WORKSPACE/.release-build-evidence/installer/BUILD-MANIFEST.json"
+          test -f "$identity"
+          test -f "$manifest"
+          test "$(node -p "require(process.argv[1]).commit_sha" "$identity")" = "$EXPECTED_BUILD_SHA"
+          test "$(node -p "require(process.argv[1]).commit_sha" "$manifest")" = "$EXPECTED_BUILD_SHA"
+          echo "BUILD_IDENTITY_PATH=$identity" >> "$GITHUB_ENV"
+          echo "BUILD_MANIFEST_PATH=$manifest" >> "$GITHUB_ENV"
+
       - name: Install exact catalog service dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund --prefix source/update-catalog-service
 
@@ -69,12 +166,78 @@ jobs:
             "$catalog_root"/*.json) ;;
             *) echo "Resolved catalog path escapes release/catalogs." >&2; exit 2 ;;
           esac
-          node tools/release/update-catalog-ops.mjs verify \
-            --catalog "$target" \
-            --trust-store source/application/update/trusted-keys.json \
-            > .release-catalog-verification.json
+          if [[ "$REQUIRED_DIRECTIVE" = "release" ]]; then
+            args=(verify --catalog "$target" --trust-store source/application/update/trusted-keys.json --build-identity "$BUILD_IDENTITY_PATH" --build-manifest "$BUILD_MANIFEST_PATH")
+          else
+            args=(inspect --catalog "$target" --trust-store source/application/update/trusted-keys.json)
+          fi
+          node tools/release/update-catalog-ops.mjs "${args[@]}" > .release-catalog-verification.json
           actual_channel="$(node -p "require('./.release-catalog-verification.json').channel")"
           test "$actual_channel" = "$CATALOG_CHANNEL"
+          directive="$(node -p "require('./.release-catalog-verification.json').directive || 'release'")"
+          if [[ "$REQUIRED_DIRECTIVE" = "release" ]]; then test "$directive" = "release"; fi
+          if [[ "$REQUIRED_DIRECTIVE" = "halt-or-rollback" ]]; then [[ "$directive" = "halt" || "$directive" = "rollback" ]]; fi
+          commit_sha="$(node -p "require('./.release-catalog-verification.json').commit_sha || require(process.argv[1]).release.commit_sha" "$target")"
+          [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "directive=$directive" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve successful historical Windows build run
+        if: steps.validate.outputs.directive == 'rollback'
+        id: rollback_run
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_BUILD_SHA: ${{ steps.validate.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_BUILD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          runs_json="$(gh api --method GET "repos/$GITHUB_REPOSITORY/actions/workflows/windows-native-783.yml/runs" -f head_sha="$TARGET_BUILD_SHA" -f status=completed -f per_page=100)"
+          run_id="$(jq -r --arg repo "$GITHUB_REPOSITORY" --arg channel "$CATALOG_CHANNEL" --arg sha "$TARGET_BUILD_SHA" '
+            [.workflow_runs[]
+              | select(.conclusion == "success")
+              | select(.head_repository.full_name == $repo)
+              | select(.head_sha == $sha)
+              | select(.event == "workflow_dispatch" or .event == "push")
+              | select($channel != "stable" or .head_branch == "main")]
+            | sort_by(.run_started_at, .id)
+            | last
+            | .id // empty
+          ' <<< "$runs_json")"
+          [[ "$run_id" =~ ^[1-9][0-9]*$ ]]
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Download historical rollback build evidence
+        if: steps.validate.outputs.directive == 'rollback'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: justfun-windows-${{ steps.validate.outputs.commit_sha }}
+          path: .rollback-build-evidence
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.rollback_run.outputs.run_id }}
+
+      - name: Validate historical rollback build evidence
+        if: steps.validate.outputs.directive == 'rollback'
+        shell: bash
+        env:
+          EXPECTED_BUILD_SHA: ${{ steps.validate.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+          identity="$GITHUB_WORKSPACE/.rollback-build-evidence/build-identity.json"
+          manifest="$GITHUB_WORKSPACE/.rollback-build-evidence/installer/BUILD-MANIFEST.json"
+          test -f "$identity"
+          test -f "$manifest"
+          test "$(node -p "require(process.argv[1]).commit_sha" "$identity")" = "$EXPECTED_BUILD_SHA"
+          test "$(node -p "require(process.argv[1]).commit_sha" "$manifest")" = "$EXPECTED_BUILD_SHA"
+          node tools/release/update-catalog-ops.mjs verify \
+            --catalog "$GITHUB_WORKSPACE/$CATALOG_PATH" \
+            --trust-store source/application/update/trusted-keys.json \
+            --build-identity "$identity" \
+            --build-manifest "$manifest" \
+            > .release-catalog-verification.json
+          echo "ROLLBACK_BUILD_IDENTITY_PATH=$identity" >> "$GITHUB_ENV"
+          echo "ROLLBACK_BUILD_MANIFEST_PATH=$manifest" >> "$GITHUB_ENV"
 
       - name: Validate Worker package without deployment
         run: npm run check --prefix source/update-catalog-service
@@ -84,15 +247,15 @@ jobs:
         working-directory: source/update-catalog-service
         shell: bash
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PUBLISH_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PUBLISH_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           current="$GITHUB_WORKSPACE/.release-current-catalog.json"
           error_log="$GITHUB_WORKSPACE/.release-current-catalog.error.log"
           set +e
           ./node_modules/.bin/wrangler kv key get "catalog:$CATALOG_CHANNEL" \
-            --binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT" \
+            --namespace-id "$KV_NAMESPACE_ID" --remote \
             > "$current" 2> "$error_log"
           status=$?
           set -e
@@ -114,6 +277,11 @@ jobs:
           set -euo pipefail
           args=(plan --catalog "$GITHUB_WORKSPACE/$CATALOG_PATH" --trust-store source/application/update/trusted-keys.json --output .release-catalog-plan.json)
           if [[ -s .release-current-catalog.json ]]; then args+=(--current .release-current-catalog.json); fi
+          if [[ "$REQUIRED_DIRECTIVE" = "release" ]]; then
+            args+=(--build-identity "$BUILD_IDENTITY_PATH" --build-manifest "$BUILD_MANIFEST_PATH")
+          elif [[ "${{ steps.validate.outputs.directive }}" = "rollback" ]]; then
+            args+=(--build-identity "$ROLLBACK_BUILD_IDENTITY_PATH" --build-manifest "$ROLLBACK_BUILD_MANIFEST_PATH")
+          fi
           node tools/release/update-catalog-ops.mjs "${args[@]}" > .release-catalog-plan-output.json
           directive="$(node -p "require('./.release-catalog-plan.json').directive")"
           if [[ "$REQUIRED_DIRECTIVE" = "release" ]]; then test "$directive" = "release"; fi
@@ -122,6 +290,133 @@ jobs:
           echo "immutable_key=$(node -p "require('./.release-catalog-plan.json').immutable_key")" >> "$GITHUB_OUTPUT"
           echo "previous_key=$(node -p "require('./.release-catalog-plan.json').previous?.immutable_key || ''")" >> "$GITHUB_OUTPUT"
           echo "publication_action=$(node -p "require('./.release-catalog-plan.json').publication_action")" >> "$GITHUB_OUTPUT"
+          echo "directive=$directive" >> "$GITHUB_OUTPUT"
+          public_catalog_url="$(node -p "require('./.release-catalog-plan.json').public_catalog_url")"
+          [[ "$public_catalog_url" =~ ^https://[^/?#]+/v1/catalog/(internal|staging|stable)$ ]]
+          echo "public_catalog_url=$public_catalog_url" >> "$GITHUB_OUTPUT"
+
+      - name: Publish and verify exact GitHub Release payload
+        if: inputs.required_directive == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_BUILD_SHA: ${{ steps.build_run.outputs.head_sha }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          set -euo pipefail
+          catalog="$GITHUB_WORKSPACE/$CATALOG_PATH"
+          payload_url="$(node -p "require(process.argv[1]).release.payload.url" "$catalog")"
+          file_name="$(node -p "require(process.argv[1]).release.payload.file_name" "$catalog")"
+          expected_bytes="$(node -p "require(process.argv[1]).release.payload.bytes" "$catalog")"
+          expected_sha="$(node -p "require(process.argv[1]).release.payload.sha256" "$catalog")"
+          version="$(node -p "require(process.argv[1]).release.version" "$catalog")"
+          tag="$(node -e "const c=require(process.argv[1]),u=new URL(c.release.payload.url),parts=u.pathname.split('/');if(u.protocol!=='https:'||u.hostname!=='github.com'||parts.length!==7||parts[1]+'/' + parts[2]!==process.env.GITHUB_REPOSITORY||parts[3]!=='releases'||parts[4]!=='download'||decodeURIComponent(parts[6])!==c.release.payload.file_name)process.exit(2);const tag=decodeURIComponent(parts[5]);if(!/^v[0-9A-Za-z._-]+$/.test(tag)||c.release.release_notes_url!=='https://github.com/'+process.env.GITHUB_REPOSITORY+'/releases/tag/'+tag)process.exit(3);process.stdout.write(tag)" "$catalog")"
+          payload_path="$GITHUB_WORKSPACE/.release-build-evidence/installer/$file_name"
+          test -f "$payload_path"
+          test "$(stat -c %s "$payload_path")" = "$expected_bytes"
+          test "$(sha256sum "$payload_path" | cut -d ' ' -f1)" = "$expected_sha"
+          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.visibility')" = "public"
+          encoded_tag="$(jq -rn --arg value "$tag" '$value|@uri')"
+          resolve_tag_commit() {
+            local object_json object_type object_sha depth=0
+            object_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$encoded_tag")"
+            object_type="$(jq -r '.object.type' <<< "$object_json")"
+            object_sha="$(jq -r '.object.sha' <<< "$object_json")"
+            while [[ "$object_type" = "tag" ]]; do
+              (( depth += 1 ))
+              (( depth <= 8 )) || return 1
+              [[ "$object_sha" =~ ^[0-9a-f]{40}$ ]]
+              object_json="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha")"
+              object_type="$(jq -r '.object.type' <<< "$object_json")"
+              object_sha="$(jq -r '.object.sha' <<< "$object_json")"
+            done
+            test "$object_type" = "commit"
+            [[ "$object_sha" =~ ^[0-9a-f]{40}$ ]]
+            printf '%s' "$object_sha"
+          }
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            test "$(resolve_tag_commit)" = "$EXPECTED_BUILD_SHA"
+            release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$encoded_tag")"
+            asset_id="$(jq -r --arg name "$file_name" '[.assets[] | select(.name==$name)] | if length==0 then "" elif length==1 then .[0].id else error("duplicate release asset") end' <<< "$release_json")"
+            if [[ -n "$asset_id" ]]; then
+              gh api -H 'Accept: application/octet-stream' "repos/$GITHUB_REPOSITORY/releases/assets/$asset_id" > .release-existing-payload.bin
+              test "$(stat -c %s .release-existing-payload.bin)" = "$expected_bytes"
+              test "$(sha256sum .release-existing-payload.bin | cut -d ' ' -f1)" = "$expected_sha"
+            else
+              gh release upload "$tag" "$payload_path" --repo "$GITHUB_REPOSITORY"
+            fi
+          else
+            node -e "const c=require(process.argv[1]);require('node:fs').writeFileSync(process.argv[2],c.release.summary+'\n','utf8')" "$catalog" .release-notes.txt
+            release_args=(release create "$tag" "$payload_path" --repo "$GITHUB_REPOSITORY" --target "$EXPECTED_BUILD_SHA" --title "JustFun $version" --notes-file .release-notes.txt)
+            # Keep every new release non-stable until the exact catalog bytes are
+            # visible through the production Worker and have passed verification.
+            release_args+=(--prerelease --latest=false)
+            gh "${release_args[@]}"
+          fi
+          test "$(resolve_tag_commit)" = "$EXPECTED_BUILD_SHA"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$encoded_tag")"
+          test "$(jq -r '.draft' <<< "$release_json")" = "false"
+          release_id="$(jq -r '.id' <<< "$release_json")"
+          [[ "$release_id" =~ ^[1-9][0-9]*$ ]]
+          asset_id="$(jq -r --arg name "$file_name" '[.assets[] | select(.name==$name)] | if length==1 then .[0].id else error("release asset is missing or duplicated") end' <<< "$release_json")"
+          [[ "$asset_id" =~ ^[1-9][0-9]*$ ]]
+          if [[ "$CATALOG_CHANNEL" != "stable" ]]; then
+            test "$(jq -r '.prerelease' <<< "$release_json")" = "true"
+          fi
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors --connect-timeout 20 --max-time 900 --proto '=https' --proto-redir '=https' "$payload_url" --output .release-public-payload.bin
+          actual_bytes="$(stat -c %s .release-public-payload.bin)"
+          actual_sha="$(sha256sum .release-public-payload.bin | cut -d ' ' -f1)"
+          test "$actual_bytes" = "$expected_bytes"
+          test "$actual_sha" = "$expected_sha"
+          node -e "const fs=require('node:fs');fs.writeFileSync(process.argv[1],JSON.stringify({schema_version:1,directive:'release',channel:process.argv[2],tag:process.argv[3],commit_sha:process.argv[4],build_run_id:Number(process.argv[5]),url:process.argv[6],file_name:process.argv[7],bytes:Number(process.argv[8]),sha256:process.argv[9],verified_at:new Date().toISOString()})+'\n')" \
+            .release-public-payload-evidence.json "$CATALOG_CHANNEL" "$tag" "$EXPECTED_BUILD_SHA" "$BUILD_RUN_ID" "$payload_url" "$file_name" "$actual_bytes" "$actual_sha"
+
+      - name: Verify existing rollback payload before activation
+        if: steps.plan.outputs.directive == 'rollback'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_BUILD_SHA: ${{ steps.validate.outputs.commit_sha }}
+          HISTORICAL_BUILD_RUN_ID: ${{ steps.rollback_run.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          catalog="$GITHUB_WORKSPACE/$CATALOG_PATH"
+          payload_url="$(node -p "require(process.argv[1]).release.payload.url" "$catalog")"
+          file_name="$(node -p "require(process.argv[1]).release.payload.file_name" "$catalog")"
+          expected_bytes="$(node -p "require(process.argv[1]).release.payload.bytes" "$catalog")"
+          expected_sha="$(node -p "require(process.argv[1]).release.payload.sha256" "$catalog")"
+          tag="$(node -e "const c=require(process.argv[1]),u=new URL(c.release.payload.url),parts=u.pathname.split('/');if(u.protocol!=='https:'||u.hostname!=='github.com'||parts.length!==7||parts[1]+'/' + parts[2]!==process.env.GITHUB_REPOSITORY||parts[3]!=='releases'||parts[4]!=='download'||decodeURIComponent(parts[6])!==c.release.payload.file_name)process.exit(2);const tag=decodeURIComponent(parts[5]);if(!/^v[0-9A-Za-z._-]+$/.test(tag)||c.release.release_notes_url!=='https://github.com/'+process.env.GITHUB_REPOSITORY+'/releases/tag/'+tag)process.exit(3);process.stdout.write(tag)" "$catalog")"
+          test "$(gh api "repos/$GITHUB_REPOSITORY" --jq '.visibility')" = "public"
+          encoded_tag="$(jq -rn --arg value "$tag" '$value|@uri')"
+          resolve_tag_commit() {
+            local object_json object_type object_sha depth=0
+            object_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$encoded_tag")"
+            object_type="$(jq -r '.object.type' <<< "$object_json")"
+            object_sha="$(jq -r '.object.sha' <<< "$object_json")"
+            while [[ "$object_type" = "tag" ]]; do
+              (( depth += 1 ))
+              (( depth <= 8 )) || return 1
+              [[ "$object_sha" =~ ^[0-9a-f]{40}$ ]]
+              object_json="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha")"
+              object_type="$(jq -r '.object.type' <<< "$object_json")"
+              object_sha="$(jq -r '.object.sha' <<< "$object_json")"
+            done
+            test "$object_type" = "commit"
+            [[ "$object_sha" =~ ^[0-9a-f]{40}$ ]]
+            printf '%s' "$object_sha"
+          }
+          test "$(resolve_tag_commit)" = "$EXPECTED_BUILD_SHA"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$encoded_tag")"
+          test "$(jq -r '.draft' <<< "$release_json")" = "false"
+          asset_id="$(jq -r --arg name "$file_name" '[.assets[] | select(.name==$name)] | if length==1 then .[0].id else error("rollback release asset is missing or duplicated") end' <<< "$release_json")"
+          [[ "$asset_id" =~ ^[1-9][0-9]*$ ]]
+          curl --fail --location --silent --show-error --retry 5 --retry-all-errors --connect-timeout 20 --max-time 900 --proto '=https' --proto-redir '=https' "$payload_url" --output .release-public-payload.bin
+          actual_bytes="$(stat -c %s .release-public-payload.bin)"
+          actual_sha="$(sha256sum .release-public-payload.bin | cut -d ' ' -f1)"
+          test "$actual_bytes" = "$expected_bytes"
+          test "$actual_sha" = "$expected_sha"
+          node -e "const fs=require('node:fs');fs.writeFileSync(process.argv[1],JSON.stringify({url:process.argv[2],file_name:process.argv[3],bytes:Number(process.argv[4]),sha256:process.argv[5],build_run_id:Number(process.argv[6]),directive:'rollback',verified_at:new Date().toISOString()})+'\n')" \
+            .release-public-payload-evidence.json "$payload_url" "$file_name" "$actual_bytes" "$actual_sha" "$HISTORICAL_BUILD_RUN_ID"
 
       - name: Ensure immutable history, then activate when required
         working-directory: source/update-catalog-service
@@ -131,12 +426,12 @@ jobs:
           IMMUTABLE_KEY: ${{ steps.plan.outputs.immutable_key }}
           PREVIOUS_KEY: ${{ steps.plan.outputs.previous_key }}
           PUBLICATION_ACTION: ${{ steps.plan.outputs.publication_action }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PUBLISH_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PUBLISH_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           wrangler=(./node_modules/.bin/wrangler kv key)
-          common=(--binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT")
+          common=(--namespace-id "$KV_NAMESPACE_ID" --remote)
           ensure_immutable() {
             local key="$1" file="$2" existing="$GITHUB_WORKSPACE/.release-existing.json" error_log="$GITHUB_WORKSPACE/.release-existing.error.log" status
             set +e
@@ -160,28 +455,153 @@ jobs:
             *) echo "Unsupported publication action: $PUBLICATION_ACTION" >&2; exit 2 ;;
           esac
 
-      - name: Confirm published bytes after KV propagation
+      - name: Confirm KV and public Worker bytes after propagation
         working-directory: source/update-catalog-service
         shell: bash
         env:
           ACTIVE_KEY: ${{ steps.plan.outputs.active_key }}
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PUBLIC_CATALOG_URL: ${{ steps.plan.outputs.public_catalog_url }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_PUBLISH_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_PUBLISH_ACCOUNT_ID }}
         run: |
           set -euo pipefail
           verified=false
           for attempt in 1 2 3 4 5 6 7; do
             ./node_modules/.bin/wrangler kv key get "$ACTIVE_KEY" \
-              --binding UPDATE_CATALOGS --remote --env="$WRANGLER_ENVIRONMENT" \
+              --namespace-id "$KV_NAMESPACE_ID" --remote \
               > "$GITHUB_WORKSPACE/.release-published-catalog.json"
             if cmp --silent "$GITHUB_WORKSPACE/$CATALOG_PATH" "$GITHUB_WORKSPACE/.release-published-catalog.json"; then verified=true; break; fi
             sleep 10
           done
           test "$verified" = true
-          node "$GITHUB_WORKSPACE/tools/release/update-catalog-ops.mjs" verify \
-            --catalog "$GITHUB_WORKSPACE/.release-published-catalog.json" \
-            --trust-store "$GITHUB_WORKSPACE/source/application/update/trusted-keys.json" \
-            > "$GITHUB_WORKSPACE/.release-publication-evidence.json"
+          args=(verify --catalog "$GITHUB_WORKSPACE/.release-published-catalog.json" --trust-store "$GITHUB_WORKSPACE/source/application/update/trusted-keys.json")
+          if [[ "$REQUIRED_DIRECTIVE" = "release" ]]; then
+            args+=(--build-identity "$BUILD_IDENTITY_PATH" --build-manifest "$BUILD_MANIFEST_PATH")
+          elif [[ "${{ steps.plan.outputs.directive }}" = "rollback" ]]; then
+            args+=(--build-identity "$ROLLBACK_BUILD_IDENTITY_PATH" --build-manifest "$ROLLBACK_BUILD_MANIFEST_PATH")
+          fi
+          node "$GITHUB_WORKSPACE/tools/release/update-catalog-ops.mjs" "${args[@]}" > "$GITHUB_WORKSPACE/.release-publication-evidence.json"
+          expected_bytes="$(stat -c %s "$GITHUB_WORKSPACE/$CATALOG_PATH")"
+          expected_sha="$(sha256sum "$GITHUB_WORKSPACE/$CATALOG_PATH" | cut -d ' ' -f1)"
+          public_verified=false
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            set +e
+            curl --fail --silent --show-error --connect-timeout 10 --max-time 30 --proto '=https' --proto-redir '=https' \
+              --dump-header "$GITHUB_WORKSPACE/.release-public-catalog.headers" \
+              "$PUBLIC_CATALOG_URL" \
+              --output "$GITHUB_WORKSPACE/.release-public-catalog.json"
+            curl_status=$?
+            set -e
+            if [[ "$curl_status" -eq 0 ]] \
+              && test "$(stat -c %s "$GITHUB_WORKSPACE/.release-public-catalog.json")" = "$expected_bytes" \
+              && test "$(sha256sum "$GITHUB_WORKSPACE/.release-public-catalog.json" | cut -d ' ' -f1)" = "$expected_sha" \
+              && grep -Eiq "^etag: \"sha256-$expected_sha\"[[:space:]]*$" "$GITHUB_WORKSPACE/.release-public-catalog.headers"; then
+              public_verified=true
+              break
+            fi
+            sleep 10
+          done
+          test "$public_verified" = true
+          node -e "const fs=require('node:fs');fs.writeFileSync(process.argv[1],JSON.stringify({url:process.argv[2],bytes:Number(process.argv[3]),sha256:process.argv[4],etag:'\"sha256-'+process.argv[4]+'\"',verified_at:new Date().toISOString()})+'\n')" \
+            "$GITHUB_WORKSPACE/.release-public-catalog-evidence.json" "$PUBLIC_CATALOG_URL" "$expected_bytes" "$expected_sha"
+
+      - name: Promote exact release to stable only after public catalog verification
+        if: steps.plan.outputs.directive == 'release' && inputs.channel == 'stable'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_BUILD_SHA: ${{ steps.build_run.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          catalog="$GITHUB_WORKSPACE/$CATALOG_PATH"
+          tag="$(node -e "const c=require(process.argv[1]),u=new URL(c.release.payload.url),parts=u.pathname.split('/');if(u.protocol!=='https:'||u.hostname!=='github.com'||parts.length!==7||parts[1]+'/' + parts[2]!==process.env.GITHUB_REPOSITORY||parts[3]!=='releases'||parts[4]!=='download')process.exit(2);process.stdout.write(decodeURIComponent(parts[5]))" "$catalog")"
+          encoded_tag="$(jq -rn --arg value "$tag" '$value|@uri')"
+          resolve_tag_commit() {
+            local object_json object_type object_sha depth=0
+            object_json="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$encoded_tag")"
+            object_type="$(jq -r '.object.type' <<< "$object_json")"
+            object_sha="$(jq -r '.object.sha' <<< "$object_json")"
+            while [[ "$object_type" = "tag" ]]; do
+              (( depth += 1 ))
+              (( depth <= 8 )) || return 1
+              [[ "$object_sha" =~ ^[0-9a-f]{40}$ ]]
+              object_json="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$object_sha")"
+              object_type="$(jq -r '.object.type' <<< "$object_json")"
+              object_sha="$(jq -r '.object.sha' <<< "$object_json")"
+            done
+            test "$object_type" = "commit"
+            [[ "$object_sha" =~ ^[0-9a-f]{40}$ ]]
+            printf '%s' "$object_sha"
+          }
+          test "$(resolve_tag_commit)" = "$EXPECTED_BUILD_SHA"
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$encoded_tag")"
+          release_id="$(jq -r '.id' <<< "$release_json")"
+          [[ "$release_id" =~ ^[1-9][0-9]*$ ]]
+          gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/$release_id" \
+            -F prerelease=false -f make_latest=true > .release-lifecycle-update.json
+          release_json="$(gh api "repos/$GITHUB_REPOSITORY/releases/$release_id")"
+          test "$(jq -r '.draft' <<< "$release_json")" = "false"
+          test "$(jq -r '.prerelease' <<< "$release_json")" = "false"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.id')" = "$release_id"
+
+      - name: Create rollback evidence record
+        shell: bash
+        env:
+          PUBLICATION_DIRECTIVE: ${{ steps.plan.outputs.directive }}
+          RELEASE_BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          ROLLBACK_BUILD_RUN_ID: ${{ steps.rollback_run.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+          const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const current = '.release-current-catalog.json';
+          const target = process.env.CATALOG_PATH;
+          const buildRunId = process.env.PUBLICATION_DIRECTIVE === 'rollback'
+            ? process.env.ROLLBACK_BUILD_RUN_ID
+            : process.env.RELEASE_BUILD_RUN_ID;
+          const evidence = {
+            schema_version: 1,
+            repository: process.env.GITHUB_REPOSITORY,
+            workflow_run_id: Number(process.env.GITHUB_RUN_ID),
+            workflow_run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            workflow_commit_sha: process.env.GITHUB_SHA,
+            channel: process.env.CATALOG_CHANNEL,
+            cloudflare_environment: process.env.WRANGLER_ENVIRONMENT,
+            kv_namespace_id: process.env.KV_NAMESPACE_ID,
+            directive: process.env.PUBLICATION_DIRECTIVE,
+            build_run_id: buildRunId ? Number(buildRunId) : null,
+            target_catalog: { path: target, bytes: fs.statSync(target).size, sha256: digest(target) },
+            previous_catalog: fs.statSync(current).size > 0
+              ? { bytes: fs.statSync(current).size, sha256: digest(current), catalog: read(current) }
+              : null,
+            plan: read('.release-catalog-plan.json'),
+            payload: fs.existsSync('.release-public-payload-evidence.json') ? read('.release-public-payload-evidence.json') : null,
+            created_at: new Date().toISOString(),
+          };
+          fs.writeFileSync('.release-rollback-evidence.json', `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+
+      - name: Store rollback evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: update-catalog-rollback-${{ inputs.channel }}-${{ github.run_id }}
+          path: |
+            .release-rollback-evidence.json
+            .release-catalog-plan.json
+            .release-current-catalog.json
+            .release-published-catalog.json
+            .release-lifecycle-update.json
+            .release-public-payload-evidence.json
+            .release-build-evidence/build-identity.json
+            .release-build-evidence/installer/BUILD-MANIFEST.json
+            .rollback-build-evidence/build-identity.json
+            .rollback-build-evidence/installer/BUILD-MANIFEST.json
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 90
 
       - name: Upload publication and backup evidence
         if: always()
@@ -195,6 +615,16 @@ jobs:
             .release-current-catalog.json
             .release-published-catalog.json
             .release-publication-evidence.json
+            .release-public-payload-evidence.json
+            .release-public-catalog.json
+            .release-public-catalog.headers
+            .release-public-catalog-evidence.json
+            .release-lifecycle-update.json
+            .release-rollback-evidence.json
+            .release-build-evidence/build-identity.json
+            .release-build-evidence/installer/BUILD-MANIFEST.json
+            .rollback-build-evidence/build-identity.json
+            .rollback-build-evidence/installer/BUILD-MANIFEST.json
           if-no-files-found: warn
           include-hidden-files: true
           retention-days: 90

@@ -179,8 +179,10 @@ class RevisionTests(unittest.TestCase):
             "payload": {"id": "order-1", "warehouseId": self.warehouse_id, "status": status},
         }
 
-    def save(self, command_id, changes, auth=None, environment="live"):
+    def save(self, command_id, changes, auth=None, environment="live", intent=None):
         request = {"command_id": command_id, "changes": changes}
+        if intent is not None:
+            request["intent"] = intent
         delete_changes = [item for item in changes if item.get("type") == "warehouse" and item.get("deleted") is True]
         if delete_changes:
             request.update({
@@ -221,6 +223,52 @@ class RevisionTests(unittest.TestCase):
         self.assertTrue(replay["replayed"])
         self.assertEqual(replay["entities"][0]["version"], 1)
         self.assertEqual(self.database.event_id, 1)
+
+    def test_local_migration_protected_entities_have_exact_idempotent_ack(self):
+        changes = [
+            {
+                "type": entity_type,
+                "id": entity_id,
+                "base_version": 0,
+                "deleted": False,
+                "payload": {"id": entity_id, "warehouseId": self.warehouse_id},
+            }
+            for entity_type, entity_id in (
+                ("routeExecutions", "route-1"),
+                ("routeArchives", "archive-1"),
+                ("warehouseReservations", "reservation-1"),
+            )
+        ]
+        intent = {
+            "kind": "local_migration_import",
+            "target_id": self.warehouse_id,
+            "metadata": {
+                "snapshot_fingerprint": "1a2b3c:4d5e6f:12345",
+                "chunk_index": 0,
+                "chunk_count": 1,
+            },
+        }
+        command_id = "client:migrate-v783:entities:warehouse-1:0"
+        first = self.save(command_id, changes, intent=intent)
+        replay = self.save(command_id, changes, intent=intent)
+        self.assertFalse(first["replayed"])
+        self.assertTrue(replay["replayed"])
+        self.assertEqual(
+            {(item["type"], item["id"], item["version"]) for item in replay["entities"]},
+            {
+                ("routeExecutions", "route-1", 1),
+                ("routeArchives", "archive-1", 1),
+                ("warehouseReservations", "reservation-1", 1),
+            },
+        )
+        self.assertEqual(self.database.event_id, 3)
+        changed_intent = {
+            **intent,
+            "metadata": {**intent["metadata"], "snapshot_fingerprint": "fffffff:eeeeeee:12345"},
+        }
+        with self.assertRaises(SERVER.ApiError) as caught:
+            self.save(command_id, changes, intent=changed_intent)
+        self.assertEqual(caught.exception.code, "command_id_reused")
 
     def test_reused_command_with_different_payload_is_rejected(self):
         self.save("client:test:order:create:0003", [self.order_change()])

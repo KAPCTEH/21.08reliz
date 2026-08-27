@@ -152,7 +152,7 @@ checked('runtime-version-consumers', () => {
   assert(!/^VERSION\s*=\s*['"]\d/m.test(payload), 'payload builder contains a hard-coded product VERSION');
   assert(hardener.includes("path.join(appDir, 'release.json')"), 'payload hardener does not load release.json');
   assert(!/setProductVersion\(7,\s*8,\s*3/.test(hardener), 'Windows resources contain a hard-coded product version');
-  assert(installer.includes('version = (payload / "version")'), 'installer does not derive its version from the verified payload');
+  assert(installer.includes('def verify_release_inputs(') && installer.includes('version_path = payload / "version"') && installer.includes('verify_release_inputs('), 'installer does not derive its version from the verified payload');
   assert(!/^VERSION\s*=\s*['"]\d/m.test(installer), 'installer contains a hard-coded product VERSION');
   assert(windowsWorkflow.includes('JF_PRODUCT_VERSION'), 'Windows workflow does not export the canonical product version');
   assert(windowsWorkflow.includes('verify-release-contract.mjs'), 'Windows workflow does not validate the release contract');

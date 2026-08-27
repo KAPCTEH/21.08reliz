@@ -73,6 +73,9 @@ ADDRESS_SEARCH_PATH_RE = re.compile(
 ENTITY_TYPE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,63}$")
 ENTITY_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,160}$")
 COMMAND_ID_RE = re.compile(r"^[A-Za-z0-9_.:-]{16,180}$")
+LOCAL_MIGRATION_FINGERPRINT_RE = re.compile(r"^[0-9a-z]{1,7}:[0-9a-z]{1,7}:[1-9][0-9]{0,9}$")
+LOCAL_MIGRATION_MAX_CHUNKS = 10000
+LOCAL_MIGRATION_INTENT_KIND = "local_migration_import"
 WAREHOUSE_CODE_RE = re.compile(r"^[A-ZА-ЯЁ0-9]{1,3}$")
 WAREHOUSE_DELETE_LEASE_TOKEN_RE = re.compile(r"^jfdl_[A-Za-z0-9_-]{32,220}$")
 TELEGRAM_INSTALLATION_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{8,160}$")
@@ -129,6 +132,7 @@ ENTITY_INTENT_KINDS = {
     "route_close",
     "pickup_ready",
     "pickup_collected",
+    LOCAL_MIGRATION_INTENT_KIND,
 }
 ENTITY_INTENT_PERMISSIONS = {
     "route_approve": "routes.approve",
@@ -1978,6 +1982,51 @@ def require_global_warehouse_delete_access(auth: dict) -> None:
         raise ApiError(403, "warehouse_delete_access_denied", "Нет глобального права удалять склады")
 
 
+def require_local_migration_import_access(auth: dict) -> None:
+    permissions = {str(value) for value in auth.get("permissions", set())}
+    owner = auth.get("role") == "owner" and auth.get("legacy") is not True
+    all_warehouses = "*" in permissions or "jf.warehouse:*" in permissions
+    manages_warehouses = (
+        "*" in permissions
+        or "warehouses.manage" in permissions
+        or "warehouses.*" in permissions
+    )
+    if not owner or not all_warehouses or not manages_warehouses:
+        raise ApiError(
+            403,
+            "local_migration_access_denied",
+            "Перенос локальной базы может выполнить только владелец с доступом ко всем складам",
+        )
+
+
+def validate_local_migration_import_request(
+    intent: dict,
+    auth: dict,
+    warehouse_id: str,
+    environment: str,
+    changes: list[dict],
+) -> None:
+    require_local_migration_import_access(auth)
+    if not hmac.compare_digest(str(intent.get("target_id", "")), warehouse_id):
+        raise ApiError(
+            409,
+            "local_migration_scope_mismatch",
+            "Пакет переноса относится к другому складу",
+        )
+    if environment != "live":
+        raise ApiError(
+            400,
+            "local_migration_live_only",
+            "Перенос локальной базы разрешён только в рабочую среду live",
+        )
+    if any(item["base_version"] != 0 or item["deleted"] for item in changes):
+        raise ApiError(
+            409,
+            "local_migration_create_only",
+            "Пакет переноса может только первично создать локальные записи",
+        )
+
+
 def warehouse_allowed(auth: dict, warehouse_id: str, snapshot: dict) -> bool:
     permissions = auth["permissions"]
     if auth["role"] == "owner" or "*" in permissions or "jf.warehouse:*" in permissions:
@@ -2132,6 +2181,14 @@ def validate_entity_field_permissions(
             "Нельзя изменить идентификатор, склад, среду или дату создания записи",
             {"entity_type": entity_type, "entity_id": item["id"], "fields": sorted(changed & ENTITY_IMMUTABLE_FIELDS)},
         )
+    if intent and intent["kind"] == LOCAL_MIGRATION_INTENT_KIND:
+        if item["deleted"] or item.get("base_version") != 0 or current is not None or current_deleted:
+            raise ApiError(
+                409,
+                "local_migration_create_only",
+                "Пакет переноса может только первично создать локальные записи",
+            )
+        return
     if intent and entity_type in ENTITY_INTENT_TYPES[intent["kind"]]:
         validate_intent_entity_fields(auth, item, current_payload, intent)
         return
@@ -2441,6 +2498,40 @@ def validate_entity_intent(raw_intent: object, changes: list[dict]) -> dict | No
     target_id = str(raw_intent.get("target_id", ""))
     if kind not in ENTITY_INTENT_KINDS or not ENTITY_ID_RE.fullmatch(target_id):
         raise ApiError(400, "invalid_entity_intent", "Неизвестное назначение серверной команды")
+    if kind == LOCAL_MIGRATION_INTENT_KIND:
+        if set(raw_intent) != {"kind", "target_id", "metadata"}:
+            raise ApiError(400, "invalid_local_migration_metadata", "Метаданные пакета переноса имеют неверный формат")
+        metadata = raw_intent.get("metadata")
+        if not isinstance(metadata, dict) or set(metadata) != {
+            "snapshot_fingerprint",
+            "chunk_index",
+            "chunk_count",
+        }:
+            raise ApiError(400, "invalid_local_migration_metadata", "Метаданные пакета переноса имеют неверный формат")
+        snapshot_fingerprint = metadata.get("snapshot_fingerprint")
+        chunk_index = metadata.get("chunk_index")
+        chunk_count = metadata.get("chunk_count")
+        valid_chunks = (
+            type(chunk_index) is int
+            and type(chunk_count) is int
+            and 1 <= chunk_count <= LOCAL_MIGRATION_MAX_CHUNKS
+            and 0 <= chunk_index < chunk_count
+        )
+        if (
+            not isinstance(snapshot_fingerprint, str)
+            or not LOCAL_MIGRATION_FINGERPRINT_RE.fullmatch(snapshot_fingerprint)
+            or not valid_chunks
+        ):
+            raise ApiError(400, "invalid_local_migration_metadata", "Метаданные пакета переноса имеют неверный формат")
+        return {
+            "kind": kind,
+            "target_id": target_id,
+            "metadata": {
+                "snapshot_fingerprint": snapshot_fingerprint,
+                "chunk_index": chunk_index,
+                "chunk_count": chunk_count,
+            },
+        }
     indexed = {(item["type"], item["id"]): item for item in changes}
 
     def changed(entity_type: str, entity_id: str = target_id) -> dict | None:
@@ -2524,6 +2615,8 @@ def validate_entity_intent_current(
     auth: dict | None = None,
 ) -> None:
     if not intent:
+        return
+    if intent["kind"] == LOCAL_MIGRATION_INTENT_KIND:
         return
     kind, target_id = intent["kind"], intent["target_id"]
     indexed = {(item["type"], item["id"]): item for item in changes or []}
@@ -2855,6 +2948,8 @@ def validate_entity_inventory_current(
 ) -> None:
     if not intent:
         return
+    if intent["kind"] == LOCAL_MIGRATION_INTENT_KIND:
+        return
     scope_lock = f"{workspace_id}:{warehouse_id}:{environment}"
     cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))", (scope_lock, "stock-state"))
     relevant = ["products", "inventoryMovements", "orders", "routeLocks", "warehouseReservations"]
@@ -2964,6 +3059,8 @@ def save_entity_batch(
             "Удаление склада должно быть отдельной командой",
         )
     intent = validate_entity_intent(request.get("intent"), changes)
+    if intent and intent["kind"] == LOCAL_MIGRATION_INTENT_KIND:
+        validate_local_migration_import_request(intent, auth, warehouse_id, environment, changes)
     proposed_warehouse = next(
         (item["payload"] for item in changes if item["type"] == "warehouse" and not item["deleted"]),
         None,
@@ -2978,10 +3075,13 @@ def save_entity_batch(
     )
     intent_types: set[str] = set()
     if intent:
-        required_permission = ENTITY_INTENT_PERMISSIONS[intent["kind"]]
-        if not permission_allowed(auth, required_permission):
-            raise ApiError(403, "intent_access_denied", "Нет права выполнить этот переход состояния")
-        intent_types = ENTITY_INTENT_TYPES[intent["kind"]]
+        if intent["kind"] == LOCAL_MIGRATION_INTENT_KIND:
+            intent_types = set(ENTITY_SECTIONS)
+        else:
+            required_permission = ENTITY_INTENT_PERMISSIONS[intent["kind"]]
+            if not permission_allowed(auth, required_permission):
+                raise ApiError(403, "intent_access_denied", "Нет права выполнить этот переход состояния")
+            intent_types = ENTITY_INTENT_TYPES[intent["kind"]]
     for item in changes:
         if item["type"] not in intent_types:
             require_entity_permission(auth, item["type"], write=True)
