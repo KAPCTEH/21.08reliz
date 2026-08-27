@@ -11,7 +11,41 @@ const multiWarehouse=fs.readFileSync(path.join(root,'source/application/web/asse
 const routeEngine=fs.readFileSync(path.join(root,'source/application/web/assets/js/90-route-engine.js'),'utf8');
 const start=renderer.indexOf('function stableEntityValue');
 const end=renderer.indexOf('async function bootstrapEntitySync');
+const validateAckStart=renderer.indexOf('function validateEntityBatchAck');
+const validateAckEnd=renderer.indexOf('function acceptEntityBatchResult',validateAckStart);
 assert(start>=0&&end>start,'server-authoritative snapshot source fragment is available');
+assert(validateAckStart>=0&&validateAckEnd>validateAckStart,'exact entity acknowledgement validator source is available');
+const validateAckSource=renderer.slice(validateAckStart,validateAckEnd);
+
+function createMemoryIndexedDb(){
+  const databases=new Map();
+  return{open(name){
+    const request={result:null,error:null,onupgradeneeded:null,onsuccess:null,onerror:null,onblocked:null};
+    queueMicrotask(()=>{
+      let state=databases.get(String(name)),created=false;
+      if(!state){state={stores:new Map()};databases.set(String(name),state);created=true}
+      const db={
+        objectStoreNames:{contains:storeName=>state.stores.has(String(storeName))},
+        createObjectStore(storeName){const key=String(storeName);if(!state.stores.has(key))state.stores.set(key,new Map());return{}},
+        close(){},
+        transaction(storeName,mode,options){
+          if(mode==='readwrite'&&options?.durability!=='strict')throw new Error('strict durability required');
+          const records=state.stores.get(String(storeName));if(!records)throw new Error('object store is missing');
+          const tx={oncomplete:null,onerror:null,onabort:null,error:null,objectStore:()=>store};
+          const operation=action=>{const result={result:null,error:null,onsuccess:null,onerror:null};queueMicrotask(()=>{try{result.result=action();result.onsuccess?.();queueMicrotask(()=>tx.oncomplete?.())}catch(error){result.error=error;tx.error=error;result.onerror?.();tx.onerror?.()}});return result};
+          const store={
+            put:value=>operation(()=>{records.set(String(value.id),structuredClone(value));return value.id}),
+            get:key=>operation(()=>records.has(String(key))?structuredClone(records.get(String(key))):undefined),
+            delete:key=>operation(()=>{records.delete(String(key))}),
+          };
+          return tx
+        },
+      };
+      request.result=db;if(created)request.onupgradeneeded?.();queueMicrotask(()=>request.onsuccess?.())
+    });
+    return request
+  }}
+}
 
 const context={
   console,
@@ -126,6 +160,7 @@ async function verifyWarehouseRegistryReconciliation(){
     clearInterval:()=>{},
     document:{documentElement:{classList:{remove:()=>{}}}},
     renderNoWarehouse:()=>{},
+    recoverPendingWarehouseWritesV784:async()=>{},
     audit:()=>{},
     cloudUserToLocal:()=>({id:'owner-1',permissions:['*','warehouses.manage'],allWarehouses:true}),
     hasPermission:()=>true,
@@ -147,7 +182,7 @@ async function verifyWarehouseRegistryReconciliation(){
 
   remoteWarehouses=[{id:'warehouse-1',name:'Новый склад',code:'НОВ',address:'Новый адрес LIVE',lat:60.01,lon:31.02,timezone:'Europe/Moscow',status:'active',entity_version:5,digest_sha256:'digest-5'}];
   assert.equal(await syncContext.__syncWarehouseRegistry(),true,'same-id active metadata change requires immediate reconciliation');
-  assert.equal(syncContext.__applyTransition('warehouse-1','same-id-live-metadata'),true);
+  assert.equal(syncContext.__applyTransition('warehouse-1','same-id-live-metadata'),false,'same-id metadata is applied in place without a workspace reload');
   assert.deepEqual(Array.from(syncContext.__routingDepot()),[60.01,31.02],'routing reads the new canonical depot coordinates immediately');
   assert.equal(syncContext.settings.warehouse.address,'Новый адрес LIVE');
   assert.deepEqual({...syncContext.settings.warehouseProfile},{id:'warehouse-1',code:'НОВ',name:'Новый склад',custom:'preserved',timezone:'Europe/Moscow',routeStartConfigured:true});
@@ -170,7 +205,7 @@ async function verifyWarehouseRegistryReconciliation(){
   syncContext.settings.warehouse={address:'Прерванное старое значение',lat:1,lon:2};
   syncContext.settings.warehouseProfile={id:'warehouse-1',code:'СТР',name:'Старое имя',timezone:'Europe/Moscow'};
   assert.equal(await syncContext.__syncWarehouseRegistry(),true,'a restart gap with an already-current registry still repairs stale active settings');
-  assert.equal(syncContext.__applyTransition('warehouse-1','same-id-live-restart-recovery'),true);
+  assert.equal(syncContext.__applyTransition('warehouse-1','same-id-live-restart-recovery'),false,'restart metadata repair is applied in place without a workspace reload');
   assert.deepEqual(Array.from(syncContext.__routingDepot()),[61.03,32.04]);
   assert.equal(syncContext.settings.warehouseProfile.code,'ДМО');
   assert.equal(settingsWrites.at(-1).environment,'live');
@@ -259,6 +294,7 @@ function verifyAuthoritativeEmptyCreateAction(){
     currentUser:{permissions:['warehouses.manage'],allWarehouses:true},
     activeWarehouseId:()=>'',
     hasPermission:name=>name==='warehouses.manage',
+    hasEntityPermissionQuarantine:()=>false,
     registry:()=>structuredClone(registryState),
     authFrame:(html,subtitle)=>{frames.push({html,subtitle})},
     esc:value=>String(value),
@@ -295,14 +331,15 @@ function verifyWarehouseLifecycleUiSource(){
 
 async function verifyWarehouseStorageIsolation(){
   const calls=[];
-  let savedEntityState=0;
+  let savedEntityState=0;const storageValues=new Map();
   const storageContext={
     console,
     structuredClone,
     window:{JustFunDesktop:{
-      regVps:{writeWarehouse:async payload=>{calls.push(structuredClone(payload));return{ok:true,entities:[{type:'warehouse',id:payload.warehouseId,version:calls.length+6,digest:`digest-${calls.length}`,eventId:calls.length}]}}},
+      regVps:{writeWarehouse:async payload=>{calls.push(structuredClone(payload));const change=payload.changes[0];return{ok:true,commandId:payload.commandId,cursor:calls.length,entities:[{type:'warehouse',id:payload.warehouseId,version:Number(change.baseVersion)+1,digest:'a'.repeat(64),eventId:calls.length,deleted:change.deleted===true}]}}},
     }},
-    localStorage:{getItem:()=>null,setItem:()=>{savedEntityState++}},
+    indexedDB:createMemoryIndexedDb(),
+    localStorage:{getItem:key=>storageValues.get(String(key))??null,setItem:(key,value)=>{const name=String(key);storageValues.set(name,String(value));if(name.startsWith('jf.reg-entity-state.v2.'))savedEntityState++},removeItem:key=>storageValues.delete(String(key))},
     cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,inFlight:false,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set()},
     desktopSession:{edition:'full',auth:{offline:false,company:{id:'company-1',data_service:'https://vps.invalid'},user:{id:'owner-1',role:'owner',permissions:['*']}}},
     activeWarehouseId:()=> 'warehouse-active',
@@ -322,12 +359,12 @@ async function verifyWarehouseStorageIsolation(){
   };
   storageContext.isTrainingEnvironment=()=>storageContext.desktopSession.edition==='demo'||storageContext.activeEnvironment()==='demo';
   vm.createContext(storageContext);
-  vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(start,end)}\nglobalThis.__writeWarehouse=writeAuthoritativeWarehouse;globalThis.__cloudSyncState=cloudSyncState;globalThis.__entityScope=entityScope;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;`,storageContext);
+  vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(start,end)}\n${validateAckSource}\nglobalThis.__writeWarehouse=writeAuthoritativeWarehouse;globalThis.__cloudSyncState=cloudSyncState;globalThis.__entityScope=entityScope;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;`,storageContext);
   storageContext.__cloudSyncState.scope=storageContext.__entityScope();
 
   const other={id:'warehouse-other',name:'Другой склад',code:'ДРГ',revision:0};
   const otherResult=await storageContext.__writeWarehouse(other);
-  assert.equal(otherResult.version,7);
+  assert.equal(otherResult.version,1);
   assert.equal(calls[0].warehouseId,'warehouse-other');
   assert.equal(calls[0].warehouseCode,'ДРГ');
   assert.equal(calls[0].environment,'live','warehouse registry writes must never follow a demo data environment');
@@ -337,8 +374,8 @@ async function verifyWarehouseStorageIsolation(){
 
   const active={id:'warehouse-active',name:'Активный склад',code:'АКТ',revision:0};
   const activeResult=await storageContext.__writeWarehouse(active);
-  assert.equal(activeResult.version,8);
-  assert.equal(storageContext.__cloudSyncState.known.get('warehouse:warehouse-active').version,8,'an active warehouse write still advances its own known version');
+  assert.equal(activeResult.version,1);
+  assert.equal(storageContext.__cloudSyncState.known.get('warehouse:warehouse-active').version,1,'an active warehouse write still advances its own known version');
   assert.equal(savedEntityState,1);
 
   storageContext.activeEnvironment=()=> 'demo';
