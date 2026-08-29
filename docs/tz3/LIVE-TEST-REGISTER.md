@@ -1095,3 +1095,12 @@
 - Обновлены исходники desktop, License Worker, REG VPS, company Telegram broker и native Telegram Worker. Внешние сервисы и VPS этим этапом не развёртывались.
 - По прямому указанию владельца тесты, автоматические проверки, живой запуск, установленная приёмка и проверка внешних интеграций не выполнялись.
 - Результат: `SOURCE FIXES PREPARED / ALL RETESTS SKIPPED BY OWNER REQUEST / RELEASE REMAINS NO-GO`.
+
+### JF3-S0103 — Production-развёртывание License Worker и company Telegram broker без проверок
+
+- Перед изменением production D1 создан резерв `C:\Users\zvd1\Documents\JustFun-Production-Backups\20260829-session-binding-5adcbc5\justfun-license-db-v3.sql`, SHA-256 `26EA56DC2036E802028F4BB2A9FDAF228B8C11C5D8F27965DF84D6A51EB1F678`.
+- К production D1 применена миграция `010-session-binding.sql`.
+- Развёрнут License Worker `justfun-license-api`, version ID `ee721f07-8de6-4d37-98cd-239ff52ffe5c`.
+- Развёрнут company Telegram broker, version ID `7621fc59-542c-46e7-b595-a5bc539c070c`; точная rollback version — `024b6232-37a5-4727-81ef-ebf606b9f30c`.
+- По прямому указанию владельца health- и live-проверки после развёртывания не запускались. Native Telegram Workers и REG VPS не обновлялись.
+- Результат: `D1 BACKUP CREATED / MIGRATION 010 APPLIED / LICENSE AND BROKER DEPLOYED / HEALTH AND LIVE CHECKS SKIPPED BY OWNER REQUEST / NATIVE TELEGRAM WORKERS AND REG VPS NOT UPDATED / RELEASE REMAINS NO-GO`.
