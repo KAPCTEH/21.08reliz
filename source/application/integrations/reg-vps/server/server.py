@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""JustFun Orders Logistics server-authoritative business data service 7.8.3."""
+"""JustFun Orders Logistics server-authoritative business data service 7.8.4."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import unquote, urlencode, urlparse
 from urllib.request import Request, urlopen
 
-VERSION = "7.8.3"
+VERSION = "7.8.4"
 API_CONTRACT = 3
 ADDRESS_API_CONTRACT = 1
 FIAS_UUID_RE = re.compile(
@@ -2992,6 +2992,7 @@ def require_entity_scope_access(
     environment: str,
     proposed_warehouse: dict | None = None,
     allow_missing: bool = False,
+    allow_global_without_snapshot: bool = False,
 ) -> None:
     snapshot = load_entity_access_snapshot(workspace_id, warehouse_id, environment, auth)
     if snapshot is not None and snapshot.get("deleted") is True:
@@ -3007,6 +3008,10 @@ def require_entity_scope_access(
         )
         if can_address_new_id:
             snapshot = {"warehouse": proposed_warehouse, "data": {"warehouseId": warehouse_id}}
+    if snapshot is None and allow_global_without_snapshot:
+        permissions = {str(value) for value in auth.get("permissions", set())}
+        if auth.get("role") == "owner" or "*" in permissions or "jf.warehouse:*" in permissions:
+            return
     if snapshot is None:
         if allow_missing:
             return
@@ -4422,7 +4427,7 @@ def proxy_route(payload: dict) -> object:
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "JustFunOrdersLogistics/7.8.3"
+    server_version = f"JustFunOrdersLogistics/{VERSION}"
 
     def log_message(self, fmt: str, *args) -> None:
         LOG.info("%s %s", self.address_string(), fmt % args)
@@ -4626,7 +4631,13 @@ class Handler(BaseHTTPRequestHandler):
                 raise ApiError(405, "method_not_allowed", "Адресный поиск требует POST")
             workspace_id, warehouse_id, environment = address_match.groups()
             require_workspace(auth, workspace_id)
-            require_entity_scope_access(auth, workspace_id, warehouse_id, environment)
+            require_entity_scope_access(
+                auth,
+                workspace_id,
+                warehouse_id,
+                environment,
+                allow_global_without_snapshot=True,
+            )
             enforce_map_rate(f"{workspace_id}:{warehouse_id}:address")
             result = search_address_providers(self.read_json())
             self.send_json(

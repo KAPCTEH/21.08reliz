@@ -7,17 +7,18 @@ export const STATUS_LABELS = Object.freeze({
   collecting: 'Начали сборку',
   ready: 'Груз собран',
   loaded: 'Машина загружена',
-  problem: 'Проблема на складе',
+  problem: 'Проблема',
   error: 'Ошибка',
   unknown: 'Статус требует проверки'
 });
 
 const TRANSITIONS = Object.freeze({
   driver: {
-    sent: ['accepted'],
-    accepted: ['departed'],
-    departed: ['completed'],
-    completed: []
+    sent: ['accepted', 'problem'],
+    accepted: ['departed', 'problem'],
+    departed: ['completed', 'problem'],
+    completed: [],
+    problem: []
   },
   warehouse: {
     sent: ['collecting', 'problem'],
@@ -43,28 +44,38 @@ export function canTransition(actor, from, to) {
   return (TRANSITIONS[actor]?.[from] || []).includes(to);
 }
 
-export function nextKeyboard(actor, notificationId, currentStatus = 'sent') {
+export function nextKeyboard(actor, notificationId, currentStatus = 'sent', { routeUrl = '' } = {}) {
   const callback = status => `st|${actorCode(actor)}|${status}|${notificationId}`;
   if (actor === 'driver') {
-    if (currentStatus === 'sent') return [[{ text: '✅ Рейс принят', callback_data: callback('accepted') }]];
-    if (currentStatus === 'accepted') return [[{ text: '🚚 Выехал', callback_data: callback('departed') }]];
-    if (currentStatus === 'departed') return [[{ text: '🏁 Рейс завершён', callback_data: callback('completed') }]];
-    return [];
+    const rows = routeUrl ? [[{ text: '🗺 Открыть маршрут', url: routeUrl }]] : [];
+    if (currentStatus === 'sent') rows.push([
+      { text: '✅ Принять рейс', callback_data: callback('accepted') },
+      { text: '⚠️ Проблема', callback_data: callback('problem') }
+    ]);
+    if (currentStatus === 'accepted') rows.push([
+      { text: '🚚 В пути', callback_data: callback('departed') },
+      { text: '⚠️ Проблема', callback_data: callback('problem') }
+    ]);
+    if (currentStatus === 'departed') rows.push([
+      { text: '✅ Доставлено', callback_data: callback('completed') },
+      { text: '⚠️ Проблема', callback_data: callback('problem') }
+    ]);
+    return rows;
   }
   if (actor === 'warehouse') {
     if (currentStatus === 'sent') return [[
-      { text: '📦 Начали сборку', callback_data: callback('collecting') },
-      { text: '⚠️ Проблема', callback_data: callback('problem') }
+      { text: '📦 Начать сборку', callback_data: callback('collecting') },
+      { text: '⚠️ Есть проблема', callback_data: callback('problem') }
     ]];
     if (currentStatus === 'collecting') return [[
-      { text: '✅ Груз собран', callback_data: callback('ready') },
-      { text: '⚠️ Проблема', callback_data: callback('problem') }
+      { text: '✅ Сборка завершена', callback_data: callback('ready') },
+      { text: '⚠️ Есть проблема', callback_data: callback('problem') }
     ]];
     if (currentStatus === 'ready') return [[
       { text: '🚛 Машина загружена', callback_data: callback('loaded') },
-      { text: '⚠️ Проблема', callback_data: callback('problem') }
+      { text: '⚠️ Есть проблема', callback_data: callback('problem') }
     ]];
-    if (currentStatus === 'problem') return [[{ text: '🔄 Возобновить сборку', callback_data: callback('collecting') }]];
+    if (currentStatus === 'problem') return [[{ text: '🔄 Продолжить сборку', callback_data: callback('collecting') }]];
   }
   return [];
 }

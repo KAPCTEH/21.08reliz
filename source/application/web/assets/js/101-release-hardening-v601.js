@@ -1,7 +1,7 @@
 /* JustFun Orders & Logistics 7.8.3 — data safety, strict backup validation and product picker UX */
 (function(){
 'use strict';
-const BUILD='7.8.3',B=window.TeplitsaWarehouseBootstrap;
+const BUILD=String(window.JustFunDesktop?.version||(typeof APP_VERSION==='string'?APP_VERSION:'7.8.4')),B=window.TeplitsaWarehouseBootstrap;
 if(!B)return;
 const $id=id=>document.getElementById(id),env=()=>isDemonstrationMode()?'demo':'live',wid=()=>String(B.activeWarehouse()?.id||''),clone=v=>{try{return structuredClone(v)}catch{return JSON.parse(JSON.stringify(v))}},arr=v=>Array.isArray(v)?v:[],obj=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
 function auditKey(){return B.dataKey('teplitsa_audit_log_v601')}

@@ -51,6 +51,7 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
     registerOwner: (payload) => ipcRenderer.invoke('desktop:auth-register-owner', payload||{}),
     login: (payload) => ipcRenderer.invoke('desktop:auth-login', payload||{}),
     acceptInvitation: (payload) => ipcRenderer.invoke('desktop:auth-accept-invitation', payload||{}),
+    refreshContext: () => ipcRenderer.invoke('desktop:auth-refresh-context'),
     logout: () => ipcRenderer.invoke('desktop:auth-logout'),
     users: () => ipcRenderer.invoke('desktop:auth-users'),
     invitations: () => ipcRenderer.invoke('desktop:auth-invitations'),

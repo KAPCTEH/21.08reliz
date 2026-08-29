@@ -149,6 +149,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id, status);
 CREATE INDEX IF NOT EXISTS idx_devices_company ON devices(company_id, status);
 CREATE INDEX IF NOT EXISTS idx_sessions_refresh ON sessions(refresh_hash, status);
+CREATE INDEX IF NOT EXISTS idx_sessions_active_user ON sessions(user_id, company_id) WHERE status='active';
+CREATE INDEX IF NOT EXISTS idx_sessions_active_device ON sessions(device_id, company_id) WHERE status='active';
 CREATE INDEX IF NOT EXISTS idx_invitations_company ON invitations(company_id, expires_at);
 CREATE INDEX IF NOT EXISTS idx_audit_company_time ON audit_log(company_id, created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_warehouse_delete_leases_active_id
@@ -240,7 +242,8 @@ INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES
   ('006-exact-permissions', 'schema-baseline-7.8.3'),
   ('007-warehouse-delete-leases', 'schema-baseline-7.8.3'),
   ('008-vps-attestations', 'schema-baseline-7.8.3'),
-  ('009-invitation-lifecycle', 'schema-baseline-7.8.3');
+  ('009-invitation-lifecycle', 'schema-baseline-7.8.3'),
+  ('010-session-binding', 'schema-baseline-7.8.4');
 
 CREATE TRIGGER IF NOT EXISTS enforce_employee_limit
 BEFORE INSERT ON users

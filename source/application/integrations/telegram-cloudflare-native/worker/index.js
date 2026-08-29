@@ -138,6 +138,24 @@ function safeJson(value) {
   try { return JSON.parse(value || '{}'); } catch { return {}; }
 }
 
+function validateTelegramRouteUrl(value) {
+  const routeUrl = requireString(value || '', 'route_url', { max: 3500, allowEmpty: true });
+  if (!routeUrl) return '';
+  let parsed;
+  try { parsed = new URL(routeUrl); }
+  catch { throw new HttpError(400, 'Некорректная ссылка маршрута', 'validation_error', { field: 'route_url' }); }
+  if (
+    parsed.protocol !== 'https:'
+    || parsed.hostname.toLowerCase() !== 'yandex.ru'
+    || !/^\/maps\/?$/.test(parsed.pathname)
+    || parsed.username
+    || parsed.password
+  ) {
+    throw new HttpError(400, 'Разрешена только ссылка маршрута Яндекс Карт', 'validation_error', { field: 'route_url' });
+  }
+  return parsed.toString();
+}
+
 function publicNotification(row) {
   return {
     id: row.id,
@@ -373,6 +391,7 @@ async function handleSend(request, env) {
   const idempotencyKey = requireString(body.idempotency_key, 'idempotency_key', { max: 180 });
   const text = requireString(body.text, 'text', { max: MAX_MESSAGE_LENGTH });
   const routeId = requireString(body.route_id || '', 'route_id', { max: 160, allowEmpty: true });
+  const routeUrl = validateTelegramRouteUrl(body.route_url);
 
   if (body.chat_id !== undefined) {
     throw new HttpError(400, 'Прямая отправка по chat_id отключена: используйте безопасную привязку', 'direct_chat_forbidden');
@@ -392,6 +411,7 @@ async function handleSend(request, env) {
     title: String(body.title || '').slice(0, 300),
     entity_type: entityType,
     entity_id: entityId,
+    route_url: routeUrl,
     metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {}
   };
   const acquired = await acquireNotification(env, {
@@ -409,11 +429,12 @@ async function handleSend(request, env) {
   if (acquired.state === 'unknown') throw new HttpError(409, 'Результат предыдущей отправки неизвестен; проверьте Telegram перед повтором', 'notification_unknown', publicNotification(acquired.row));
 
   const row = acquired.row;
-  const keyboard = body.status_buttons === false ? [] : nextKeyboard(actor, row.id, 'sent');
+  const keyboard = body.status_buttons === false ? [] : nextKeyboard(actor, row.id, 'sent', { routeUrl });
   try {
     const message = await sendMessage(env, {
       chat_id: row.chat_id,
       text,
+      link_preview_options: body.disable_link_preview === true ? { is_disabled: true } : undefined,
       reply_markup: keyboard.length ? { inline_keyboard: keyboard } : undefined
     });
     const telegramMessageId = Number(message?.message_id);
@@ -538,6 +559,9 @@ async function handleCallback(env, callback) {
     await answerCallbackQuery(env, callback.id, 'Уведомление не найдено');
     return;
   }
+  let routeUrl = '';
+  try { routeUrl = validateTelegramRouteUrl(safeJson(row.payload_json)?.route_url); }
+  catch { /* Invalid stored URL is omitted from the keyboard. */ }
   const callbackChatId = String(callback.message?.chat?.id || '');
   if (!callbackChatId || callbackChatId !== String(row.chat_id)) {
     await answerCallbackQuery(env, callback.id, 'Кнопка открыта не в исходном чате');
@@ -588,7 +612,7 @@ async function handleCallback(env, callback) {
   });
 
   await answerCallbackQuery(env, callback.id, STATUS_LABELS[parsed.status] || parsed.status);
-  const keyboard = nextKeyboard(row.actor, row.id, parsed.status);
+  const keyboard = nextKeyboard(row.actor, row.id, parsed.status, { routeUrl });
   const messageId = callback.message?.message_id;
   if (messageId) {
     try { await editMessageReplyMarkup(env, callbackChatId, messageId, keyboard); }
@@ -668,7 +692,7 @@ async function dispatch(request, env) {
       configured: serviceConfigOk(env),
       telegram_deprovision_contract: 1,
       installation_id: env.INSTALLATION_ID || '',
-      version: env.DEPLOYMENT_VERSION || '7.8.3',
+      version: env.DEPLOYMENT_VERSION || '7.8.4',
       time: nowIso()
     });
   }

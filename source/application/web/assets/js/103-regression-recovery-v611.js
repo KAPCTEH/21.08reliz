@@ -1,7 +1,7 @@
 /* JustFun Orders & Logistics 7.8.3 — regression recovery, feature-preservation gates and safer interaction states */
 (()=>{
 'use strict';
-const BUILD='7.8.3';
+const BUILD=String(window.JustFunDesktop?.version||(typeof APP_VERSION==='string'?APP_VERSION:'7.8.4'));
 const byId=id=>document.getElementById(id);
 const q=(sel,root=document)=>root.querySelector(sel);
 const qa=(sel,root=document)=>[...root.querySelectorAll(sel)];

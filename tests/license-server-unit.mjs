@@ -307,7 +307,8 @@ await assert.rejects(
 const healthResponse = await worker.fetch(new Request('https://license.test/v1/health'), { DB: {} });
 assert.equal(healthResponse.status, 200);
 const health = await healthResponse.json();
-assert.equal(health.auth_contract, 5);
+assert.equal(health.auth_contract, 6);
+assert.equal(health.session_binding_contract, 1);
 assert.equal(health.warehouse_delete_lease_contract, 3);
 
 const leaseTokenUnit = 'jfdl_unit-token';
@@ -327,12 +328,16 @@ const tokenSet = await _internals.issueTokenSet(env, {
   role: 'owner',
   permissions_json: '["*"]',
   status: 'active',
-}, 'dev_contract', 'refresh-contract', '2026-08-28T00:00:00Z');
+}, 'dev_contract', 'ses_contract', 'refresh-contract', '2026-08-28T00:00:00Z');
 assert.equal(tokenSet.auth_context_version, 2);
+assert.equal(tokenSet.session_binding_contract, 1);
 assert.equal(tokenSet.user_id, 'usr_owner_contract');
 assert.equal(tokenSet.company_id, 'cmp_company_contract');
 assert.equal(tokenSet.device_id, 'dev_contract');
+assert.equal(tokenSet.session_id, 'ses_contract');
 assert.equal(tokenSet.company.id, 'cmp_company_contract');
+assert.equal((await _internals.verifyJwt(env, tokenSet.access_token, 'access')).sid, 'ses_contract');
+assert.equal((await _internals.verifyJwt(env, tokenSet.offline_token, 'offline')).sid, 'ses_contract');
 
 // Company VPS attestation secrets are mandatory for data-service setup, are
 // encrypted with a purpose-bound context and never enter public/audit data.
@@ -349,6 +354,8 @@ const dataServiceAuthRow = {
   status: 'active',
   license_status: 'active',
   device_status: 'active',
+  session_status: 'active',
+  session_expires: '2099-01-01T00:00:00.000Z',
 };
 let dataServiceUpdateArgs = null;
 const dataServiceAuditArgs = [];
@@ -376,7 +383,7 @@ const dataServiceDb = {
   },
 };
 const dataServiceAccessToken = await _internals.signJwt(env, {
-  typ: 'access', sub: dataServiceAuthRow.id, cid: dataServiceAuthRow.company_id, did: 'dev_data_owner',
+  typ: 'access', sub: dataServiceAuthRow.id, cid: dataServiceAuthRow.company_id, did: 'dev_data_owner', sid: 'ses_data_owner',
 }, 60);
 const dataServiceRequest = attestationSecret => worker.fetch(new Request('https://license.test/v1/company/data-service', {
   method: 'PUT',
@@ -428,6 +435,8 @@ const brokerAuthRow = {
   status: 'active',
   license_status: 'active',
   device_status: 'active',
+  session_status: 'active',
+  session_expires: '2099-01-01T00:00:00.000Z',
   telegram_worker_url: 'https://justfun-telegram.example.workers.dev',
   telegram_client_key_ciphertext: brokerCiphertext,
   telegram_bot_username: 'justfun_test_bot',
@@ -455,6 +464,7 @@ const employeeToken = await _internals.signJwt(env, {
   sub: 'usr_employee',
   cid: 'cmp_broker',
   did: 'dev_employee',
+  sid: 'ses_employee',
   role: 'warehouse',
   permissions: ['orders.read', 'jf.warehouse:wh_main'],
 }, 60);
@@ -521,6 +531,8 @@ const leaseAuthRow = (id, permissions) => ({
   status: 'active',
   license_status: 'active',
   device_status: 'active',
+  session_status: 'active',
+  session_expires: '2099-01-01T00:00:00.000Z',
 });
 const leaseAuthRows = new Map([
   ['usr_global_manager', leaseAuthRow('usr_global_manager', ['warehouses.manage', 'jf.warehouse:*'])],
@@ -715,6 +727,7 @@ const leaseAccessToken = async userId => _internals.signJwt(env, {
   sub: userId,
   cid: 'cmp_lease',
   did: `dev_${userId}`,
+  sid: `ses_${userId}`,
 }, 60);
 const globalLeaseToken = await leaseAccessToken('usr_global_manager');
 const otherGlobalLeaseToken = await leaseAccessToken('usr_other_global');

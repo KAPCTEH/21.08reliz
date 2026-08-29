@@ -131,6 +131,14 @@ checked('runtime-version-consumers', () => {
   const windowsWorkflow = readText('.github/workflows/windows-native-783.yml');
   const installerAcceptance = readText('tests/installer-full-acceptance-test.ps1');
   const preload = readText('source/application/preload.js');
+  const rendererVersionConsumers = [
+    'source/application/web/assets/js/99-stability-v595.js',
+    'source/application/web/assets/js/100-multi-warehouse-v600.js',
+    'source/application/web/assets/js/101-release-hardening-v601.js',
+    'source/application/web/assets/js/102-professional-workspace-v610.js',
+    'source/application/web/assets/js/103-regression-recovery-v611.js',
+    'source/application/web/assets/js/110-desktop-platform-v750.js'
+  ].map(file => [file, readText(file)]);
   const nativeSsh = readText('source/application/integrations/reg-vps/native-ssh.cjs');
   const provisioner = readText('source/application/integrations/telegram-cloudflare-native/provisioner.cjs');
   const premiumProject = readText('source/installer/premium-ui/JustFunPremiumSetup.csproj');
@@ -162,6 +170,10 @@ checked('runtime-version-consumers', () => {
   assert(!installerAcceptance.includes(`version = '${release.version}'`), 'installer acceptance contains a hard-coded result version');
   assert(preload.includes("startsWith('--jf-version=')") && preload.includes('version: bootstrapVersion'), 'sandboxed preload does not consume the canonical version argument');
   assert(main.includes('`--jf-version=${VERSION}`'), 'main process does not pass the canonical version into sandboxed preloads');
+  for (const [file, source] of rendererVersionConsumers) {
+    assert(source.includes('window.JustFunDesktop?.version'), `${file} does not consume the canonical preload version`);
+    assert(!/const\s+(?:BUILD|VERSION)\s*=\s*['"]\d/.test(source), `${file} contains a hard-coded displayed product version`);
+  }
   assert(nativeSsh.includes("require('../../release.json')") && nativeSsh.includes('version: RELEASE.service_versions.reg_api'), 'VPS provisioning version is not derived from its release service version');
   assert(provisioner.includes("require('../../release.json')") && provisioner.includes('const DEPLOYMENT_VERSION = RELEASE.service_versions.telegram_worker;'), 'Telegram provisioning version is not derived from its release service version');
   assert(!main.includes(`'JustFun-OrdersLogistics-self-test-${release.version}.json'`), 'main self-test path contains a hard-coded product version');

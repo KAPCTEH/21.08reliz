@@ -2,8 +2,8 @@
 
 const origin = String(process.argv[2] || 'https://justfun-license-api.l2maloy47rus.workers.dev').replace(/\/+$/, '');
 const checks = [
-  { method: 'GET', path: '/health', expected: [200], code: null, authContract: 5, warehouseDeleteLeaseContract: 3 },
-  { method: 'GET', path: '/v1/health', expected: [200], code: null, authContract: 5, warehouseDeleteLeaseContract: 3 },
+  { method: 'GET', path: '/health', expected: [200], code: null, authContract: 6, sessionBindingContract: 1, warehouseDeleteLeaseContract: 3 },
+  { method: 'GET', path: '/v1/health', expected: [200], code: null, authContract: 6, sessionBindingContract: 1, warehouseDeleteLeaseContract: 3 },
   { method: 'POST', path: '/v1/license/check', expected: [400], code: 'LICENSE_KEY_REQUIRED', body: {} },
   { method: 'POST', path: '/v1/auth/introspect', expected: [401], code: 'INVALID_TOKEN', body: {} },
   { method: 'GET', path: '/v1/invitations', expected: [401], code: 'INVALID_TOKEN' },
@@ -43,6 +43,7 @@ for (const check of checks) {
     && !error
     && (check.code === null ? payload?.ok === true : payload?.error === check.code)
     && (check.authContract ? Number(payload?.auth_contract) === check.authContract : true)
+    && (check.sessionBindingContract ? Number(payload?.session_binding_contract) === check.sessionBindingContract : true)
     && (check.warehouseDeleteLeaseContract
       ? Number(payload?.warehouse_delete_lease_contract) === check.warehouseDeleteLeaseContract
       : true);
@@ -53,6 +54,7 @@ for (const check of checks) {
     error: error || null,
     server_error: payload?.error || null,
     auth_contract: payload?.auth_contract ?? null,
+    session_binding_contract: payload?.session_binding_contract ?? null,
     warehouse_delete_lease_contract: payload?.warehouse_delete_lease_contract ?? null,
     ok,
   });

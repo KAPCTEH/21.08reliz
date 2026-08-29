@@ -27,6 +27,17 @@ function Assert-True([bool]$Condition, [string]$Message) {
   if (-not $Condition) { throw $Message }
 }
 
+function Get-Sha256([string]$Path) {
+  $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  try {
+    return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-', '').ToLowerInvariant()
+  } finally {
+    $algorithm.Dispose()
+    $stream.Dispose()
+  }
+}
+
 function Assert-WindowsExecutable([string]$Path, [string]$Label) {
   $stream = [IO.File]::Open($Path, [IO.FileMode]::Open, [IO.FileAccess]::Read, [IO.FileShare]::Read)
   try {
@@ -81,7 +92,7 @@ function Invoke-FailClosedArtifactProbe([string]$Executable, [string]$ProbeRoot,
     exit_code = $exitCode
     fail_closed = $true
     extraction_started = $false
-    log_sha256 = (Get-FileHash -LiteralPath $probeLog -Algorithm SHA256).Hash.ToLowerInvariant()
+    log_sha256 = Get-Sha256 $probeLog
   }
 }
 
@@ -182,12 +193,12 @@ try {
       setup_engine = [ordered]@{
         file = [IO.Path]::GetFileName($BuiltSetupEngine)
         bytes = (Get-Item -LiteralPath $BuiltSetupEngine).Length
-        sha256 = (Get-FileHash -LiteralPath $BuiltSetupEngine -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-Sha256 $BuiltSetupEngine
       }
       premium_setup = [ordered]@{
         file = [IO.Path]::GetFileName($BuiltSetup)
         bytes = (Get-Item -LiteralPath $BuiltSetup).Length
-        sha256 = (Get-FileHash -LiteralPath $BuiltSetup -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-Sha256 $BuiltSetup
       }
     }
   }
@@ -199,8 +210,8 @@ try {
       status = 'passed'
       scope = 'compiled-nsis-transaction-recovery'
       scenarios = @('fresh-target-disk', 'restore-interrupted', 'cleanup-completed', 'preserve-corrupt')
-      setup_source_sha256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot '..\source\installer\Setup.nsi') -Algorithm SHA256).Hash.ToLowerInvariant()
-      test_sha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
+      setup_source_sha256 = Get-Sha256 (Join-Path $PSScriptRoot '..\source\installer\Setup.nsi')
+      test_sha256 = Get-Sha256 $PSCommandPath
       bound_artifacts = $boundArtifacts
       runtime_probes = $runtimeProbes
     } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $EvidenceFile -Encoding UTF8

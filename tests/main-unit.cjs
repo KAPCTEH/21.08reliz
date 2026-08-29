@@ -80,7 +80,35 @@ assert.match(mainSource, /directOpenStreetMapGeocode/);
 assert.match(mainSource, /directOpenStreetMapRoute/);
 assert.ok(mainSource.indexOf("try{const data=await directOpenStreetMapGeocode(payload)") < mainSource.indexOf("regApiRequest('POST','\/v1\/maps\/geocode'"));
 assert.match(mainSource, /telegram_services:services/);
+assert.equal(main.STARTUP_TIMEOUT_MS, 30000);
 assert.equal(main.RENDERER_READY_TIMEOUT_MS, 90000);
+const startupLoading=main.transitionRendererStartupState(null,'begin');
+const startupRecovery=main.transitionRendererStartupState(startupLoading,'load-timeout',{reason:'30 seconds'});
+const startupReady=main.transitionRendererStartupState(startupRecovery,'renderer-ready',{surface:'workspace-cloud'});
+assert.equal(startupLoading.phase,'loading');
+assert.equal(startupRecovery.phase,'recovery');
+assert.equal(startupReady.phase,'ready');
+assert.equal(startupReady.readyPayload.surface,'workspace-cloud');
+assert.strictEqual(main.transitionRendererStartupState(startupReady,'load-timeout',{reason:'stale timeout'}),startupReady,'a stale timeout must not hide a renderer that is already ready');
+const startupClosed=main.transitionRendererStartupState(startupRecovery,'window-closed');
+assert.equal(main.transitionRendererStartupState(startupClosed,'renderer-ready',{surface:'stale'}).phase,'closed','a late event from a closed window must be ignored');
+const startupFailed=main.transitionRendererStartupState(startupRecovery,'startup-failed',{reason:'ready timeout'});
+assert.equal(startupFailed.phase,'failed');
+assert.strictEqual(main.transitionRendererStartupState(startupFailed,'renderer-ready',{surface:'late'}),startupFailed,'a late ready event must not revive a terminal startup failure');
+let startupShowCalls=0,startupFocusCalls=0,startupCloseCalls=0;
+assert.deepEqual(main.revealRendererStartupWindows({isDestroyed:()=>false,show:()=>{startupShowCalls++},focus:()=>{startupFocusCalls++}},{isDestroyed:()=>false,close:()=>{startupCloseCalls++}}),{shown:true,splashClosed:true});
+assert.deepEqual({startupShowCalls,startupFocusCalls,startupCloseCalls},{startupShowCalls:1,startupFocusCalls:1,startupCloseCalls:1});
+let guardedShowCalls=0,guardedFocusCalls=0,guardedSplashCloseCalls=0;
+const startupTarget={isDestroyed:()=>false,show:()=>{guardedShowCalls++},focus:()=>{guardedFocusCalls++}};
+const startupSplash={isDestroyed:()=>false,close:()=>{guardedSplashCloseCalls++}};
+const blockedLateReady=main.finalizeRendererStartupReady(startupFailed,{surface:'late'},startupTarget,startupSplash);
+assert.equal(blockedLateReady.shown,false);
+assert.deepEqual({guardedShowCalls,guardedFocusCalls,guardedSplashCloseCalls},{guardedShowCalls:0,guardedFocusCalls:0,guardedSplashCloseCalls:0},'terminal failure must block every window reveal side effect');
+const firstReady=main.finalizeRendererStartupReady(startupRecovery,{surface:'workspace-cloud'},startupTarget,startupSplash);
+const repeatedReady=main.finalizeRendererStartupReady(firstReady.state,{surface:'workspace-cloud'},startupTarget,startupSplash);
+assert.equal(firstReady.shown,true);
+assert.equal(repeatedReady.alreadyReady,true);
+assert.deepEqual({guardedShowCalls,guardedFocusCalls,guardedSplashCloseCalls},{guardedShowCalls:1,guardedFocusCalls:1,guardedSplashCloseCalls:1},'repeated renderer-ready must reveal the windows exactly once');
 assert.equal(main.appRendererUrl('web/index.html'), 'justfun://app/web/index.html');
 assert.equal(main.isTrustedAppUrl('justfun://app/web/index.html'), true);
 assert.equal(main.isTrustedAppUrl('justfun://evil/web/index.html'), false);
@@ -239,6 +267,11 @@ assert.equal(repaired.user.role,'owner');
 assert.equal(main.publicCloudAuth(repaired).company.id,'cmp_company_1234567890');
 assert.equal(main.cloudSessionComplete(repaired),true);
 assert.equal(main.companyWorkspaceId(repaired),'cmp_company_1234567890');
+const reorderedOwnerPermissions={...repaired,auth_context_verified:true,user:{...repaired.user,permissions:['inventory.read','orders.read']},permissions:['inventory.read','orders.read']};
+const sameReorderedOwnerPermissions={...reorderedOwnerPermissions,user:{...reorderedOwnerPermissions.user,permissions:['orders.read','inventory.read']},permissions:['orders.read','inventory.read']};
+const reducedOwnerPermissions={...reorderedOwnerPermissions,user:{...reorderedOwnerPermissions.user,permissions:['orders.read']},permissions:['orders.read']};
+assert.equal(main.cloudAuthorizationSignature(reorderedOwnerPermissions),main.cloudAuthorizationSignature(sameReorderedOwnerPermissions));
+assert.notEqual(main.cloudAuthorizationSignature(reorderedOwnerPermissions),main.cloudAuthorizationSignature(reducedOwnerPermissions));
 const nativeSecretPath=path.join(main.localRoot(),'integrations','native-secrets.json');
 const protectedSessionBefore=fs.readFileSync(nativeSecretPath);
 const originalDecryptString=electronMock.safeStorage.decryptString;
@@ -357,6 +390,14 @@ assert.equal(source.includes('/v1/warehouses?environment='), true);
 assert.equal(source.includes("typeof result.registry_initialized==='boolean'?result.registry_initialized:null"), true);
 assert.equal(source.includes("cloudAuthenticatedRequest('PUT','/v1/company/data-service'"), true);
 assert.equal(source.includes('desktop:auth-user-access'), true);
+assert.equal((source.match(/cloudRequest\('POST','\/v1\/auth\/refresh'/g)||[]).length,1);
+assert.equal(source.includes("handleMainIPC('desktop:auth-refresh-context'"), true);
+assert.equal(source.includes('coordinateRendererStartup(mainWindow.loadURL'),true);
+assert.equal(source.includes('onLoadTimeout:enterRendererStartupRecovery'),true);
+assert.equal(source.includes('const shown=confirmRendererStartupReady(safePayload)'),true);
+assert.equal(source.includes("'RENDERER_LOAD_TIMEOUT'"),true);
+assert.equal(source.includes("if (response === 2) app.quit();"),true);
+assert.equal(source.includes('renderer ready ignored after terminal startup state'),true);
 assert.equal(source.includes('/access`'), true);
 assert.equal(source.includes("setTimeout(()=>{app.relaunch();app.exit(0)},150)"), true);
 assert.equal(source.includes("setTimeout(()=>app.quit(),150)"), true);
@@ -376,6 +417,39 @@ assert.match(main.telegramCompanyPublishPendingMessage('TELEGRAM_UPSTREAM_INVALI
 assert.match(main.friendlyCloudNetworkError({code:'ECONNRESET',message:'socket reset'}).message,/сетью или VPN/);
 
 (async()=>{
+const startupEvents=[];
+const lateReadyPayload={surface:'workspace-cloud',readyState:'complete'};
+const coordinatedStartup=await main.coordinateRendererStartup(Promise.resolve(),{then(resolve){startupEvents.push('ready');resolve(lateReadyPayload)}},{
+  wait:async(promise,_timeout,_message,code)=>{if(code==='RENDERER_LOAD_TIMEOUT')throw Object.assign(new Error('slow load'),{code});return promise},
+  onLoadTimeout:()=>{startupEvents.push('recovery')}
+});
+assert.equal(coordinatedStartup.recovered,true);
+assert.deepEqual(coordinatedStartup.readyPayload,lateReadyPayload);
+assert.deepEqual(startupEvents,['recovery','ready'],'late renderer readiness must be consumed after the recoverable 30-second timeout');
+await assert.rejects(main.coordinateRendererStartup(Promise.resolve(),Promise.resolve(lateReadyPayload),{
+  wait:async(_promise,_timeout,_message,code)=>{if(code==='RENDERER_LOAD_TIMEOUT')throw Object.assign(new Error('load failed'),{code:'ERR_FILE_NOT_FOUND'});return lateReadyPayload},
+  onLoadTimeout:()=>{throw new Error('fatal load failure must not enter timeout recovery')}
+}),error=>error.code==='ERR_FILE_NOT_FOUND');
+let rejectLateLoad;
+const lateLoad=new Promise((_,reject)=>{rejectLateLoad=reject});
+const lateLoadStartup=main.coordinateRendererStartup(lateLoad,new Promise(()=>{}),{
+  wait:async(promise,_timeout,_message,code)=>{if(code==='RENDERER_LOAD_TIMEOUT')throw Object.assign(new Error('slow load'),{code});return promise},
+  onLoadTimeout:()=>{}
+});
+await new Promise(resolve=>setImmediate(resolve));
+const lateLoadError=Object.assign(new Error('main frame failed after timeout'),{code:'ERR_FILE_NOT_FOUND'});
+rejectLateLoad(lateLoadError);
+await assert.rejects(lateLoadStartup,error=>error===lateLoadError,'a real loadURL failure after the recoverable timeout must remain terminal and preserve its exact error');
+let rejectWindowClosed;
+const windowClosed=new Promise((_,reject)=>{rejectWindowClosed=reject});
+const closedStartup=main.coordinateRendererStartup(Promise.resolve(),new Promise(()=>{}),{
+  wait:async promise=>promise,
+  windowClosed
+});
+await new Promise(resolve=>setImmediate(resolve));
+const windowClosedError=Object.assign(new Error('window closed'),{code:'RENDERER_WINDOW_CLOSED'});
+rejectWindowClosed(windowClosedError);
+await assert.rejects(closedStartup,error=>error===windowClosedError,'closing the startup window must abort immediately instead of waiting for the 90-second timeout');
 let unlockFirstDelete;
 const deleteLockEvents=[];
 const firstDelete=main.withWarehouseDeleteOperationLock('cmp_company_1234567890','warehouse_1234567890',async()=>{

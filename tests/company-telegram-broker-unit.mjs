@@ -55,6 +55,10 @@ assert.equal(_internals.canDeprovisionWarehouseTelegram({ role: 'manager', permi
 assert.equal(_internals.canDeprovisionWarehouseTelegram({ role: 'manager', permissions: ['warehouses.manage', 'jf.warehouse:*'] }, 'wh_main'), true);
 assert.equal(_internals.canDeprovisionWarehouseTelegram({ role: 'manager', permissions: ['*'] }, 'wh_main'), true);
 assert.equal(_internals.canDeprovisionWarehouseTelegram({ role: 'manager', permissions: ['warehouses.manage', 'jf.warehouse:wh_other'] }, 'wh_main'), false);
+const customRoleWithoutPermissions = { role: 'Оператор проверки', permissions: [] };
+assert.equal(_internals.canAccessWarehouse(customRoleWithoutPermissions, 'wh_main'), false);
+assert.equal(_internals.canManageIntegrations(customRoleWithoutPermissions), false);
+assert.equal(_internals.canDeprovisionWarehouseTelegram(customRoleWithoutPermissions, 'wh_main'), false);
 
 const health = await worker.fetch(new Request('https://broker.test/health'), {
   LICENSE_API_ORIGIN: 'https://license.test',
@@ -149,6 +153,55 @@ const serviceBindingAuth = await _internals.introspectLicense(
 );
 assert.equal(serviceBindingCalls, 1);
 assert.equal(serviceBindingAuth.company_id, 'cmp_company');
+
+const localizedRoleAuth = await _internals.introspectLicense(
+  { LICENSE_API_ORIGIN: 'https://license.test' },
+  new Request('https://broker.test/v1/company/telegram/status', {
+    headers: { authorization: 'Bearer localized-role-test-token' },
+  }),
+  async () => new Response(JSON.stringify({
+    ok: true,
+    active: true,
+    user_id: 'usr_employee',
+    company_id: 'cmp_company',
+    role: 'Оператор проверки',
+    permissions: ['jf.warehouse:wh_main'],
+    company: { id: 'cmp_company' },
+    device_id: 'dev_test',
+  }), { status: 200, headers: { 'content-type': 'application/json' } }),
+);
+assert.equal(localizedRoleAuth.role, 'Оператор проверки');
+assert.deepEqual(localizedRoleAuth.permissions, ['jf.warehouse:wh_main']);
+assert.equal(_internals.validateIntrospectedRole('  Оператор   проверки  '), 'Оператор проверки');
+assert.equal(_internals.validateIntrospectedRole('owner'), 'owner');
+assert.equal(_internals.validateIntrospectedRole('А1'), 'А1');
+assert.equal(_internals.validateIntrospectedRole('Р'.repeat(50)), 'Р'.repeat(50));
+for (const invalidRole of ['x', 'Owner', 'Оператор<script>', 'Р'.repeat(51)]) {
+  assert.throws(
+    () => _internals.validateIntrospectedRole(invalidRole),
+    error => error?.status === 502 && error?.code === 'AUTH_SERVICE_INVALID',
+  );
+}
+await assert.rejects(
+  _internals.introspectLicense(
+    { LICENSE_API_ORIGIN: 'https://license.test' },
+    new Request('https://broker.test/v1/company/telegram/status', {
+      headers: { authorization: 'Bearer conflicting-role-test-token' },
+    }),
+    async () => new Response(JSON.stringify({
+      ok: true,
+      active: true,
+      user_id: 'usr_employee',
+      company_id: 'cmp_company',
+      role: 'manager',
+      permissions: [],
+      user: { id: 'usr_employee', role: 'Оператор проверки', permissions: [] },
+      company: { id: 'cmp_company' },
+      device_id: 'dev_test',
+    }), { status: 200, headers: { 'content-type': 'application/json' } }),
+  ),
+  error => error?.status === 502 && error?.code === 'AUTH_SERVICE_INVALID',
+);
 
 const proofContractData = {
   warehouse_id: 'wh_main', warehouse_code: 'СПБ',

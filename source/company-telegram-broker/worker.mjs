@@ -57,6 +57,17 @@ function licenseApiOrigin(env) {
   return url.origin;
 }
 
+function validateIntrospectedRole(value) {
+  const role = clean(value).replace(/\s+/g, ' ');
+  const isOwner = role === 'owner';
+  const isCustomRole = role.toLowerCase() !== 'owner'
+    && role.length >= 2
+    && role.length <= 50
+    && /^[\p{L}\p{N}][\p{L}\p{N} ._()\/-]*$/u.test(role);
+  if (!isOwner && !isCustomRole) throw new ApiError(502, 'AUTH_SERVICE_INVALID');
+  return role;
+}
+
 async function introspectLicense(env, request, fetchImpl = null) {
   const authorization = clean(request.headers.get('authorization'));
   if (!authorization.startsWith('Bearer ')) throw new ApiError(401, 'INVALID_TOKEN');
@@ -91,7 +102,14 @@ async function introspectLicense(env, request, fetchImpl = null) {
   }
   const companyId = clean(result.company_id || result.company?.id);
   const userId = clean(result.user_id || result.user?.id);
-  const role = clean(result.role || result.user?.role);
+  const hasTopLevelRole = Object.prototype.hasOwnProperty.call(result, 'role');
+  const hasNestedRole = result.user && Object.prototype.hasOwnProperty.call(result.user, 'role');
+  const topLevelRole = hasTopLevelRole ? validateIntrospectedRole(result.role) : '';
+  const nestedRole = hasNestedRole ? validateIntrospectedRole(result.user.role) : '';
+  if (topLevelRole && nestedRole && topLevelRole !== nestedRole) {
+    throw new ApiError(502, 'AUTH_SERVICE_INVALID');
+  }
+  const role = topLevelRole || nestedRole;
   const permissions = [...new Set(
     (Array.isArray(result.permissions) ? result.permissions : result.user?.permissions || [])
       .map(clean)
@@ -100,7 +118,7 @@ async function introspectLicense(env, request, fetchImpl = null) {
   if (
     !/^[A-Za-z0-9_-]{3,120}$/.test(companyId)
     || !/^[A-Za-z0-9_-]{3,120}$/.test(userId)
-    || !/^[A-Za-z0-9_-]{2,40}$/.test(role)
+    || !role
   ) {
     throw new ApiError(502, 'AUTH_SERVICE_INVALID');
   }
@@ -881,6 +899,25 @@ async function telegramLinkCode(env, request, data, requestId, auth) {
   return result;
 }
 
+function validateTelegramRouteUrl(value) {
+  const routeUrl = clean(value);
+  if (!routeUrl) return '';
+  if (routeUrl.length > 3500) throw new ApiError(400, 'TELEGRAM_REQUEST_INVALID');
+  let parsed;
+  try { parsed = new URL(routeUrl); }
+  catch { throw new ApiError(400, 'TELEGRAM_REQUEST_INVALID'); }
+  if (
+    parsed.protocol !== 'https:'
+    || parsed.hostname.toLowerCase() !== 'yandex.ru'
+    || !/^\/maps\/?$/.test(parsed.pathname)
+    || parsed.username
+    || parsed.password
+  ) {
+    throw new ApiError(400, 'TELEGRAM_REQUEST_INVALID');
+  }
+  return parsed.toString();
+}
+
 async function telegramSend(env, request, data, requestId, auth) {
   await rateLimit(env, request, auth, 'send', 600, 900);
   const warehouseId = validateWarehouseId(data.warehouse_id);
@@ -890,6 +927,7 @@ async function telegramSend(env, request, data, requestId, auth) {
   const entityId = clean(data.entity_id);
   const idempotencyKey = clean(data.idempotency_key);
   const text = clean(data.text);
+  const routeUrl = validateTelegramRouteUrl(data.route_url);
   if (
     !['driver', 'warehouse'].includes(entityType)
     || !/^[A-Za-z0-9_-]{1,120}$/.test(entityId)
@@ -909,6 +947,8 @@ async function telegramSend(env, request, data, requestId, auth) {
     title: clean(data.title).slice(0, 300),
     metadata: data.metadata && typeof data.metadata === 'object' && !Array.isArray(data.metadata) ? data.metadata : {},
     text,
+    route_url: routeUrl,
+    disable_link_preview: data.disable_link_preview === true,
     status_buttons: data.status_buttons !== false,
   });
   await audit(env, requestId, auth, 'telegram.send', warehouseId);
@@ -951,7 +991,7 @@ async function route(env, request, requestId) {
     return {
       ok: true,
       service: 'justfun-company-telegram-broker',
-      version: '1.3.0',
+      version: '1.3.1',
       broker_contract: 4,
       telegram_deprovision_contract: 3,
       license_service: licenseApiOrigin(env),
@@ -989,6 +1029,7 @@ export const _internals = {
   decryptClientKey,
   encryptClientKey,
   introspectLicense,
+  validateIntrospectedRole,
   companyTelegramConfig,
   deprovisionCompanyTelegramService,
   publicService,

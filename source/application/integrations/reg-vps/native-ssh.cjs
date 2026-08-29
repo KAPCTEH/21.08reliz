@@ -8,7 +8,36 @@ const path = require('path');
 const { Client } = require('ssh2');
 
 const MAX_OUTPUT_BYTES = 3 * 1024 * 1024;
-const SSH_READY_TIMEOUT_MS = 10 * 60 * 1000;
+const SSH_PROBE_TIMEOUT_MS = 15 * 1000;
+const SSH_CONNECT_TIMEOUT_MS = 30 * 1000;
+
+const SSH_ALGORITHMS = Object.freeze({
+  serverHostKey: [
+    'ssh-ed25519',
+    'ecdsa-sha2-nistp521',
+    'ecdsa-sha2-nistp384',
+    'ecdsa-sha2-nistp256',
+    'rsa-sha2-512',
+    'rsa-sha2-256'
+  ]
+});
+
+function cancellationError(signal) {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : Object.assign(new Error('Учётная запись изменилась во время настройки VPS.'), {code: 'AUTH_SESSION_CHANGED'});
+}
+
+function assertRuntimeActive(runtime = {}) {
+  if (runtime.signal?.aborted) throw cancellationError(runtime.signal);
+  if (typeof runtime.guard === 'function') runtime.guard();
+  if (runtime.signal?.aborted) throw cancellationError(runtime.signal);
+}
+
+function terminateClient(client) {
+  try { client?.end?.(); } catch {}
+  try { client?.destroy?.(); } catch {}
+}
 
 function conventionalFingerprint(key) {
   return `SHA256:${crypto.createHash('sha256').update(key).digest('base64').replace(/=+$/g, '')}`;
@@ -36,9 +65,26 @@ function b64(value) {
   return Buffer.from(String(value), 'utf8').toString('base64');
 }
 
-function sftpCall(sftp, method, ...args) {
+function sftpCall(sftp, runtime, method, ...args) {
+  assertRuntimeActive(runtime);
   return new Promise((resolve, reject) => {
-    sftp[method](...args, error => error ? reject(error) : resolve());
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      runtime.signal?.removeEventListener?.('abort', onAbort);
+      fn(value);
+    };
+    const onAbort = () => {
+      try { sftp?.end?.(); } catch {}
+      finish(reject, cancellationError(runtime.signal));
+    };
+    runtime.signal?.addEventListener?.('abort', onAbort, {once: true});
+    sftp[method](...args, error => {
+      if (error) { finish(reject, error); return; }
+      try { assertRuntimeActive(runtime); finish(resolve); }
+      catch (guardError) { finish(reject, guardError); }
+    });
   });
 }
 
@@ -46,92 +92,188 @@ function normalizeShellScript(value) {
   return String(value ?? '').replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
 }
 
-function connect(options, confirmFingerprint) {
+function fingerprintMatches(actual, expected) {
+  const left = Buffer.from(String(actual || ''));
+  const right = Buffer.from(String(expected || ''));
+  return left.length === right.length && left.length > 0 && crypto.timingSafeEqual(left, right);
+}
+
+function probeFingerprint(options, runtime = {}) {
+  assertRuntimeActive(runtime);
   return new Promise((resolve, reject) => {
     const client = new Client();
     let settled = false;
     const finish = (fn, value) => {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
+      runtime.signal?.removeEventListener?.('abort', onAbort);
       fn(value);
     };
-    client.once('ready', () => finish(resolve, client));
-    client.once('error', error => finish(reject, error));
-    client.connect({
-      host: options.host,
-      port: options.port,
-      username: options.username,
-      password: options.password,
-      // Host verification waits for an explicit human decision. A short SSH
-      // ready timeout can expire behind the still-visible fingerprint dialog.
-      readyTimeout: SSH_READY_TIMEOUT_MS,
-      keepaliveInterval: 15000,
-      keepaliveCountMax: 4,
-      algorithms: {
-        serverHostKey: [
-          'ssh-ed25519',
-          'ecdsa-sha2-nistp521',
-          'ecdsa-sha2-nistp384',
-          'ecdsa-sha2-nistp256',
-          'rsa-sha2-512',
-          'rsa-sha2-256'
-        ]
-      },
-      hostVerifier: (key, callback) => {
-        const fingerprint = conventionalFingerprint(key);
-        Promise.resolve(confirmFingerprint(fingerprint))
-          .then(accepted => callback(Boolean(accepted)))
-          .catch(() => callback(false));
-      }
-    });
+    const onAbort = () => {
+      terminateClient(client);
+      finish(reject, cancellationError(runtime.signal));
+    };
+    const timer = setTimeout(() => {
+      try { client.end(); } catch {}
+      finish(reject, new Error('VPS не передал SSH-ключ за 15 секунд. Проверьте адрес, порт и доступность сервера.'));
+    }, SSH_PROBE_TIMEOUT_MS);
+    client.on('error', error => finish(reject, error));
+    client.on('close', () => finish(reject, new Error('VPS закрыл соединение до получения SSH-ключа.')));
+    runtime.signal?.addEventListener?.('abort', onAbort, {once: true});
+    try {
+      client.connect({
+        host: options.host,
+        port: options.port,
+        username: options.username,
+        readyTimeout: SSH_PROBE_TIMEOUT_MS,
+        algorithms: SSH_ALGORITHMS,
+        // The password is deliberately absent here. The first connection only
+        // reads the host key and is closed before the human confirmation.
+        hostVerifier: (key, callback) => {
+          try {
+            assertRuntimeActive(runtime);
+            const fingerprint = conventionalFingerprint(key);
+            finish(resolve, fingerprint);
+            callback(false);
+          } catch (error) {
+            finish(reject, error);
+            callback(false);
+          }
+          setImmediate(() => {
+            try { client.end(); } catch {}
+          });
+        }
+      });
+    } catch (error) {
+      finish(reject, error);
+    }
   });
 }
 
-function openSftp(client) {
-  return new Promise((resolve, reject) => client.sftp((error, sftp) => error ? reject(error) : resolve(sftp)));
+function connect(options, acceptedFingerprint, runtime = {}) {
+  assertRuntimeActive(runtime);
+  return new Promise((resolve, reject) => {
+    const client = new Client();
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      runtime.signal?.removeEventListener?.('abort', onAbort);
+      fn(value);
+    };
+    const onAbort = () => {
+      terminateClient(client);
+      finish(reject, cancellationError(runtime.signal));
+    };
+    const timer = setTimeout(() => {
+      try { client.end(); } catch {}
+      finish(reject, new Error('VPS не завершил SSH-вход за 30 секунд. Проверьте пароль и настройки SSH.'));
+    }, SSH_CONNECT_TIMEOUT_MS);
+    client.once('ready', () => {
+      try { assertRuntimeActive(runtime); finish(resolve, client); }
+      catch (error) { terminateClient(client); finish(reject, error); }
+    });
+    client.on('error', error => finish(reject, error));
+    client.on('close', () => finish(reject, new Error('VPS закрыл SSH-соединение до завершения входа.')));
+    client.on('end', () => finish(reject, new Error('SSH-соединение завершилось до подтверждения входа.')));
+    runtime.signal?.addEventListener?.('abort', onAbort, {once: true});
+    try {
+      client.connect({
+        host: options.host,
+        port: options.port,
+        username: options.username,
+        password: options.password,
+        readyTimeout: SSH_CONNECT_TIMEOUT_MS,
+        keepaliveInterval: 15000,
+        keepaliveCountMax: 4,
+        algorithms: SSH_ALGORITHMS,
+        hostVerifier: (key, callback) => {
+          const fingerprint = conventionalFingerprint(key);
+          callback(fingerprintMatches(fingerprint, acceptedFingerprint));
+        }
+      });
+    } catch (error) {
+      finish(reject, error);
+    }
+  });
+}
+
+function openSftp(client, runtime = {}) {
+  assertRuntimeActive(runtime);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      runtime.signal?.removeEventListener?.('abort', onAbort);
+      fn(value);
+    };
+    const onAbort = () => { terminateClient(client); finish(reject, cancellationError(runtime.signal)); };
+    runtime.signal?.addEventListener?.('abort', onAbort, {once: true});
+    client.sftp((error, sftp) => {
+      if (error) { finish(reject, error); return; }
+      try { assertRuntimeActive(runtime); finish(resolve, sftp); }
+      catch (guardError) { try { sftp?.end?.(); } catch {} finish(reject, guardError); }
+    });
+  });
 }
 
 function execRemote(client, command, options = {}) {
   const timeoutMs = Number(options.timeoutMs) || 45 * 60 * 1000;
   const stdin = String(options.stdin || '');
+  assertRuntimeActive(options);
   return new Promise((resolve, reject) => {
     let output = '';
     let totalBytes = 0;
     let settled = false;
-    const timer = setTimeout(() => {
+    let stream = null;
+    const finish = (fn, value) => {
       if (settled) return;
       settled = true;
-      client.end();
-      reject(new Error('Установка на VPS не завершилась за 45 минут и была остановлена.'));
+      clearTimeout(timer);
+      options.signal?.removeEventListener?.('abort', onAbort);
+      fn(value);
+    };
+    const stop = error => {
+      try { stream?.close?.(); } catch {}
+      try { stream?.end?.(); } catch {}
+      terminateClient(client);
+      finish(reject, error);
+    };
+    const onAbort = () => stop(cancellationError(options.signal));
+    const timer = setTimeout(() => {
+      stop(new Error('Установка на VPS не завершилась за 45 минут и была остановлена.'));
     }, timeoutMs);
+    options.signal?.addEventListener?.('abort', onAbort, {once: true});
     const append = chunk => {
       if (settled) return;
+      try { assertRuntimeActive(options); }
+      catch (error) { stop(error); return; }
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk), 'utf8');
       totalBytes += buffer.length;
       if (totalBytes > MAX_OUTPUT_BYTES) {
-        settled = true;
-        clearTimeout(timer);
-        client.end();
-        reject(new Error('VPS вернул слишком большой журнал установки.'));
+        stop(new Error('VPS вернул слишком большой журнал установки.'));
         return;
       }
       output += buffer.toString('utf8');
       if (typeof options.onProgress === 'function') options.onProgress(buffer.toString('utf8'));
     };
-    client.exec(command, { pty: Boolean(options.pty) }, (error, stream) => {
+    client.exec(command, { pty: Boolean(options.pty) }, (error, openedStream) => {
+      if (settled) { try { openedStream?.close?.(); } catch {} return; }
       if (error) {
-        clearTimeout(timer);
-        settled = true;
-        reject(error);
+        finish(reject, error);
         return;
       }
+      stream = openedStream;
       stream.on('data', append);
       stream.stderr.on('data', append);
       stream.once('close', code => {
         if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        code === 0 ? resolve(output) : reject(Object.assign(
+        try { assertRuntimeActive(options); }
+        catch (error) { finish(reject, error); return; }
+        code === 0 ? finish(resolve, output) : finish(reject, Object.assign(
           new Error(`Установка на VPS завершилась с кодом ${code}. Действующая база не удалена.`),
           { remoteOutput: output.slice(-12000), exitCode: code }
         ));
@@ -152,6 +294,8 @@ async function cleanupRemote(client, remoteDir) {
 
 async function installRegVps(rawOptions) {
   const options = validateOptions(rawOptions);
+  const runtime = {signal: rawOptions?.signal, guard: rawOptions?.guard};
+  assertRuntimeActive(runtime);
   const packageRoot = path.resolve(String(rawOptions.packageRoot || ''));
   const serverPath = path.join(packageRoot, 'server.py');
   const installerPath = path.join(packageRoot, 'install.sh');
@@ -175,25 +319,43 @@ async function installRegVps(rawOptions) {
   ].join('\n');
 
   let client = null;
+  let abortClient = null;
   try {
-    client = await connect(options, rawOptions.confirmFingerprint);
-    const sftp = await openSftp(client);
-    await sftpCall(sftp, 'mkdir', remoteDir, { mode: 0o700 });
-    await sftpCall(sftp, 'fastPut', serverPath, `${remoteDir}/server.py`, { mode: 0o600 });
-    await sftpCall(sftp, 'writeFile', `${remoteDir}/install.sh`, installerPayload, { mode: 0o700 });
-    await sftpCall(sftp, 'writeFile', `${remoteDir}/${bootstrapName}`, bootstrap, { mode: 0o600 });
-    await sftpCall(sftp, 'chmod', `${remoteDir}/install.sh`, 0o700);
-    await sftpCall(sftp, 'chmod', `${remoteDir}/${bootstrapName}`, 0o600);
+    const fingerprint = await probeFingerprint(options, runtime);
+    assertRuntimeActive(runtime);
+    const accepted = await Promise.resolve(rawOptions.confirmFingerprint(fingerprint));
+    assertRuntimeActive(runtime);
+    if (!accepted) throw Object.assign(
+      new Error('Подключение отменено: SSH-ключ VPS не подтверждён.'),
+      { code: 'SSH_FINGERPRINT_REJECTED' }
+    );
+    client = await connect(options, fingerprint, runtime);
+    assertRuntimeActive(runtime);
+    abortClient = () => terminateClient(client);
+    runtime.signal?.addEventListener?.('abort', abortClient, {once: true});
+    const sftp = await openSftp(client, runtime);
+    assertRuntimeActive(runtime);
+    await sftpCall(sftp, runtime, 'mkdir', remoteDir, { mode: 0o700 });
+    await sftpCall(sftp, runtime, 'fastPut', serverPath, `${remoteDir}/server.py`, { mode: 0o600 });
+    await sftpCall(sftp, runtime, 'writeFile', `${remoteDir}/install.sh`, installerPayload, { mode: 0o700 });
+    await sftpCall(sftp, runtime, 'writeFile', `${remoteDir}/${bootstrapName}`, bootstrap, { mode: 0o600 });
+    await sftpCall(sftp, runtime, 'chmod', `${remoteDir}/install.sh`, 0o700);
+    await sftpCall(sftp, runtime, 'chmod', `${remoteDir}/${bootstrapName}`, 0o600);
+    assertRuntimeActive(runtime);
     sftp.end();
 
     const installCommand = options.username === 'root'
       ? `bash '${remoteDir}/install.sh' '${remoteDir}/${bootstrapName}'`
       : `sudo -S -p '' bash '${remoteDir}/install.sh' '${remoteDir}/${bootstrapName}'`;
+    assertRuntimeActive(runtime);
     const output = await execRemote(client, installCommand, {
       pty: options.username !== 'root',
       stdin: options.username === 'root' ? '' : `${options.password}\n`,
-      onProgress: rawOptions.onProgress
+      onProgress: rawOptions.onProgress,
+      signal: runtime.signal,
+      guard: runtime.guard
     });
+    assertRuntimeActive(runtime);
     const match = output.match(/(?:^|\r?\n)CERT_SHA256=([A-Fa-f0-9]{64})(?:\r?\n|$)/);
     if (!match) throw new Error('VPS не вернул подтверждённый отпечаток TLS-сертификата.');
     return {
@@ -202,7 +364,7 @@ async function installRegVps(rawOptions) {
       address: options.host,
       ssh_user: options.username,
       ssh_port: options.port,
-      ssh_host_sha256: String(rawOptions.acceptedFingerprint || ''),
+      ssh_host_sha256: fingerprint,
       api_port: 443,
       workspace_id: options.installationId,
       tls_sha256: match[1].toUpperCase(),
@@ -210,9 +372,10 @@ async function installRegVps(rawOptions) {
     };
   } finally {
     if (client) {
-      await cleanupRemote(client, remoteDir);
-      client.end();
+      if (!runtime.signal?.aborted) await cleanupRemote(client, remoteDir);
+      terminateClient(client);
     }
+    if (abortClient) runtime.signal?.removeEventListener?.('abort', abortClient);
     options.password = '';
     options.apiKey = '';
     options.attestationSecret = '';

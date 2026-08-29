@@ -1,7 +1,7 @@
 /* Teplitsa78 5.9.5 — final local stability, transaction, accessibility and QA layer */
 (function(){
 'use strict';
-const BUILD='7.8.3';
+const BUILD=String(window.JustFunDesktop?.version||(typeof APP_VERSION==='string'?APP_VERSION:'7.8.4'));
 const PRODUCT_PAGE_SIZE=25;
 const DRIVER_PAGE_SIZE=20;
 const REPORT_BATCH_SIZE=100;

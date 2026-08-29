@@ -9,11 +9,26 @@ const root=path.resolve(__dirname,'..');
 const renderer=fs.readFileSync(path.join(root,'source/application/web/assets/js/110-desktop-platform-v750.js'),'utf8');
 const multiWarehouse=fs.readFileSync(path.join(root,'source/application/web/assets/js/100-multi-warehouse-v600.js'),'utf8');
 const routeEngine=fs.readFileSync(path.join(root,'source/application/web/assets/js/90-route-engine.js'),'utf8');
+const warehousePayloadStart=renderer.indexOf('function serverWarehouseEntityPayloadV784');
+const warehousePayloadEnd=renderer.indexOf('function activeWarehouseSettingsMatchV783',warehousePayloadStart);
+const updatePermissionStart=renderer.indexOf('const ENTITY_UPDATE_PERMISSION=');
+const updatePermissionEnd=renderer.indexOf('const cloudSyncState=',updatePermissionStart);
 const start=renderer.indexOf('function stableEntityValue');
 const end=renderer.indexOf('async function bootstrapEntitySync');
+const entityChangesStart=renderer.indexOf('function nextLocalBaseVersion');
+const entityChangesEnd=renderer.indexOf('function ordinaryEntityRecoverySnapshot',entityChangesStart);
+const pendingChangesStart=renderer.indexOf('function latestQueuedEntityChanges');
+const pendingChangesEnd=renderer.indexOf('function validateEntityBatchAck',pendingChangesStart);
+const localOutboxEntryStart=renderer.indexOf('function localOutboxEntry');
+const localOutboxEntryEnd=renderer.indexOf('const SERVER_ENTITY_INTENTS_V783',localOutboxEntryStart);
 const validateAckStart=renderer.indexOf('function validateEntityBatchAck');
 const validateAckEnd=renderer.indexOf('function acceptEntityBatchResult',validateAckStart);
+assert(warehousePayloadStart>=0&&warehousePayloadEnd>warehousePayloadStart,'warehouse payload source fragment is available');
+assert(updatePermissionStart>=0&&updatePermissionEnd>updatePermissionStart,'entity update permission source is available');
 assert(start>=0&&end>start,'server-authoritative snapshot source fragment is available');
+assert(entityChangesStart>=0&&entityChangesEnd>entityChangesStart,'entity comparison source fragment is available');
+assert(pendingChangesStart>=0&&pendingChangesEnd>pendingChangesStart,'pending entity recovery source fragment is available');
+assert(localOutboxEntryStart>=0&&localOutboxEntryEnd>localOutboxEntryStart,'local outbox entry source fragment is available');
 assert(validateAckStart>=0&&validateAckEnd>validateAckStart,'exact entity acknowledgement validator source is available');
 const validateAckSource=renderer.slice(validateAckStart,validateAckEnd);
 
@@ -52,7 +67,8 @@ const context={
   structuredClone,
   window:{},
   localStorage:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}},
-  desktopSession:{auth:{company:{id:'company-1'}}},
+  desktopSession:{auth:{company:{id:'company-1'},user:{id:'employee-1'}}},
+  currentUser:{id:'employee-1'},
   activeWarehouseId:()=> 'warehouse-1',
   activeEnvironment:()=> 'live',
   cloneValue:value=>structuredClone(value),
@@ -65,13 +81,16 @@ const context={
   ENTITY_SETTINGS_WAREHOUSE_FIELDS:['warehouse'],
   ENTITY_SETTINGS_ROUTE_FIELDS:['routeStartTime'],
   ENTITY_SETTINGS_INTEGRATION_FIELDS:['nominatimUrl'],
-  cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,bootstrapFlights:new Map(),scopeEpoch:0,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlightScopes:new Map(),criticalFlights:new Map(),contextBlockedError:null,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),outboxes:new Map(),outbox:null,outboxError:null,localBaseline:null},
+  cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,bootstrapFlights:new Map(),scopeEpoch:0,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlightScopes:new Map(),criticalFlights:new Map(),contextBlockedError:null,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),readerUserId:'employee-1',outboxes:new Map(),outbox:null,outboxError:null,localBaseline:null},
   q:()=>null,
+  audit:()=>{},
   clearTimeout:()=>{},
+  roleFor:()=> 'owner',
+  hasPermission:()=>true,
 };
 context.isTrainingEnvironment=()=>context.activeEnvironment()==='demo';
 vm.createContext(context);
-vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(start,end)}\nglobalThis.__fromServer=snapshotFromServerEntities;globalThis.__fp=entityFingerprint;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;`,context);
+vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(updatePermissionStart,updatePermissionEnd)}\n${renderer.slice(warehousePayloadStart,warehousePayloadEnd)}\n${renderer.slice(start,end)}\n${renderer.slice(entityChangesStart,entityChangesEnd)}\n${renderer.slice(pendingChangesStart,pendingChangesEnd)}\n${renderer.slice(localOutboxEntryStart,localOutboxEntryEnd)}\nglobalThis.__fromServer=snapshotFromServerEntities;globalThis.__fp=entityFingerprint;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;globalThis.__capturePreBootstrapLocalIntent=capturePreBootstrapLocalIntent;globalThis.__recoveryKnownEntitiesFromServer=recoveryKnownEntitiesFromServer;globalThis.__buildPendingEntityChanges=buildPendingEntityChanges;globalThis.__reconcileWarehouseOutbox=reconcileServerEquivalentWarehouseOutboxV784;`,context);
 assert.equal(typeof context.window.JustFunServerStorageV3?.writeWarehouse,'function','browser storage export remains available in the extracted fragment');
 assert(Object.isFrozen(context.window.JustFunServerStorageV3),'browser storage export remains immutable');
 
@@ -84,24 +103,32 @@ const order=(name,version=1)=>({type:'orders',id:'order-1',version,payload:{id:'
 const base=order('base');
 
 async function verifyOfflineOutboxStartupOverlay(){
-  let imported=null;
+  let imported=null,active=1,dirtyCleared=0;
   context.q=()=>null;
   context.audit=()=>{};
-  context.currentUser=null;
+  context.currentUser={id:'employee-1'};
+  context.localStorage.removeItem=key=>{if(String(key).includes('jf.reg-entity-dirty.v1.'))dirtyCleared++};
   context.buildBackupPayload=()=>snapshot(base.payload);
   context.window.TeplitsaWarehouseV600={
     importServerSnapshot:async value=>{imported=structuredClone(value)},
     whenPersisted:async()=>{},
   };
-  context.window.JustFunLocalOutboxV783={create:()=>({
+  const queue={
     isCorrupt:()=>false,
-    status:()=>({active:1}),
-    overlayEntries:()=>[{commandId:'client:offline',state:'pending',updatedAt:'2026-08-25T00:00:00Z',changes:[{type:'orders',id:'order-1',deleted:false,payload:{...base.payload,name:'offline-pending'}}]}],
-  })};
+    status:()=>({active}),
+    overlayEntries:()=>active?[{commandId:'client:offline',state:'pending',updatedAt:'2026-08-25T00:00:00Z',authorUserId:'employee-1',preserveLocal:true,changes:[{type:'orders',id:'order-1',deleted:false,payload:{...base.payload,name:'offline-pending'}}]}]:[],
+  };
+  context.window.JustFunLocalOutboxV783={inspect:()=>queue,create:()=>queue};
   vm.runInContext('globalThis.__restoreLocalOutboxOverlay=restoreLocalOutboxOverlay',context);
   assert.equal(await context.__restoreLocalOutboxOverlay(),true,'an active durable outbox must be restored without a VPS');
   assert.equal(imported.data.orders[0].name,'offline-pending','the restarted UI must contain the pending local mutation');
   assert.equal(context.cloudSyncState.dirty,true,'the restored command remains pending for later server delivery');
+
+  active=1;dirtyCleared=0;context.cloudSyncState.dirty=true;
+  context.window.TeplitsaWarehouseV600.importServerSnapshot=async value=>{imported=structuredClone(value);active=0};
+  assert.equal(await context.__restoreLocalOutboxOverlay(),true,'a command confirmed while its overlay is being restored must complete safely');
+  assert.equal(context.cloudSyncState.dirty,false,'a concurrently confirmed command must not leave a false dirty blocker');
+  assert.equal(dirtyCleared,1,'the durable dirty marker must be cleared after the last active command is confirmed');
 }
 
 {
@@ -118,6 +145,78 @@ async function verifyOfflineOutboxStartupOverlay(){
 {
   const result=context.__fromServer(snapshot({...base.payload,name:'local'}),[],readable);
   assert.equal(result.data.orders.length,0);
+}
+
+function verifyUnreadableSingletonDefaultsAreNotLocalIntent(){
+  const baseline=snapshot(base.payload),current=structuredClone(baseline),enqueued=[];
+  current.data.settings={warehouse:{address:'Локальное значение по умолчанию'}};
+  current.data.reportingData={method:'cash'};
+  current.data.company={name:'Локальное значение по умолчанию'};
+  context.cloudSyncState.readableTypes=new Set(['warehouse','orders','products','inventoryMovements','warehouseReservations']);
+  const queue={overlayEntries:()=>[],blockedEntityKeys:()=>new Set(),list:()=>[],enqueue:value=>{enqueued.push(value);return value}};
+  const previousRoleFor=context.roleFor,previousHasPermission=context.hasPermission;
+  context.roleFor=()=> 'warehouse';context.hasPermission=permission=>['orders.read','orders.update','inventory.stock'].includes(permission);
+  const captured=context.__capturePreBootstrapLocalIntent(baseline,current,{queue,knownEntities:new Map(),context:{companyId:'company-1',warehouseId:'warehouse-1',environment:'live'}});
+  context.roleFor=previousRoleFor;context.hasPermission=previousHasPermission;
+  assert.equal(captured,0,'defaults in previously unreadable singleton sections are server-owned, not employee local intent');
+  assert.equal(enqueued.length,0,'unreadable defaults must never be uploaded or quarantined');
+}
+
+function verifyWritableFirstBootstrapChangeIsPreserved(){
+  const digest='c'.repeat(64),baseline={warehouse:{id:'warehouse-1',name:'Склад 1',code:'СКЛ',address:'Адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',revision:1,digest},data:{}},current=structuredClone(baseline),enqueued=[];
+  current.data.orders=[{id:'order-local',warehouseId:'warehouse-1',name:'Локальный заказ'}];
+  const queue={overlayEntries:()=>[],blockedEntityKeys:()=>new Set(),list:()=>[],enqueue:value=>{enqueued.push(value);return value}};
+  const previousRoleFor=context.roleFor,previousHasPermission=context.hasPermission;
+  const previousReaderUserId=context.cloudSyncState.readerUserId;
+  context.cloudSyncState.readableTypes=new Set();context.cloudSyncState.readerUserId='';context.roleFor=()=> 'warehouse';context.hasPermission=permission=>permission==='orders.update';
+  const captured=context.__capturePreBootstrapLocalIntent(baseline,current,{queue,knownEntities:new Map(),context:{companyId:'company-1',warehouseId:'warehouse-1',environment:'live'}});
+  context.roleFor=previousRoleFor;context.hasPermission=previousHasPermission;context.cloudSyncState.readerUserId=previousReaderUserId;
+  assert.equal(captured,1,'a writable local change must survive first bootstrap even before readableTypes are cached');
+  assert.equal(enqueued[0]?.changes?.[0]?.type,'orders','the preserved first-bootstrap command must contain the writable entity');
+}
+
+function verifyServerEquivalentWarehouseReconcilesFingerprintMigration(){
+  const digest='a'.repeat(64),local={warehouse:{id:'warehouse-1',name:'Склад 1',code:'СКЛ',address:'Адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',origin:'server',revision:1,digest},data:{}},server={warehouse:{id:'warehouse-1',name:'Склад 1',code:'СКЛ',address:'Адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',origin:'legacy-server',createdAt:'2026-08-01T00:00:00Z',environment:'live'},data:{}},queue={overlayEntries:()=>[],list:()=>[]},knownAtStart=new Map([['warehouse:warehouse-1',{version:1,digest,fingerprint:'legacy-fingerprint',deleted:false}]]),serverKnown=new Map([['warehouse:warehouse-1',{version:1,digest,fingerprint:'server-raw-fingerprint',deleted:false}]]),scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'};
+  context.cloudSyncState.readableTypes=new Set(['warehouse']);context.cloudSyncState.readerUserId='employee-1';
+  const recovery=context.__recoveryKnownEntitiesFromServer(local,server,knownAtStart,serverKnown,scope),reconciled=context.__buildPendingEntityChanges({snapshot:local,knownEntities:recovery,conflicts:new Map(),queue,context:scope});
+  assert.equal(reconciled.length,0,'a warehouse equal to the live server payload must survive a local fingerprint schema migration');
+  local.warehouse.address='Локально изменённый адрес';
+  const changedRecovery=context.__recoveryKnownEntitiesFromServer(local,server,knownAtStart,serverKnown,scope),changed=context.__buildPendingEntityChanges({snapshot:local,knownEntities:changedRecovery,conflicts:new Map(),queue,context:scope});
+  assert.equal(changed.length,1,'a local warehouse payload change must remain visible even when embedded digest and revision are unchanged');
+}
+
+function verifySafeWarehouseOutboxPrefixReconciliation(){
+  const scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'},scopeKey='company-1:live:warehouse-1',payload={id:'warehouse-1',name:'Склад 1',code:'СКЛ',address:'Адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',environment:'live'},server={type:'warehouse',id:'warehouse-1',version:3,event_id:17,digest_sha256:'d'.repeat(64),deleted:false,payload};
+  let sequence=0;
+  const entry=(overrides={})=>{
+    const base={commandId:`client:reconcile:${++sequence}`,scope:scopeKey,companyId:'company-1',warehouseId:'warehouse-1',environment:'live',state:'pending',preserveLocal:true,changes:[{type:'warehouse',id:'warehouse-1',baseVersion:2,deleted:false,payload:structuredClone(payload)}]};
+    return{...base,...overrides,changes:overrides.changes===undefined?base.changes:overrides.changes}
+  };
+  const run=(entries,{serverEntities=[server],withConflict=true}={})=>{
+    const data=structuredClone(entries),confirmed=[];context.cloudSyncState.conflicts=withConflict?new Map([['warehouse:warehouse-1',{state:'conflict'}]]):new Map();
+    const queue={list:(states=null)=>{const allowed=states==null?null:new Set(Array.isArray(states)?states:[states]);return structuredClone(data.filter(item=>!allowed||allowed.has(item.state)))},markConfirmed:(commandId,result)=>{const item=data.find(candidate=>candidate.commandId===commandId);assert(item,'confirmed command exists');item.state='confirmed';item.preserveLocal=false;item.serverResult=structuredClone(result);confirmed.push(commandId);return structuredClone(item)}};
+    const count=context.__reconcileWarehouseOutbox(queue,structuredClone(serverEntities),scope);
+    return{count,confirmed,data,conflict:context.cloudSyncState.conflicts.has('warehouse:warehouse-1')}
+  };
+
+  let result=run([entry()]);assert.equal(result.count,1,'pending equivalent warehouse command is reconciled');assert.equal(result.conflict,false);
+  result=run([entry({state:'conflict'})]);assert.equal(result.count,1,'conflict equivalent warehouse command is reconciled');assert.equal(result.conflict,false);
+  result=run([entry({state:'rejected',preserveLocal:true})]);assert.equal(result.count,1,'preserved rejected equivalent warehouse command is reconciled');
+  result=run([entry({state:'sending'})]);assert.equal(result.count,0,'sending command is never reconciled');
+  result=run([entry({state:'confirmed',preserveLocal:false})]);assert.equal(result.count,0,'confirmed history is never reconciled again');
+  result=run([entry({state:'rejected',preserveLocal:false})]);assert.equal(result.count,0,'non-preserved rejection is never reconciled');
+  const orderBlocker=entry({changes:[{type:'orders',id:'order-1',baseVersion:0,deleted:false,payload:{id:'order-1'}}]});result=run([orderBlocker,entry()]);assert.equal(result.count,0,'an equivalent later command cannot jump over an earlier different active command');assert.equal(result.confirmed.length,0);
+  result=run([entry({changes:[{type:'warehouse',id:'warehouse-1',baseVersion:2,deleted:false,payload:structuredClone(payload)},{type:'settings',id:'settings',baseVersion:1,deleted:false,payload:{}}]})]);assert.equal(result.count,0,'a multi-change command is not reconciled');
+  result=run([entry({changes:[{type:'warehouse',id:'warehouse-1',baseVersion:2,deleted:true,payload:null}]})]);assert.equal(result.count,0,'a delete command is not reconciled');
+  result=run([entry({scope:'company-other:live:warehouse-1',companyId:'company-other'})]);assert.equal(result.count,0,'a command from another company scope is not reconciled');
+  result=run([entry({changes:[{type:'warehouse',id:'warehouse-1',baseVersion:4,deleted:false,payload:structuredClone(payload)}]})]);assert.equal(result.count,0,'a command newer than the server entity is not reconciled');
+  result=run([entry({changes:[{type:'warehouse',id:'warehouse-1',baseVersion:2,deleted:false,payload:{...payload,address:'Другой адрес'}}]})]);assert.equal(result.count,0,'unequal normalized metadata is not reconciled');
+  const first=entry(),second=entry();result=run([first,second]);assert.equal(result.count,2,'two contiguous equivalent commands are reconciled as one leading prefix');assert.deepEqual(result.confirmed,[first.commandId,second.commandId]);
+  const equalConflict=entry({state:'conflict'}),unequalConflict=entry({state:'conflict',changes:[{type:'warehouse',id:'warehouse-1',baseVersion:2,deleted:false,payload:{...payload,address:'Не совпадает'}}]});result=run([equalConflict,unequalConflict]);assert.equal(result.count,1,'reconciliation stops at the first non-equivalent active command');assert.equal(result.conflict,true,'warehouse conflict remains while a blocking warehouse entry remains');
+  result=run([entry()],{serverEntities:[{...server,digest_sha256:'invalid'}]});assert.equal(result.count,0,'an invalid server entity cannot confirm a local command');
+
+  const bootstrapStart=renderer.indexOf('async function bootstrapEntitySync'),bootstrapEnd=renderer.indexOf('function scheduleCloudUpload',bootstrapStart),bootstrap=renderer.slice(bootstrapStart,bootstrapEnd),durableRecovery=bootstrap.indexOf('if(cloudSyncState.dirty)'),capture=bootstrap.indexOf('capturePreBootstrapLocalIntent('),reconcile=bootstrap.indexOf('reconcileServerEquivalentWarehouseOutboxV784('),overlay=bootstrap.indexOf('const overlaid=overlayLocalOutbox');
+  assert(durableRecovery>=0&&durableRecovery<capture&&capture<reconcile&&reconcile<overlay,'bootstrap reconciles only after durable recovery and local-intent capture, before overlay/import');
 }
 
 async function verifyWarehouseRegistryReconciliation(){
@@ -314,6 +413,10 @@ function verifyAuthoritativeEmptyCreateAction(){
   uiContext.currentUser.allWarehouses=false;
   uiContext.__renderNoWarehouse();
   assert.doesNotMatch(frames.at(-1).html,/jfCreateFirstWarehouse/,'a warehouse-scoped manager cannot create a company-wide warehouse from the empty state');
+  uiContext.hasEntityPermissionQuarantine=()=>true;
+  uiContext.__renderNoWarehouse('Локальная очередь сохранена.');
+  assert.match(frames.at(-1).html,/Локальные изменения защищены/,'a permission quarantine must not claim that the assigned warehouse is missing');
+  assert.doesNotMatch(frames.at(-1).html,/>Склад не назначен</,'the quarantine title must describe protected data, not warehouse assignment');
 }
 
 function verifyWarehouseLifecycleUiSource(){
@@ -342,6 +445,7 @@ async function verifyWarehouseStorageIsolation(){
     localStorage:{getItem:key=>storageValues.get(String(key))??null,setItem:(key,value)=>{const name=String(key);storageValues.set(name,String(value));if(name.startsWith('jf.reg-entity-state.v2.'))savedEntityState++},removeItem:key=>storageValues.delete(String(key))},
     cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,inFlight:false,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set()},
     desktopSession:{edition:'full',auth:{offline:false,company:{id:'company-1',data_service:'https://vps.invalid'},user:{id:'owner-1',role:'owner',permissions:['*']}}},
+    currentUser:{id:'owner-1'},
     activeWarehouseId:()=> 'warehouse-active',
     activeEnvironment:()=> 'live',
     cloneValue:value=>structuredClone(value),
@@ -359,7 +463,7 @@ async function verifyWarehouseStorageIsolation(){
   };
   storageContext.isTrainingEnvironment=()=>storageContext.desktopSession.edition==='demo'||storageContext.activeEnvironment()==='demo';
   vm.createContext(storageContext);
-  vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(start,end)}\n${validateAckSource}\nglobalThis.__writeWarehouse=writeAuthoritativeWarehouse;globalThis.__cloudSyncState=cloudSyncState;globalThis.__entityScope=entityScope;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;`,storageContext);
+  vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(warehousePayloadStart,warehousePayloadEnd)}\n${renderer.slice(start,end)}\n${validateAckSource}\nglobalThis.__writeWarehouse=writeAuthoritativeWarehouse;globalThis.__cloudSyncState=cloudSyncState;globalThis.__entityScope=entityScope;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;`,storageContext);
   storageContext.__cloudSyncState.scope=storageContext.__entityScope();
 
   const other={id:'warehouse-other',name:'Другой склад',code:'ДРГ',revision:0};
@@ -472,6 +576,10 @@ async function verifyWarehouseRegistryTransitions(){
   assert.equal(classes.has('jf-authenticated'),false);
 }
 
+verifyUnreadableSingletonDefaultsAreNotLocalIntent();
+verifyWritableFirstBootstrapChangeIsPreserved();
+verifyServerEquivalentWarehouseReconcilesFingerprintMigration();
+verifySafeWarehouseOutboxPrefixReconciliation();
 Promise.all([verifyOfflineOutboxStartupOverlay(),verifyWarehouseRegistryReconciliation(),verifyWarehouseStorageIsolation(),verifyWarehouseRegistryTransitions(),verifyRouteCalculationRejectsStaleDepot(),verifyWarehouseCreateAccessExport(),verifyAuthoritativeEmptyCreateAction(),verifyWarehouseLifecycleUiSource()])
-  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true})))
+  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true,unreadableDefaultsIgnored:true,writableFirstBootstrapPreserved:true,serverEquivalentWarehouseMigration:true,safeWarehouseOutboxPrefix:true,quarantineTitleTruthful:true})))
   .catch(error=>{console.error(error);process.exitCode=1});

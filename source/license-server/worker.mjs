@@ -91,6 +91,9 @@ async function jwtSecret(env) {
   if (secret.length < 32) throw new ApiError(500, 'SERVER_CONFIGURATION_ERROR');
   return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
+async function jwtSecretHmac(env, value) {
+  return b64url(await crypto.subtle.sign('HMAC', await jwtSecret(env), encoder.encode(String(value))));
+}
 async function integrationKeyFromSecret(secretValue) {
   const secret = clean(secretValue);
   if (secret.length < 32) throw new ApiError(500, 'SERVER_CONFIGURATION_ERROR');
@@ -346,9 +349,12 @@ async function rateLimit(env, request, group, limit = 30, windowSeconds = 900, o
   if (Number(row?.hits || 0) > limit) throw new ApiError(429, 'TOO_MANY_ATTEMPTS');
 }
 async function audit(env, requestId, action, companyId = null, userId = null, entityId = null, details = {}) {
-  await env.DB.prepare(
+  await auditStatement(env, requestId, action, companyId, userId, entityId, details).run();
+}
+function auditStatement(env, requestId, action, companyId = null, userId = null, entityId = null, details = {}) {
+  return env.DB.prepare(
     'INSERT INTO audit_log(id,company_id,user_id,action,entity_id,details_json,request_id,created_at) VALUES(?,?,?,?,?,?,?,?)',
-  ).bind(id('audit'), companyId, userId, action, entityId, JSON.stringify(details && typeof details === 'object' ? details : {}), requestId, nowIso()).run();
+  ).bind(id('audit'), companyId, userId, action, entityId, JSON.stringify(details && typeof details === 'object' ? details : {}), requestId, nowIso());
 }
 function publicUser(row) {
   return {
@@ -384,21 +390,27 @@ function publicCompany(row) {
   if (telegramService) company.telegram_service = telegramService;
   return company;
 }
-async function issueTokenSet(env, row, deviceId, refreshToken, refreshExpiresAt) {
+async function issueTokenSet(env, row, deviceId, sessionId, refreshToken, refreshExpiresAt) {
   const permissions = permissionsFromRow(row);
   const claims = {
     sub: row.id,
     cid: row.company_id,
     did: deviceId,
+    sid: sessionId,
     role: row.role,
     permissions,
+    user_status: row.status,
+    company_status: row.company_status,
+    auth_context_version: 2,
   };
   return {
     ok: true,
     auth_context_version: 2,
+    session_binding_contract: 1,
     user_id: row.id,
     company_id: row.company_id,
     device_id: deviceId,
+    session_id: sessionId,
     role: row.role,
     permissions,
     access_token: await signJwt(env, { ...claims, typ: 'access' }, ACCESS_SECONDS),
@@ -415,32 +427,45 @@ async function createSession(env, row, deviceId, parentSessionId = null) {
   const refreshToken = randomToken(48);
   const expiresAt = new Date(Date.now() + REFRESH_SECONDS * 1000).toISOString();
   const sessionId = id('ses');
-  await env.DB.prepare(
-    'INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at) VALUES(?,?,?,?,?,?,\'active\',?,?)',
-  ).bind(sessionId, row.company_id, row.id, deviceId, await sha256(refreshToken), parentSessionId, nowIso(), expiresAt).run();
-  return issueTokenSet(env, row, deviceId, refreshToken, expiresAt);
+  const createdAt = nowIso();
+  const inserted = await env.DB.prepare(`
+    INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at)
+    SELECT ?,u.company_id,u.id,d.id,?,?, 'active',?,?
+    FROM users u
+    JOIN companies c ON c.id=u.company_id AND c.status='active'
+    JOIN licenses l ON l.company_id=c.id AND l.status='active'
+    JOIN devices d ON d.id=? AND d.user_id=u.id AND d.company_id=u.company_id AND d.status='active'
+    WHERE u.id=? AND u.company_id=? AND u.status='active'
+  `).bind(sessionId, await sha256(refreshToken), parentSessionId, createdAt, expiresAt, deviceId, row.id, row.company_id).run();
+  if (Number(inserted?.meta?.changes || 0) !== 1) throw new ApiError(401, 'INVALID_SESSION');
+  return issueTokenSet(env, row, deviceId, sessionId, refreshToken, expiresAt);
 }
 async function authenticate(env, request) {
   const authorization = clean(request.headers.get('authorization'));
   if (!authorization.startsWith('Bearer ')) throw new ApiError(401, 'INVALID_TOKEN');
   const claims = await verifyJwt(env, authorization.slice(7), 'access');
+  const sessionId = clean(claims.sid);
+  if (!sessionId) throw new ApiError(401, 'SESSION_UPGRADE_REQUIRED');
   const row = await env.DB.prepare(`
     SELECT u.*, c.code company_code, c.name company_name, c.status company_status,
            c.data_api_address,c.data_api_port,c.data_api_tls_sha256,c.data_api_updated_at,
            c.telegram_worker_url,c.telegram_client_key_ciphertext,c.telegram_bot_username,
            c.telegram_installation_id,c.telegram_deployment_version,c.telegram_updated_at,
-           l.status license_status, d.status device_status
+           l.status license_status, d.status device_status,
+           s.status session_status,s.expires_at session_expires
     FROM users u
     JOIN companies c ON c.id=u.company_id
     JOIN licenses l ON l.company_id=c.id
-    JOIN devices d ON d.id=? AND d.user_id=u.id
+    JOIN devices d ON d.id=? AND d.user_id=u.id AND d.company_id=u.company_id
+    JOIN sessions s ON s.id=? AND s.user_id=u.id AND s.company_id=u.company_id AND s.device_id=d.id
     WHERE u.id=? AND u.company_id=?
-  `).bind(claims.did, claims.sub, claims.cid).first();
+  `).bind(claims.did, sessionId, claims.sub, claims.cid).first();
   if (!row) throw new ApiError(401, 'INVALID_SESSION');
   if (row.license_status !== 'active' || row.company_status !== 'active') throw new ApiError(403, 'LICENSE_BLOCKED');
   if (row.status !== 'active') throw new ApiError(403, 'USER_BLOCKED');
   if (row.device_status !== 'active') throw new ApiError(403, 'DEVICE_BLOCKED');
-  return { ...publicUser(row), company_id: row.company_id, company: publicCompany(row), device_id: claims.did };
+  if (row.session_status !== 'active' || Date.parse(row.session_expires) <= Date.now()) throw new ApiError(401, 'INVALID_SESSION');
+  return { ...publicUser(row), company_id: row.company_id, company: publicCompany(row), device_id: claims.did, session_id: sessionId };
 }
 async function ensureDevice(env, row, deviceValue, deviceName) {
   const normalizedDevice = clean(deviceValue);
@@ -556,7 +581,7 @@ async function registerOwner(env, request, data, requestId) {
     status: 'active',
   };
   await audit(env, requestId, 'owner.register', license.company_id, userId, license.id);
-  return issueTokenSet(env, row, deviceId, refreshToken, refreshExpiresAt);
+  return issueTokenSet(env, row, deviceId, sessionId, refreshToken, refreshExpiresAt);
 }
 async function login(env, request, data, requestId) {
   // A generous IP ceiling stops request floods without locking an entire
@@ -593,42 +618,107 @@ async function login(env, request, data, requestId) {
 async function refresh(env, request, data) {
   await rateLimit(env, request, 'refresh', 600, 900);
   const refreshToken = clean(data.refresh_token);
+  const rotationId = clean(data.rotation_id);
   const deviceHash = await sha256(clean(data.device_id));
   if (!refreshToken || !clean(data.device_id)) throw new ApiError(401, 'INVALID_SESSION');
+  if (rotationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rotationId)) {
+    throw new ApiError(400, 'INVALID_ROTATION_ID');
+  }
   const row = await env.DB.prepare(`
-    SELECT s.id session_id,s.expires_at session_expires,u.*,c.code company_code,c.name company_name,c.status company_status,
+    SELECT s.id session_id,s.status session_status,s.created_at session_created,s.expires_at session_expires,u.*,c.code company_code,c.name company_name,c.status company_status,
            c.data_api_address,c.data_api_port,c.data_api_tls_sha256,c.data_api_updated_at,
            c.telegram_worker_url,c.telegram_client_key_ciphertext,c.telegram_bot_username,
            c.telegram_installation_id,c.telegram_deployment_version,c.telegram_updated_at,
            l.status license_status,d.id device_id,d.device_hash,d.status device_status
     FROM sessions s
-    JOIN users u ON u.id=s.user_id
+    JOIN users u ON u.id=s.user_id AND u.company_id=s.company_id
     JOIN companies c ON c.id=s.company_id
     JOIN licenses l ON l.company_id=c.id
-    JOIN devices d ON d.id=s.device_id
-    WHERE s.refresh_hash=? AND s.status='active'
+    JOIN devices d ON d.id=s.device_id AND d.user_id=s.user_id AND d.company_id=s.company_id
+    WHERE s.refresh_hash=?${rotationId?'':' AND s.status=\'active\''}
   `).bind(await sha256(refreshToken)).first();
-  if (!row || Date.parse(row.session_expires) <= Date.now() || !timingEqual(row.device_hash, deviceHash)) {
+  if (!row || (!rotationId&&Date.parse(row.session_expires)<=Date.now()) || !timingEqual(row.device_hash, deviceHash)) {
     throw new ApiError(401, 'INVALID_SESSION');
   }
   if (row.license_status !== 'active' || row.company_status !== 'active') throw new ApiError(403, 'LICENSE_BLOCKED');
   if (row.status !== 'active') throw new ApiError(403, 'USER_BLOCKED');
   if (row.device_status !== 'active') throw new ApiError(403, 'DEVICE_BLOCKED');
+  if (rotationId) return refreshIdempotently(env,row,rotationId);
   const newToken = randomToken(48);
+  const childSessionId = id('ses');
   const expiresAt = new Date(Date.now() + REFRESH_SECONDS * 1000).toISOString();
+  const createdAt = nowIso();
   try {
-    await env.DB.batch([
-      env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE id=? AND status=\'active\'').bind(row.session_id),
+    const results = await env.DB.batch([
       env.DB.prepare(`
         INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at)
-        VALUES(?,?,?,?,?,?,\'active\',?,?)
-      `).bind(id('ses'), row.company_id, row.id, row.device_id, await sha256(newToken), row.session_id, nowIso(), expiresAt),
+        SELECT ?,s.company_id,s.user_id,s.device_id,?,s.id,'active',?,?
+        FROM sessions s
+        JOIN users u ON u.id=s.user_id AND u.company_id=s.company_id AND u.status='active'
+        JOIN companies c ON c.id=s.company_id AND c.status='active'
+        JOIN licenses l ON l.company_id=s.company_id AND l.status='active'
+        JOIN devices d ON d.id=s.device_id AND d.user_id=s.user_id AND d.company_id=s.company_id AND d.status='active'
+        WHERE s.id=? AND s.status='active' AND s.expires_at>?
+      `).bind(childSessionId, await sha256(newToken), createdAt, expiresAt, row.session_id, createdAt),
+      env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE id=? AND status=\'active\'').bind(row.session_id),
       env.DB.prepare('UPDATE devices SET last_seen_at=? WHERE id=?').bind(nowIso(), row.device_id),
     ]);
+    if (Number(results?.[0]?.meta?.changes || 0) !== 1 || Number(results?.[1]?.meta?.changes || 0) !== 1) {
+      throw new Error('REFRESH_ROTATION_RACE');
+    }
   } catch {
     throw new ApiError(401, 'INVALID_SESSION');
   }
-  return issueTokenSet(env, row, row.device_id, newToken, expiresAt);
+  return issueTokenSet(env, row, row.device_id, childSessionId, newToken, expiresAt);
+}
+async function deterministicRefreshRotation(env,parentSessionId,rotationId) {
+  const domain=`justfun-refresh-rotation-v2:${parentSessionId}:${rotationId}`;
+  const childDigest=await jwtSecretHmac(env,`${domain}:child-session`);
+  const tokenDigest=await jwtSecretHmac(env,`${domain}:refresh-token`);
+  return {childSessionId:`sesr_${childDigest}`,refreshToken:`jfr2_${tokenDigest}`};
+}
+async function exactIdempotentRefreshChild(env,row,material) {
+  const parent=await env.DB.prepare('SELECT id,status FROM sessions WHERE id=?').bind(row.session_id).first();
+  const child=await env.DB.prepare(`
+    SELECT id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at
+    FROM sessions WHERE parent_session_id=?
+  `).bind(row.session_id).first();
+  const createdAt=Date.parse(child?.created_at),expiresAt=Date.parse(child?.expires_at);
+  const expectedHash=await sha256(material.refreshToken);
+  const expectedExpiresAt=Number.isFinite(createdAt)?new Date(createdAt+REFRESH_SECONDS*1000).toISOString():'';
+  if(!parent||parent.status!=='revoked'||!child||child.id!==material.childSessionId||child.parent_session_id!==row.session_id||child.company_id!==row.company_id||child.user_id!==row.id||child.device_id!==row.device_id||child.status!=='active'||!timingEqual(child.refresh_hash,expectedHash)||!Number.isFinite(createdAt)||!Number.isFinite(expiresAt)||child.expires_at!==expectedExpiresAt||expiresAt<=Date.now()){
+    throw new ApiError(401,'INVALID_SESSION');
+  }
+  return child;
+}
+async function refreshIdempotently(env,row,rotationId) {
+  const material=await deterministicRefreshRotation(env,row.session_id,rotationId);
+  if(row.session_status==='active'){
+    if(Date.parse(row.session_expires)<=Date.now())throw new ApiError(401,'INVALID_SESSION');
+    const createdAt=nowIso(),expiresAt=new Date(Date.parse(createdAt)+REFRESH_SECONDS*1000).toISOString(),refreshHash=await sha256(material.refreshToken);
+    try{
+      const results=await env.DB.batch([
+        env.DB.prepare(`
+          INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at)
+          SELECT ?,s.company_id,s.user_id,s.device_id,?,s.id,'active',?,?
+          FROM sessions s
+          JOIN users u ON u.id=s.user_id AND u.company_id=s.company_id AND u.status='active'
+          JOIN companies c ON c.id=s.company_id AND c.status='active'
+          JOIN licenses l ON l.company_id=s.company_id AND l.status='active'
+          JOIN devices d ON d.id=s.device_id AND d.user_id=s.user_id AND d.company_id=s.company_id AND d.status='active'
+          WHERE s.id=? AND s.status='active' AND s.expires_at>?
+        `).bind(material.childSessionId,refreshHash,createdAt,expiresAt,row.session_id,createdAt),
+        env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE id=? AND status=\'active\'').bind(row.session_id),
+      ]);
+      if(Number(results?.[0]?.meta?.changes||0)!==1||Number(results?.[1]?.meta?.changes||0)!==1)throw new Error('REFRESH_ROTATION_RACE');
+    }catch{
+      // A concurrent request may have committed the exact deterministic child.
+      // Only the full replay verifier below is allowed to accept that outcome.
+    }
+  }else if(row.session_status!=='revoked')throw new ApiError(401,'INVALID_SESSION');
+  const child=await exactIdempotentRefreshChild(env,row,material);
+  await env.DB.prepare('UPDATE devices SET last_seen_at=? WHERE id=?').bind(nowIso(),row.device_id).run();
+  return {...(await issueTokenSet(env,row,row.device_id,child.id,material.refreshToken,child.expires_at)),rotation_id:rotationId};
 }
 async function createInvitation(env, request, data, requestId) {
   const auth = await authenticate(env, request);
@@ -755,7 +845,7 @@ async function acceptInvitation(env, request, data, requestId) {
     status: 'active',
   };
   await audit(env, requestId, 'invitation.accept', row.company_id, userId, row.id);
-  return issueTokenSet(env, user, deviceId, refreshToken, expiresAt);
+  return issueTokenSet(env, user, deviceId, sessionId, refreshToken, expiresAt);
 }
 async function listUsers(env, request) {
   const auth = await authenticate(env, request);
@@ -817,15 +907,23 @@ async function setUserStatus(env, request, userId, data, requestId) {
   const status = clean(data.status);
   if (!['active', 'blocked'].includes(status)) throw new ApiError(400, 'INVALID_STATUS');
   if (userId === auth.id) throw new ApiError(409, 'CANNOT_BLOCK_SELF');
-  const target = await env.DB.prepare('SELECT role FROM users WHERE id=? AND company_id=?').bind(userId, auth.company_id).first();
+  const target = await env.DB.prepare('SELECT role,status FROM users WHERE id=? AND company_id=?').bind(userId, auth.company_id).first();
   if (!target) throw new ApiError(404, 'USER_NOT_FOUND');
   if (target.role === 'owner') throw new ApiError(409, 'OWNER_CANNOT_BE_BLOCKED_HERE');
-  await env.DB.prepare('UPDATE users SET status=?,updated_at=? WHERE id=? AND company_id=?')
-    .bind(status, nowIso(), userId, auth.company_id).run();
+  const statements = [
+    env.DB.prepare('UPDATE users SET status=?,updated_at=? WHERE id=? AND company_id=?')
+      .bind(status, nowIso(), userId, auth.company_id),
+  ];
   if (status === 'blocked') {
-    await env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE user_id=?').bind(userId).run();
+    statements.push(env.DB.prepare("UPDATE sessions SET status='revoked' WHERE user_id=? AND company_id=? AND status='active'")
+      .bind(userId, auth.company_id));
   }
-  await audit(env, requestId, 'user.status', auth.company_id, auth.id, userId);
+  statements.push(auditStatement(env, requestId, 'user.status', auth.company_id, auth.id, userId, {
+    before: target.status,
+    after: status,
+  }));
+  const results = await env.DB.batch(statements);
+  if (Number(results?.[0]?.meta?.changes || 0) !== 1) throw new ApiError(409, 'USER_STATE_CHANGED');
   return { ok: true, user_id: userId, status };
 }
 async function setUserAccess(env, request, userId, data, requestId) {
@@ -1574,14 +1672,52 @@ async function setDeviceStatus(env, request, deviceId, data, requestId) {
   const status = clean(data.status);
   if (!['active', 'blocked'].includes(status)) throw new ApiError(400, 'INVALID_STATUS');
   if (deviceId === auth.device_id && status === 'blocked') throw new ApiError(409, 'CANNOT_BLOCK_SELF');
-  const result = await env.DB.prepare('UPDATE devices SET status=? WHERE id=? AND company_id=?')
-    .bind(status, deviceId, auth.company_id).run();
-  if (!result.meta?.changes) throw new ApiError(404, 'DEVICE_NOT_FOUND');
+  const target = await env.DB.prepare('SELECT id,status FROM devices WHERE id=? AND company_id=?')
+    .bind(deviceId, auth.company_id).first();
+  if (!target) throw new ApiError(404, 'DEVICE_NOT_FOUND');
+  const statements = [
+    env.DB.prepare('UPDATE devices SET status=? WHERE id=? AND company_id=?')
+      .bind(status, deviceId, auth.company_id),
+  ];
   if (status === 'blocked') {
-    await env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE device_id=?').bind(deviceId).run();
+    statements.push(env.DB.prepare("UPDATE sessions SET status='revoked' WHERE device_id=? AND company_id=? AND status='active'")
+      .bind(deviceId, auth.company_id));
   }
-  await audit(env, requestId, 'device.status', auth.company_id, auth.id, deviceId);
+  statements.push(auditStatement(env, requestId, 'device.status', auth.company_id, auth.id, deviceId, {
+    before: target.status,
+    after: status,
+  }));
+  const results = await env.DB.batch(statements);
+  if (Number(results?.[0]?.meta?.changes || 0) !== 1) throw new ApiError(409, 'DEVICE_STATE_CHANGED');
   return { ok: true, device_id: deviceId, status };
+}
+async function logoutSession(env, request, requestId) {
+  const authorization = clean(request.headers.get('authorization'));
+  if (!authorization.startsWith('Bearer ')) throw new ApiError(401, 'INVALID_TOKEN');
+  const claims = await verifyJwt(env, authorization.slice(7), 'access');
+  const sessionId = clean(claims.sid);
+  if (!sessionId) throw new ApiError(401, 'SESSION_UPGRADE_REQUIRED');
+  const target = await env.DB.prepare(`
+    SELECT id,company_id,user_id,device_id,status
+    FROM sessions
+    WHERE id=? AND company_id=? AND user_id=? AND device_id=?
+  `).bind(sessionId, claims.cid, claims.sub, claims.did).first();
+  if (!target) throw new ApiError(401, 'INVALID_SESSION');
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      WITH RECURSIVE session_chain(id) AS (
+        SELECT id FROM sessions WHERE id=? AND company_id=? AND user_id=? AND device_id=?
+        UNION ALL
+        SELECT child.id
+        FROM sessions child JOIN session_chain parent ON child.parent_session_id=parent.id
+        WHERE child.company_id=? AND child.user_id=? AND child.device_id=?
+      )
+      UPDATE sessions SET status='revoked'
+      WHERE id IN (SELECT id FROM session_chain) AND status='active'
+    `).bind(sessionId, claims.cid, claims.sub, claims.did, claims.cid, claims.sub, claims.did),
+    auditStatement(env, requestId, 'auth.logout', claims.cid, claims.sub, sessionId),
+  ]);
+  return { ok: true, session_id: sessionId, replayed: Number(results?.[0]?.meta?.changes || 0) === 0 };
 }
 async function introspect(env, request) {
   const auth = await authenticate(env, request);
@@ -1599,9 +1735,12 @@ async function introspect(env, request) {
       full_name: auth.full_name,
       role: auth.role,
       permissions: auth.permissions,
+      status: auth.status,
     },
     company: auth.company,
     device_id: auth.device_id,
+    session_id: auth.session_id,
+    session_binding_contract: 1,
   };
 }
 async function setCompanyDataService(env, request, data, requestId) {
@@ -1882,8 +2021,9 @@ async function route(env, request, requestId) {
     return {
       ok: true,
       service: 'justfun-license-api',
-      version: '7.8.3',
-      auth_contract: 5,
+      version: '7.8.4',
+      auth_contract: 6,
+      session_binding_contract: 1,
       warehouse_delete_lease_contract: 3,
     };
   }
@@ -1892,6 +2032,7 @@ async function route(env, request, requestId) {
   if (method === 'POST' && path === '/v1/owner/register') return registerOwner(env, request, data, requestId);
   if (method === 'POST' && path === '/v1/auth/login') return login(env, request, data, requestId);
   if (method === 'POST' && path === '/v1/auth/refresh') return refresh(env, request, data);
+  if (method === 'POST' && path === '/v1/auth/logout') return logoutSession(env, request, requestId);
   if (method === 'POST' && path === '/v1/auth/introspect') return introspect(env, request);
   if (method === 'POST' && path === '/v1/invitations/accept') return acceptInvitation(env, request, data, requestId);
   if (method === 'GET' && path === '/v1/invitations') return listInvitations(env, request);

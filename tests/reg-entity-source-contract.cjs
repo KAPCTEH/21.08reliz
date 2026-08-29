@@ -154,7 +154,7 @@ assert.ok(renderer.includes('function canonicalServerEntity(entity)'),'renderer 
 assert.ok(renderer.includes('snapshotFromServerEntities(localSnapshot,entities,readableTypes)'),'bootstrap must replace the cache from authoritative server records');
 assert.ok(!renderer.includes('function mergeBootstrapEntities('),'bootstrap must never merge stale local business data into an authoritative server state');
 assert.ok(renderer.includes('const overlaid=overlayLocalOutbox(serverSnapshot,queue)'),'bootstrap must restore only durable local intents from the captured scope queue over the authoritative server snapshot');
-assert.ok(renderer.includes('await restoreLocalOutboxOverlay();if(onlineEntitySyncAvailable())await bootstrapEntitySync()'),'startup must restore the durable local outbox before any optional server bootstrap');
+assert.ok(renderer.includes('if(onlineEntitySyncAvailable())await bootstrapEntitySync();else{await restoreLocalOutboxOverlay()'),'online startup must use the authoritative bootstrap overlay, while offline startup restores the durable local queue directly');
 assert.ok(renderer.includes('settleEntityDirty(expectedScope,queue,{generationAtStart:dirtyGenerationAtStart,serialAtStart:bootstrapSerial})'),'bootstrap must preserve the captured scope outbox, durable dirty generation and mutations that arrived during bootstrap');
 assert.ok(renderer.includes('flushEntitySyncBeforeContextChange'),'warehouse switching must wait for VPS confirmation');
 assert.ok(renderer.includes('Не сохранено на VPS'),'background write failures must be visible to the user');
@@ -173,6 +173,10 @@ assert.ok(renderer.includes("startRoute:{kind:'route_start',target:"), 'route de
 assert.ok(renderer.includes("markCurrentPickupCollected:{kind:'pickup_collected',target:"), 'final pickup stock write-off must remain server-confirmed');
 assert.ok(renderer.includes('queue.enqueue(localOutboxEntry(intent,changes,{...operationContext,commandId:ordinaryCommandId}))'), 'ordinary record batches must be persisted with their captured scope and recovery command id before network delivery');
 assert.ok(renderer.includes("ENTITY_LOCAL_CHANGES_PERMISSION_REVOKED"), 'permission revocation must quarantine and block unsent local changes before authoritative import');
+assert.ok(renderer.includes("function entityTypeWasReadableOrWritable(type)")&&renderer.includes("filter(change=>entityTypeWasReadableOrWritable(change.type))"), 'pre-bootstrap recovery must ignore inaccessible placeholder defaults without dropping writable first-bootstrap changes');
+assert.ok(renderer.includes("if(!pending&&!entityTypeWasReadableOrWritable(type))continue"), 'durable dirty recovery must keep explicit queued and writable commands while ignoring inaccessible untracked defaults');
+assert.ok(renderer.includes("readerUserId")&&renderer.includes("entityReadBoundaryBelongsToCurrentUser"), 'permission refresh must evaluate defaults against the readable boundary of the same authenticated user');
+assert.ok(renderer.includes("const finalStatus=queue.status();cloudSyncState.dirty=finalStatus.active>0;persistEntityDirty(cloudSyncState.dirty)"), 'an outbox command confirmed during local overlay restore must clear the durable dirty blocker');
 assert.ok(renderer.includes('function localEntitySnapshotFingerprint(snapshot=buildBackupPayload()){const records=splitEntitySnapshot(snapshot)'), 'automatic persistence hooks must compare stable entity records instead of volatile backup metadata');
 assert.ok(renderer.includes('if(!changed||cloudSyncState.suspended)return;cloudSyncState.dirty=true'), 'no-op persistence and authoritative imports must not create false local dirty state');
 assert.ok(renderer.includes("commitRouteClosure:{kind:'route_close'"), 'route closure must use a named server intent');

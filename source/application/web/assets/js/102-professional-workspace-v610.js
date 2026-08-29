@@ -1,7 +1,7 @@
 /* JustFun Orders & Logistics 7.8.3 — professional product selection, catalogue, reports and compact settings */
 (()=>{
 'use strict';
-const BUILD='7.8.3';
+const BUILD=String(window.JustFunDesktop?.version||(typeof APP_VERSION==='string'?APP_VERSION:'7.8.4'));
 let observerV610=null;
 const byId=id=>document.getElementById(id);
 const arr=v=>Array.isArray(v)?v:[];

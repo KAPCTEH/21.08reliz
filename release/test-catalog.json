@@ -1056,6 +1056,73 @@
       "class": "unit"
     },
     {
+      "id": "JF-TEST-ENTITY-RECOVERY-OWNER-UNIT",
+      "name": "Entity Recovery Owner Unit",
+      "level": "source",
+      "path": "tests/entity-recovery-owner-unit.cjs",
+      "command": "node tests/entity-recovery-owner-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "authentication",
+        "data-contracts"
+      ],
+      "contracts": [
+        "entity-recovery-owner-binding",
+        "cross-user-fail-closed",
+        "logout-flush-before-session-change"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "foreign recovery records are blocked before local import, IndexedDB access or VPS requests"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when authentication, logout, entity recovery, outbox ownership or warehouse lifecycle changes",
+      "invalidation_rule": "invalidate when test file, desktop recovery ownership, authentication, logout, warehouse lifecycle, dependency lock or Node toolchain changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-STARTUP-OUTBOX-TOPOLOGY-REGRESSION",
+      "name": "Startup Outbox Topology Regression",
+      "level": "source",
+      "path": "tests/startup-outbox-topology-regression.cjs",
+      "command": "node tests/startup-outbox-topology-regression.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts"
+      ],
+      "contracts": [
+        "online-authoritative-bootstrap",
+        "bootstrap-single-flight",
+        "offline-outbox-overlay"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "online startup performs one VPS bootstrap/import without a standalone restore; offline startup performs one local overlay import"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when startup synchronization, entity bootstrap or outbox restore changes",
+      "invalidation_rule": "invalidate when test file, desktop startup topology, entity bootstrap, outbox restore, dependency lock or Node toolchain changes",
+      "class": "unit"
+    },
+    {
       "id": "JF-TEST-ERROR-BOUNDARY-REGRESSION-V783",
       "name": "Error Boundary Regression V783",
       "level": "integration",

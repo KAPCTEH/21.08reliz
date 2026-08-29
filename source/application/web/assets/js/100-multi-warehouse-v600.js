@@ -1,7 +1,7 @@
 /* JustFun Orders & Logistics 7.8.3 — isolated warehouses, company branding and document identity */
 (function(){
 'use strict';
-const BUILD='7.8.3';
+const BUILD=String(window.JustFunDesktop?.version||(typeof APP_VERSION==='string'?APP_VERSION:'7.8.4'));
 const B=window.TeplitsaWarehouseBootstrap;
 if(!B){console.error('Warehouse bootstrap is unavailable');return}
 const $id=id=>document.getElementById(id);
@@ -36,15 +36,15 @@ function criticalRecoveryCompanyHash(companyId){let hash=2166136261;for(const ch
 function criticalRecoveryFallbackKey(warehouseId,environment,companyId){return B.dataKey(`justfun_critical_recovery_v1_${criticalRecoveryCompanyHash(companyId)}`,environment,warehouseId)}
 function criticalRecoveryFingerprint(serialized){let hash=2166136261;for(const ch of String(serialized)){hash^=ch.charCodeAt(0);hash=Math.imul(hash,16777619)}return`${(hash>>>0).toString(16).padStart(8,'0')}:${String(serialized).length}`}
 function canonicalCriticalRecoveryRecord(input){
-  const source=asObject(input),warehouseId=String(source.warehouseId||''),environment=String(source.environment||''),companyId=String(source.companyId||''),commandId=String(source.commandId||''),snapshot=clone(source.snapshot),requestedPhase=String(source.phase||'prepared'),suppliedSchema=source.schemaVersion==null?null:Number(source.schemaVersion),suppliedGeneration=source.storageGeneration==null?null:Number(source.storageGeneration);
-  if(!['prepared','ordinary_prepared','pending_server'].includes(requestedPhase)||suppliedSchema!==null&&(!Number.isSafeInteger(suppliedSchema)||suppliedSchema<1||suppliedSchema>2)||suppliedSchema===1&&requestedPhase==='ordinary_prepared'||suppliedGeneration!==null&&(!Number.isSafeInteger(suppliedGeneration)||suppliedGeneration<1))throw criticalRecoveryError('CRITICAL_RECOVERY_UNSUPPORTED','Версия, поколение или фаза аварийного журнала не поддерживается. Автоматическое восстановление остановлено.');
+  const source=asObject(input),warehouseId=String(source.warehouseId||''),environment=String(source.environment||''),companyId=String(source.companyId||''),commandId=String(source.commandId||''),authorUserId=String(source.authorUserId||''),snapshot=clone(source.snapshot),requestedPhase=String(source.phase||'prepared'),suppliedSchema=source.schemaVersion==null?null:Number(source.schemaVersion),suppliedGeneration=source.storageGeneration==null?null:Number(source.storageGeneration);
+  if(!['prepared','ordinary_prepared','pending_server'].includes(requestedPhase)||suppliedSchema!==null&&(!Number.isSafeInteger(suppliedSchema)||suppliedSchema<1||suppliedSchema>3)||suppliedSchema===1&&requestedPhase==='ordinary_prepared'||suppliedGeneration!==null&&(!Number.isSafeInteger(suppliedGeneration)||suppliedGeneration<1)||authorUserId&&!/^[A-Za-z0-9_-]{1,160}$/.test(authorUserId)||suppliedSchema===3&&!authorUserId)throw criticalRecoveryError('CRITICAL_RECOVERY_UNSUPPORTED','Версия, автор, поколение или фаза аварийного журнала не поддерживается. Автоматическое восстановление остановлено.');
   const phase=requestedPhase,changes=phase==='pending_server'&&Array.isArray(source.changes)?clone(source.changes):[],postSnapshot=phase==='pending_server'?clone(source.postSnapshot):null;
   if(!/^[A-Za-z0-9_-]{1,160}$/.test(warehouseId)||!['live','demo'].includes(environment)||!companyId||!commandId||!snapshot)throw criticalRecoveryError('CRITICAL_RECOVERY_INVALID','Аварийный журнал критической операции не содержит обязательные данные.');
   const declared=String(snapshot?.warehouse?.id||snapshot?.data?.warehouseId||''),declaredEnvironment=String(snapshot?.warehouse?.environment||snapshot?.data?.environment||'').toLowerCase();if(declared&&declared!==warehouseId||declaredEnvironment&&declaredEnvironment!==environment)throw criticalRecoveryError('CRITICAL_RECOVERY_SCOPE_MISMATCH','Аварийный снимок относится к другому складу или рабочей среде.');
   if(phase==='pending_server'){
     const postDeclared=String(postSnapshot?.warehouse?.id||postSnapshot?.data?.warehouseId||''),postEnvironment=String(postSnapshot?.warehouse?.environment||postSnapshot?.data?.environment||'').toLowerCase();if(!postSnapshot||postDeclared&&postDeclared!==warehouseId||postEnvironment&&postEnvironment!==environment||!changes.length||changes.some(item=>!item||typeof item!=='object'||!String(item.type||'')||!String(item.id||'')))throw criticalRecoveryError('CRITICAL_RECOVERY_PENDING_INVALID','Аварийный журнал не содержит точную критическую команду для повторной сверки с VPS.');
   }
-  const record={id:CRITICAL_RECOVERY_RECORD,schemaVersion:2,phase,companyId,warehouseId,environment,commandId,intent:asObject(source.intent),createdAt:String(source.createdAt||nowIso()),updatedAt:String(source.updatedAt||nowIso()),snapshot,changes,postSnapshot};if(suppliedGeneration!==null)record.storageGeneration=suppliedGeneration;
+  const record={id:CRITICAL_RECOVERY_RECORD,schemaVersion:authorUserId?3:2,phase,companyId,warehouseId,environment,commandId,...(authorUserId?{authorUserId}:{}),intent:asObject(source.intent),createdAt:String(source.createdAt||nowIso()),updatedAt:String(source.updatedAt||nowIso()),snapshot,changes,postSnapshot};if(suppliedGeneration!==null)record.storageGeneration=suppliedGeneration;
   try{JSON.stringify(record)}catch(error){throw criticalRecoveryError('CRITICAL_RECOVERY_NOT_SERIALIZABLE','Аварийный снимок нельзя сохранить.',error)}return record
 }
 function openCriticalRecoveryDb(warehouseId,environment,companyId){
