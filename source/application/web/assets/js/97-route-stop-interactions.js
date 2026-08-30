@@ -49,9 +49,12 @@
     if(!persistManualSequences())throw new Error('Не удалось сохранить ручную последовательность точек');
   }
   function clearManualIds(routeId){
+    routeId=String(routeId||'');
+    if(!routeId||!manualSequences[routeId])return false;
     const previous=manualSequences[routeId];
     delete manualSequences[routeId];
     if(!persistManualSequences()){if(previous)manualSequences[routeId]=previous;throw new Error('Не удалось вернуть автоматический порядок')}
+    return true
   }
   function indexSequenceFor(def,ids){
     const indexes=new Map(arr(def?.orders).map((order,index)=>[String(order.id),index+1]));
@@ -299,6 +302,6 @@
     const host=byId('tripsArea');if(!host||host.dataset.routeStopInteractionsV597)return;
     host.dataset.routeStopInteractionsV597='1';host.addEventListener('click',onClick,true);host.addEventListener('keydown',onKeyDown,true);document.addEventListener('pointerdown',onPointerDown,true);document.addEventListener('pointermove',onPointerMove,{capture:true,passive:false});document.addEventListener('pointerup',onPointerUp,true);document.addEventListener('pointercancel',onPointerCancel,true);window.addEventListener('blur',()=>finishDrag(false));decorateAll()
   }
-  window.RouteStopInteractionsV597={version:BUILD,decorate:decorateAll,reloadFromStorage:reloadManualSequences,getManualOrder:routeId=>manualIds(routeDef(routeId)),applyManualOrder,restoreAutomatic,moveStopBy};window.RouteStopInteractionsV596=window.RouteStopInteractionsV597;
+  window.RouteStopInteractionsV597={version:BUILD,decorate:decorateAll,reloadFromStorage:reloadManualSequences,getManualOrder:routeId=>manualIds(routeDef(routeId)),removeRoute:clearManualIds,applyManualOrder,restoreAutomatic,moveStopBy};window.RouteStopInteractionsV596=window.RouteStopInteractionsV597;
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0),{once:true});else setTimeout(init,0)
 })();

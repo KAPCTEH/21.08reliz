@@ -52,6 +52,7 @@ const FUNCTION_PERMISSIONS={
   loadCompanyLogoV600:'company.update',removeCompanyLogoV600:'company.update',saveServiceSettings:'integrations.manage',resetServiceSettings:'integrations.manage',
   chooseBackupFile:'company.update',importBackupFile:'company.update',clearAll:'company.update',restartDemonstrationScenario:'company.update'
 };
+const FUNCTION_ADDITIONAL_PERMISSIONS=Object.freeze({buildAllRoutes:['orders.status'],buildSingleRoute:['orders.status']});
 const FORM_PERMISSIONS={orderForm:'orders.update',pickupForm:'orders.update',driverForm:'drivers.update',productForm:'inventory.catalog',inventoryMovementForm:'inventory.stock',reportEmployeeForm:'reports.expenses',reportExpenseForm:'reports.expenses'};
 const CONTROL_PERMISSIONS={
   toggleOrderPaymentBtn:'orders.payment',editOrderBtn:'orders.update',orderNotRelevantBtn:'orders.status',
@@ -76,6 +77,11 @@ function exactPermissionList(value){const result=[];for(const permission of Arra
 function normalizePermissionList(value){const result=exactPermissionList(value);for(const permission of [...result])for(const expanded of LEGACY_PERMISSION_EXPANSIONS[permission]||[])if(!result.includes(expanded))result.push(expanded);return result}
 function permissionList(user=currentUser){if(!user)return[];if(isTrainingEnvironment()||!user.serverRole)return normalizePermissionList(LOCAL_ROLE_PERMISSIONS[roleFor(user)]||LOCAL_ROLE_PERMISSIONS.viewer);return exactPermissionList(user.permissions)}
 function hasPermission(name,user=currentUser){const list=permissionList(user);if(user?.role==='owner'||list.includes('*'))return true;const domain=String(name||'').split('.')[0];return list.includes(name)||list.includes(domain+'.*')}
+function permissionRequirements(value){return[...new Set((Array.isArray(value)?value:[value]).map(String).filter(Boolean))]}
+function functionPermissionRequirements(name,fallback,args=[]){return permissionRequirements([resolvedFunctionPermission(name,fallback,args),...(FUNCTION_ADDITIONAL_PERMISSIONS[name]||[])])}
+function missingPermissions(value,user=currentUser){return permissionRequirements(value).filter(permission=>!hasPermission(permission,user))}
+function hasPermissions(value,user=currentUser){return missingPermissions(value,user).length===0}
+window.JustFunPermissionAccessV783=Object.freeze({has:permission=>hasPermission(permission),hasAll:permissions=>hasPermissions(permissions),missing:permissions=>missingPermissions(permissions)});
 window.JustFunWarehouseAccessV783=Object.freeze({canCreate:()=>!isTrainingEnvironment()&&hasPermission('warehouses.manage')&&currentUser?.allWarehouses===true,canDelete:()=>!isTrainingEnvironment()&&hasPermission('warehouses.manage')&&currentUser?.allWarehouses===true});
 function resolvedFunctionPermission(name,fallback,args=[]){
   if(name==='openOrderModal'||name==='openPickupModal')return args[0]?'orders.update':'orders.create';
@@ -334,21 +340,21 @@ function permissionForControl(control){
   const form=control.closest?.('form'),submitPermission=formPermission(form);
   if(submitPermission&&String(control.type||'').toLowerCase()==='submit')return submitPermission;
   const inline=String(control.getAttribute?.('data-jf-onclick')||'');
-  for(const[name,permission]of Object.entries(FUNCTION_PERMISSIONS))if(new RegExp(`(?:^|[^A-Za-z0-9_$])${name}\\s*\\(`).test(inline))return permission;
+  for(const[name,permission]of Object.entries(FUNCTION_PERMISSIONS))if(new RegExp(`(?:^|[^A-Za-z0-9_$])${name}\\s*\\(`).test(inline))return functionPermissionRequirements(name,permission);
   return'';
 }
-function rejectPermission(permission,action){toast('Недостаточно прав для этого действия.','error');audit('forbidden_action',{action,permission,role:roleFor()})}
+function rejectPermission(permission,action){const missing=missingPermissions(permission),primary=missing[0]||permissionRequirements(permission)[0]||'';toast('Недостаточно прав для этого действия.','error');audit('forbidden_action',{action,permission:primary,permissions:missing,role:roleFor()})}
 function applyActionPermissions(root=document){
   qa('button,input[type="submit"],input[type="button"]',root).forEach(control=>{
     const permission=permissionForControl(control),trainingAction=trainingAdminActionForControl(control);if(!permission&&!trainingAction)return;
-    const denied=Boolean(trainingAction)||(permission&&!hasPermission(permission));
+    const denied=Boolean(trainingAction)||(permission&&!hasPermissions(permission));
     control.classList.toggle('jf-role-hidden',!!denied);
     if(denied){control.setAttribute('aria-hidden','true');control.tabIndex=-1}else{control.removeAttribute('aria-hidden');if(control.tabIndex===-1)control.removeAttribute('tabindex')}
   })
 }
 function installPermissionEvents(){
   if(permissionEventsInstalled)return;permissionEventsInstalled=true;
-  document.addEventListener('click',event=>{const control=event.target?.closest?.('button,input[type="submit"],input[type="button"]'),trainingAction=trainingAdminActionForControl(control),permission=permissionForControl(control);if(trainingAction){event.preventDefault();event.stopImmediatePropagation();rejectTrainingAdmin(trainingAction);return}if(permission&&!hasPermission(permission)){event.preventDefault();event.stopImmediatePropagation();rejectPermission(permission,control?.id||control?.textContent?.trim()||'button')}},true);
+  document.addEventListener('click',event=>{const control=event.target?.closest?.('button,input[type="submit"],input[type="button"]'),trainingAction=trainingAdminActionForControl(control),permission=permissionForControl(control);if(trainingAction){event.preventDefault();event.stopImmediatePropagation();rejectTrainingAdmin(trainingAction);return}if(permission&&!hasPermissions(permission)){event.preventDefault();event.stopImmediatePropagation();rejectPermission(permission,control?.id||control?.textContent?.trim()||'button')}},true);
   document.addEventListener('submit',event=>{const trainingAction=trainingAdminActionForControl(event.target?.querySelector?.('[type="submit"]')||event.target),permission=formPermission(event.target);if(trainingAction){event.preventDefault();event.stopImmediatePropagation();rejectTrainingAdmin(trainingAction);return}if(permission&&!hasPermission(permission)){event.preventDefault();event.stopImmediatePropagation();rejectPermission(permission,event.target?.id||'form')}},true);
   if(!permissionObserverInstalled&&document.body){permissionObserverInstalled=true;new MutationObserver(records=>{if(records.some(record=>record.addedNodes.length))queueMicrotask(()=>applyActionPermissions())}).observe(document.body,{childList:true,subtree:true})}
 }
@@ -370,8 +376,8 @@ function installGuards(){
     if(typeof window[name]!=='function')continue;
     overrides.wrap(name,'desktop-permissions-v750',base=>function(){
       if(isTrainingEnvironment()&&DEMO_CLOUD_ADMIN_FUNCTIONS.has(name))return rejectTrainingAdmin(name);
-      const required=resolvedFunctionPermission(name,permission,arguments);
-      if(!hasPermission(required)){rejectPermission(required,name);return}
+      const required=functionPermissionRequirements(name,permission,arguments);
+      if(!hasPermissions(required)){rejectPermission(required,name);return}
       return base.apply(this,arguments)
     })
   }
@@ -1279,6 +1285,7 @@ function installEntityCommandGuards(){
     saveReportCalculationSettings:{kind:'report_settings',critical:false,target:()=>activeWarehouseId()},saveReportEmployee:{kind:'report_employee_save',critical:false,target:editId('#reportEmployeeEditId'),optionalTarget:true},deleteReportEmployee:{kind:'report_employee_delete',critical:false,target:args=>args[0]},saveReportExpense:{kind:'report_expense_save',critical:false,target:editId('#reportExpenseEditId'),optionalTarget:true},deleteReportExpense:{kind:'report_expense_delete',critical:false,target:args=>args[0]},
     saveSettingsFromForm:{kind:'route_settings',critical:false,target:()=>activeWarehouseId()},saveDriverPaymentSettings:{kind:'driver_payment_settings',critical:false,target:()=>activeWarehouseId()},saveDeliveryPricingSettings:{kind:'delivery_pricing_settings',critical:false,target:()=>activeWarehouseId()},
     saveCompanySettingsV600:{kind:'company_settings',critical:false,target:()=>activeWarehouseId()},loadCompanyLogoV600:{kind:'company_logo_load',critical:false,target:()=>activeWarehouseId()},removeCompanyLogoV600:{kind:'company_logo_remove',critical:false,target:()=>activeWarehouseId()},
+    buildAllRoutes:{kind:'route_plan_build_all',critical:false,target:()=>activeWarehouseId()},buildSingleRoute:{kind:'route_plan_build',critical:false,target:args=>args[0]},
     assignDriverToRoute:{kind:'route_driver_assign',critical:false,target:args=>args[0]},clearRouteDriver:{kind:'route_driver_clear',critical:false,target:currentDriverRoute},
     approveRouteManually:{kind:'route_approve',target:args=>args[0]},startRoutePicking:{kind:'route_picking',critical:false,target:args=>args[0]},cancelRouteBeforeStart:{kind:'route_cancel',target:args=>args[0]},startRoute:{kind:'route_start',target:args=>args[0]},openRouteClosure:{kind:'route_return',target:args=>args[0]},commitRouteClosure:{kind:'route_close',target:()=>q('#routeCloseId')?.value},markCurrentPickupReady:{kind:'pickup_ready',critical:false,target:currentOrderId},markCurrentPickupCollected:{kind:'pickup_collected',target:currentOrderId}
   };

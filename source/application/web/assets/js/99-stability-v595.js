@@ -52,7 +52,9 @@ function transactionStorageKeys(){
   try{add(ROUTE_LOCKS_KEY)}catch{}
   try{add(ROUTE_DRIVERS_KEY)}catch{}
   try{add(ROUTES_KEY)}catch{}
+  try{add(ROUTE_OVERRIDES_KEY)}catch{}
   try{add(WAREHOUSE_RESERVATIONS_KEY)}catch{}
+  add('teplitsa_route_manual_sequences_v596');
   return [...new Set(keys)]
 }
 function takeMemorySnapshot(){
@@ -66,6 +68,7 @@ function takeMemorySnapshot(){
   try{s.routeLocks=clone(routeLocks)}catch{}
   try{s.routeDriverAssignments=clone(routeDriverAssignments)}catch{}
   try{s.routePlans=clone(routePlans)}catch{}
+  try{s.routeOverrides=clone(routeOverrides)}catch{}
   try{s.warehouseReservations=clone(warehouseReservations)}catch{}
   return s
 }
@@ -79,10 +82,11 @@ function restoreMemorySnapshot(s){
   try{if('routeLocks'in s)routeLocks=s.routeLocks}catch{}
   try{if('routeDriverAssignments'in s)routeDriverAssignments=s.routeDriverAssignments}catch{}
   try{if('routePlans'in s)routePlans=s.routePlans}catch{}
+  try{if('routeOverrides'in s)routeOverrides=s.routeOverrides}catch{}
   try{if('warehouseReservations'in s)warehouseReservations=s.warehouseReservations}catch{}
 }
 function takeRawStorageSnapshot(){const result={};for(const key of transactionStorageKeys()){try{result[key]=localStorage.getItem(key)}catch{result[key]=null}}return result}
-function restoreRawStorageSnapshot(s){for(const[key,value]of Object.entries(s||{})){try{if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value)}catch(err){console.error('Storage rollback failed',key,err)}}}
+function restoreRawStorageSnapshot(s){for(const[key,value]of Object.entries(s||{})){try{if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value)}catch(err){console.error('Storage rollback failed',key,err)}}try{window.RouteStopInteractionsV597?.reloadFromStorage?.()}catch(err){console.error('Manual route sequence rollback failed',err)}}
 function writeJournal(kind,status='prepared'){try{localStorage.setItem(TX_JOURNAL_KEY,JSON.stringify({version:BUILD,kind,status,at:nowIso()}))}catch{}}
 function clearJournal(){try{localStorage.removeItem(TX_JOURNAL_KEY)}catch{}}
 function checkInterruptedTransaction(){

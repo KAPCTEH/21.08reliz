@@ -154,7 +154,7 @@ ENTITY_INTENT_TYPES = {
     "route_cancel": {"routePlans", "orders", "routeLocks", "routeAssignments", "routeCatalog", "routeDriverAssignments", "routeOverrides", "manualRouteSequences"},
     "route_start": {"routePlans", "routeExecutions", "orders"},
     "route_return": {"routePlans", "routeExecutions", "orders"},
-    "route_close": {"routeExecutions", "routeArchives", "orders", "inventoryMovements", "routeLocks", "routeAssignments", "routePlans", "routeDriverAssignments", "routeCatalog", "warehouseReservations"},
+    "route_close": {"routeExecutions", "routeArchives", "orders", "inventoryMovements", "routeLocks", "routeAssignments", "routePlans", "routeDriverAssignments", "routeCatalog", "routeOverrides", "warehouseReservations", "manualRouteSequences"},
     "pickup_ready": {"orders", "warehouseReservations"},
     "pickup_collected": {"orders", "warehouseReservations", "inventoryMovements"},
 }
@@ -2133,7 +2133,7 @@ def validate_intent_entity_fields(
     if item["deleted"]:
         allowed_deletes = {
             "route_cancel": {"routePlans", "routeLocks", "routeCatalog", "routeDriverAssignments", "routeOverrides", "manualRouteSequences"},
-            "route_close": {"routeExecutions", "routePlans", "routeLocks", "routeAssignments", "routeCatalog", "routeDriverAssignments", "warehouseReservations"},
+            "route_close": {"routeExecutions", "routePlans", "routeLocks", "routeAssignments", "routeCatalog", "routeDriverAssignments", "routeOverrides", "warehouseReservations", "manualRouteSequences"},
             "pickup_collected": {"warehouseReservations"},
         }
         if entity_type in allowed_deletes.get(kind, set()):
@@ -2816,9 +2816,8 @@ def validate_entity_intent_current(
             actual_expense[product_id] = actual_expense.get(product_id, 0.0) - safe_inventory_number(movement.get("delta"))
         if set(actual_expense) != set(required_expense) or any(abs(actual_expense[key] - required_expense[key]) > 0.0005 for key in required_expense):
             raise ApiError(409, "route_stock_expense_mismatch", "Списание товара не соответствует фактически доставленным позициям")
-        for route_type in ("routePlans", "routeDriverAssignments", "routeCatalog"):
-            release = indexed.get((route_type, target_id))
-            if not release or release.get("deleted") is not True:
+        for route_type in ("routePlans", "routeDriverAssignments", "routeCatalog", "routeOverrides", "manualRouteSequences"):
+            if proposed(route_type, target_id) is not None:
                 raise ApiError(409, "route_state_not_closed", "Активные данные закрытого рейса удалены не полностью")
     elif kind == "pickup_ready":
         order = proposed("orders", target_id)

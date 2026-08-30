@@ -47,6 +47,7 @@ function functionSource(name) {
 }
 
 const functionPermissions = evaluateInitializer('FUNCTION_PERMISSIONS');
+const functionAdditionalPermissions = evaluateInitializer('FUNCTION_ADDITIONAL_PERMISSIONS');
 const controlPermissions = evaluateInitializer('CONTROL_PERMISSIONS');
 const expectedFunctions = {
   toggleOrderPaymentBtn: 'toggleCurrentOrderPayment',
@@ -77,13 +78,16 @@ const allowed = new Set();
 const context = vm.createContext({
   CONTROL_PERMISSIONS: controlPermissions,
   FUNCTION_PERMISSIONS: functionPermissions,
+  FUNCTION_ADDITIONAL_PERMISSIONS: functionAdditionalPermissions,
   document,
   formPermission: () => '',
   trainingAdminActionForControl: () => '',
+  resolvedFunctionPermission: (_name, fallback) => fallback,
   hasPermission: permission => allowed.has(permission),
+  hasPermissions: value => (Array.isArray(value) ? value : [value]).every(permission => allowed.has(permission)),
   qa: (selector, root = document) => [...root.querySelectorAll(selector)],
 });
-vm.runInContext(`${functionSource('permissionForControl')}\n${functionSource('applyActionPermissions')}`, context);
+vm.runInContext(`${functionSource('permissionRequirements')}\n${functionSource('functionPermissionRequirements')}\n${functionSource('permissionForControl')}\n${functionSource('applyActionPermissions')}`, context);
 
 for (const [controlId, functionName] of Object.entries(expectedFunctions)) {
   const control = document.getElementById(controlId);

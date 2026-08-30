@@ -649,6 +649,33 @@ class EntityProtocolTests(unittest.TestCase):
             {"type": "routeCatalog", "id": "route-1", "deleted": True, "payload": None},
         ]
 
+    def route_close_rows(self):
+        return {
+            ("routeExecutions", "route-1"): {"id": "route-1", "status": "awaiting_close", "orderIds": ["order-1"]},
+            ("routePlans", "route-1"): {"id": "route-1", "lifecycleStatus": "awaiting_close", "orderedIds": ["order-1"]},
+            ("routeDriverAssignments", "route-1"): {"__jf_wrapped_value": True, "value": "driver-1"},
+            ("routeCatalog", "route-1"): {"id": "route-1", "title": "Рейс"},
+            ("routeOverrides", "route-1"): {"routeMode": "round", "manualDriverPayment": 500},
+            ("manualRouteSequences", "route-1"): {"orderIds": ["order-1"]},
+            ("routeLocks", "order-1"): {"__jf_wrapped_value": True, "value": "route-1"},
+            ("routeAssignments", "order-1"): {"__jf_wrapped_value": True, "value": "route-1"},
+            ("orders", "order-1"): {"id": "order-1", "fulfillmentStatus": "awaiting_close", "warehouseFlowStatus": "loaded"},
+        }
+
+    def route_close_changes(self):
+        return [
+            {"type": "routeExecutions", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "routeArchives", "id": "route-1", "deleted": False, "payload": {"id": "route-1", "status": "closed", "outcomes": [{"orderId": "order-1", "outcome": "delivered"}]}},
+            {"type": "orders", "id": "order-1", "deleted": False, "payload": {"id": "order-1", "fulfillmentStatus": "delivered", "warehouseFlowStatus": "shipped", "fulfillmentResult": {"deliveredItems": []}}},
+            {"type": "routeLocks", "id": "order-1", "deleted": True, "payload": None},
+            {"type": "routeAssignments", "id": "order-1", "deleted": True, "payload": None},
+            {"type": "routePlans", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "routeDriverAssignments", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "routeCatalog", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "routeOverrides", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "manualRouteSequences", "id": "route-1", "deleted": True, "payload": None},
+        ]
+
     def test_server_route_picking_accepts_complete_transition(self):
         SERVER.validate_entity_intent_current(EntityCursor(self.route_picking_rows()), "company-1", self.warehouse_id, self.environment, {"kind": "route_picking", "target_id": "route-1"}, self.route_picking_changes())
 
@@ -680,6 +707,28 @@ class EntityProtocolTests(unittest.TestCase):
         with self.assertRaises(SERVER.ApiError) as caught:
             SERVER.validate_entity_intent_current(EntityCursor(rows), "company-1", self.warehouse_id, self.environment, {"kind": "route_start", "target_id": "route-1"}, self.route_start_changes())
         self.assertEqual(caught.exception.code, "route_reservation_missing")
+
+    def test_server_route_close_accepts_and_authorizes_complete_route_cleanup(self):
+        changes = self.route_close_changes()
+        intent = SERVER.validate_entity_intent({"kind": "route_close", "target_id": "route-1"}, changes)
+        auth = {"role": "Логист", "permissions": {"routes.close"}}
+        for entity_type in ("routeOverrides", "manualRouteSequences"):
+            SERVER.validate_entity_field_permissions(
+                auth,
+                next(item for item in changes if item["type"] == entity_type),
+                self.route_close_rows()[(entity_type, "route-1")],
+                False,
+                intent,
+            )
+        SERVER.validate_entity_intent_current(EntityCursor(self.route_close_rows()), "company-1", self.warehouse_id, self.environment, intent, changes)
+
+    def test_server_route_close_rejects_stale_route_specific_state(self):
+        for omitted_type in ("routeOverrides", "manualRouteSequences"):
+            with self.subTest(omitted_type=omitted_type):
+                changes = [item for item in self.route_close_changes() if item["type"] != omitted_type]
+                with self.assertRaises(SERVER.ApiError) as caught:
+                    SERVER.validate_entity_intent_current(EntityCursor(self.route_close_rows()), "company-1", self.warehouse_id, self.environment, {"kind": "route_close", "target_id": "route-1"}, changes)
+                self.assertEqual(caught.exception.code, "route_state_not_closed")
 
     def test_server_route_close_rejects_missing_stock_expense(self):
         rows = {
