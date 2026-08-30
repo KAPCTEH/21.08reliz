@@ -77,6 +77,40 @@ function setUser(id,{staleLocalId=id}={}){context.desktopSession.auth.user={id};
 function resetStorage(){values.clear();storageWrites=0;storageRemoves=0;context.cloudSyncState.scope=scope;context.cloudSyncState.outboxes=new Map();context.cloudSyncState.outbox=null;context.cloudSyncState.outboxError=null;context.cloudSyncState.contextBlockedError=null;context.cloudSyncState.dirtyOwnerError=null;context.cloudSyncState.readerUserId=''}
 function setLegacyDirty(readerUserId){values.set(dirtyKey,'7');if(readerUserId!==undefined)values.set(stateKey,JSON.stringify({readerUserId}))}
 
+resetStorage();setUser('',{staleLocalId:''});
+const emptyPreAuthBefore=new Map(values),emptyPreAuth=context.__assertOwner({scope,queue:null,block:false});
+assert.equal(emptyPreAuth.ownerUserId,'','a pre-auth scope without protected data has no recovery owner');
+assert.equal(emptyPreAuth.currentUserId,'');assert.equal(emptyPreAuth.scope,scope);
+assert.equal(context.cloudSyncState.contextBlockedError,null,'an empty pre-auth inspection must not create a sticky recovery block');
+assert.deepEqual([...values],[...emptyPreAuthBefore],'an empty pre-auth inspection does not write or clear recovery storage');
+context.cloudSyncState.scope='';const emptyPreAuthOutbox=context.__requireOutbox();
+assert.equal(emptyPreAuthOutbox.status().active,0,'an empty outbox can initialize before the authenticated renderer context is ready');
+assert.equal(context.cloudSyncState.contextBlockedError,null);
+
+resetStorage();setUser('',{staleLocalId:''});values.set(dirtyKey,'7');const unknownDirtyBefore=new Map(values);
+assert.throws(()=>context.__assertOwner({scope,queue:null,block:false}),error=>error?.code==='ENTITY_LOCAL_RECOVERY_USER_UNKNOWN');
+assert.deepEqual([...values],[...unknownDirtyBefore],'unknown-user dirty data remains byte-for-byte unchanged');
+
+resetStorage();setUser('',{staleLocalId:''});const unknownProtectedQueue={overlayEntries:()=>[{commandId:'client:user-a:pre-auth',authorUserId:'user-a',preserveLocal:true,state:'pending'}]};
+assert.throws(()=>context.__assertOwner({scope,queue:unknownProtectedQueue,block:false}),error=>error?.code==='ENTITY_LOCAL_RECOVERY_USER_UNKNOWN');
+assert.equal(storageWrites,0);assert.equal(storageRemoves,0,'unknown-user outbox recovery remains fail-closed and read-only');
+
+resetStorage();setUser('',{staleLocalId:''});
+assert.throws(()=>context.__assertOwner({scope,queue:null,journalOwnerUserId:'user-a',block:false}),error=>error?.code==='ENTITY_LOCAL_RECOVERY_USER_UNKNOWN');
+
+resetStorage();setUser('malformed user id',{staleLocalId:''});
+assert.throws(()=>context.__assertOwner({scope,queue:null,block:false}),error=>error?.code==='ENTITY_LOCAL_RECOVERY_USER_UNKNOWN','a malformed non-empty identity is never treated as the harmless pre-auth state');
+
+resetStorage();setUser('',{staleLocalId:''});const multipleOwnersQueue={overlayEntries:()=>[
+  {commandId:'client:user-a:pre-auth',authorUserId:'user-a',preserveLocal:true,state:'pending'},
+  {commandId:'client:user-b:pre-auth',authorUserId:'user-b',preserveLocal:true,state:'pending'},
+]};
+assert.throws(()=>context.__assertOwner({scope,queue:multipleOwnersQueue,block:false}),error=>error?.code==='ENTITY_OUTBOX_MULTIPLE_OWNERS','multiple protected owners retain their precise fail-closed error before authentication');
+
+resetStorage();setUser('',{staleLocalId:''});const confirmedHistory={overlayEntries:()=>[],pendingServerResolutions:()=>[]};
+assert.equal(context.__assertOwner({scope,queue:confirmedHistory,block:false}).ownerUserId,'','confirmed-only history is not protected local recovery data');
+assert.equal(context.cloudSyncState.contextBlockedError,null);
+
 resetStorage();setUser('user-a');setLegacyDirty('user-a');
 assert.equal(context.__assertOwner({scope,queue:null,block:false}).ownerUserId,'user-a');
 assert.equal(JSON.parse(values.get(ownerKey)).ownerUserId,'user-a','a legacy marker is upgraded only for its saved reader');

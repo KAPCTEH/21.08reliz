@@ -435,6 +435,18 @@ async function verifyWarehouseRegistryReconciliation(){
   assert.equal(saved.serverRegistryInitialized,true,'a previously initialized empty registry is authoritative on every computer');
 
   registryState={activeWarehouseId:'local-default',warehouses:[{id:'local-default',name:'Склад',code:'СКЛ',origin:'local-default',status:'active'}]};
+  syncContext.window.TeplitsaWarehouseV600.counts=()=>({orders:0,movements:0,routes:0,executions:0,archives:0});
+  remoteWarehouses=[{id:'warehouse-w2',name:'Склад W2',code:'W2',address:'Адрес W2',lat:59.9,lon:30.3,timezone:'Europe/Moscow',status:'active',entity_version:1,digest_sha256:'w2-digest'}];
+  registryInitialized=true;registryConfigured=true;syncContext.desktopSession.auth.user={id:'employee-w2',permissions:['orders.read','jf.warehouse:warehouse-w2']};
+  syncContext.cloudUserToLocal=()=>({id:'employee-w2',permissions:['orders.read','jf.warehouse:warehouse-w2'],allWarehouses:false,warehouseIds:['warehouse-w2']});saved=null;
+  assert.equal(await syncContext.__syncWarehouseRegistry(),true,'a restricted invited user replaces an empty generated local placeholder with the authoritative assigned warehouse');
+  assert(saved,'the invited-user registry is persisted');
+  assert.equal(saved.activeWarehouseId,'warehouse-w2');
+  assert.deepEqual(saved.warehouses.map(item=>item.id),['warehouse-w2']);
+  assert.equal(saved.warehouses[0].origin,'server');
+
+  registryState={activeWarehouseId:'local-default',warehouses:[{id:'local-default',name:'Склад',code:'СКЛ',origin:'local-default',status:'active'}]};
+  remoteWarehouses=[];
   registryInitialized=null;registryConfigured=true;
   await assert.rejects(syncContext.__syncWarehouseRegistry(),error=>error?.code==='WAREHOUSE_REGISTRY_CONTRACT_MISMATCH','an ambiguous empty response must never open a local warehouse on a fresh computer');
   registryInitialized=false;registryConfigured=false;
