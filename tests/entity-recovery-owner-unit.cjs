@@ -91,7 +91,7 @@ assert.throws(()=>context.__assertOwner({scope,queue:null,block:false}),error=>e
 assert.equal(values.has(ownerKey),false,'an unknown legacy owner remains unmodified');
 
 resetStorage();setUser('user-a');setLegacyDirty(undefined);
-const ownLegacyQueue={overlayEntries:()=>[{authorUserId:'user-a',preserveLocal:true,state:'pending'}]};
+const ownLegacyQueue={overlayEntries:()=>[{commandId:'client:user-a:legacy-recovery',authorUserId:'user-a',preserveLocal:true,state:'pending'}]};
 const legacyOwnBefore=new Map(values);
 assert.equal(context.__assertOwner({scope,queue:ownLegacyQueue,block:false,adoptLegacyOwner:false}).ownerUserId,'user-a');
 assert.deepEqual([...values],[...legacyOwnBefore],'the read-only preflight must not migrate a legacy owner');
@@ -99,7 +99,7 @@ assert.equal(context.__assertOwner({scope,queue:ownLegacyQueue,block:false}).own
 assert.equal(JSON.parse(values.get(ownerKey)).ownerUserId,'user-a','a single authenticated outbox author proves ownership of a legacy dirty marker');
 
 resetStorage();setUser('user-b');
-const foreignQueue={overlayEntries:()=>[{authorUserId:'user-a',preserveLocal:true,state:'pending'}]};
+const foreignQueue={overlayEntries:()=>[{commandId:'client:user-a:foreign-recovery',authorUserId:'user-a',preserveLocal:true,state:'pending'}]};
 assert.throws(()=>context.__assertOwner({scope,queue:foreignQueue,block:false}),error=>error?.code==='ENTITY_OUTBOX_OWNER_MISMATCH'&&error?.details?.foreignRecovery===true);
 assert.equal(storageWrites,0);assert.equal(storageRemoves,0);
 
