@@ -581,7 +581,7 @@ if (syncBusyGuard) {
       if(!window.JustFunEntitySyncV783?.status?.().installed)window.__JustFunEntitySyncTestV783.install();
       window.__JustFunEntitySyncTestV783.pausePolling();
       await window.JustFunEntitySyncV783.flushAndConfirm();
-      window.__holdEntityBootstrap=true;window.__holdEntityBootstrapFor=String(window.TeplitsaWarehouseBootstrap.activeWarehouse()?.id||'');window.__entityBootstrapStarted=false;
+      window.__entitySyncIdleTimeoutMs=500;window.__holdEntityBootstrap=true;window.__holdEntityBootstrapFor=String(window.TeplitsaWarehouseBootstrap.activeWarehouse()?.id||'');window.__entityBootstrapStarted=false;
       const pendingBootstrap=window.__JustFunEntitySyncTestV783.bootstrap(true);
       for(let attempt=0;attempt<200&&!window.__entityBootstrapStarted;attempt++)await new Promise(resolve=>setTimeout(resolve,10));
       if(!window.__entityBootstrapStarted)throw new Error('Управляемая медленная загрузка VPS не запустилась.');
@@ -594,7 +594,7 @@ if (syncBusyGuard) {
     } catch (error) {
       errors.push({phase:'sync-busy-guard',level:'error',text:error.stack||String(error)});
     } finally {
-      window.__holdEntityBootstrap=false;window.__holdEntityBootstrapFor='';window.__releaseEntityBootstrap?.();window.__releaseEntityBootstrap=null;
+      window.__entitySyncIdleTimeoutMs=undefined;window.__holdEntityBootstrap=false;window.__holdEntityBootstrapFor='';window.__releaseEntityBootstrap?.();window.__releaseEntityBootstrap=null;
     }
   }
 }

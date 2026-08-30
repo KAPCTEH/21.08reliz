@@ -1123,7 +1123,8 @@ function ordinaryEntityChangesFromRecovery(journal,currentSnapshot,queue=require
   return changes
 }
 async function waitForEntitySyncIdle(){
-  for(let attempt=0;(currentEntityInFlight()||currentEntityBootstrapInFlight())&&attempt<100;attempt++)await new Promise(resolve=>setTimeout(resolve,25));
+  const requested=window.__JF_RUNTIME_TEST__?Number(window.__entitySyncIdleTimeoutMs):NaN,timeoutMs=Number.isFinite(requested)?Math.max(100,Math.min(15000,requested)):15000,deadline=Date.now()+timeoutMs;
+  while((currentEntityInFlight()||currentEntityBootstrapInFlight())&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,50));
   if(currentEntityInFlight()||currentEntityBootstrapInFlight())throw outboxError('ENTITY_SYNC_BUSY','Синхронизация занята другой операцией. Повторите действие.')
 }
 function localOutboxEntry(intent,changes,context={}){
