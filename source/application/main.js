@@ -91,6 +91,7 @@ let updateCheckTimer = null;
 let updateCheckInterval = null;
 let updateHelperPollTimer = null;
 let updateCloseApplyStarted = false;
+let applicationQuitAccepted = false;
 const DESKTOP_UNIT_TEST_MODE = process.env.JF_DESKTOP_UNIT_TEST === '1' && !process.versions.electron;
 const SOURCE_LIVE_DEBUG = process.env.JF_SOURCE_LIVE_DEBUG === '1' && process.defaultApp === true;
 const runtimeHardeningReport = {sandboxEnabled:false, removedSwitches:[], devToolsGuardInstalled:false, errors:[]};
@@ -707,6 +708,11 @@ function createSplash() {
 function sendSplash(stage, detail, progress) {
   sendWindowMessage(splashWindow,'splash-status',{stage, detail, progress});
 }
+function allowRendererUnloadAfterAcceptedQuit(event, quitAccepted) {
+  if (quitAccepted !== true) return false;
+  event.preventDefault();
+  return true;
+}
 function enterRendererStartupRecovery(error) {
   const previous=rendererStartupState;
   rendererStartupState=transitionRendererStartupState(previous,'load-timeout',{reason:safeError(error)});
@@ -763,6 +769,10 @@ async function createMainWindow() {
       event.preventDefault();
       appendLog('blocked malformed navigation', {url:String(url || '').slice(0,500), error:safeError(error)});
     }
+  });
+  mainWindow.webContents.on('will-prevent-unload', event => {
+    if (!allowRendererUnloadAfterAcceptedQuit(event,applicationQuitAccepted)) return;
+    appendLog('renderer unload guard bypassed for accepted application quit');
   });
   mainWindow.webContents.on('did-start-navigation', (_event, _url, _isInPlace, isMainFrame) => {
     if (isMainFrame) activeRendererWarehouseId='';
@@ -4348,6 +4358,7 @@ if (DESKTOP_UNIT_TEST_MODE) {
     regStatePath, regApiSecretName, regVpsAttestationSecretName, readLocalRegState, regDiagnosticStage,
     installerSmokeOutputPath, setInstallerSmokeSessionDefaults, runInstallerSmokeTest, runRunningInstanceProbe, parseCssColor, contrastRatio,
     transitionRendererStartupState, coordinateRendererStartup, revealRendererStartupWindows, finalizeRendererStartupReady,
+    allowRendererUnloadAfterAcceptedQuit,
     appRendererUrl, resolveAppRendererPath, isTrustedAppUrl, verifyPackagedApplicationIntegrity,
     directOpenStreetMapGeocode, resolveDesktopMapGeocode,
     validateDesktopAddressSearchPayload, canonicalAddressToNominatim, validateAddressSearchResponse, resolveDesktopAddressSearch, regAddressSearchPath
@@ -4388,6 +4399,7 @@ if (DESKTOP_UNIT_TEST_MODE) {
           }
         } catch(error) { appendLog('deferred update decision failed',{code:String(error?.code||'UPDATE_DEFER_FAILED'),error:safeError(error)}); }
       }
+      applicationQuitAccepted=true;
       clearInterval(demoTimer); stopTelegramCompanyPublishRetry(); stopWarehouseDeleteResume(); stopUpdateSchedule(); flushRecurringLogs(); appendLog('application exiting');
     });
     process.on('uncaughtException', error => { appendLog('uncaughtException', diagnosticError(error)); showRecoveryError('Не удалось продолжить запуск программы.', safeError(error)); });

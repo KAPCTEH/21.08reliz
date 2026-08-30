@@ -408,6 +408,16 @@ assert.equal(source.includes('renderer ready ignored after terminal startup stat
 assert.equal(source.includes('/access`'), true);
 assert.equal(source.includes("setTimeout(()=>{app.relaunch();app.exit(0)},150)"), true);
 assert.equal(source.includes("setTimeout(()=>app.quit(),150)"), true);
+let unloadPrevented=0;
+const unloadEvent={preventDefault(){unloadPrevented+=1}};
+assert.equal(main.allowRendererUnloadAfterAcceptedQuit(unloadEvent,false),false);
+assert.equal(unloadPrevented,0,'an ordinary window close must preserve the renderer unload veto');
+assert.equal(main.allowRendererUnloadAfterAcceptedQuit(unloadEvent,true),true);
+assert.equal(unloadPrevented,1,'an accepted application quit must bypass the renderer unload veto exactly once');
+assert.equal(source.includes("mainWindow.webContents.on('will-prevent-unload'"),true);
+assert.match(source,/if \(!allowRendererUnloadAfterAcceptedQuit\(event,applicationQuitAccepted\)\) return;/);
+const beforeQuitHandler=source.match(/app\.on\('before-quit',[\s\S]*?process\.on\('uncaughtException'/)?.[0]||'';
+assert.match(beforeQuitHandler,/if \(controller\.shouldApplyOnClose\(\)\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?return;[\s\S]*?applicationQuitAccepted=true;/,'accepted-quit flag must be set only after the deferred-update veto branch');
 assert.equal(source.includes("appendLog('uncaughtException', diagnosticError(error))"), true);
 assert.equal(source.includes("function sendWindowMessage(target,channel,payload)"), true);
 assert.equal(source.includes("appendRecurringLog('Telegram event poll failed'"), true);
