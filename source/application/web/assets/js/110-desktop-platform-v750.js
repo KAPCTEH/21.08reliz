@@ -272,8 +272,17 @@ function serverWarehouseEntityPayloadV784(item,{warehouseId='',environment='live
   const source=asObject(item),lat=source.lat==null?null:Number(source.lat),lon=source.lon==null?null:Number(source.lon);
   return{id:String(warehouseId||source.id||''),name:String(source.name||'Склад').slice(0,160),code:String(source.code||'СКЛ').toUpperCase().replace(/[^A-ZА-ЯЁ0-9]/g,'').slice(0,3)||'СКЛ',address:String(source.address||'').slice(0,500),lat:Number.isFinite(lat)&&lat>=-90&&lat<=90?lat:null,lon:Number.isFinite(lon)&&lon>=-180&&lon<=180?lon:null,timezone:String(source.timezone||'Europe/Moscow').slice(0,80),status:source.status==='archived'?'archived':'active',catalogMode:source.catalogMode==='empty'||source.catalog_mode==='empty'?'empty':'catalog',environment:String(environment||'live').toLowerCase()==='demo'?'demo':'live'}
 }
+function semanticDriverEntityPayloadV784(value){
+  const payload=cloneValue(asObject(value)),workerType=payload.workerType==='aggregator'?'aggregator':'driver';payload.workerType=workerType;
+  // Provider fields describe an external delivery service and have no business
+  // meaning for a staff driver.  Older/local normalizers legitimately replace
+  // such stale values with defaults; that must not look like an unauthorized
+  // driver edit while an unrelated offline order is waiting in the outbox.
+  if(workerType!=='aggregator'){delete payload.providerCode;delete payload.providerName;delete payload.providerAccount;delete payload.providerContact}
+  return payload
+}
 function semanticEntityFingerprintV784(type,id,payload,context={}){
-  type=String(type||'');id=String(id||'');if(type!=='warehouse')return entityFingerprint(payload);const environment=String(context?.environment||payload?.environment||activeEnvironment()||'live').toLowerCase();return entityFingerprint(serverWarehouseEntityPayloadV784(payload,{warehouseId:id||String(context?.warehouseId||''),environment}))
+  type=String(type||'');id=String(id||'');if(type==='drivers')return entityFingerprint(semanticDriverEntityPayloadV784(payload));if(type!=='warehouse')return entityFingerprint(payload);const environment=String(context?.environment||payload?.environment||activeEnvironment()||'live').toLowerCase();return entityFingerprint(serverWarehouseEntityPayloadV784(payload,{warehouseId:id||String(context?.warehouseId||''),environment}))
 }
 function activeWarehouseSettingsMatchV783(item){
   const canonical=canonicalWarehouseMetadataV783(item),point=asObject(settings?.warehouse),profile=asObject(settings?.warehouseProfile),lat=point.lat==null?null:Number(point.lat),lon=point.lon==null?null:Number(point.lon);
@@ -864,7 +873,7 @@ function splitEntitySnapshot(snapshot,{warehouseId=activeWarehouseId(),environme
   warehouseId=String(warehouseId);environment=String(environment);const map=new Map(),data=asObject(snapshot?.data),warehouse=asObject(snapshot?.warehouse);
   // Unassigned automatic routes are render-time previews, not server entities.
   const referencedRouteIds=new Set([...Object.values(asObject(data.routeAssignments)),...Object.values(asObject(data.routeLocks)),...Object.keys(asObject(data.routePlans)),...Object.keys(asObject(data.routeDriverAssignments)),...Object.keys(asObject(data.routeOverrides)),...Object.keys(asObject(data.routeExecutions))].map(String).filter(id=>id&&id!=='__unassigned__'));
-  const add=(type,id,payload)=>{id=String(id||'');if(!/^[A-Za-z0-9_-]{1,160}$/.test(id))throw new Error(`Раздел ${type} содержит запись без безопасного идентификатора.`);map.set(entityKey(type,id),{type,id,payload:wrappedEntityPayload(payload),fingerprint:entityFingerprint(wrappedEntityPayload(payload))})};
+  const add=(type,id,payload)=>{id=String(id||'');if(!/^[A-Za-z0-9_-]{1,160}$/.test(id))throw new Error(`Раздел ${type} содержит запись без безопасного идентификатора.`);const wrapped=wrappedEntityPayload(payload);map.set(entityKey(type,id),{type,id,payload:wrapped,fingerprint:semanticEntityFingerprintV784(type,id,wrapped,{warehouseId,environment})})};
   if(environment===WAREHOUSE_REGISTRY_ENVIRONMENT)add('warehouse',warehouseId,serverWarehouseEntityPayloadV784(warehouse,{warehouseId,environment}));
   for(const type of ENTITY_SINGLETON_SECTIONS){const value=data[type];if(value&&typeof value==='object'&&!Array.isArray(value))add(type,type,type==='settings'?serverSettingsPayload(value):value)}
   for(const type of ENTITY_ARRAY_SECTIONS){for(const value of asArray(data[type])){const fallback=type==='routeArchives'?(value?.routeId||value?.executionId):'';add(type,value?.id||fallback,value)}}
