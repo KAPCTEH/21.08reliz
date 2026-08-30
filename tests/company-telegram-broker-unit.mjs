@@ -67,7 +67,7 @@ assert.equal(health.status, 200);
 const healthPayload = await health.json();
 assert.equal(healthPayload.broker_contract, 4);
 assert.equal(healthPayload.telegram_deprovision_contract, 3);
-assert.equal(healthPayload.version, '1.3.0');
+assert.equal(healthPayload.version, '1.3.1');
 
 const upstreamOk = await _internals.telegramUpstreamFetch(
   'https://telegram-worker.test',

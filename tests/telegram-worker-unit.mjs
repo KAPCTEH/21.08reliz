@@ -122,7 +122,7 @@ assert.deepEqual(telegramChatMeta({
 assert.equal(canTransition('driver', 'sent', 'accepted'), true);
 assert.equal(canTransition('driver', 'sent', 'completed'), false);
 assert.equal(canTransition('warehouse', 'sent', 'collecting'), true);
-assert.equal(nextKeyboard('driver', 'nt_12345678', 'sent')[0][0].text, '✅ Рейс принят');
+assert.equal(nextKeyboard('driver', 'nt_12345678', 'sent')[0][0].text, '✅ Принять рейс');
 assert.equal(nextKeyboard('warehouse', 'nt_12345678', 'ready')[0][0].text, '🚛 Машина загружена');
 assert.deepEqual(parseStatusCallback('st|d|accepted|nt_12345678'), {
   actor: 'driver',

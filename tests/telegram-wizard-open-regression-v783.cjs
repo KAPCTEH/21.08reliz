@@ -15,7 +15,9 @@ function body(name,nextName){
 
 const configure=body('configureTelegram','getLocalTelegramStatus');
 assert(configure.indexOf('openTelegramSetupWizard(repair)')>=0,'Мастер токенов не вызывается');
-assert(configure.indexOf('openTelegramSetupWizard(repair)')<configure.indexOf('verifyCloudAuthContext()'),'Сетевая проверка снова блокирует открытие мастера');
+const networkVerification=configure.search(/verifyCloudAuthContext\s*\(/);
+assert(networkVerification>=0,'Сетевая проверка авторизации не найдена');
+assert(configure.indexOf('openTelegramSetupWizard(repair)')<networkVerification,'Сетевая проверка снова блокирует открытие мастера');
 assert(configure.includes('isTemporaryCompanyServiceError(error)'),'Нет безопасного продолжения при временном сбое сервера компании');
 assert(configure.includes('companyPublishPending=true'),'Нет отложенной публикации профиля компании');
 assert(configure.includes('getLocalTelegramStatus(warehouseId)'),'Нет локальной итоговой проверки Worker и webhook активного склада');
