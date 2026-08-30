@@ -253,11 +253,18 @@ const jwt = claims => {
   return `${encode({alg:'HS256',typ:'JWT'})}.${encode({iss:'justfun-license-api',typ:'access',exp:Math.floor(Date.now()/1000)+900,...claims})}.signature`;
 };
 const oldServerResult = {
-  access_token: jwt({sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*']}),
-  offline_token: jwt({typ:'offline',sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*']}),
+  access_token: jwt({sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*'],user_status:'active',company_status:'active',auth_context_version:2}),
+  offline_token: jwt({typ:'offline',sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*'],user_status:'active',company_status:'active',auth_context_version:2}),
   refresh_token: 'refresh-token',
-  user: {full_name:'Владелец',login:'admin',role:'owner',permissions:['*']},
-  company: {code:'JFWD4H54',name:'Компания'}
+  user_id: 'usr_owner_1234567890',
+  company_id: 'cmp_company_1234567890',
+  device_id: 'dev_pc_1234567890',
+  role: 'owner',
+  permissions: ['*'],
+  auth_context_version: 2,
+  session_binding_contract: 0,
+  user: {id:'usr_owner_1234567890',full_name:'Владелец',login:'admin',role:'owner',permissions:['*'],status:'active'},
+  company: {id:'cmp_company_1234567890',code:'JFWD4H54',name:'Компания',status:'active'}
 };
 const repaired = main.saveCloudSession(oldServerResult);
 assert.equal(repaired.company.id,'cmp_company_1234567890');
@@ -372,8 +379,8 @@ assert.equal(fs.existsSync(main.regStatePath('cmp_company_1234567890')),true);
 assert.equal(main.regApiSecretName('cmp_company_1234567890'),'regApiKey:cmp_company_1234567890');
 assert.throws(()=>main.normalizeCloudAuthState({...repaired,company:{...repaired.company,id:'cmp_other_1234567890'}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
 assert.throws(()=>main.normalizeCloudAuthState({...repaired,offline_token:jwt({typ:'offline',sub:'usr_owner_1234567890',cid:'cmp_other_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*']})}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
-assert.throws(()=>main.normalizeCloudAuthState({...repaired,user:{...repaired.user,role:'admin'}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
-assert.throws(()=>main.normalizeCloudAuthState({...repaired,user:{...repaired.user,permissions:['orders.read']}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
+assert.throws(()=>main.normalizeCloudAuthState({...repaired,auth_context_verified:false,role:'admin',user:{...repaired.user,role:'admin'}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
+assert.throws(()=>main.normalizeCloudAuthState({...repaired,auth_context_verified:false,permissions:['orders.read'],user:{...repaired.user,permissions:['orders.read']}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
 const invalidIssuer=jwt({iss:'other-server',sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*']});
 assert.throws(()=>main.normalizeCloudAuthState({...repaired,access_token:invalidIssuer}),error=>error?.code==='AUTH_TOKEN_INVALID');
 
@@ -405,7 +412,7 @@ assert.equal(source.includes("appendLog('uncaughtException', diagnosticError(err
 assert.equal(source.includes("function sendWindowMessage(target,channel,payload)"), true);
 assert.equal(source.includes("appendRecurringLog('Telegram event poll failed'"), true);
 assert.equal(source.includes("flushRecurringLogs(); appendLog('application exiting')"), true);
-assert.match(source, /token=await ensureCloudAccessToken\(\)/);
+assert.match(source, /token=await ensureCloudAccessToken\(authOperation\)/);
 assert.equal(main.isRetryableCloudNetworkError({code:'ECONNRESET'}),true);
 assert.equal(main.isRetryableCloudNetworkError({code:'INVALID_CREDENTIALS'}),false);
 assert.equal(main.isTemporaryCompanyServiceError({code:'TELEGRAM_WORKER_ROUTING_BLOCKED',status:503}),true);
