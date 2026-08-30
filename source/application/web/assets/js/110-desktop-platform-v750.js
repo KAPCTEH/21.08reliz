@@ -53,7 +53,12 @@ const FUNCTION_PERMISSIONS={
   chooseBackupFile:'company.update',importBackupFile:'company.update',clearAll:'company.update',restartDemonstrationScenario:'company.update'
 };
 const FORM_PERMISSIONS={orderForm:'orders.update',pickupForm:'orders.update',driverForm:'drivers.update',productForm:'inventory.catalog',inventoryMovementForm:'inventory.stock',reportEmployeeForm:'reports.expenses',reportExpenseForm:'reports.expenses'};
-const CONTROL_PERMISSIONS={deleteOrderBtn:'orders.delete',deleteDriverBtn:'drivers.delete',deleteProductBtn:'inventory.delete',restartDemoButton:'company.update'};
+const CONTROL_PERMISSIONS={
+  toggleOrderPaymentBtn:'orders.payment',editOrderBtn:'orders.update',orderNotRelevantBtn:'orders.status',
+  pickupReadyBtn:'inventory.pick',pickupCollectedBtn:'inventory.pick',retryDeliveryBtn:'orders.status',
+  partialRepeatBtn:'orders.status',partialPickupBtn:'orders.status',partialCloseBtn:'orders.status',deleteOrderBtn:'orders.delete',
+  deleteDriverBtn:'drivers.delete',deleteProductBtn:'inventory.delete',restartDemoButton:'company.update'
+};
 const DEMO_CLOUD_ADMIN_FUNCTIONS=new Set(['openWarehouseCreatorV600','saveWarehouseEditorV600','toggleWarehouseArchiveV600','deleteWarehouseV760']);
 const DEMO_CLOUD_CONTROL_IDS=new Set(['jfAddUser','jfRegConfigure','jfRegCheck','jfRegSync','jfRegRestore','jfTelegramConfigure','jfTelegramReconnect','jfTelegramCheck','jfTelegramWarehouse']);
 const CLOUD_ID_RE=/^[A-Za-z0-9_-]{16,80}$/;
