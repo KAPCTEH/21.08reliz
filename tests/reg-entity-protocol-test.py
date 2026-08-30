@@ -208,6 +208,50 @@ class EntityProtocolTests(unittest.TestCase):
         self.assertTrue(SERVER.entity_permission_allowed(auth, "orders", write=False))
         self.assertFalse(SERVER.entity_permission_allowed(auth, "orders", write=True))
 
+    def test_assigned_viewer_reads_company_but_cannot_write_or_cross_warehouse(self):
+        auth = {
+            "company_id": "company-12345678",
+            "role": "Аудитор",
+            "permissions": {"orders.read", f"jf.warehouse:{self.warehouse_id}"},
+            "user_id": "auditor-1",
+            "device_id": "entity-protocol-test",
+        }
+        self.assertTrue(SERVER.entity_permission_allowed(auth, "company", write=False))
+        self.assertFalse(SERVER.entity_permission_allowed(auth, "company", write=True))
+        readable_types = {
+            entity_type
+            for entity_type in SERVER.ENTITY_SECTIONS
+            if SERVER.entity_permission_allowed(auth, entity_type, write=False)
+        }
+        self.assertIn("company", readable_types)
+
+        original_snapshot_loader = SERVER.load_entity_access_snapshot
+        try:
+            SERVER.load_entity_access_snapshot = lambda _workspace, warehouse_id, _environment, _auth: {
+                "warehouse": {
+                    "id": warehouse_id,
+                    "code": "MAIN" if warehouse_id == self.warehouse_id else "OTHER",
+                    "environment": self.environment,
+                },
+                "data": {"warehouseId": warehouse_id},
+            }
+            SERVER.require_entity_scope_access(
+                auth,
+                auth["company_id"],
+                self.warehouse_id,
+                self.environment,
+            )
+            with self.assertRaises(SERVER.ApiError) as caught:
+                SERVER.require_entity_scope_access(
+                    auth,
+                    auth["company_id"],
+                    "warehouse-2",
+                    self.environment,
+                )
+            self.assertEqual(caught.exception.code, "warehouse_access_denied")
+        finally:
+            SERVER.load_entity_access_snapshot = original_snapshot_loader
+
     def test_readable_types_change_with_custom_permissions(self):
         before = {"role": "Кладовщик", "permissions": {"orders.read", "inventory.read"}}
         after = {"role": "Кладовщик", "permissions": {"inventory.read"}}

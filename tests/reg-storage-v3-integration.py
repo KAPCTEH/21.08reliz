@@ -284,6 +284,69 @@ class ServerAuthoritativeStorageTests(unittest.TestCase):
             )
         self.assertEqual(hidden_company.exception.code, "warehouse_access_denied")
 
+    def test_assigned_viewer_reads_company_but_cannot_update_or_read_other_warehouse(self):
+        other_warehouse = "warehouse-b"
+        self._save(
+            "client:test:warehouse:company-read-other",
+            [{
+                "type": "warehouse",
+                "id": other_warehouse,
+                "base_version": 0,
+                "payload": {
+                    "id": other_warehouse,
+                    "code": "МСК",
+                    "name": "Склад МСК",
+                    "environment": "live",
+                },
+            }],
+            warehouse=other_warehouse,
+        )
+        self._save(
+            "client:test:company:create",
+            [{
+                "type": "company",
+                "id": "company",
+                "base_version": 0,
+                "payload": {
+                    "id": "company",
+                    "warehouseId": self.warehouse,
+                    "programSubtitle": "Исходное название",
+                },
+            }],
+        )
+        viewer = {
+            "company_id": self.workspace,
+            "role": "auditor",
+            "permissions": {"orders.read", f"jf.warehouse:{self.warehouse}"},
+            "user_id": "auditor-a",
+            "device_id": "integration-test-auditor",
+        }
+
+        bootstrap = self.server.load_current_entities(self.workspace, self.warehouse, "live", viewer)
+        company = next(item for item in bootstrap["entities"] if item["type"] == "company")
+        self.assertEqual(company["payload"]["programSubtitle"], "Исходное название")
+        self.assertIn("company", bootstrap["readable_types"])
+
+        with self.assertRaises(self.server.ApiError) as denied_update:
+            self._save(
+                "client:test:company:viewer-update",
+                [{
+                    "type": "company",
+                    "id": "company",
+                    "base_version": company["version"],
+                    "payload": {
+                        **company["payload"],
+                        "programSubtitle": "Запрещённое изменение",
+                    },
+                }],
+                auth=viewer,
+            )
+        self.assertEqual(denied_update.exception.code, "entity_access_denied")
+
+        with self.assertRaises(self.server.ApiError) as denied_warehouse:
+            self.server.load_current_entities(self.workspace, other_warehouse, "live", viewer)
+        self.assertEqual(denied_warehouse.exception.code, "warehouse_access_denied")
+
     def test_code_only_rls_resolves_active_live_warehouse_and_isolates_other_scopes(self):
         second_warehouse = "warehouse-b"
         other_workspace = "workspace-company-b"

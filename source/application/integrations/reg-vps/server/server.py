@@ -123,6 +123,10 @@ ENTITY_PERMISSION_MAP = {
     "warehouseReservations": ("inventory.read", ()),
     "manualRouteSequences": ("routes.read", ("routes.plan",)),
 }
+# These records describe the warehouse context itself. Reaching an entity
+# endpoint already requires access to that exact warehouse, so every assigned
+# employee may read them. Mutations still use ENTITY_PERMISSION_MAP below.
+WAREHOUSE_SCOPE_READABLE_ENTITY_TYPES = frozenset({"warehouse", "company"})
 ENTITY_INTENT_KINDS = {
     "route_approve",
     "route_picking",
@@ -2053,7 +2057,7 @@ def entity_permission_allowed(auth: dict, entity_type: str, write: bool) -> bool
     permissions = ENTITY_PERMISSION_MAP.get(entity_type)
     if not permissions:
         return False
-    if entity_type == "warehouse" and not write:
+    if entity_type in WAREHOUSE_SCOPE_READABLE_ENTITY_TYPES and not write:
         return True
     read_permission, write_permissions = permissions
     if write:

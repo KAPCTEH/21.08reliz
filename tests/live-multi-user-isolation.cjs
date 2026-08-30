@@ -235,7 +235,7 @@ async function main() {
     [warehouseIds[1], ['routes.read', 'routes.plan']],
     [warehouseIds[2], ['reports.read']],
     [warehouseIds[2], ['drivers.read', 'drivers.update']],
-    [warehouseIds[2], ['company.read']],
+    [warehouseIds[2], ['orders.read']],
   ];
   const employees = [];
   for (let index = 0; index < profiles.length; index += 1) {
@@ -256,6 +256,29 @@ async function main() {
   expect(crossCompany, 403, 'workspace_mismatch', 'Cross-company read');
   const crossWarehouse = await vpsRequest(fingerprint, employees[4].token, entityPath(companyTwo.companyId, warehouseIds[0]));
   expect(crossWarehouse, 403, 'warehouse_access_denied', 'Cross-warehouse read');
+
+  const companyViewer = { ...employees[9], companyId: companyTwo.companyId };
+  const [ownerCompanyBootstrap, viewerCompanyBootstrap] = await Promise.all([
+    currentEntities(fingerprint, companyTwo, warehouseIds[2]),
+    currentEntities(fingerprint, companyViewer, warehouseIds[2]),
+  ]);
+  if (!viewerCompanyBootstrap.readable_types?.includes('company')) {
+    throw new Error('Assigned viewer does not receive company as a readable entity type');
+  }
+  const ownerCompanyEntities = (ownerCompanyBootstrap.entities || []).filter(item => item.type === 'company');
+  const viewerCompanyKeys = new Set((viewerCompanyBootstrap.entities || []).filter(item => item.type === 'company').map(item => `${item.id}:${item.digest_sha256}`));
+  for (const item of ownerCompanyEntities) {
+    if (!viewerCompanyKeys.has(`${item.id}:${item.digest_sha256}`)) throw new Error(`Assigned viewer does not receive company entity ${item.id}`);
+  }
+  const currentCompany = ownerCompanyEntities[0];
+  const deniedCompanyId = currentCompany?.id || `qa-company-denied-${stamp}`;
+  const deniedCompanyWrite = await writeBatch(fingerprint, companyViewer, warehouseIds[2], `qa-company-denied-${stamp}`, [{
+    type: 'company', id: deniedCompanyId, base_version: Number(currentCompany?.version || 0), deleted: false,
+    payload: { ...(currentCompany?.payload || {}), id: deniedCompanyId, warehouseId: warehouseIds[2], programSubtitle: 'Запрещённое изменение аудитора' },
+  }]);
+  expect(deniedCompanyWrite, 403, 'entity_access_denied', 'Read-only company write');
+  const companyCrossWarehouse = await vpsRequest(fingerprint, companyViewer.token, entityPath(companyTwo.companyId, warehouseIds[1]));
+  expect(companyCrossWarehouse, 403, 'warehouse_access_denied', 'Company viewer cross-warehouse read');
 
   const readOnlyCreate = await writeBatch(fingerprint, { ...employees[2], companyId: companyTwo.companyId }, warehouseIds[0], `qa-readonly-create-${stamp}`, [{
     type: 'orders', id: `qa-denied-${stamp}`, base_version: 0, deleted: false,
