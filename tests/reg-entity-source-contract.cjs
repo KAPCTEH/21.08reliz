@@ -174,6 +174,8 @@ assert.ok(renderer.includes("deleteOrder:{kind:'order_delete',critical:false"), 
 assert.ok(renderer.includes("clearAll:{kind:'workspace_clear',target:"), 'bulk clearing must remain fail-closed');
 assert.ok(renderer.includes("startRoutePicking:{kind:'route_picking',critical:false"), 'route picking preparation must remain locally durable without a VPS');
 assert.ok(renderer.includes("markCurrentPickupReady:{kind:'pickup_ready',critical:false"), 'pickup reservation preparation must remain locally durable without a VPS');
+assert.ok(renderer.includes('window.renderAll?.();refreshVisibleOrderDetailAfterRollbackV784();return true'), 'a definitive server rejection must repaint an already open order card from the durable rollback state');
+assert.ok(renderer.includes("modal?.classList?.contains('open')")&&renderer.includes("window.openDetails(detailId)"), 'rollback repaint must refresh only the visible order card and close it when the restored order no longer exists');
 assert.ok(renderer.includes("startRoute:{kind:'route_start',target:"), 'route departure must remain server-confirmed');
 assert.ok(renderer.includes("markCurrentPickupCollected:{kind:'pickup_collected',target:"), 'final pickup stock write-off must remain server-confirmed');
 assert.ok(renderer.includes('queue.enqueue(localOutboxEntry(intent,changes,{...operationContext,commandId:ordinaryCommandId}))'), 'ordinary record batches must be persisted with their captured scope and recovery command id before network delivery');
