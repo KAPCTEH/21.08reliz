@@ -181,14 +181,38 @@ function renderCompanySettings(){const box=$id('companySettingsV600');if(!box)re
 }
 function input(id){return $id(id)?.value?.trim()||''}
 window.previewInvoiceV600=function(){const c=settings.company||companyDefaults(),prefix=safePrefix(input('v600InvoicePrefix')||c.invoicePrefix)||'СЧ',fmt=$id('v600InvoiceDateFormat')?.value||c.invoiceDateFormat,sep=$id('v600InvoiceSeparator')?.value??c.invoiceSeparator,el=$id('v600InvoicePreview');if(el)el.textContent=prefix+sep+formatInvoiceDate(Date.now(),fmt)};
+function persistCompanySettingsV600(){
+  if(persistSettings()===false)throw new Error('Настройки компании не сохранены на этом компьютере. Изменение отменено.');
+  applyBranding();renderCompanySettings();return true
+}
 window.saveCompanySettingsV600=function(){
   const prefix=safePrefix(input('v600InvoicePrefix'));if(!prefix){alert('Укажите префикс счёта: от 1 до 3 букв или цифр.');return}
   settings.company={...settings.company,programName:input('v600ProgramName')||'Заказы и логистика',programSubtitle:input('v600ProgramSubtitle'),shortName:input('v600ShortName'),legalName:input('v600LegalName'),inn:input('v600Inn'),kpp:input('v600Kpp'),ogrn:input('v600Ogrn'),legalAddress:input('v600LegalAddress'),actualAddress:input('v600ActualAddress'),phone:input('v600Phone'),phone2:input('v600Phone2'),email:input('v600Email'),website:input('v600Website'),contactPerson:input('v600ContactPerson'),workHours:input('v600WorkHours'),bank:input('v600Bank'),bik:input('v600Bik'),settlementAccount:input('v600Settlement'),corrAccount:input('v600Corr'),showLogoInApp:!!$id('v600LogoApp')?.checked,showLogoInDocuments:!!$id('v600LogoDocs')?.checked,logoPosition:['left','center','right'].includes($id('v600LogoPosition')?.value)?$id('v600LogoPosition').value:'left',invoicePrefix:prefix,invoiceDateFormat:$id('v600InvoiceDateFormat')?.value||'DDMMYY',invoiceSeparator:$id('v600InvoiceSeparator')?.value??'-',invoiceDailySequence:true,promoEnabled:!!$id('v600PromoEnabled')?.checked,promoTitle:input('v600PromoTitle'),promoText:input('v600PromoText'),promoBenefits:[input('v600Promo1'),input('v600Promo2'),input('v600Promo3')],promoCta:input('v600PromoCta')};
-  persistSettings();applyBranding();renderCompanySettings();alert('Настройки компании, программы и документов сохранены только для склада «'+(active()?.name||'Склад')+'».')
+  persistCompanySettingsV600();alert('Настройки компании, программы и документов сохранены только для склада «'+(active()?.name||'Склад')+'».');return true
 };
 window.chooseCompanyLogoV600=function(){$id('v600LogoInput')?.click()};
-window.loadCompanyLogoV600=function(event){const file=event.target.files?.[0];event.target.value='';if(!file)return;if(!['image/png','image/jpeg','image/webp'].includes(String(file.type||'').toLowerCase())){alert('Разрешены только изображения PNG, JPEG или WebP.');return}if(file.size>3*1024*1024){alert('Файл слишком большой. Выберите логотип до 3 МБ.');return}const img=new Image(),reader=new FileReader();reader.onerror=()=>alert('Не удалось прочитать файл логотипа.');reader.onload=()=>{img.onerror=()=>alert('Файл не является корректным изображением.');img.onload=()=>{const max=1000,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);const encoded=safeLogoDataUrl(canvas.toDataURL('image/webp',.88));if(!encoded){alert('Не удалось безопасно подготовить логотип.');return}settings.company.logoDataUrl=encoded;persistSettings();renderCompanySettings();applyBranding()};img.src=String(reader.result||'')};reader.readAsDataURL(file)};
-window.removeCompanyLogoV600=function(){settings.company.logoDataUrl='';persistSettings();renderCompanySettings();applyBranding()};
+window.loadCompanyLogoV600=function(event){
+  const target=event?.target,file=target?.files?.[0];if(target)target.value='';if(!file)return false;
+  if(!['image/png','image/jpeg','image/webp'].includes(String(file.type||'').toLowerCase())){alert('Разрешены только изображения PNG, JPEG или WebP.');return false}
+  if(file.size>3*1024*1024){alert('Файл слишком большой. Выберите логотип до 3 МБ.');return false}
+  return new Promise((resolve,reject)=>{
+    const img=new Image(),reader=new FileReader(),invalid=message=>{alert(message);resolve(false)};
+    reader.onerror=()=>invalid('Не удалось прочитать файл логотипа.');reader.onabort=reader.onerror;
+    reader.onload=()=>{
+      img.onerror=()=>invalid('Файл не является корректным изображением.');
+      img.onload=()=>{
+        try{
+          const max=1000,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);const encoded=safeLogoDataUrl(canvas.toDataURL('image/webp',.88));
+          if(!encoded){invalid('Не удалось безопасно подготовить логотип.');return}
+          settings.company.logoDataUrl=encoded;persistCompanySettingsV600();resolve(true)
+        }catch(error){reject(error)}
+      };
+      try{img.src=String(reader.result||'')}catch(error){reject(error)}
+    };
+    try{reader.readAsDataURL(file)}catch(error){reject(error)}
+  })
+};
+window.removeCompanyLogoV600=function(){settings.company.logoDataUrl='';persistCompanySettingsV600();return true};
 
 let warehouseEditorMapV600=null,warehouseEditorMarkerV600=null,warehouseEditorCandidatesV600=[],warehouseAddressSearchSerialV600=0;
 function warehouseEditorStatusV600(text,state='info'){const el=$id('warehouseLocationStatusV600');if(el){el.className=`notice warehouse-location-status ${state==='ok'?'notice-ok':state==='error'?'notice-danger':'notice-warn'}`;el.textContent=text}}
