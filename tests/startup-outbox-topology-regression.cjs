@@ -149,6 +149,8 @@ function createScenario({online}){
     initialServerSeedChanges:()=>[],
     newEntityCommandId:()=> 'client:unexpected-seed',
     snapshotFromServerEntities:()=>({kind:'server',warehouse:{id:'warehouse-1'},data:{orders:[]}}),
+    planRejectedOrderNormalizationRecoveryV784:()=>null,
+    finalizeRejectedOrderNormalizationRecoveryV784:()=>0,
     reconcileServerEquivalentWarehouseOutboxV784:()=>0,
     entityKey:(type,id)=>`${type}:${id}`,
     entityFingerprint:value=>JSON.stringify(value),

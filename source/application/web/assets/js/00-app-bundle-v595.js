@@ -141,7 +141,7 @@ settings.routeMode=settings.routeMode==='oneway'?'oneway':'round';
 settings.returnToDepot=settings.routeMode==='round';
 settings.driverPayment=normalizeDriverPaymentConfig(settings);
 settings.deliveryPricing=normalizeDeliveryPricingConfig(settings.deliveryPricing);
-let orders=asArray(loadOrders()).map(normalizeOrder).filter(Boolean);
+let orders=asArray(loadOrders()).filter(value=>value&&typeof value==='object'&&!Array.isArray(value)).map(cloneValue);
 let routePlans=asObject(loadJson(ROUTES_KEY,{}));
 let routeAssignments=asObject(loadJson(ROUTE_ASSIGNMENTS_KEY,{}));
 let routeCatalog=asObject(loadJson(ROUTE_CATALOG_KEY,{}));
@@ -1893,12 +1893,13 @@ const persistWarehouseReservations=()=>safeSaveJson(WAREHOUSE_RESERVATIONS_KEY,w
 
 normalizeOrder__implV595=function(raw={}){
   const source=raw&&typeof raw==='object'?raw:{},o=normalizeOrder__baseV595(source);if(!o)return o;const paid=source.paymentStatus==='paid';
-  Object.assign(o,{paymentMethod:['cash','transfer','invoice'].includes(source.paymentMethod)?source.paymentMethod:'cash',paymentStatus:paid?'paid':'pending',paidAt:paid?(source.paidAt||source.updatedAt||new Date().toISOString()):'',deliveryStandaloneCost:Math.max(0,Number(source.deliveryStandaloneCost??source.deliveryAutoCost??o.deliveryAutoCost??o.deliveryCost)),deliveryPricingMode:source.deliveryPricingMode==='shared_route'?'shared_route':'individual',deliveryPricingRouteId:String(source.deliveryPricingRouteId||''),deliveryPricingAppliedAt:String(source.deliveryPricingAppliedAt||''),deliveryPricingDetails:asObject(source.deliveryPricingDetails),deliveryPriceLocked:!!source.deliveryPriceLocked});
+  Object.assign(o,{paymentMethod:['cash','transfer','invoice'].includes(source.paymentMethod)?source.paymentMethod:'cash',paymentStatus:paid?'paid':'pending',paidAt:String(paid?(source.paidAt||source.updatedAt||o.updatedAt||''):['refund_required','refunded'].includes(source.paymentStatus)?source.paidAt||'':''),deliveryStandaloneCost:Math.max(0,Number(source.deliveryStandaloneCost??source.deliveryAutoCost??o.deliveryAutoCost??o.deliveryCost)),deliveryPricingMode:source.deliveryPricingMode==='shared_route'?'shared_route':'individual',deliveryPricingRouteId:String(source.deliveryPricingRouteId||''),deliveryPricingAppliedAt:String(source.deliveryPricingAppliedAt||''),deliveryPricingDetails:asObject(source.deliveryPricingDetails),deliveryPriceLocked:!!source.deliveryPriceLocked});
   const fulfillmentStatus=FULFILLMENT_STATUSES.has(source.fulfillmentStatus)?source.fulfillmentStatus:'active',warehouseFlowStatus=WAREHOUSE_FLOW_STATUSES.has(source.warehouseFlowStatus)?source.warehouseFlowStatus:'planned',paymentStatus=PAYMENT_STATUSES.has(source.paymentStatus)?source.paymentStatus:o.paymentStatus;
   const history=asArray(source.statusHistory).filter(x=>x&&typeof x==='object').map(x=>({id:x.id||uuid(),at:x.at||x.createdAt||o.createdAt,type:String(x.type||'status'),label:String(x.label||'Состояние заказа'),note:String(x.note||''),meta:asObject(x.meta)}));
   if(!history.length)history.push({id:uuid(),at:o.createdAt,type:'created',label:'Заказ создан',note:isPickup(o)?'Самовывоз со склада':'Доставка клиенту',meta:{}});
-  return{...o,fulfillmentStatus,warehouseFlowStatus,paymentStatus,refundedAt:String(source.refundedAt||''),archived:!!source.archived,archivedAt:String(source.archivedAt||''),closedAt:String(source.closedAt||''),requiresAction:String(source.requiresAction||''),statusHistory:history,deliveryAttempts:asArray(source.deliveryAttempts),fulfillmentResult:asObject(source.fulfillmentResult),parentOrderId:String(source.parentOrderId||''),childOrderIds:asArray(source.childOrderIds).map(String),archiveReason:String(source.archiveReason||''),isFulfillmentContinuation:!!source.isFulfillmentContinuation,warehouseId:o.warehouseId||currentWarehouseIdV560()}
+  return{...o,fulfillmentStatus,warehouseFlowStatus,paymentStatus,refundedAt:String(source.refundedAt||''),archived:!!source.archived,archivedAt:String(source.archivedAt||''),closedAt:String(source.closedAt||''),requiresAction:String(source.requiresAction||''),statusHistory:history,deliveryAttempts:asArray(source.deliveryAttempts),fulfillmentResult:asObject(source.fulfillmentResult),parentOrderId:String(source.parentOrderId||''),childOrderIds:asArray(source.childOrderIds).map(String),archiveReason:String(source.archiveReason||''),isFulfillmentContinuation:!!source.isFulfillmentContinuation,warehouseId:o.warehouseId||currentWarehouseIdV560(),invoiceNumber:String(source.invoiceNumber||''),documentSnapshot:source.documentSnapshot&&typeof source.documentSnapshot==='object'&&!Array.isArray(source.documentSnapshot)?cloneValue(source.documentSnapshot):null}
 };
+orders=orders.map(normalizeOrder).filter(Boolean);
 
 function addOrderHistory(order,label,note='',type='status',meta={}){if(!order)return;order.statusHistory=asArray(order.statusHistory);order.statusHistory.push({id:uuid(),at:new Date().toISOString(),type,label:String(label||'Изменение'),note:String(note||''),meta:asObject(meta)});if(order.statusHistory.length>160)order.statusHistory=order.statusHistory.slice(-160)}
 function setOrderFulfillment(order,status,label,note='',meta={}){if(!order||!FULFILLMENT_STATUSES.has(status))return;const changed=order.fulfillmentStatus!==status;order.fulfillmentStatus=status;order.updatedAt=new Date().toISOString();if(changed||note)addOrderHistory(order,label||fulfillmentLabel(status),note,'fulfillment',meta)}
@@ -2716,7 +2717,7 @@ if(isDemonstrationMode()&&localStorage.getItem(resolveDataStorageKey('scenario_v
 }
 
 
-orders=orders.map(normalizeOrder).filter(Boolean);persistOrders();persistRouteOverrides();
+persistOrders();persistRouteOverrides();
 /* ===== END ROUTE CONTROL, PAYMENTS AND SHARED DELIVERY PRICING v4.3 ===== */
 /* ===== END PREMIUM EXTENSION ===== */
 
