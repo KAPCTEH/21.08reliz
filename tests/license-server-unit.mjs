@@ -66,8 +66,25 @@ assert.equal(_internals.permissionCoveredBy(['orders.read'], 'orders.update'), f
 assert.equal(_internals.permissionCoveredBy(['routes.update'], 'routes.start'), false);
 assert.deepEqual(
   _internals.permissionsForRole('Старый логист', ['routes.update']),
-  ['routes.update','routes.plan','routes.approve','routes.pick','routes.start','routes.return','routes.close','routes.cancel','routes.settings'],
+  ['routes.update'],
 );
+assert.deepEqual(
+  _internals.permissionsForRole('Редактор заказов', ['orders.read', 'orders.update']),
+  ['orders.read', 'orders.update'],
+  'runtime permission normalization must not grant orders.delete',
+);
+assert.deepEqual(
+  _internals.permissionsForRole('Старая учётная запись', ['orders.update', 'orders.delete']),
+  ['orders.update', 'orders.delete'],
+  'permissions already materialized by migration 006 must remain unchanged',
+);
+for (const permission of ['routes.update', 'inventory.update', 'drivers.update', 'reports.update']) {
+  assert.deepEqual(
+    _internals.permissionsForRole('Точная роль', [permission]),
+    [permission],
+    `${permission} must remain independent at runtime`,
+  );
+}
 assert.throws(() =>
   _internals.permissionsGrantableBy(
     { role: 'Администратор филиала', permissions: ['users.create', 'orders.read', 'jf.warehouse:wh_main'] },

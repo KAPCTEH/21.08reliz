@@ -137,6 +137,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Startup authorization regression failed.' }
           node tests/license-server-unit.mjs
           if ($LASTEXITCODE -ne 0) { throw 'License server unit tests failed.' }
+          node tests/license-invitation-accept-unit.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'License invitation acceptance tests failed.' }
+          node tests/license-exact-permissions-runtime-unit.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Exact permission runtime tests failed.' }
           python tests/license-schema-test.py
           if ($LASTEXITCODE -ne 0) { throw 'License schema and migration tests failed.' }
           python tests/license-custom-role-migration-test.py
@@ -198,6 +202,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Legacy storage migration integration tests failed.' }
           node tests/entity-bootstrap-merge-unit.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Entity bootstrap merge unit test failed.' }
+          node tests/entity-remote-apply-atomicity-unit.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Entity remote apply atomicity unit test failed.' }
           python tests/reg-revision-test.py
           if ($LASTEXITCODE -ne 0) { throw 'Storage v3 revision tests failed.' }
           node tests/background-cloud-sync-failure-regression-v783.cjs

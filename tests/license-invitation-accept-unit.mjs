@@ -28,7 +28,7 @@ const invitation = {
   login: 'employee.accept',
   full_name: 'Invitation Employee',
   role: 'Сотрудник склада',
-  permissions_json: '["orders.read","jf.warehouse:wh_accept_test"]',
+  permissions_json: '["orders.read","orders.update","jf.warehouse:wh_accept_test"]',
   expires_at: new Date(Date.now() + 60_000).toISOString(),
   revoked_at: null,
   already_used: 0,
@@ -91,6 +91,9 @@ assert.match(result.session_id, /^ses_[a-f0-9]{32}$/);
 assert.equal(typeof result.access_token, 'string');
 assert.equal(typeof result.offline_token, 'string');
 assert.equal(typeof result.refresh_token, 'string');
+assert.deepEqual(result.permissions, ['orders.read', 'orders.update', 'jf.warehouse:wh_accept_test']);
+assert.deepEqual(result.user.permissions, result.permissions);
+assert.equal(result.permissions.includes('orders.delete'), false);
 
 const sessionStatements = batchedStatements.filter(statement => /INSERT INTO sessions/.test(statement.sql));
 assert.equal(sessionStatements.length, 1, 'exactly one session must be inserted');
@@ -104,6 +107,9 @@ const accessClaims = await _internals.verifyJwt(env, result.access_token, 'acces
 const offlineClaims = await _internals.verifyJwt(env, result.offline_token, 'offline');
 assert.equal(accessClaims.sid, storedSessionId);
 assert.equal(offlineClaims.sid, storedSessionId);
+assert.deepEqual(accessClaims.permissions, result.permissions);
+assert.deepEqual(offlineClaims.permissions, result.permissions);
+assert.equal(accessClaims.permissions.includes('orders.delete'), false);
 assert.equal(auditStatements.length, 1);
 assert.equal(auditStatements[0].args[3], 'invitation.accept');
 

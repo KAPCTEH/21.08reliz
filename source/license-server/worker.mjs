@@ -227,23 +227,6 @@ const ASSIGNABLE_PERMISSIONS = new Set([
   'company.update','warehouses.manage','integrations.manage','users.read','users.create','users.update','devices.manage',
   'orders.update','routes.update','inventory.update','reports.update',
 ]);
-const LEGACY_PERMISSION_EXPANSIONS = Object.freeze({
-  'orders.update':['orders.create','orders.status','orders.payment','orders.pricing','orders.delete'],
-  'routes.update':['routes.plan','routes.approve','routes.pick','routes.start','routes.return','routes.close','routes.cancel','routes.settings'],
-  'inventory.update':['inventory.catalog','inventory.stock','inventory.pricing','inventory.pick','inventory.delete'],
-  'drivers.update':['drivers.assign','drivers.delete'],
-  'reports.update':['reports.settings','reports.expenses'],
-});
-function expandLegacyPermissions(value) {
-  const result=[];
-  for (const permission of safePermissions(value)) {
-    if (!result.includes(permission)) result.push(permission);
-    for (const expanded of LEGACY_PERMISSION_EXPANSIONS[permission] || []) {
-      if (!result.includes(expanded)) result.push(expanded);
-    }
-  }
-  return result;
-}
 function validateRoleName(value) {
   const role = clean(value).replace(/\s+/g, ' ');
   if (role.toLowerCase() === 'owner' || role.length < 2 || role.length > 50) {
@@ -254,7 +237,10 @@ function validateRoleName(value) {
 }
 function permissionsForRole(role, value) {
   if (role === 'owner') return ['*'];
-  return expandLegacyPermissions(value).filter(permission => (
+  // Migration 006 expanded the old coarse permissions exactly once. Runtime
+  // requests are already the owner's explicit per-action selection and must
+  // never grow into destructive rights (for example update -> delete).
+  return safePermissions(value).filter(permission => (
     ASSIGNABLE_PERMISSIONS.has(permission)
     || permission === 'jf.warehouse:*'
     || /^jf\.warehouse:[A-Za-z0-9_-]{1,120}$/.test(permission)
@@ -2108,7 +2094,6 @@ export const _internals = {
   verifyJwt,
   newLicenseKey,
   safePermissions,
-  expandLegacyPermissions,
   permissionsForRole,
   validateRoleName,
   permissionCoveredBy,

@@ -1056,6 +1056,39 @@
       "class": "unit"
     },
     {
+      "id": "JF-TEST-ENTITY-REMOTE-APPLY-ATOMICITY-UNIT",
+      "name": "Entity Remote Apply Atomicity Unit",
+      "level": "source",
+      "path": "tests/entity-remote-apply-atomicity-unit.cjs",
+      "command": "node tests/entity-remote-apply-atomicity-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts"
+      ],
+      "contracts": [
+        "atomic-remote-entity-apply",
+        "durable-local-rollback",
+        "server-data-loss-prevention"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "failed remote imports restore the durable local snapshot and sync metadata"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when entity bootstrap, polling, persistence or rollback changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
       "id": "JF-TEST-ENTITY-RECOVERY-OWNER-UNIT",
       "name": "Entity Recovery Owner Unit",
       "level": "source",
@@ -1375,6 +1408,39 @@
       "class": "schema"
     },
     {
+      "id": "JF-TEST-LICENSE-EXACT-PERMISSIONS-RUNTIME-UNIT",
+      "name": "License Exact Permissions Runtime Unit",
+      "level": "source",
+      "path": "tests/license-exact-permissions-runtime-unit.mjs",
+      "command": "node tests/license-exact-permissions-runtime-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
       "id": "JF-TEST-LICENSE-GRANULAR-PERMISSION-MIGRATION-TEST",
       "name": "License Granular Permission Migration Test",
       "level": "source",
@@ -1404,6 +1470,37 @@
       "run_rule": "FULL baseline and when any mapped module or contract changes",
       "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
       "class": "schema"
+    },
+    {
+      "id": "JF-TEST-LICENSE-INVITATION-ACCEPT-UNIT",
+      "name": "License Invitation Accept Unit",
+      "level": "source",
+      "path": "tests/license-invitation-accept-unit.mjs",
+      "command": "node tests/license-invitation-accept-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
     },
     {
       "id": "JF-TEST-LICENSE-SCHEMA-TEST",
