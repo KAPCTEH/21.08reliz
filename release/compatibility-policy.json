@@ -8,7 +8,7 @@
   "full_payload_only": true,
   "required_contracts": {
     "reg_api": { "minimum": 3, "maximum": 3 },
-    "license_auth": { "minimum": 5, "maximum": 5 },
+    "license_auth": { "minimum": 6, "maximum": 6 },
     "license_auth_context": { "minimum": 2, "maximum": 2 },
     "telegram_broker": { "minimum": 4, "maximum": 4 },
     "storage_protocol": { "minimum": 3, "maximum": 3 },

@@ -1729,8 +1729,13 @@ function readActiveWarehousePreferenceDocument(){
 }
 function readConfirmedActiveWarehousePreference(authState=currentSession?.cloudAuth,environment=currentEnvironment()){
   const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)return'';
-  const record=readActiveWarehousePreferenceDocument().records.find(item=>item.company_id===scope.companyId&&item.user_id===scope.userId&&item.environment===scope.environment);
-  return String(record?.warehouse_id||'')
+  const matches=readActiveWarehousePreferenceDocument().records.filter(item=>item.company_id===scope.companyId&&item.user_id===scope.userId&&item.environment===scope.environment);
+  if(matches.length!==1){if(matches.length>1)appendRecurringLog('duplicate active warehouse preferences ignored',{code:'ACTIVE_WAREHOUSE_PREFERENCE_DUPLICATE',companyId:scope.companyId,userId:scope.userId,environment:scope.environment,count:matches.length});return''}
+  return String(matches[0]?.warehouse_id||'')
+}
+function activeWarehouseRecoveryPreference(authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)return{companyId:'',userId:'',environment:'',warehouseId:''};
+  return{...scope,warehouseId:readConfirmedActiveWarehousePreference(authState,scope.environment)}
 }
 function persistConfirmedActiveWarehousePreference(warehouseId,authState=currentSession?.cloudAuth,environment=currentEnvironment()){
   try{
@@ -3474,6 +3479,7 @@ function registerIPC(config) {
       return {ok:false,error:safeIntegrationError(error),code:String(error?.code||'WAREHOUSE_CONTEXT_REJECTED')};
     }
   });
+  handleMainIPC('desktop:get-active-warehouse-preference', () => ({ok:true,...activeWarehouseRecoveryPreference(currentSession?.cloudAuth,currentEnvironment())}));
   handleMainIPC('desktop:get-session', () => ({
     edition:currentSession?.edition, authorized:currentSession?.authorized,
     demoRemainingMs:currentSession?.edition === 'demo' ? remainingDemoMs(currentSession.demoState) : null,
@@ -4419,7 +4425,7 @@ if (DESKTOP_UNIT_TEST_MODE) {
     signObject, validSignedObject, demoLocations, persistDemoState,
     appendLog, logCandidates, logFile, localRoot, readJson, saveBackupPayload, safeRendererAuditPayload,
     validateWarehouseId, validateEnvironment, validateWarehouseSnapshot, validateSnapshotEntityIdentifiers, telegramWarehouseScope,
-    activeWarehousePreferenceScope, readConfirmedActiveWarehousePreference, persistConfirmedActiveWarehousePreference,
+    activeWarehousePreferenceScope, readConfirmedActiveWarehousePreference, activeWarehouseRecoveryPreference, persistConfirmedActiveWarehousePreference,
     rememberConfirmedWarehouseRegistry, persistRendererWarehousePreferenceIfConfirmed, resolveAllowedActiveWarehousePreference,
     telegramScopeParts, telegramScopeRoot, validateDeliveredTelegramNotification,
     normalizeFingerprint, pinnedHttpsAgent, validateWorkerState, loadWorkerState,

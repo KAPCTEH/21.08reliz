@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
   startupStage: (stage, detail='') => ipcRenderer.send('desktop:startup-stage', {stage:String(stage || ''), detail:String(detail || '')}),
   startupReady: (payload={}) => ipcRenderer.invoke('desktop:renderer-ready', payload),
   setActiveWarehouse: (payload={}) => ipcRenderer.invoke('desktop:set-active-warehouse', payload),
+  getActiveWarehousePreference: () => ipcRenderer.invoke('desktop:get-active-warehouse-preference'),
   getSession: () => ipcRenderer.invoke('desktop:get-session'),
   getAppInfo: () => ipcRenderer.invoke('desktop:get-app-info'),
   openLogFolder: () => ipcRenderer.invoke('desktop:open-log-folder'),

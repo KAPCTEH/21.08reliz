@@ -54,13 +54,40 @@ assert.equal(main.persistRendererWarehousePreferenceIfConfirmed(w1.id,colleague,
 assert.equal(main.persistRendererWarehousePreferenceIfConfirmed(w1.id,owner,'live'),true);
 assert.equal(main.readConfirmedActiveWarehousePreference(owner,'live'),w1.id);
 
-const source=fs.readFileSync(mainPath,'utf8'),preload=fs.readFileSync(path.resolve(__dirname,'../source/application/preload.js'),'utf8');
-assert.doesNotMatch(source,/jf-active-warehouse-id|bootstrapActiveWarehouseId/,'the fallback must travel through the explicit trusted registry response, not an unused renderer argument');
+const scopedRecovery=main.activeWarehouseRecoveryPreference(owner,'live');
+assert.deepEqual(scopedRecovery,{companyId:'cmp_active_warehouse_01',userId:'usr_active_owner_01',environment:'live',warehouseId:w1.id});
+const duplicatePath=path.join(process.env.LOCALAPPDATA,'JustFun','OrdersLogistics','active-warehouse-context-v784.json');
+fs.writeFileSync(duplicatePath,JSON.stringify({schema_version:1,records:[
+  {company_id:'cmp_active_warehouse_01',user_id:'usr_active_owner_01',environment:'live',warehouse_id:w1.id,updated_at:new Date().toISOString()},
+  {company_id:'cmp_active_warehouse_01',user_id:'usr_active_owner_01',environment:'live',warehouse_id:w2.id,updated_at:new Date().toISOString()}
+]}));
+assert.equal(main.readConfirmedActiveWarehousePreference(owner,'live'),'','duplicate records for one exact scope must never select a recovery warehouse');
+
+const source=fs.readFileSync(mainPath,'utf8'),preload=fs.readFileSync(path.resolve(__dirname,'../source/application/preload.js'),'utf8'),renderer=fs.readFileSync(path.resolve(__dirname,'../source/application/web/assets/js/110-desktop-platform-v750.js'),'utf8');
+assert.doesNotMatch(source,/jf-active-warehouse-id|bootstrapActiveWarehouseId/,'the fallback must not travel through an untrusted command-line renderer argument');
 assert.doesNotMatch(preload,/bootstrapActiveWarehouseId/);
 assert.match(source,/preferredWarehouseId:preferred\.preferredWarehouseId/);
+assert.match(source,/handleMainIPC\('desktop:get-active-warehouse-preference', \(\) => \(\{ok:true,\.\.\.activeWarehouseRecoveryPreference\(currentSession\?\.cloudAuth,currentEnvironment\(\)\)\}\)\)/,'the startup preference must be read through a zero-argument trusted main-process channel');
+assert.match(preload,/getActiveWarehousePreference:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('desktop:get-active-warehouse-preference'\)/);
+const restoreIndex=renderer.indexOf('if(await restoreActiveWarehouseBeforeRecoveryV784())return false'),recoveryIndex=renderer.indexOf('try{await recoverCriticalEntityMutation()}');
+assert.ok(restoreIndex>=0&&recoveryIndex>=0&&restoreIndex<recoveryIndex,'the active warehouse must be restored and reloaded before any recovery journal is read');
+assert.ok(renderer.includes("String(record?.origin||'')==='local-default'"),'native recovery must be limited to the exact lost-registry placeholder');
+assert.ok(renderer.includes("if(!generatedLocalWarehousePlaceholderV783(local))return block('generated_placeholder_contains_business_data'"),'a structural placeholder with user business data must fail closed');
+assert.ok(renderer.includes("permissions.includes(`jf.warehouse:${id}`)"),'the native hint must be validated against cached direct warehouse access without a broken registry intersection');
+assert.ok(renderer.includes("canResume=!provisional&&existing?.schemaVersion"),'a provisional recovery warehouse must never resume local-to-server migration before registry confirmation');
+assert.ok(renderer.includes("String(entry.authorUserId||'')!==userId"),'protected W2 outbox entries must belong to the authenticated user');
+assert.ok(renderer.includes("B.saveRegistry({...local,activeWarehouseId:id,warehouses:[target]"),'the lost registry must receive only the validated provisional recovery warehouse');
+assert.ok(renderer.includes('nativeRecoveryProvisionalWarehouseId:id});location.reload();return true'),'the provisional warehouse must trigger an immediate full reload without a delayed mixed-scope window');
+assert.ok(renderer.includes('function onlineEntitySyncAvailable(){return!provisionalNativeWarehouseIdV784()'),'a provisional warehouse must not upload its outbox before server registry confirmation');
+assert.ok(renderer.includes("if(provisionalNativeWarehouseIdV784()){const transitioned=await refreshWarehouseRegistryDuringPollingV783(true,'native-recovery-registry-confirmation');if(transitioned||provisionalNativeWarehouseIdV784())return"),'polling must confirm the authoritative registry and finish any scope transition before draining a provisional outbox');
+assert.ok(renderer.includes("if(!id)return restoreAuthoritative('trusted_preference_missing')"),'a clean online profile without a native preference must fetch the authoritative registry before recovery');
+assert.ok(renderer.includes("!cachedAuthAllowsWarehouseRecoveryV784(id))return restoreAuthoritative('trusted_preference_access_invalid')"),'a native preference denied by cached access must fall back to the authoritative registry before recovery');
+assert.ok(renderer.includes('if(!await confirmProvisionalWarehouseBeforeRecoveryV784())return false;await recoverCriticalEntityMutation()'),'startup and retry must confirm a provisional warehouse before reading its recovery journal');
+assert.ok(renderer.includes("if(journal?.phase==='pending_server')"),'a pending-server recovery journal must wait for authoritative warehouse confirmation');
+assert.ok(renderer.includes("throw outboxError('ENTITY_REGISTRY_CONFIRMATION_REQUIRED'"),'direct entity bootstrap must not bypass provisional warehouse confirmation');
 assert.doesNotMatch(source,/localStorage/,'the main-process fallback must not depend on Chromium Local Storage');
 
-const contextPath=path.join(process.env.LOCALAPPDATA,'JustFun','OrdersLogistics','active-warehouse-context-v784.json');
+const contextPath=duplicatePath;
 fs.rmSync(contextPath,{force:true});
 fs.mkdirSync(contextPath,{recursive:true});
 assert.equal(main.persistConfirmedActiveWarehousePreference(w1.id,owner,'live'),false,'an unwritable preference target must be best-effort');
