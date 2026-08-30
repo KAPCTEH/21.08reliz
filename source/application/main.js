@@ -39,6 +39,7 @@ const STARTUP_TIMEOUT_MS = 30000;
 const RENDERER_READY_TIMEOUT_MS = 90000;
 const REG_STATE_NAME = 'reg-vps-state.json';
 const SECRET_STORE_NAME = 'native-secrets.json';
+const ACTIVE_WAREHOUSE_CONTEXT_NAME = 'active-warehouse-context-v784.json';
 const LICENSE_API_ORIGIN = 'https://justfun-license-api.l2maloy47rus.workers.dev';
 const LICENSE_API_HOST = 'justfun-license-api.l2maloy47rus.workers.dev';
 const STRICT_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -77,6 +78,7 @@ let startupLog = null;
 let rendererReadyResolve = null;
 let rendererStartupState = {phase:'idle', recoveryReason:'', readyPayload:null};
 let activeRendererWarehouseId = '';
+let confirmedWarehouseRegistry = {scopeKey:'', allowedIds:new Set()};
 let singleInstanceLock = false;
 let ipcRegistered = false;
 let activeIntegrationWizard = null;
@@ -1696,6 +1698,68 @@ function validateEnvironment(value) {
   return environment;
 }
 function currentEnvironment() { return currentSession?.edition === 'demo' ? 'demo' : 'live'; }
+function activeWarehouseContextPath(){return path.join(localRoot(),ACTIVE_WAREHOUSE_CONTEXT_NAME)}
+function activeWarehousePreferenceScope(authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  let normalized=null;
+  try{normalized=normalizeCloudAuthState(authState)}catch{return null}
+  const companyId=normalizedCloudId(normalized?.company?.id),userId=normalizedCloudId(normalized?.user?.id);
+  let resolvedEnvironment='';try{resolvedEnvironment=validateEnvironment(environment)}catch{return null}
+  return companyId&&userId?{companyId,userId,environment:resolvedEnvironment}:null
+}
+function activeWarehousePreferenceScopeKey(scope){return scope?`${scope.companyId}:${scope.userId}:${scope.environment}`:''}
+function normalizeActiveWarehousePreferenceRecord(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const companyId=normalizedCloudId(value.company_id),userId=normalizedCloudId(value.user_id),updatedAt=String(value.updated_at||'');
+  let environment='',warehouseId='';try{environment=validateEnvironment(value.environment);warehouseId=validateWarehouseId(value.warehouse_id)}catch{return null}
+  if(!companyId||!userId)return null;
+  return{company_id:companyId,user_id:userId,environment,warehouse_id:warehouseId,updated_at:Number.isFinite(Date.parse(updatedAt))?updatedAt:new Date(0).toISOString()}
+}
+function readActiveWarehousePreferenceDocument(){
+  const file=activeWarehouseContextPath();
+  try{
+    const raw=fs.readFileSync(file),text=raw.length>=2&&raw[0]===0xFF&&raw[1]===0xFE?raw.subarray(2).toString('utf16le'):raw.toString('utf8').replace(/^\uFEFF/,''),value=JSON.parse(text);
+    if(!value||typeof value!=='object'||Array.isArray(value)||value.schema_version!==1||!Array.isArray(value.records))throw Object.assign(new Error('Файл предпочтения активного склада имеет неподдерживаемый формат.'),{code:'ACTIVE_WAREHOUSE_PREFERENCE_INVALID'});
+    const normalized=value.records.map(normalizeActiveWarehousePreferenceRecord),records=normalized.filter(Boolean);
+    if(records.length!==value.records.length)appendRecurringLog('active warehouse preference records ignored',{code:'ACTIVE_WAREHOUSE_PREFERENCE_RECORD_INVALID',invalid:value.records.length-records.length});
+    return{schema_version:1,records}
+  }catch(error){
+    if(String(error?.code||'')!=='ENOENT')appendRecurringLog('active warehouse preference read failed',{code:String(error?.code||'ACTIVE_WAREHOUSE_PREFERENCE_READ_FAILED'),error:safeError(error)});
+    return{schema_version:1,records:[]}
+  }
+}
+function readConfirmedActiveWarehousePreference(authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)return'';
+  const record=readActiveWarehousePreferenceDocument().records.find(item=>item.company_id===scope.companyId&&item.user_id===scope.userId&&item.environment===scope.environment);
+  return String(record?.warehouse_id||'')
+}
+function persistConfirmedActiveWarehousePreference(warehouseId,authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  try{
+    const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)throw cloudAuthError('AUTH_CONTEXT_INCOMPLETE','Нельзя сохранить активный склад без подтверждённой компании и пользователя.');
+    const id=validateWarehouseId(warehouseId),document=readActiveWarehousePreferenceDocument(),record={company_id:scope.companyId,user_id:scope.userId,environment:scope.environment,warehouse_id:id,updated_at:new Date().toISOString()},records=[record,...document.records.filter(item=>!(item.company_id===scope.companyId&&item.user_id===scope.userId&&item.environment===scope.environment))].slice(0,64);
+    writeJsonAtomic(activeWarehouseContextPath(),{schema_version:1,records});return id
+  }catch(error){
+    appendRecurringLog('active warehouse preference write failed',{code:String(error?.code||'ACTIVE_WAREHOUSE_PREFERENCE_WRITE_FAILED'),error:safeError(error)});return false
+  }
+}
+function rememberConfirmedWarehouseRegistry(warehouses,authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  const scope=activeWarehousePreferenceScope(authState,environment),allowedIds=new Set();
+  if(scope)for(const item of Array.isArray(warehouses)?warehouses:[]){if(item?.status==='archived')continue;try{allowedIds.add(validateWarehouseId(item?.id))}catch{}}
+  confirmedWarehouseRegistry={scopeKey:activeWarehousePreferenceScopeKey(scope),allowedIds};return confirmedWarehouseRegistry
+}
+function persistRendererWarehousePreferenceIfConfirmed(warehouseId,authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)return false;
+  let id='';try{id=validateWarehouseId(warehouseId)}catch{return false}
+  if(confirmedWarehouseRegistry.scopeKey!==activeWarehousePreferenceScopeKey(scope)||!confirmedWarehouseRegistry.allowedIds.has(id))return false;
+  return persistConfirmedActiveWarehousePreference(id,authState,environment)===id
+}
+function resolveAllowedActiveWarehousePreference(warehouses,authState=currentSession?.cloudAuth,environment=currentEnvironment(),rendererWarehouseId=activeRendererWarehouseId){
+  const list=Array.isArray(warehouses)?warehouses:[],registry=rememberConfirmedWarehouseRegistry(list,authState,environment);
+  let preferred='';try{preferred=validateWarehouseId(rendererWarehouseId)}catch{}
+  if(preferred&&registry.allowedIds.has(preferred))persistConfirmedActiveWarehousePreference(preferred,authState,environment);
+  else preferred=readConfirmedActiveWarehousePreference(authState,environment);
+  if(!registry.allowedIds.has(preferred))preferred='';
+  return{warehouses:list,preferredWarehouseId:preferred}
+}
 function requireCurrentEnvironment(value) {
   const environment = validateEnvironment(value);
   if (environment !== currentEnvironment()) throw new Error('Операция другой среды заблокирована: LIVE и DEMO полностью разделены.');
@@ -3389,7 +3453,10 @@ function registerIPC(config) {
     };
     const shown=confirmRendererStartupReady(safePayload);
     if(!shown){appendLog('renderer ready ignored after terminal startup state',{phase:rendererStartupState.phase});return false}
-    if (/^[A-Za-z0-9_-]{1,120}$/.test(safePayload.warehouseId)) activateRendererWarehouse(safePayload.warehouseId);
+    if (/^[A-Za-z0-9_-]{1,120}$/.test(safePayload.warehouseId)) {
+      activateRendererWarehouse(safePayload.warehouseId);
+      persistRendererWarehousePreferenceIfConfirmed(safePayload.warehouseId,currentSession?.cloudAuth,currentEnvironment());
+    }
     appendLog('renderer ready confirmed', safePayload);
     if (rendererReadyResolve) rendererReadyResolve(safePayload);
     confirmUpdateHealthIfRequested();
@@ -3399,7 +3466,8 @@ function registerIPC(config) {
     try {
       const environment=requireCurrentEnvironment(payload?.environment);
       const warehouseId=activateRendererWarehouse(payload?.warehouseId);
-      appendLog('renderer warehouse context confirmed',{warehouseId,environment});
+      const preferencePersisted=persistRendererWarehousePreferenceIfConfirmed(warehouseId,currentSession?.cloudAuth,environment);
+      appendLog('renderer warehouse context confirmed',{warehouseId,environment,preferencePersisted});
       return {ok:true,warehouseId,environment};
     } catch(error) {
       appendLog('renderer warehouse context rejected',{code:String(error?.code||''),error:safeIntegrationError(error)});
@@ -3518,8 +3586,9 @@ function registerIPC(config) {
       const result=await regApiRequest('GET',`/v1/warehouses?environment=${encodeURIComponent(environment)}`);
       if(String(result.workspace_id||'')!==String(state.workspace_id||''))throw new Error('Сервер вернул склады другой компании.');
       const warehouses=Array.isArray(result.warehouses)?result.warehouses.filter(item=>item&&/^[A-Za-z0-9_-]{1,120}$/.test(String(item.id||''))):[];
+      const preferred=resolveAllowedActiveWarehousePreference(warehouses,currentSession?.cloudAuth,environment,activeRendererWarehouseId);
       const registryInitialized=typeof result.registry_initialized==='boolean'?result.registry_initialized:null;
-      return{ok:true,configured:true,environment,warehouses,registryInitialized};
+      return{ok:true,configured:true,environment,warehouses:preferred.warehouses,preferredWarehouseId:preferred.preferredWarehouseId,registryInitialized};
     }catch(error){
       appendRecurringLog('REG.RU warehouse registry failed',{code:String(error?.code||''),error:safeIntegrationError(error)});
       return{ok:false,error:safeIntegrationError(error),code:String(error?.code||'')};
@@ -4350,6 +4419,8 @@ if (DESKTOP_UNIT_TEST_MODE) {
     signObject, validSignedObject, demoLocations, persistDemoState,
     appendLog, logCandidates, logFile, localRoot, readJson, saveBackupPayload, safeRendererAuditPayload,
     validateWarehouseId, validateEnvironment, validateWarehouseSnapshot, validateSnapshotEntityIdentifiers, telegramWarehouseScope,
+    activeWarehousePreferenceScope, readConfirmedActiveWarehousePreference, persistConfirmedActiveWarehousePreference,
+    rememberConfirmedWarehouseRegistry, persistRendererWarehousePreferenceIfConfirmed, resolveAllowedActiveWarehousePreference,
     telegramScopeParts, telegramScopeRoot, validateDeliveredTelegramNotification,
     normalizeFingerprint, pinnedHttpsAgent, validateWorkerState, loadWorkerState,
     cloudFriendlyError, friendlyCloudNetworkError, isRetryableCloudNetworkError, isTemporaryCompanyServiceError, telegramCompanyPublishRetryDelay, telegramCompanyPublishPendingMessage, withCloudNetworkRetry, decodeJwtPayload, tokenExpiresAt, justFunTokenClaims, combinedCloudClaims, normalizeCloudUser, normalizeCloudCompany, normalizeCloudAuthState, publicCloudAuth,

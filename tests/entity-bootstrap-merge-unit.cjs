@@ -181,6 +181,33 @@ function verifyWritableFirstBootstrapChangeIsPreserved(){
   assert.equal(enqueued[0]?.changes?.[0]?.type,'orders','the preserved first-bootstrap command must contain the writable entity');
 }
 
+function verifyServerEquivalentFreshSettingsAreNotLocalIntent(){
+  const baseline=snapshot(base.payload),current=structuredClone(baseline),enqueued=[],scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'};
+  baseline.data.settings={warehouse:{address:'Локальная точка по умолчанию',lat:59.685528,lon:30.434454},routeStartTime:'09:00',nominatimUrl:'https://nominatim.openstreetmap.org'};
+  current.data.settings={warehouse:{address:'Склад W3',lat:60.01,lon:31.02},routeStartTime:'09:00',nominatimUrl:'https://nominatim.openstreetmap.org'};
+  const serverEntities=[{type:'settings',id:'settings',version:1,event_id:17,digest_sha256:'d'.repeat(64),payload:structuredClone(current.data.settings)}];
+  const queue={overlayEntries:()=>[],blockedEntityKeys:()=>new Set(),list:()=>[],enqueue:value=>{enqueued.push(value);return value}};
+  const captured=context.__capturePreBootstrapLocalIntent(baseline,current,{queue,knownEntities:new Map(),context:scope,serverEntities});
+  assert.equal(captured,0,'fresh settings already equal to the current VPS entity and must not become local intent');
+  assert.equal(enqueued.length,0,'server-equivalent fresh settings must not create an outbox command');
+
+  current.data.settings.routeStartTime='10:00';
+  const edited=context.__capturePreBootstrapLocalIntent(baseline,current,{queue,knownEntities:new Map(),context:scope,serverEntities});
+  assert.equal(edited,1,'a real settings difference from the current VPS entity must remain protected as local intent');
+  assert.equal(enqueued[0]?.changes?.[0]?.type,'settings');
+  assert.equal(enqueued[0]?.changes?.[0]?.payload?.routeStartTime,'10:00');
+
+  const serverSettings={warehouse:{address:'Склад W3',lat:60.01,lon:31.02},routeStartTime:'09:00'},pendingSettings={...structuredClone(serverSettings),routeStartTime:'10:00'},revertedBaseline=snapshot(base.payload),revertedCurrent=structuredClone(revertedBaseline),revertedEnqueued=[];
+  revertedBaseline.data.settings=structuredClone(serverSettings);revertedCurrent.data.settings=structuredClone(serverSettings);
+  const pending={commandId:'pending-settings-a',state:'pending',preserveLocal:true,changes:[{type:'settings',id:'settings',baseVersion:1,deleted:false,payload:pendingSettings,_fingerprint:context.__fp(pendingSettings)}]},revertedQueue={overlayEntries:()=>[pending],pendingServerResolutions:()=>[],blockedEntityKeys:()=>new Set(),list:()=>[pending],enqueue:value=>{revertedEnqueued.push(value);return value}};
+  const reverted=context.__capturePreBootstrapLocalIntent(revertedBaseline,revertedCurrent,{queue:revertedQueue,knownEntities:new Map(),context:scope,serverEntities:[{type:'settings',id:'settings',version:2,event_id:18,digest_sha256:'e'.repeat(64),payload:structuredClone(serverSettings)}]});
+  assert.equal(reverted,1,'returning settings to the current VPS value after queued settings A must create a second command B');
+  assert.equal(revertedQueue.list().some(entry=>entry.commandId==='pending-settings-a'),true,'the original pending settings command A must remain durable');
+  assert.equal(revertedEnqueued[0]?.changes?.[0]?.type,'settings');
+  assert.equal(revertedEnqueued[0]?.changes?.[0]?.payload?.routeStartTime,'09:00','the second command must preserve the real return to server value B');
+  assert.equal(revertedEnqueued[0]?.changes?.[0]?.baseVersion,2,'the return command B must follow pending command A sequentially');
+}
+
 function verifyGenericDirtyRecoveryCannotInventServerDelete(){
   const known=new Map([['orders:order-1',{version:7,digest:'a'.repeat(64),fingerprint:'server-order',deleted:false,eventId:21}]]),scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'},entries=[],queue={overlayEntries:()=>entries,list:()=>entries},suppressed=[];
   const protectedChanges=context.__buildPendingEntityChanges({snapshot:snapshot(null),knownEntities:known,conflicts:new Map(),queue,context:scope,allowInferredDeletes:false,suppressedDeletes:suppressed});
@@ -363,7 +390,7 @@ async function verifyWarehouseRegistryReconciliation(){
       {id:'warehouse-deleted',name:'Удалённый склад',code:'УДЛ',origin:'server',status:'archived'},
     ],
   };
-  let saved=null,brandingCalls=0,settingsWrites=[],registryInitialized=true,registryConfigured=true;
+  let saved=null,brandingCalls=0,settingsWrites=[],registryInitialized=true,registryConfigured=true,preferredWarehouseId='';
   let settings={warehouse:{address:'Старый адрес',lat:59.1,lon:30.1},warehouseProfile:{id:'warehouse-1',code:'С1',name:'Склад 1',custom:'preserved'}};
   let remoteWarehouses=[{id:'warehouse-1',name:'Склад 1',code:'С1',address:'Старый адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',revision:0,entity_version:4,digest_sha256:'digest-4'}];
   const syncContext={
@@ -372,7 +399,7 @@ async function verifyWarehouseRegistryReconciliation(){
     window:{
       TeplitsaWarehouseBootstrap:{getRegistry:()=>structuredClone(registryState),saveRegistry:value=>{saved=structuredClone(value);registryState=structuredClone(value)}},
       TeplitsaWarehouseV600:{counts:()=>({orders:1,movements:0,routes:0,executions:0,archives:0}),applyBranding:()=>{brandingCalls++}},
-      JustFunDesktop:{regVps:{warehouses:async()=>({ok:true,configured:registryConfigured,warehouses:structuredClone(remoteWarehouses),registryInitialized})}},
+      JustFunDesktop:{regVps:{warehouses:async()=>({ok:true,configured:registryConfigured,warehouses:structuredClone(remoteWarehouses),preferredWarehouseId,registryInitialized})}},
       __JF_TEST_NO_RELOAD:true,
     },
     desktopSession:{edition:'full',auth:{offline:false,company:{id:'company-1',data_service:'https://vps.invalid'},user:{id:'owner-1'}}},
@@ -405,6 +432,15 @@ async function verifyWarehouseRegistryReconciliation(){
   assert.deepEqual(saved.warehouses.map(item=>item.id),['warehouse-1'],'an initialized registry removes a server-deleted warehouse');
   assert.equal(saved.warehouses[0].origin,'server');
   assert.equal(saved.warehouses[0].revision,4,'entity_version is authoritative when the list response also contains a legacy revision');
+
+  const w1=structuredClone(remoteWarehouses[0]),w2={id:'warehouse-2',name:'Склад 2',code:'С2',address:'Адрес 2',lat:59.2,lon:30.2,timezone:'Europe/Moscow',status:'active',entity_version:1,digest_sha256:'digest-w2'};
+  preferredWarehouseId='warehouse-2';remoteWarehouses=[w1,w2];saved=null;
+  assert.equal(await syncContext.__syncWarehouseRegistry(),false,'a valid local active warehouse must not be overridden by the native fallback');
+  assert.equal(registryState.activeWarehouseId,'warehouse-1');
+  registryState={...registryState,activeWarehouseId:'',warehouses:[]};saved=null;
+  assert.equal(await syncContext.__syncWarehouseRegistry(),true,'a missing local selection must recover through the explicit server-confirmed preference');
+  assert.equal(saved.activeWarehouseId,'warehouse-2');
+  preferredWarehouseId='';remoteWarehouses=[w1];registryState={...saved,activeWarehouseId:'warehouse-1',warehouses:[structuredClone(saved.warehouses.find(item=>item.id==='warehouse-1'))]};
 
   registryState.warehouses.push({id:'warehouse-migration',name:'Самостоятельный локальный склад',code:'МГР',origin:'local',status:'active'});
   await assert.rejects(syncContext.__syncWarehouseRegistry(),error=>error?.code==='LOCAL_MIGRATION_REMOTE_NOT_EMPTY','independent local data must not be silently hidden or merged into an already populated VPS');
@@ -721,6 +757,7 @@ async function verifyWarehouseRegistryTransitions(){
 
 verifyUnreadableSingletonDefaultsAreNotLocalIntent();
 verifyWritableFirstBootstrapChangeIsPreserved();
+verifyServerEquivalentFreshSettingsAreNotLocalIntent();
 verifyGenericDirtyRecoveryCannotInventServerDelete();
 verifyCleanEmployeeServerWarehouseNormalizationDoesNotQuarantine();
 verifyOfflineOrderRecoveryIgnoresRegularDriverProviderNormalization();
@@ -730,5 +767,5 @@ verifyRejectedOrderNormalizationRecoveryIsStrict();
 verifyServerEquivalentWarehouseReconcilesFingerprintMigration();
 verifySafeWarehouseOutboxPrefixReconciliation();
 verifyQuarantinedLegacyKnownSelfHealsThroughCurrentServerWarehouse().then(()=>Promise.all([verifyOfflineOutboxStartupOverlay(),verifyWarehouseRegistryReconciliation(),verifyWarehouseStorageIsolation(),verifyWarehouseRegistryTransitions(),verifyRouteCalculationRejectsStaleDepot(),verifyWarehouseCreateAccessExport(),verifyAuthoritativeEmptyCreateAction(),verifyWarehouseLifecycleUiSource()]))
-  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true,unreadableDefaultsIgnored:true,writableFirstBootstrapPreserved:true,genericDirtyDeleteSuppressed:true,explicitDeleteJournalPreserved:true,cleanEmployeeWarehouseNormalizationIgnored:true,regularDriverProviderNormalizationIgnored:true,conflictResolutionWarehouseNormalizationIgnored:true,restartOrderWorkflowPreserved:true,restartDocumentSnapshotPreserved:true,rejectedOrderNormalizationRecovered:true,rejectedOrderBusinessEditProtected:true,unqueuedLaterOrderEditProtected:true,quarantinedLegacyWarehouseSelfHeal:true,serverEquivalentWarehouseMigration:true,safeWarehouseOutboxPrefix:true,quarantineTitleTruthful:true})))
+  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true,unreadableDefaultsIgnored:true,writableFirstBootstrapPreserved:true,serverEquivalentFreshSettingsIgnored:true,genericDirtyDeleteSuppressed:true,explicitDeleteJournalPreserved:true,cleanEmployeeWarehouseNormalizationIgnored:true,regularDriverProviderNormalizationIgnored:true,conflictResolutionWarehouseNormalizationIgnored:true,restartOrderWorkflowPreserved:true,restartDocumentSnapshotPreserved:true,rejectedOrderNormalizationRecovered:true,rejectedOrderBusinessEditProtected:true,unqueuedLaterOrderEditProtected:true,quarantinedLegacyWarehouseSelfHeal:true,serverEquivalentWarehouseMigration:true,safeWarehouseOutboxPrefix:true,quarantineTitleTruthful:true})))
   .catch(error=>{console.error(error);process.exitCode=1});

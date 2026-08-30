@@ -404,6 +404,9 @@ function normalizedServerWarehouse(item){
   const lat=item?.lat==null?null:Number(item.lat),lon=item?.lon==null?null:Number(item.lon);
   return{id,name:String(item?.name||'Склад').slice(0,160),code,address:String(item?.address||'').slice(0,500),lat:Number.isFinite(lat)&&lat>=-90&&lat<=90?lat:null,lon:Number.isFinite(lon)&&lon>=-180&&lon<=180?lon:null,timezone:String(item?.timezone||'Europe/Moscow').slice(0,80),status:item?.status==='archived'?'archived':'active',catalogMode:item?.catalog_mode==='empty'||item?.catalogMode==='empty'?'empty':'catalog',origin:'server',revision:Number(item?.entity_version??item?.revision)||0,digest:String(item?.digest_sha256||''),updatedAt:String(item?.updated_at||new Date().toISOString())};
 }
+function confirmedPreferredWarehouseIdV784(response,warehouses){
+  const id=String(response?.preferredWarehouseId||''),list=Array.isArray(warehouses)?warehouses:[];return /^[A-Za-z0-9_-]{1,120}$/.test(id)&&list.some(item=>String(item?.id||'')===id&&item?.status!=='archived')?id:''
+}
 const LOCAL_TO_SERVER_MIGRATION_SCHEMA_V783=3;
 function localToServerMigrationKeyV783(B){return String(B.registryKey||'').replace(/warehouses_registry_v600$/,'local_to_server_migration_v783')}
 function readLocalToServerMigrationV783(B){try{const value=JSON.parse(B.raw.get(localToServerMigrationKeyV783(B))||'null');return value&&typeof value==='object'&&!Array.isArray(value)?value:null}catch{return null}}
@@ -460,13 +463,13 @@ async function synchronizeCompanyWarehouseRegistry(){
     audit('company_warehouse_registry_unavailable',{code:response?.code||'',error:response?.error||'',configured:response?.configured===true});
     throw Object.assign(new Error(response?.error||'Серверный реестр складов недоступен.'),{code:response?.code||'WAREHOUSE_REGISTRY_UNAVAILABLE'})
   }
-  let remote=(response.warehouses||[]).map(normalizedServerWarehouse).filter(Boolean);
+  let remote=(response.warehouses||[]).map(normalizedServerWarehouse).filter(Boolean),preferredWarehouseId=confirmedPreferredWarehouseIdV784(response,remote);
   const local=B.getRegistry(),companyId=String(desktopSession.auth.company.id||'');
   const pendingMigration=readLocalToServerMigrationV783(B),matchingMigration=pendingMigration?.schemaVersion===LOCAL_TO_SERVER_MIGRATION_SCHEMA_V783&&pendingMigration?.workspaceId===companyId;
   if(remote.length&&matchingMigration&&pendingMigration.state==='complete'){const remoteIds=new Set(remote.map(item=>String(item.id))),missing=(pendingMigration.warehouses||[]).find(item=>!remoteIds.has(String(item.id)));if(missing)throw Object.assign(new Error('VPS не содержит один из ранее перенесённых складов. Автоматическая замена локального реестра запрещена до проверки backup и журнала сервера.'),{code:'LOCAL_MIGRATION_REMOTE_RESET'})}
   if(remote.length&&local.warehouses.some(item=>String(item.origin||'')!=='server')&&!matchingMigration&&!generatedLocalWarehousePlaceholderV783(local))throw Object.assign(new Error('VPS уже содержит складские данные, а на компьютере найдены самостоятельные локальные склады. Автоматическое объединение запрещено: требуется контролируемый выбор источника.'),{code:'LOCAL_MIGRATION_REMOTE_NOT_EMPTY'});
   if(remote.length&&matchingMigration&&pendingMigration.state!=='complete'){
-    currentUser=cloudUserToLocal(desktopSession.auth.user,desktopSession.auth.company,desktopSession.auth);users=[currentUser];await migrateLocalCompanyToEmptyServerV783(B,local,response,remote);const refreshed=await window.JustFunDesktop?.regVps?.warehouses?.({environment:'live'});if(!refreshed?.ok||refreshed.configured!==true)throw Object.assign(new Error(refreshed?.error||'VPS не вернул список складов после продолжения переноса.'),{code:refreshed?.code||'LOCAL_MIGRATION_REGISTRY_REFRESH_FAILED'});remote=(refreshed.warehouses||[]).map(normalizedServerWarehouse).filter(Boolean)
+    currentUser=cloudUserToLocal(desktopSession.auth.user,desktopSession.auth.company,desktopSession.auth);users=[currentUser];await migrateLocalCompanyToEmptyServerV783(B,local,response,remote);const refreshed=await window.JustFunDesktop?.regVps?.warehouses?.({environment:'live'});if(!refreshed?.ok||refreshed.configured!==true)throw Object.assign(new Error(refreshed?.error||'VPS не вернул список складов после продолжения переноса.'),{code:refreshed?.code||'LOCAL_MIGRATION_REGISTRY_REFRESH_FAILED'});remote=(refreshed.warehouses||[]).map(normalizedServerWarehouse).filter(Boolean);preferredWarehouseId=confirmedPreferredWarehouseIdV784(refreshed,remote)
   }
   if(!remote.length){
     pendingActiveWarehouseMetadataChangeV783=null;
@@ -476,9 +479,9 @@ async function synchronizeCompanyWarehouseRegistry(){
       throw Object.assign(new Error('Сервер не подтвердил состояние пустого реестра складов.'),{code:'WAREHOUSE_REGISTRY_CONTRACT_MISMATCH'})
     }
     if(await migrateLocalCompanyToEmptyServerV783(B,local,response,remote)){
-      const refreshed=await window.JustFunDesktop?.regVps?.warehouses?.({environment:'live'});if(!refreshed?.ok||refreshed.configured!==true)throw Object.assign(new Error(refreshed?.error||'VPS не вернул список складов после переноса.'),{code:refreshed?.code||'LOCAL_MIGRATION_REGISTRY_REFRESH_FAILED'});remote=(refreshed.warehouses||[]).map(normalizedServerWarehouse).filter(Boolean);if(!remote.length)throw Object.assign(new Error('VPS не подтвердил ни одного склада после переноса.'),{code:'LOCAL_MIGRATION_REGISTRY_EMPTY'})
+      const refreshed=await window.JustFunDesktop?.regVps?.warehouses?.({environment:'live'});if(!refreshed?.ok||refreshed.configured!==true)throw Object.assign(new Error(refreshed?.error||'VPS не вернул список складов после переноса.'),{code:refreshed?.code||'LOCAL_MIGRATION_REGISTRY_REFRESH_FAILED'});remote=(refreshed.warehouses||[]).map(normalizedServerWarehouse).filter(Boolean);preferredWarehouseId=confirmedPreferredWarehouseIdV784(refreshed,remote);if(!remote.length)throw Object.assign(new Error('VPS не подтвердил ни одного склада после переноса.'),{code:'LOCAL_MIGRATION_REGISTRY_EMPTY'})
     }
-    if(remote.length){const warehouses=remote;let active=String(B.getRegistry().activeWarehouseId||'');if(!warehouses.some(item=>String(item.id)===active&&item.status!=='archived'))active=warehouses.find(item=>item.status!=='archived')?.id||'';B.saveRegistry({...B.getRegistry(),warehouses,activeWarehouseId:active,pendingServerDeleteWarehouseId:'',serverAuthoritativeEmpty:false,serverRegistryInitialized:true,serverHydratedAt:new Date().toISOString(),serverWorkspaceId:companyId});return true}
+    if(remote.length){const warehouses=remote;let active=String(B.getRegistry().activeWarehouseId||'');if(!warehouses.some(item=>String(item.id)===active&&item.status!=='archived'))active=preferredWarehouseId||warehouses.find(item=>item.status!=='archived')?.id||'';B.saveRegistry({...B.getRegistry(),warehouses,activeWarehouseId:active,pendingServerDeleteWarehouseId:'',serverAuthoritativeEmpty:false,serverRegistryInitialized:true,serverHydratedAt:new Date().toISOString(),serverWorkspaceId:companyId});return true}
     const freshGenerated=generatedLocalWarehousePlaceholderV783(local);
     const mayBootstrapFirstWarehouse=response.registryInitialized===false&&freshGenerated&&currentUser?.allWarehouses===true&&hasPermission('warehouses.manage');
     if(mayBootstrapFirstWarehouse){
@@ -492,7 +495,7 @@ async function synchronizeCompanyWarehouseRegistry(){
   }
   const warehouses=remote,remoteIds=new Set(remote.map(item=>String(item.id)));
   let active=String(local.activeWarehouseId||'');
-  if(!warehouses.some(item=>String(item.id)===active&&item.status!=='archived'))active=remote.find(item=>item.status!=='archived')?.id||'';
+  if(!warehouses.some(item=>String(item.id)===active&&item.status!=='archived'))active=preferredWarehouseId||remote.find(item=>item.status!=='archived')?.id||'';
   const pending=String(local.pendingServerDeleteWarehouseId||''),next={...local,warehouses,activeWarehouseId:active,pendingServerDeleteWarehouseId:pending&&warehouses.some(item=>String(item.id)===pending)?pending:'',serverAuthoritativeEmpty:false,serverRegistryInitialized:true,serverHydratedAt:new Date().toISOString(),serverWorkspaceId:companyId};
   const signature=value=>JSON.stringify({activeWarehouseId:value.activeWarehouseId,warehouses:value.warehouses.map(item=>({id:item.id,code:item.code,name:item.name,address:item.address,lat:item.lat,lon:item.lon,timezone:item.timezone,status:item.status,origin:item.origin,revision:item.revision,digest:item.digest}))});
   const changed=signature(local)!==signature(next);
@@ -1017,13 +1020,19 @@ function serverEquivalentWarehouseMetadataChangeV784(change,entities,context){
   const declaredLocalId=String(payload.id||''),declaredServerId=String(serverPayload.id||''),declaredLocalEnvironment=String(payload.environment||'').toLowerCase(),declaredServerEnvironment=String(serverPayload.environment||'').toLowerCase();if(declaredLocalId&&declaredLocalId!==warehouseId||declaredServerId&&declaredServerId!==warehouseId||declaredLocalEnvironment&&declaredLocalEnvironment!==environment||declaredServerEnvironment&&declaredServerEnvironment!==environment)return false;
   const normalize=value=>JSON.stringify(stableEntityValue(serverWarehouseEntityPayloadV784(value,{warehouseId,environment})));return normalize(payload)===normalize(serverPayload)
 }
+function serverEquivalentCurrentEntityChangeV784(change,entities,context,queue){
+  const type=String(change?.type||''),id=String(change?.id||''),fingerprint=String(change?._fingerprint||'');if(type!=='settings'||id!=='settings'||!fingerprint||change?.deleted===true)return false;
+  const queued=asArray(queue?.overlayEntries?.()).some(entry=>entry?.preserveLocal!==false&&['pending','sending','conflict','rejected'].includes(String(entry?.state||''))&&asArray(entry?.changes).some(item=>String(item?.type||'')===type&&String(item?.id||'')===id));if(queued)return false;
+  const matching=asArray(entities).filter(item=>String(item?.type||'')===type&&String(item?.id||'')===id&&item?.deleted!==true&&item?.operation!=='delete');if(matching.length!==1||matching[0]?.payload===undefined)return false;
+  const serverPayload=type==='settings'?serverSettingsPayload(matching[0].payload):matching[0].payload;return semanticEntityFingerprintV784(type,id,serverPayload,context)===fingerprint
+}
 function recoveryKnownEntitiesFromServer(localSnapshot,serverSnapshot,knownAtStart,serverKnown,context){
   const options={warehouseId:String(context?.warehouseId||''),environment:String(context?.environment||'live')},local=splitEntitySnapshot(localSnapshot,options),remote=splitEntitySnapshot(serverSnapshot,options),recovery=new Map(knownAtStart);
   for(const[key,item]of local){const serverItem=remote.get(key),confirmed=serverKnown.get(key);if(serverItem?.fingerprint===item.fingerprint&&confirmed)recovery.set(key,{...confirmed,fingerprint:item.fingerprint})}
   return recovery
 }
 function capturePreBootstrapLocalIntent(baseline,current,{queue,knownEntities,context,serverEntities=[],suppressedEntityFingerprints=null,ignoredCommandIds=[]}){
-  const suppressed=suppressedEntityFingerprints instanceof Map?suppressedEntityFingerprints:new Map(),ignored=new Set(asArray(ignoredCommandIds).map(String)),expected=cloneValue(baseline);overlayLocalOutbox(expected,queue,{conflicts:new Map(cloudSyncState.conflicts),ignoredCommandIds:[...ignored]});const detected=entityChangesBetween(expected,current,{includeOutbox:true,knownEntities,queue,context}).filter(change=>suppressed.get(entityKey(change.type,change.id))!==String(change._fingerprint||'')&&entityTypeWasReadableOrWritable(change.type)&&!serverEquivalentWarehouseMetadataChangeV784(change,serverEntities,context));
+  const suppressed=suppressedEntityFingerprints instanceof Map?suppressedEntityFingerprints:new Map(),ignored=new Set(asArray(ignoredCommandIds).map(String)),expected=cloneValue(baseline);overlayLocalOutbox(expected,queue,{conflicts:new Map(cloudSyncState.conflicts),ignoredCommandIds:[...ignored]});const detected=entityChangesBetween(expected,current,{includeOutbox:true,knownEntities,queue,context}).filter(change=>suppressed.get(entityKey(change.type,change.id))!==String(change._fingerprint||'')&&entityTypeWasReadableOrWritable(change.type)&&!serverEquivalentCurrentEntityChangeV784(change,serverEntities,context,queue)&&!serverEquivalentWarehouseMetadataChangeV784(change,serverEntities,context));
   const blocked=ignored.size?new Set(asArray(queue.list?.()).filter(entry=>!ignored.has(String(entry?.commandId||''))&&(entry?.state==='conflict'||entry?.state==='rejected')&&entry?.preserveLocal!==false).flatMap(entry=>asArray(entry.changes).map(change=>entityKey(change.type,change.id)))):queue.blockedEntityKeys(),blockedChange=detected.find(change=>blocked.has(entityKey(change.type,change.id)));if(blockedChange)throw outboxError('OUTBOX_ENTITY_BLOCKED',`Запись ${blockedChange.type}/${blockedChange.id} уже требует разрешения конфликта. Серверный снимок не применён, локальные данные сохранены.`);
   const changes=requireWritableLocalEntityChanges(detected,context,'prebootstrap_local_capture');
   for(let offset=0;offset<changes.length;offset+=1000)queue.enqueue(localOutboxEntry({kind:'prebootstrap_local_capture',targetId:context.warehouseId},changes.slice(offset,offset+1000),context));
