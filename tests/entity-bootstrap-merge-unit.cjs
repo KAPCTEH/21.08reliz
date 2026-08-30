@@ -81,7 +81,7 @@ const context={
   ENTITY_SETTINGS_WAREHOUSE_FIELDS:['warehouse'],
   ENTITY_SETTINGS_ROUTE_FIELDS:['routeStartTime'],
   ENTITY_SETTINGS_INTEGRATION_FIELDS:['nominatimUrl'],
-  cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,bootstrapFlights:new Map(),scopeEpoch:0,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlightScopes:new Map(),criticalFlights:new Map(),contextBlockedError:null,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),readerUserId:'employee-1',outboxes:new Map(),outbox:null,outboxError:null,localBaseline:null},
+  cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,bootstrapFlights:new Map(),scopeEpoch:0,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlightScopes:new Map(),criticalFlights:new Map(),ordinaryFlights:new Map(),ordinaryPrearms:new Map(),contextBlockedError:null,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),readerUserId:'employee-1',outboxes:new Map(),outbox:null,outboxError:null,localBaseline:null},
   q:()=>null,
   audit:()=>{},
   clearTimeout:()=>{},
@@ -175,6 +175,36 @@ function verifyWritableFirstBootstrapChangeIsPreserved(){
   assert.equal(enqueued[0]?.changes?.[0]?.type,'orders','the preserved first-bootstrap command must contain the writable entity');
 }
 
+function verifyGenericDirtyRecoveryCannotInventServerDelete(){
+  const known=new Map([['orders:order-1',{version:7,digest:'a'.repeat(64),fingerprint:'server-order',deleted:false,eventId:21}]]),scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'},entries=[],queue={overlayEntries:()=>entries,list:()=>entries},suppressed=[];
+  const protectedChanges=context.__buildPendingEntityChanges({snapshot:snapshot(null),knownEntities:known,conflicts:new Map(),queue,context:scope,allowInferredDeletes:false,suppressedDeletes:suppressed});
+  assert.deepEqual(JSON.parse(JSON.stringify(protectedChanges.filter(change=>change.type==='orders'))),[],'a generic durable dirty marker must not infer deletion of a known server record missing from the local cache');
+  assert.deepEqual(JSON.parse(JSON.stringify(suppressed)),[{type:'orders',id:'order-1',version:7}],'the suppressed ambiguous deletion remains observable for audit');
+  const explicit=context.__buildPendingEntityChanges({snapshot:snapshot(null),knownEntities:known,conflicts:new Map(),queue,context:scope});
+  const explicitOrder=explicit.find(change=>change.type==='orders'&&change.id==='order-1');assert.ok(explicitOrder,'callers with an explicit trusted mutation path retain the normal deletion diff');
+  assert.equal(explicitOrder.deleted,true);
+  entries.push({commandId:'client:explicit-delete',state:'pending',changes:[{type:'orders',id:'order-1',baseVersion:7,deleted:true,payload:null,_fingerprint:''}]});
+  const withJournal=context.__buildPendingEntityChanges({snapshot:snapshot(null),knownEntities:known,conflicts:new Map(),queue,context:scope,allowInferredDeletes:false,suppressedDeletes:[]});
+  assert.equal(withJournal.some(change=>change.type==='orders'&&change.id==='order-1'),false,'an exact durable outbox delete is preserved in the queue and never duplicated by generic recovery');
+  assert.equal(entries[0].changes[0].deleted,true,'the explicit durable delete command is not removed or rewritten');
+}
+
+function verifyCleanEmployeeServerWarehouseNormalizationDoesNotQuarantine(){
+  const scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'},baseline={warehouse:{id:'warehouse-1',name:'Склад',code:'СКЛ',address:'',lat:null,lon:null,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',environment:'live'},data:{}},current={warehouse:{id:'warehouse-1',name:'Склад 1',code:'С1',address:'Серверный адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',environment:'live',origin:'server',revision:4,digest:'a'.repeat(64)},data:{}},serverEntities=[{type:'warehouse',id:'warehouse-1',version:4,event_id:17,digest_sha256:'a'.repeat(64),deleted:false,payload:{id:'warehouse-1',name:'Склад 1',code:'С1',address:'Серверный адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',environment:'live',createdAt:'2026-08-30T00:00:00Z'}}],enqueued=[];
+  const queue={overlayEntries:()=>[],pendingServerResolutions:()=>[],blockedEntityKeys:()=>new Set(),list:()=>[],enqueue:value=>{enqueued.push(value);return value}};
+  const previousRoleFor=context.roleFor,previousHasPermission=context.hasPermission,previousStorage=context.localStorage,previousDirty=context.cloudSyncState.dirty,previousSerial=context.cloudSyncState.serial,quarantineWrites=[];
+  context.roleFor=()=> 'warehouse';context.hasPermission=permission=>['orders.read','inventory.read'].includes(permission);context.localStorage={getItem:()=>null,removeItem:()=>{},setItem:(key,value)=>quarantineWrites.push({key,value})};
+  const captured=context.__capturePreBootstrapLocalIntent(baseline,current,{queue,knownEntities:new Map(),context:scope,serverEntities});
+  assert.equal(captured,0,'clean employee server-normalized warehouse metadata must not become a local write');
+  assert.equal(enqueued.length,0,'clean employee must keep an empty outbox after warehouse normalization');
+  assert.equal(quarantineWrites.some(item=>String(item.key).includes('jf.entity-permission-quarantine')),false,'server-equivalent warehouse metadata must not quarantine a clean employee');
+  context.roleFor=()=> 'owner';context.hasPermission=()=>true;current.warehouse.address='Реально изменённый локальный адрес';
+  const ownerCaptured=context.__capturePreBootstrapLocalIntent(baseline,current,{queue,knownEntities:new Map(),context:scope,serverEntities});
+  assert.equal(ownerCaptured,1,'a real owner warehouse edit that differs from VPS must remain pending');
+  assert.equal(enqueued[0]?.changes?.[0]?.type,'warehouse');
+  context.roleFor=previousRoleFor;context.hasPermission=previousHasPermission;context.localStorage=previousStorage;context.cloudSyncState.dirty=previousDirty;context.cloudSyncState.serial=previousSerial;
+}
+
 function verifyServerEquivalentWarehouseReconcilesFingerprintMigration(){
   const digest='a'.repeat(64),local={warehouse:{id:'warehouse-1',name:'Склад 1',code:'СКЛ',address:'Адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',origin:'server',revision:1,digest},data:{}},server={warehouse:{id:'warehouse-1',name:'Склад 1',code:'СКЛ',address:'Адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',origin:'legacy-server',createdAt:'2026-08-01T00:00:00Z',environment:'live'},data:{}},queue={overlayEntries:()=>[],list:()=>[]},knownAtStart=new Map([['warehouse:warehouse-1',{version:1,digest,fingerprint:'legacy-fingerprint',deleted:false}]]),serverKnown=new Map([['warehouse:warehouse-1',{version:1,digest,fingerprint:'server-raw-fingerprint',deleted:false}]]),scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'};
   context.cloudSyncState.readableTypes=new Set(['warehouse']);context.cloudSyncState.readerUserId='employee-1';
@@ -215,7 +245,7 @@ function verifySafeWarehouseOutboxPrefixReconciliation(){
   const equalConflict=entry({state:'conflict'}),unequalConflict=entry({state:'conflict',changes:[{type:'warehouse',id:'warehouse-1',baseVersion:2,deleted:false,payload:{...payload,address:'Не совпадает'}}]});result=run([equalConflict,unequalConflict]);assert.equal(result.count,1,'reconciliation stops at the first non-equivalent active command');assert.equal(result.conflict,true,'warehouse conflict remains while a blocking warehouse entry remains');
   result=run([entry()],{serverEntities:[{...server,digest_sha256:'invalid'}]});assert.equal(result.count,0,'an invalid server entity cannot confirm a local command');
 
-  const bootstrapStart=renderer.indexOf('async function bootstrapEntitySync'),bootstrapEnd=renderer.indexOf('function scheduleCloudUpload',bootstrapStart),bootstrap=renderer.slice(bootstrapStart,bootstrapEnd),durableRecovery=bootstrap.indexOf('if(cloudSyncState.dirty)'),capture=bootstrap.indexOf('capturePreBootstrapLocalIntent('),reconcile=bootstrap.indexOf('reconcileServerEquivalentWarehouseOutboxV784('),overlay=bootstrap.indexOf('const overlaid=overlayLocalOutbox');
+  const bootstrapStart=renderer.indexOf('async function bootstrapEntitySync'),bootstrapEnd=renderer.indexOf('function scheduleCloudUpload',bootstrapStart),bootstrap=renderer.slice(bootstrapStart,bootstrapEnd),durableRecovery=bootstrap.indexOf('if(cloudSyncState.dirty&&!pendingResolutionsAtStart.length)'),capture=bootstrap.indexOf('capturePreBootstrapLocalIntent('),reconcile=bootstrap.indexOf('reconcileServerEquivalentWarehouseOutboxV784('),overlay=bootstrap.indexOf('const overlaid=overlayLocalOutbox');
   assert(durableRecovery>=0&&durableRecovery<capture&&capture<reconcile&&reconcile<overlay,'bootstrap reconciles only after durable recovery and local-intent capture, before overlay/import');
 }
 
@@ -578,8 +608,10 @@ async function verifyWarehouseRegistryTransitions(){
 
 verifyUnreadableSingletonDefaultsAreNotLocalIntent();
 verifyWritableFirstBootstrapChangeIsPreserved();
+verifyGenericDirtyRecoveryCannotInventServerDelete();
+verifyCleanEmployeeServerWarehouseNormalizationDoesNotQuarantine();
 verifyServerEquivalentWarehouseReconcilesFingerprintMigration();
 verifySafeWarehouseOutboxPrefixReconciliation();
 Promise.all([verifyOfflineOutboxStartupOverlay(),verifyWarehouseRegistryReconciliation(),verifyWarehouseStorageIsolation(),verifyWarehouseRegistryTransitions(),verifyRouteCalculationRejectsStaleDepot(),verifyWarehouseCreateAccessExport(),verifyAuthoritativeEmptyCreateAction(),verifyWarehouseLifecycleUiSource()])
-  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true,unreadableDefaultsIgnored:true,writableFirstBootstrapPreserved:true,serverEquivalentWarehouseMigration:true,safeWarehouseOutboxPrefix:true,quarantineTitleTruthful:true})))
+  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true,unreadableDefaultsIgnored:true,writableFirstBootstrapPreserved:true,genericDirtyDeleteSuppressed:true,explicitDeleteJournalPreserved:true,cleanEmployeeWarehouseNormalizationIgnored:true,serverEquivalentWarehouseMigration:true,safeWarehouseOutboxPrefix:true,quarantineTitleTruthful:true})))
   .catch(error=>{console.error(error);process.exitCode=1});

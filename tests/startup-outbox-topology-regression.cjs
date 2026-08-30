@@ -156,6 +156,13 @@ function createScenario({online}){
     buildPendingEntityChanges:()=>[],
     localOutboxEntry:()=>{throw new Error('no recovery command expected')},
     capturePreBootstrapLocalIntent:()=>0,
+    applyPendingResolutionMetadata:()=>{},
+    finalizePendingServerResolutions:()=>0,
+    commitRemoteEntitySnapshotV784:async({snapshot,metadata})=>{
+      const imported=await context.window.TeplitsaWarehouseV600.importServerSnapshot(snapshot),persisted=await context.window.TeplitsaWarehouseV600.whenPersisted();
+      if(imported===false||persisted===false)throw new Error('test import is not durable');
+      cloudSyncState.known=new Map(metadata.known);cloudSyncState.conflicts=new Map(metadata.conflicts);cloudSyncState.cursor=metadata.cursor;cloudSyncState.readableTypes=new Set(metadata.readableTypes);cloudSyncState.bootstrapped=true;return true;
+    },
     saveEntitySyncState:()=>true,
     integrationBadge:()=>{},
     integrationStatus:()=>{},
