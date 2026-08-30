@@ -9,10 +9,13 @@ const walk = require('acorn-walk');
 const { JSDOM } = require('jsdom');
 
 const desktopPath = path.resolve(__dirname, '../source/application/web/assets/js/110-desktop-platform-v750.js');
+const applicationPath = path.resolve(__dirname, '../source/application/web/assets/js/00-app-bundle-v595.js');
 const indexPath = path.resolve(__dirname, '../source/application/web/index.html');
 const source = fs.readFileSync(desktopPath, 'utf8');
+const applicationSource = fs.readFileSync(applicationPath, 'utf8');
 const index = fs.readFileSync(indexPath, 'utf8');
 const ast = acorn.parse(source, { ecmaVersion: 'latest', sourceType: 'script' });
+const applicationAst = acorn.parse(applicationSource, { ecmaVersion: 'latest', sourceType: 'script' });
 
 const declarations = new Map();
 const functions = new Map();
@@ -22,6 +25,12 @@ walk.simple(ast, {
   },
   FunctionDeclaration(node) {
     if (node.id?.name) functions.set(node.id.name, node);
+  },
+});
+const applicationFunctions = new Map();
+walk.simple(applicationAst, {
+  FunctionDeclaration(node) {
+    if (node.id?.name) applicationFunctions.set(node.id.name, node);
   },
 });
 
@@ -90,5 +99,26 @@ for (const [controlId, functionName] of Object.entries(expectedFunctions)) {
   assert.equal(control.classList.contains('jf-role-hidden'), false, `#${controlId} must be visible when allowed`);
   assert.equal(control.hasAttribute('aria-hidden'), false, `#${controlId} allowed aria state`);
 }
+
+const paymentControl = document.getElementById('toggleOrderPaymentBtn');
+allowed.clear();
+context.applyActionPermissions(document);
+const paymentRenderer = applicationFunctions.get('applyOrderDetailPaymentV595');
+assert.ok(paymentRenderer, 'dynamic order payment renderer must exist');
+const detailBody = document.createElement('div');
+document.body.append(detailBody);
+const applicationContext = vm.createContext({
+  document,
+  $: id => document.getElementById(id),
+  money: value => String(value ?? 0),
+  escapeHtml: value => String(value ?? ''),
+  paymentMethodLabel: value => String(value ?? ''),
+  paymentStatusLabel: value => String(value ?? ''),
+  formatDateTime: value => String(value ?? ''),
+});
+vm.runInContext(applicationSource.slice(paymentRenderer.start, paymentRenderer.end), applicationContext);
+applicationContext.applyOrderDetailPaymentV595({paymentStatus:'pending', paymentMethod:'cash'}, detailBody);
+assert.equal(paymentControl.classList.contains('btn-blue'), true, 'dynamic payment state must update its visual style');
+assert.equal(paymentControl.classList.contains('jf-role-hidden'), true, 'dynamic payment rendering must preserve the denied-role marker');
 
 process.stdout.write(`${JSON.stringify({ ok: true, controls: Object.keys(expectedFunctions).length })}\n`);
