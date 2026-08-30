@@ -165,6 +165,7 @@ assert.ok(renderer.includes('Не сохранено на VPS'),'background writ
 assert.ok(renderer.includes("failure.code.toLowerCase()==='entity_version_conflict'"),'renderer must preserve local state on row conflict');
 assert.ok(renderer.includes('entityTypeSetSignature(result.readableTypes)'), 'permission changes must trigger a fresh access-filtered bootstrap');
 assert.ok(renderer.includes('function commitEntityMutation(intent,mutation)'), 'entity mutations must use the durable local and server confirmation policy');
+assert.ok(renderer.includes("if(error?.code==='ENTITY_SCOPE_CHANGED'||currentEntityInFlight()||currentEntityBootstrapInFlight())throw error;reportCloudSyncFailure(error)"), 'ordinary mutations must fail closed while a previous bootstrap or entity write is still active');
 assert.ok(renderer.includes("saveOrder:{kind:'order_save',critical:false"), 'ordinary order saves must use the durable local-first path');
 assert.ok(renderer.includes("savePickup:{kind:'pickup_save',critical:false,target:editId('#editingPickupId')"), 'pickup saves must use the pickup editor id as their mutation target');
 assert.ok(renderer.includes("if(name==='savePickup')return q('#editingPickupId')?.value?'orders.update':'orders.create'"), 'pickup save permissions must distinguish create from edit using the pickup editor id');
