@@ -1124,7 +1124,7 @@ function ordinaryEntityChangesFromRecovery(journal,currentSnapshot,queue=require
 }
 async function waitForEntitySyncIdle(){
   for(let attempt=0;(currentEntityInFlight()||currentEntityBootstrapInFlight())&&attempt<100;attempt++)await new Promise(resolve=>setTimeout(resolve,25));
-  if(currentEntityInFlight()||currentEntityBootstrapInFlight())throw new Error('Синхронизация занята другой операцией. Повторите действие.')
+  if(currentEntityInFlight()||currentEntityBootstrapInFlight())throw outboxError('ENTITY_SYNC_BUSY','Синхронизация занята другой операцией. Повторите действие.')
 }
 function localOutboxEntry(intent,changes,context={}){
   return{commandId:String(context.commandId||newEntityCommandId()),companyId:String(context.companyId??desktopSession?.auth?.company?.id??''),warehouseId:String(context.warehouseId??activeWarehouseId()),environment:String(context.environment??activeEnvironment()),authorUserId:currentEntityUserId(),deviceId:localOutboxDeviceId(),intent:{kind:String(intent?.kind||'local_change'),targetId:String(intent?.targetId||'')},changes}
@@ -1221,7 +1221,7 @@ function commitEntityMutation(intent,mutation){
       if(critical){
         await waitForEntitySyncIdle();if(cloudSyncState.dirty)await backgroundCloudUpload({force:true});else{await bootstrapEntitySync();await drainLocalOutbox({force:true})}assertEntityScope(operationScope,operationEpoch);await waitForEntitySyncIdle();assertEntityScope(operationScope,operationEpoch);const pending=queue.status();if(pending.active||cloudSyncState.dirty)throw new Error('Сначала синхронизируйте или разрешите локальные изменения. Критическая операция не выполнена.');if(cloudSyncState.conflicts.size)throw new Error('Сначала разрешите конфликт серверных записей. Операция не выполнена.');beginEntityInFlight(operationScope);operationFlightStarted=true;beginCriticalEntityFlight(operationScope);criticalFlight=true
       }else if(onlineEntitySyncAvailable()){
-        try{await waitForEntitySyncIdle();if(cloudSyncState.dirty)await backgroundCloudUpload();else{await bootstrapEntitySync();await drainLocalOutbox()}assertEntityScope(operationScope,operationEpoch)}catch(error){if(error?.code==='ENTITY_SCOPE_CHANGED')throw error;reportCloudSyncFailure(error)}
+        try{await waitForEntitySyncIdle();if(cloudSyncState.dirty)await backgroundCloudUpload();else{await bootstrapEntitySync();await drainLocalOutbox()}assertEntityScope(operationScope,operationEpoch)}catch(error){if(error?.code==='ENTITY_SCOPE_CHANGED'||currentEntityInFlight()||currentEntityBootstrapInFlight())throw error;reportCloudSyncFailure(error)}
       }
       if(!critical){beginEntityInFlight(operationScope);operationFlightStarted=true;beginOrdinaryEntityFlight(operationScope);ordinaryFlight=true}
       // The application mutates many records and arrays in place.  A live reference here

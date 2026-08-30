@@ -23,6 +23,7 @@ const ordinaryCrashRecovery = mode === 'ordinary-crash-recovery';
 const criticalStorageFailover = mode === 'critical-storage-failover';
 const entityAckValidation = mode === 'entity-ack-validation';
 const localMutationDurability = mode === 'local-mutation-durability';
+const syncBusyGuard = mode === 'sync-busy-guard';
 const localWarehouse = mode === 'local-warehouse';
 const localToServerMigrationResume = mode === 'local-to-server-migration-resume';
 const localToServerMigration = mode === 'local-to-server-migration'||localToServerMigrationResume;
@@ -568,6 +569,33 @@ if(ordinaryCrashRecovery){
       })();`;
       window.document.body.append(script);ordinaryCrashRecoveryResult=await window.__ordinaryCrashRecoveryPromise;if(!ordinaryCrashRecoveryResult.prearmGeneration||!ordinaryCrashRecoveryResult.generationBeforeRestart||ordinaryCrashRecoveryResult.oldDrainState!=='confirmed'||!ordinaryCrashRecoveryResult.markerAfterOldDrain||ordinaryCrashRecoveryResult.queueAfterCrash?.active!==0||!ordinaryCrashRecoveryResult.dirtyAfterCrash||!ordinaryCrashRecoveryResult.localAfterCrash||ordinaryCrashRecoveryResult.recoveredUpsert!==true||ordinaryCrashRecoveryResult.queueAfterRecovery?.active<1||ordinaryCrashRecoveryResult.statusAfterDrain?.outbox?.active!==0||ordinaryCrashRecoveryResult.statusAfterDrain?.dirty||!ordinaryCrashRecoveryResult.storedPreserved||!ordinaryCrashRecoveryResult.serverConverged||ordinaryCrashRecoveryResult.attempts!==1||ordinaryCrashRecoveryResult.recoveredDelete!==true||!ordinaryCrashRecoveryResult.deleteJournalCleared||!ordinaryCrashRecoveryResult.deleteLocalPreserved||!ordinaryCrashRecoveryResult.deleteQueued||!ordinaryCrashRecoveryResult.deletePermissionRevokedQueued||!ordinaryCrashRecoveryResult.deleteServerConverged||ordinaryCrashRecoveryResult.deleteStatus?.outbox?.active!==0||ordinaryCrashRecoveryResult.recoveredPostEnqueue!==true||!ordinaryCrashRecoveryResult.postJournalCleared||ordinaryCrashRecoveryResult.postCommandCount!==1||!ordinaryCrashRecoveryResult.postServerConverged||ordinaryCrashRecoveryResult.collisionCode!=='ORDINARY_RECOVERY_COMMAND_COLLISION'||!ordinaryCrashRecoveryResult.collisionJournalRetained||ordinaryCrashRecoveryResult.collisionRecovered!==true||!ordinaryCrashRecoveryResult.collisionJournalCleared||ordinaryCrashRecoveryResult.collisionCommandCount!==1||!ordinaryCrashRecoveryResult.collisionServerConverged||ordinaryCrashRecoveryResult.raceStatusDuring?.ordinaryInFlight<1||ordinaryCrashRecoveryResult.raceContextCode!=='ENTITY_ORDINARY_OPERATION_IN_FLIGHT'||ordinaryCrashRecoveryResult.raceBootstrapCode!=='ENTITY_ORDINARY_MUTATION_IN_FLIGHT'||!ordinaryCrashRecoveryResult.raceLocalPreservedDuring||!ordinaryCrashRecoveryResult.raceContextBlocked||ordinaryCrashRecoveryResult.raceCommitted!==true||!ordinaryCrashRecoveryResult.raceServerConverged||ordinaryCrashRecoveryResult.raceStatusAfter?.ordinaryInFlight!==0||ordinaryCrashRecoveryResult.raceStatusAfter?.outbox?.active!==0)errors.push({phase:'ordinary-crash-recovery',level:'error',text:JSON.stringify(ordinaryCrashRecoveryResult)});
     }catch(error){errors.push({phase:'ordinary-crash-recovery',level:'error',text:error.stack||String(error)})}
+  }
+}
+
+let syncBusyGuardResult = null;
+if (syncBusyGuard) {
+  if (testEdition !== 'full') {
+    errors.push({phase:'sync-busy-guard',level:'error',text:'Тест защиты от медленной синхронизации требует full edition.'});
+  } else {
+    try {
+      if(!window.JustFunEntitySyncV783?.status?.().installed)window.__JustFunEntitySyncTestV783.install();
+      window.__JustFunEntitySyncTestV783.pausePolling();
+      await window.JustFunEntitySyncV783.flushAndConfirm();
+      window.__holdEntityBootstrap=true;window.__holdEntityBootstrapFor=String(window.TeplitsaWarehouseBootstrap.activeWarehouse()?.id||'');window.__entityBootstrapStarted=false;
+      const pendingBootstrap=window.__JustFunEntitySyncTestV783.bootstrap(true);
+      for(let attempt=0;attempt<200&&!window.__entityBootstrapStarted;attempt++)await new Promise(resolve=>setTimeout(resolve,10));
+      if(!window.__entityBootstrapStarted)throw new Error('Управляемая медленная загрузка VPS не запустилась.');
+      let mutationCalls=0;const startedAt=Date.now();
+      const mutationResult=await window.__JustFunEntitySyncTestV783.commitMutation({kind:'order_save',targetId:'sync-busy-guard-order',critical:false},async()=>{mutationCalls++;return true});
+      const statusWhileHeld=window.JustFunEntitySyncV783.status();
+      syncBusyGuardResult={mutationResult,mutationCalls,elapsedMs:Date.now()-startedAt,bootstrapStillInFlight:statusWhileHeld.bootstrapInFlight>0};
+      if(mutationResult!==false||mutationCalls!==0||!syncBusyGuardResult.bootstrapStillInFlight)errors.push({phase:'sync-busy-guard',level:'error',text:JSON.stringify(syncBusyGuardResult)});
+      window.__releaseEntityBootstrap?.();await pendingBootstrap;
+    } catch (error) {
+      errors.push({phase:'sync-busy-guard',level:'error',text:error.stack||String(error)});
+    } finally {
+      window.__holdEntityBootstrap=false;window.__holdEntityBootstrapFor='';window.__releaseEntityBootstrap?.();window.__releaseEntityBootstrap=null;
+    }
   }
 }
 let entityAckValidationResult = null;
@@ -1605,6 +1633,7 @@ const result = {
   criticalCrashRecovery: criticalCrashRecoveryResult,
   criticalStorageFailover: criticalStorageFailoverResult,
   ordinaryCrashRecovery: ordinaryCrashRecoveryResult,
+  syncBusyGuard: syncBusyGuardResult,
   entityAckValidation: entityAckValidationResult,
   localMutationDurability: localMutationDurabilityResult,
   localWarehouse: localWarehouseResult,
