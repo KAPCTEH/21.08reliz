@@ -1032,14 +1032,35 @@ if (deepBusiness) {
           toasts: [...document.querySelectorAll('#jfToastStack .jf-toast')].slice(-5).map(item => item.textContent)
         }));
         await openRouteClosure(readyRouteId);
-        for (const orderId of routeOrderIds) {
+        const executionBeforeDraft = JSON.stringify(routeExecutions[readyRouteId]);
+        const partialOrderId = routeOrderIds[0];
+        const partialOrderItem = orders.find(order => order.id === partialOrderId)?.items?.[0];
+        const partialItemKey = partialOrderItem?.productId || partialOrderItem?.name || '';
+        const partialQty = Math.max(0.001, Number(partialOrderItem?.qty || 1) / 2);
+        setRouteOrderOutcome(partialOrderId, 'partial');
+        updateRouteOutcomeQty(partialOrderId, partialItemKey, partialQty);
+        updateRouteOutcomeReason(partialOrderId, 'Черновик причины без записи в общую базу');
+        updateRouteOutcomePaid(partialOrderId, true);
+        for (const orderId of routeOrderIds.slice(1)) {
           setRouteOrderOutcome(orderId, 'delivered');
           updateRouteOutcomePaid(orderId, true);
         }
-        document.getElementById('routeActualKm').value = String(Math.max(1, Number(routePlans[readyRouteId]?.distance || 1000) / 1000));
+        const routeActualKmDraft = String(Math.max(1, Number(routePlans[readyRouteId]?.distance || 1000) / 1000));
+        const routeNoteDraft = 'Черновик примечания без записи в общую базу';
+        document.getElementById('routeActualKm').value = routeActualKmDraft;
+        document.getElementById('routeCloseNote').value = routeNoteDraft;
+        closeRouteCloseModal();
+        check('Черновик закрытия не меняет общую запись рейса', JSON.stringify(routeExecutions[readyRouteId]) === executionBeforeDraft);
+        await openRouteClosure(readyRouteId);
+        const restoredPartialQty = Number(document.querySelector('#routeCloseOrders .partial-item-row input')?.value || 0);
+        const restoredReason = document.querySelector('#routeCloseOrders textarea')?.value || '';
+        const restoredPaid = document.querySelector('#routeCloseOrders input[type="checkbox"]')?.checked === true;
+        check('Черновик закрытия сохраняется только в памяти окна', document.getElementById('routeActualKm').value === routeActualKmDraft && document.getElementById('routeCloseNote').value === routeNoteDraft && Math.abs(restoredPartialQty - partialQty) < 0.0001 && restoredReason === 'Черновик причины без записи в общую базу' && restoredPaid);
+        setRouteOrderOutcome(partialOrderId, 'delivered');
         await window.commitRouteClosure();
         check('Закрытие удаляет рейс из активных', !routeExecutions[readyRouteId] && !routePlans[readyRouteId]);
         check('Закрытие переносит рейс в архив', routeArchives.length === archiveCountBefore + 1 && routeArchives[0]?.id === readyRouteId);
+        check('Подтверждённое закрытие переносит пробег и примечание в архив', Number(routeArchives[0]?.actualKm) === Number(routeActualKmDraft) && routeArchives[0]?.note === routeNoteDraft);
         check('Доставленные и оплаченные заказы закрыты', routeOrderIds.every(id => {
           const order = orders.find(item => item.id === id);
           return order?.fulfillmentStatus === 'delivered' && order.warehouseFlowStatus === 'shipped' && order.paymentStatus === 'paid' && order.archived;
