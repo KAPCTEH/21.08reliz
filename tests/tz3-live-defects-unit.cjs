@@ -26,6 +26,15 @@ assert.equal(gateContext.gate({reliabilityScore:95,actions:[]}).tone,'good');
 const route=read('source/application/web/assets/js/90-route-engine.js'),routeContext=vm.createContext({asArray:value=>Array.isArray(value)?value:[],routeLifecycleV560:def=>({code:def.code})});vm.runInContext(`${functionSource(route,'buildOutcomeCounts')};this.counts=buildOutcomeCounts`,routeContext);
 assert.deepEqual(JSON.parse(JSON.stringify(routeContext.counts([{code:'ready'},{code:'needs_action'},{code:'draft'}]))),{ready:1,problems:1,drafts:1});
 const branding=read('source/application/web/assets/js/100-multi-warehouse-v600.js'),clarity=read('source/application/web/assets/css/140-clarity-redesign-v783.css'),preload=read('source/application/preload.js'),main=read('source/application/main.js');
+const snapshotIdentifierContext=vm.createContext({});vm.runInContext(`${functionSource(main,'validateSnapshotEntityIdentifiers')};${functionSource(branding,'validateSafeSnapshotIdentifiersV783')};this.validators=[validateSnapshotEntityIdentifiers,validateSafeSnapshotIdentifiersV783]`,snapshotIdentifierContext);
+for(const validateSnapshotIds of snapshotIdentifierContext.validators){
+  assert.doesNotThrow(()=>validateSnapshotIds({orders:[{id:'order_safe_1',geo:{addressId:'nominatim:relation:20269374'},productId:'product_safe_1'}],routeCatalog:{route_safe_1:{id:'route_safe_1'}}}));
+  assert.throws(()=>validateSnapshotIds({orders:[{id:'order:sneaky'}]}),/небезопасный идентификатор/i);
+  assert.throws(()=>validateSnapshotIds({orders:[{id:'order_safe_1',productId:'product:sneaky'}]}),/небезопасный идентификатор/i);
+  assert.throws(()=>validateSnapshotIds({orders:[{id:'order_safe_1',addressId:'nominatim:relation:<unsafe>'}]}),/небезопасный идентификатор/i);
+  assert.throws(()=>validateSnapshotIds({orders:[{id:'order_safe_1',addressId:`nominatim:${'a'.repeat(191)}`}]}),/небезопасный идентификатор/i);
+  assert.throws(()=>validateSnapshotIds({routeCatalog:{'route:sneaky':{id:'route_safe_1'}}}),/небезопасный ключ/i);
+}
 assert.match(branding,/logo-center-v600/);assert.match(branding,/lastBackupKind/);assert.match(branding,/safety\?\.confirmed/);assert.match(read('source/application/web/assets/js/98-smart-automation-v598.js'),/lastBackupKind:settings\.program\?\.lastBackupKind/);
 assert.match(branding,/JustFunSmartProgramV783\?\.renderHealth/);assert.match(read('source/application/web/assets/js/98-smart-automation-v598.js'),/JustFunSmartProgramV783=Object\.freeze/);
 assert.match(branding,/logo\.style\.setProperty\('display','none','important'\)/);assert.match(app,/Самовывоз подготовлен: товар зарезервирован на складе/);assert.match(app,/По вашему запросу ничего не найдено/);assert.match(app,/confirmManualGeoAddress/);assert.match(app,/Координаты и показанный водителю адрес будут сохранены только вместе/);assert.match(app,/aria-expanded="false">Параметры груза/);

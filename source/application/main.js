@@ -1744,6 +1744,9 @@ function validateWarehouseSnapshot(snapshot, expectedWarehouseId, expectedEnviro
 
 function validateSnapshotEntityIdentifiers(data) {
   const safe=value=>value === '' || /^[A-Za-z0-9_-]{1,160}$/.test(String(value));
+  const safeForKey=(value,key)=>key==='addressId'
+    ? value === '' || /^[A-Za-z0-9_.:-]{1,200}$/.test(String(value))
+    : safe(value);
   const visit=(value,key='',depth=0)=>{
     if(depth>40)throw new Error('Снимок имеет недопустимую глубину вложенности.');
     if(Array.isArray(value)){
@@ -1752,7 +1755,7 @@ function validateSnapshotEntityIdentifiers(data) {
       return;
     }
     if(!value||typeof value!=='object'){
-      if(/(?:^id$|Id$)/.test(key)&&!safe(value))throw new Error(`Снимок содержит небезопасный идентификатор ${key}.`);
+      if(/(?:^id$|Id$)/.test(key)&&!safeForKey(value,key))throw new Error(`Снимок содержит небезопасный идентификатор ${key}.`);
       return;
     }
     for(const [childKey,child] of Object.entries(value))visit(child,childKey,depth+1);
