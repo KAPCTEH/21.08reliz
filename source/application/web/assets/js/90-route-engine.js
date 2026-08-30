@@ -163,7 +163,7 @@
     const plan=await calculateRoute(def),finalization=routeFinalizationState(def,plan);plan.finalization=clone(finalization);plan.finalized=finalization.safe;plan.reviewReasons=finalization.reasons;plan.reviewWarnings=finalization.warnings;
     const splittable=allowSplit&&settings.smartRoute?.autoSplitOverload!==false&&depth<8&&def.orders.length>1&&!finalization.stockShortages.length&&!finalization.hardReasons.some(x=>/дата|склад|координат|адрес|товар|хронолог|составу/.test(x));
     if(splittable&&!finalization.safe){const chunks=forceSplit(def.orders);if(chunks.length>1&&chunks.every(c=>c.length<def.orders.length)){const children=materializeRouteChunks(def,chunks),result=[];for(const child of children)result.push(...await calculateFinalizeV570(child,true,depth+1));return result}}
-    routePlans[def.id]=plan;if(finalization.safe)freezeRouteOrders(def);else releaseRouteLocks(def);persistRoutes();return[def]
+    plan.lifecycleStatus=finalization.safe?'ready_to_release':'needs_decision';plan.lifecycleUpdatedAt=new Date().toISOString();routePlans[def.id]=plan;if(finalization.safe){freezeRouteOrders(def);markRouteWarehouseReserved(def)}else releaseRouteLocks(def);persistRoutes();return[def]
   }
   calculateFinalizeRoute=calculateFinalizeV570;
 
@@ -180,8 +180,8 @@
     persistRouteDrivers();return repairDriverDateConflicts()
   };
 
-  function snapshotState(){return{routeAssignments:clone(routeAssignments),routeCatalog:clone(routeCatalog),routeDriverAssignments:clone(routeDriverAssignments),routeLocks:clone(routeLocks),routePlans:clone(routePlans),routeOverrides:clone(routeOverrides)}}
-  function restoreState(s){routeAssignments=s.routeAssignments;routeCatalog=s.routeCatalog;routeDriverAssignments=s.routeDriverAssignments;routeLocks=s.routeLocks;routePlans=s.routePlans;routeOverrides=s.routeOverrides;persistRouteAssignments();persistRouteDrivers();persistRouteLocks();persistRoutes();persistRouteOverrides()}
+  function snapshotState(){return{orders:clone(orders),routeAssignments:clone(routeAssignments),routeCatalog:clone(routeCatalog),routeDriverAssignments:clone(routeDriverAssignments),routeLocks:clone(routeLocks),routePlans:clone(routePlans),routeOverrides:clone(routeOverrides)}}
+  function restoreState(s){orders=s.orders;routeAssignments=s.routeAssignments;routeCatalog=s.routeCatalog;routeDriverAssignments=s.routeDriverAssignments;routeLocks=s.routeLocks;routePlans=s.routePlans;routeOverrides=s.routeOverrides;persistOrders();persistRouteAssignments();persistRouteDrivers();persistRouteLocks();persistRoutes();persistRouteOverrides()}
   function activeFingerprint(){const out={};for(const id of activeIds()){const e=routeExecutions[id];out[id]=JSON.stringify({e,plan:routePlans[id],driver:routeDriverAssignments[id],orders:asArray(e?.orderIds).map(oid=>[oid,routeAssignments[oid],routeLocks[oid]])})}return out}
   function activeFingerprintEqual(before){const after=activeFingerprint(),keys=uniq([...Object.keys(before),...Object.keys(after)]);return keys.every(k=>before[k]===after[k])}
   function cleanupStale(){const referenced=new Set([...Object.values(routeAssignments).filter(x=>x&&x!=='__unassigned__'),...Object.keys(routeExecutions||{}),...asArray(routeArchives).map(x=>x.id).filter(Boolean)]);for(const id of Object.keys(routeCatalog))if(!referenced.has(id)){delete routeCatalog[id];delete routePlans[id];delete routeDriverAssignments[id];delete routeOverrides[id]}persistRouteAssignments();persistRouteDrivers();persistRoutes();persistRouteOverrides()}

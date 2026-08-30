@@ -33,7 +33,7 @@ const FUNCTION_PERMISSIONS={
   retryCurrentDelivery:'orders.status',resolveCurrentPartial:'orders.status',confirmNotRelevant:'orders.status',
   setOrderFulfillment:'orders.status',setRouteOrderOutcome:'orders.status',archiveOrder:'orders.status',
   deleteOrder:'orders.delete',
-  buildAllRoutes:'routes.plan',createManualRoute:'routes.plan',resetRouteAssignments:'routes.plan',
+  buildAllRoutes:'routes.plan',buildSingleRoute:'routes.plan',createManualRoute:'routes.plan',resetRouteAssignments:'routes.plan',
   openRouteComposer:'routes.plan',addOrderToRoute:'routes.plan',removeOrderFromRoute:'routes.plan',
   assignDriverToRoute:'drivers.assign',clearRouteDriver:'drivers.assign',approveRouteManually:'routes.approve',
   restoreAllUnassigned:'routes.plan',restoreAutoAssignment:'routes.plan',clearRoutePlans:'routes.plan',
