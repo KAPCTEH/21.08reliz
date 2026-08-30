@@ -97,6 +97,7 @@ class LicenseSchemaTests(unittest.TestCase):
                 "007-warehouse-delete-leases",
                 "008-vps-attestations",
                 "009-invitation-lifecycle",
+                "010-session-binding",
             },
         )
 

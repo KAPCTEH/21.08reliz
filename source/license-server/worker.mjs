@@ -792,6 +792,7 @@ async function acceptInvitation(env, request, data, requestId) {
   const invitationPermissions = permissionsForRole(row.role, (()=>{try{return JSON.parse(row.permissions_json||'[]')}catch{return[]}})());
   const userId = id('usr');
   const deviceId = id('dev');
+  const sessionId = id('ses');
   const refreshToken = randomToken(48);
   const expiresAt = new Date(Date.now() + REFRESH_SECONDS * 1000).toISOString();
   const createdAt = nowIso();
@@ -809,7 +810,7 @@ async function acceptInvitation(env, request, data, requestId) {
       env.DB.prepare(`
         INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,status,created_at,expires_at)
         VALUES(?,?,?,?,?,\'active\',?,?)
-      `).bind(id('ses'), row.company_id, userId, deviceId, await sha256(refreshToken), createdAt, expiresAt),
+      `).bind(sessionId, row.company_id, userId, deviceId, await sha256(refreshToken), createdAt, expiresAt),
     ]);
   } catch (error) {
     if (String(error).includes('WAREHOUSE_DELETE_IN_PROGRESS')) {

@@ -26,18 +26,28 @@ for (const check of checks) {
   let status = 0;
   let payload = {};
   let error = '';
-  try {
-    const response = await fetch(`${origin}${check.path}`, {
-      method: check.method,
-      headers: check.body ? { 'content-type': 'application/json' } : {},
-      body: check.body ? JSON.stringify(check.body) : undefined,
-      signal: AbortSignal.timeout(15_000),
-    });
-    status = response.status;
-    try { payload = await response.json(); }
-    catch { error = 'INVALID_JSON'; }
-  } catch (requestError) {
-    error = String(requestError?.message || requestError);
+  let attempts = 0;
+  for (; attempts < 2; attempts += 1) {
+    status = 0;
+    payload = {};
+    error = '';
+    const timeoutSignal = AbortSignal.timeout(15_000);
+    try {
+      const response = await fetch(`${origin}${check.path}`, {
+        method: check.method,
+        headers: check.body ? { 'content-type': 'application/json' } : {},
+        body: check.body ? JSON.stringify(check.body) : undefined,
+        signal: timeoutSignal,
+      });
+      status = response.status;
+      try { payload = await response.json(); }
+      catch { error = 'INVALID_JSON'; }
+      break;
+    } catch (requestError) {
+      const timedOut = timeoutSignal.aborted && timeoutSignal.reason?.name === 'TimeoutError';
+      error = String(requestError?.message || requestError);
+      if (!timedOut || attempts === 1) break;
+    }
   }
   const ok = check.expected.includes(status)
     && !error
@@ -56,6 +66,7 @@ for (const check of checks) {
     auth_contract: payload?.auth_contract ?? null,
     session_binding_contract: payload?.session_binding_contract ?? null,
     warehouse_delete_lease_contract: payload?.warehouse_delete_lease_contract ?? null,
+    attempts: attempts + 1,
     ok,
   });
 }

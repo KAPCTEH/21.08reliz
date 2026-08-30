@@ -556,7 +556,7 @@ const leaseDb = {
         return this;
       },
       async first() {
-        if (sql.includes('FROM users u')) return leaseAuthRows.get(this.args[1]) || null;
+        if (sql.includes('FROM users u')) return leaseAuthRows.get(this.args[2]) || null;
         if (sql.includes('INSERT INTO rate_limits')) {
           const [bucket, windowStart] = this.args;
           leaseRateBuckets.push(bucket);
