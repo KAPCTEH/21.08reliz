@@ -11,6 +11,8 @@ const multiWarehouse=fs.readFileSync(path.join(root,'source/application/web/asse
 const routeEngine=fs.readFileSync(path.join(root,'source/application/web/assets/js/90-route-engine.js'),'utf8');
 const warehousePayloadStart=renderer.indexOf('function serverWarehouseEntityPayloadV784');
 const warehousePayloadEnd=renderer.indexOf('function activeWarehouseSettingsMatchV783',warehousePayloadStart);
+const accessCaptureStart=renderer.indexOf('async function captureDirtyLocalChangesBeforeAccessRefresh');
+const accessCaptureEnd=renderer.indexOf('function blockTerminalLiveAccess',accessCaptureStart);
 const updatePermissionStart=renderer.indexOf('const ENTITY_UPDATE_PERMISSION=');
 const updatePermissionEnd=renderer.indexOf('const cloudSyncState=',updatePermissionStart);
 const start=renderer.indexOf('function stableEntityValue');
@@ -24,6 +26,7 @@ const localOutboxEntryEnd=renderer.indexOf('const SERVER_ENTITY_INTENTS_V783',lo
 const validateAckStart=renderer.indexOf('function validateEntityBatchAck');
 const validateAckEnd=renderer.indexOf('function acceptEntityBatchResult',validateAckStart);
 assert(warehousePayloadStart>=0&&warehousePayloadEnd>warehousePayloadStart,'warehouse payload source fragment is available');
+assert(accessCaptureStart>=0&&accessCaptureEnd>accessCaptureStart,'access refresh local capture source fragment is available');
 assert(updatePermissionStart>=0&&updatePermissionEnd>updatePermissionStart,'entity update permission source is available');
 assert(start>=0&&end>start,'server-authoritative snapshot source fragment is available');
 assert(entityChangesStart>=0&&entityChangesEnd>entityChangesStart,'entity comparison source fragment is available');
@@ -83,14 +86,16 @@ const context={
   ENTITY_SETTINGS_INTEGRATION_FIELDS:['nominatimUrl'],
   cloudSyncState:{installed:false,bootstrapped:false,bootstrapPromise:null,bootstrapFlights:new Map(),scopeEpoch:0,dirty:false,serial:0,suspended:0,uploadTimer:null,pollTimer:null,retryTimer:null,inFlightScopes:new Map(),criticalFlights:new Map(),ordinaryFlights:new Map(),ordinaryPrearms:new Map(),contextBlockedError:null,pollFailures:0,nextPollAt:0,scope:'',cursor:0,known:new Map(),conflicts:new Map(),readableTypes:new Set(),readerUserId:'employee-1',outboxes:new Map(),outbox:null,outboxError:null,localBaseline:null},
   q:()=>null,
+  resetEntityScope:()=>{},
   audit:()=>{},
+  blockWorkspaceForEntityPermissionQuarantine:()=>{},
   clearTimeout:()=>{},
   roleFor:()=> 'owner',
   hasPermission:()=>true,
 };
 context.isTrainingEnvironment=()=>context.activeEnvironment()==='demo';
 vm.createContext(context);
-vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(updatePermissionStart,updatePermissionEnd)}\n${renderer.slice(warehousePayloadStart,warehousePayloadEnd)}\n${renderer.slice(start,end)}\n${renderer.slice(entityChangesStart,entityChangesEnd)}\n${renderer.slice(pendingChangesStart,pendingChangesEnd)}\n${renderer.slice(localOutboxEntryStart,localOutboxEntryEnd)}\nglobalThis.__fromServer=snapshotFromServerEntities;globalThis.__fp=entityFingerprint;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;globalThis.__capturePreBootstrapLocalIntent=capturePreBootstrapLocalIntent;globalThis.__recoveryKnownEntitiesFromServer=recoveryKnownEntitiesFromServer;globalThis.__buildPendingEntityChanges=buildPendingEntityChanges;globalThis.__reconcileWarehouseOutbox=reconcileServerEquivalentWarehouseOutboxV784;`,context);
+vm.runInContext(`const WAREHOUSE_REGISTRY_ENVIRONMENT='live';\n${renderer.slice(updatePermissionStart,updatePermissionEnd)}\n${renderer.slice(warehousePayloadStart,warehousePayloadEnd)}\n${renderer.slice(accessCaptureStart,accessCaptureEnd)}\n${renderer.slice(start,end)}\n${renderer.slice(entityChangesStart,entityChangesEnd)}\n${renderer.slice(pendingChangesStart,pendingChangesEnd)}\n${renderer.slice(localOutboxEntryStart,localOutboxEntryEnd)}\nglobalThis.__fromServer=snapshotFromServerEntities;globalThis.__fp=entityFingerprint;globalThis.__semanticFp=semanticEntityFingerprintV784;globalThis.__split=splitEntitySnapshot;globalThis.__seed=initialServerSeedChanges;globalThis.__captureDirtyBeforeAccessRefresh=captureDirtyLocalChangesBeforeAccessRefresh;globalThis.__capturePreBootstrapLocalIntent=capturePreBootstrapLocalIntent;globalThis.__recoveryKnownEntitiesFromServer=recoveryKnownEntitiesFromServer;globalThis.__buildPendingEntityChanges=buildPendingEntityChanges;globalThis.__reconcileWarehouseOutbox=reconcileServerEquivalentWarehouseOutboxV784;`,context);
 assert.equal(typeof context.window.JustFunServerStorageV3?.writeWarehouse,'function','browser storage export remains available in the extracted fragment');
 assert(Object.isFrozen(context.window.JustFunServerStorageV3),'browser storage export remains immutable');
 
@@ -203,6 +208,54 @@ function verifyCleanEmployeeServerWarehouseNormalizationDoesNotQuarantine(){
   assert.equal(ownerCaptured,1,'a real owner warehouse edit that differs from VPS must remain pending');
   assert.equal(enqueued[0]?.changes?.[0]?.type,'warehouse');
   context.roleFor=previousRoleFor;context.hasPermission=previousHasPermission;context.localStorage=previousStorage;context.cloudSyncState.dirty=previousDirty;context.cloudSyncState.serial=previousSerial;
+}
+
+function verifyConflictResolutionRecoveryIgnoresOnlyServerEquivalentWarehouseMetadata(){
+  const scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'},serverWarehouse={type:'warehouse',id:'warehouse-1',version:8,event_id:31,digest_sha256:'b'.repeat(64),deleted:false,payload:{id:'warehouse-1',name:'Склад 1',code:'С1',address:'Серверный адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',environment:'live',createdAt:'2026-08-30T00:00:00Z'}},current=snapshot({...base.payload,name:'Локальная версия после конфликта'});
+  current.warehouse={id:'warehouse-1',name:'Склад 1',code:'С1',address:'Серверный адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',environment:'live',origin:'server',revision:8,digest:'b'.repeat(64)};
+  const pendingOrder={type:'orders',id:'order-1',baseVersion:1,deleted:false,payload:{...base.payload,name:'Локальная конфликтная версия'},_fingerprint:context.__fp({...base.payload,name:'Локальная конфликтная версия'})},entry={commandId:'client:conflict-order',state:'conflict',preserveLocal:true,changes:[pendingOrder]},queue={overlayEntries:()=>[entry],list:()=>[entry]},known=new Map([
+    ['warehouse:warehouse-1',{version:8,digest:'b'.repeat(64),fingerprint:context.__fp(serverWarehouse.payload),deleted:false,eventId:31}],
+    ['orders:order-1',{version:2,digest:'c'.repeat(64),fingerprint:context.__fp(base.payload),deleted:false,eventId:32}],
+  ]),quarantineWrites=[];
+  const previousRoleFor=context.roleFor,previousHasPermission=context.hasPermission,previousStorage=context.localStorage;
+  context.roleFor=()=> 'warehouse';context.hasPermission=permission=>['orders.read','orders.update'].includes(permission);context.localStorage={getItem:()=>null,removeItem:()=>{},setItem:(key,value)=>quarantineWrites.push({key,value})};
+  assert.equal(context.__semanticFp('warehouse','warehouse-1',serverWarehouse.payload,scope),context.__semanticFp('warehouse','warehouse-1',current.warehouse,scope),'raw VPS createdAt fields and projected local warehouse metadata must share one semantic fingerprint');
+  const employeeChanges=context.__buildPendingEntityChanges({snapshot:current,knownEntities:known,conflicts:new Map(),queue,context:scope,serverEntities:[serverWarehouse]});
+  assert.equal(employeeChanges.map(change=>change.type).join(','),'orders','conflict recovery must retain the employee order change without inventing a warehouse write');
+  assert.equal(quarantineWrites.some(item=>String(item.key).includes('jf.entity-permission-quarantine')),false,'server-equivalent warehouse metadata must not quarantine the employee while keeping the local conflict choice');
+  current.warehouse.address='Расходящийся адрес без права склада';let denied=null;try{context.__buildPendingEntityChanges({snapshot:current,knownEntities:known,conflicts:new Map(),queue,context:scope,serverEntities:[serverWarehouse],reason:'conflict_resolution_local_capture'})}catch(error){denied=error}
+  assert.equal(denied?.code,'ENTITY_LOCAL_CHANGES_PERMISSION_REVOKED','an unauthorized divergent warehouse edit must still enter fail-closed quarantine');
+  assert.equal(denied?.details?.reason,'conflict_resolution_local_capture','quarantine must preserve the exact capture path instead of reporting generic dirty recovery');
+  const quarantineRecord=quarantineWrites.find(item=>String(item.key).includes('jf.entity-permission-quarantine'));assert.equal(JSON.parse(quarantineRecord?.value||'{}').reason,'conflict_resolution_local_capture','the durable quarantine record must retain the exact conflict capture reason');
+  context.cloudSyncState.contextBlockedError=null;context.roleFor=()=> 'owner';context.hasPermission=()=>true;current.warehouse.address='Реально изменённый владельцем адрес';
+  const ownerChanges=context.__buildPendingEntityChanges({snapshot:current,knownEntities:known,conflicts:new Map(),queue,context:scope,serverEntities:[serverWarehouse]});
+  assert.equal(ownerChanges.some(change=>change.type==='warehouse'&&change.payload.address==='Реально изменённый владельцем адрес'),true,'a real owner warehouse edit must remain recoverable during the same conflict path');
+  context.roleFor=previousRoleFor;context.hasPermission=previousHasPermission;context.localStorage=previousStorage;
+}
+
+async function verifyQuarantinedLegacyKnownSelfHealsThroughCurrentServerWarehouse(){
+  const scope={companyId:'company-1',warehouseId:'warehouse-1',environment:'live'},serverWarehouse={type:'warehouse',id:'warehouse-1',version:8,event_id:31,digest_sha256:'b'.repeat(64),payload:{id:'warehouse-1',name:'Склад 1',code:'С1',address:'Серверный адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',environment:'live',createdAt:'2026-08-30T00:00:00Z'}},current=snapshot({...base.payload,name:'Локальная версия после конфликта'});
+  current.warehouse={id:'warehouse-1',name:'Склад 1',code:'С1',address:'Серверный адрес',lat:59.1,lon:30.1,timezone:'Europe/Moscow',status:'active',catalogMode:'catalog',environment:'live',origin:'server',revision:8,digest:'b'.repeat(64)};
+  const pendingOrder={type:'orders',id:'order-1',baseVersion:1,deleted:false,payload:{...base.payload,name:'Локальная конфликтная версия'},_fingerprint:context.__fp({...base.payload,name:'Локальная конфликтная версия'})},entry={commandId:'client:conflict-order',state:'conflict',preserveLocal:true,changes:[pendingOrder]},queue={overlayEntries:()=>[entry],list:()=>[entry]},known=new Map([
+    ['warehouse:warehouse-1',{version:8,digest:'b'.repeat(64),fingerprint:context.__fp(serverWarehouse.payload),deleted:false,eventId:31}],
+    ['orders:order-1',{version:2,digest:'c'.repeat(64),fingerprint:context.__fp(base.payload),deleted:false,eventId:32}],
+  ]),removed=[],captured=[],previous={roleFor:context.roleFor,hasPermission:context.hasPermission,localStorage:context.localStorage,buildBackupPayload:context.buildBackupPayload,liveAccessRefreshBusy:context.liveAccessRefreshBusy,enqueueBackgroundSnapshot:context.enqueueBackgroundSnapshot,desktop:context.window.JustFunDesktop,warehouse:context.window.TeplitsaWarehouseV600,dirty:context.cloudSyncState.dirty,scope:context.cloudSyncState.scope,known:context.cloudSyncState.known,conflicts:context.cloudSyncState.conflicts};
+  context.roleFor=()=> 'warehouse';context.hasPermission=permission=>['orders.read','orders.update'].includes(permission);context.localStorage={getItem:key=>String(key).includes('jf.entity-permission-quarantine')?'{}':null,setItem:()=>{},removeItem:key=>removed.push(String(key))};context.buildBackupPayload=()=>structuredClone(current);context.liveAccessRefreshBusy=()=>false;context.cloudSyncState.dirty=true;context.cloudSyncState.scope='company-1:live:warehouse-1';context.cloudSyncState.known=known;context.cloudSyncState.conflicts=new Map();context.window.TeplitsaWarehouseV600={whenPersisted:async()=>true};let bootstraps=0;context.window.JustFunDesktop={regVps:{bootstrapEntities:async()=>{bootstraps++;return{ok:true,entities:[structuredClone(serverWarehouse)]}}}};
+  context.enqueueBackgroundSnapshot=(targetQueue,targetSnapshot,options)=>{captured.push(options);return context.__buildPendingEntityChanges({snapshot:targetSnapshot,knownEntities:options.knownEntities,conflicts:options.conflicts,queue:targetQueue,context:options.context,serverEntities:options.serverEntities,reason:options.kind}).length};
+  await context.__captureDirtyBeforeAccessRefresh(scope,queue);
+  assert.equal(bootstraps,1,'retrying an existing permission quarantine must obtain the current VPS warehouse before local capture');
+  assert.equal(captured[0]?.serverEntities?.length,1,'the current VPS entity must reach dirty recovery instead of trusting the legacy raw fingerprint');
+  assert.equal(removed.some(key=>key.includes('jf.entity-permission-quarantine')),true,'an equivalent projected warehouse must clear the stale quarantine without deleting all local storage');
+  assert.equal(context.cloudSyncState.known.get('warehouse:warehouse-1')?.fingerprint,context.__semanticFp('warehouse','warehouse-1',serverWarehouse.payload,scope),'the verified VPS warehouse must replace the persisted legacy raw fingerprint before the workspace reopens');
+  const legacyFingerprint=context.__fp(serverWarehouse.payload);context.cloudSyncState.known=new Map([
+    ['warehouse:warehouse-1',{version:8,digest:'b'.repeat(64),fingerprint:legacyFingerprint,deleted:false,eventId:31}],
+    ['orders:order-1',{version:2,digest:'c'.repeat(64),fingerprint:context.__fp(base.payload),deleted:false,eventId:32}],
+  ]);removed.length=0;captured.length=0;context.window.JustFunDesktop={regVps:{bootstrapEntities:async()=>({ok:true,entities:[{...structuredClone(serverWarehouse),digest_sha256:'invalid'}]})}};let invalidError=null;try{await context.__captureDirtyBeforeAccessRefresh(scope,queue)}catch(error){invalidError=error}
+  assert.equal(invalidError?.code,'ENTITY_QUARANTINE_WAREHOUSE_STATE_INVALID','an invalid VPS warehouse proof must fail closed before local capture');
+  assert.equal(captured.length,0,'invalid VPS warehouse metadata must not reach a capture that could clear quarantine');
+  assert.equal(removed.length,0,'invalid VPS warehouse metadata must keep the quarantine marker');
+  assert.equal(context.cloudSyncState.known.get('warehouse:warehouse-1')?.fingerprint,legacyFingerprint,'invalid VPS warehouse metadata must not replace persisted known state');
+  context.roleFor=previous.roleFor;context.hasPermission=previous.hasPermission;context.localStorage=previous.localStorage;context.buildBackupPayload=previous.buildBackupPayload;context.liveAccessRefreshBusy=previous.liveAccessRefreshBusy;context.enqueueBackgroundSnapshot=previous.enqueueBackgroundSnapshot;context.window.JustFunDesktop=previous.desktop;context.window.TeplitsaWarehouseV600=previous.warehouse;context.cloudSyncState.dirty=previous.dirty;context.cloudSyncState.scope=previous.scope;context.cloudSyncState.known=previous.known;context.cloudSyncState.conflicts=previous.conflicts;
 }
 
 function verifyServerEquivalentWarehouseReconcilesFingerprintMigration(){
@@ -610,8 +663,9 @@ verifyUnreadableSingletonDefaultsAreNotLocalIntent();
 verifyWritableFirstBootstrapChangeIsPreserved();
 verifyGenericDirtyRecoveryCannotInventServerDelete();
 verifyCleanEmployeeServerWarehouseNormalizationDoesNotQuarantine();
+verifyConflictResolutionRecoveryIgnoresOnlyServerEquivalentWarehouseMetadata();
 verifyServerEquivalentWarehouseReconcilesFingerprintMigration();
 verifySafeWarehouseOutboxPrefixReconciliation();
-Promise.all([verifyOfflineOutboxStartupOverlay(),verifyWarehouseRegistryReconciliation(),verifyWarehouseStorageIsolation(),verifyWarehouseRegistryTransitions(),verifyRouteCalculationRejectsStaleDepot(),verifyWarehouseCreateAccessExport(),verifyAuthoritativeEmptyCreateAction(),verifyWarehouseLifecycleUiSource()])
-  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true,unreadableDefaultsIgnored:true,writableFirstBootstrapPreserved:true,genericDirtyDeleteSuppressed:true,explicitDeleteJournalPreserved:true,cleanEmployeeWarehouseNormalizationIgnored:true,serverEquivalentWarehouseMigration:true,safeWarehouseOutboxPrefix:true,quarantineTitleTruthful:true})))
+verifyQuarantinedLegacyKnownSelfHealsThroughCurrentServerWarehouse().then(()=>Promise.all([verifyOfflineOutboxStartupOverlay(),verifyWarehouseRegistryReconciliation(),verifyWarehouseStorageIsolation(),verifyWarehouseRegistryTransitions(),verifyRouteCalculationRejectsStaleDepot(),verifyWarehouseCreateAccessExport(),verifyAuthoritativeEmptyCreateAction(),verifyWarehouseLifecycleUiSource()]))
+  .then(()=>console.log(JSON.stringify({ok:true,serverWins:true,staleLocalRecordsRemoved:true,serverDeletedWarehousesRemoved:true,localOnlyWarehouseReimportBlocked:true,entityVersionAuthoritative:true,activeMetadataRefreshLive:true,trainingRegistryIsolation:true,restartGapRepaired:true,dirtyStatePreserved:true,staleDepotCoordinatesRejected:true,inFlightRouteCalculationCancelled:true,scopedWarehouseCreateBlocked:true,authoritativeEmptyCreateAction:true,authoritativeAllArchivedInactive:true,postCommitRegistryRefresh:true,warehouseCodeImmutableUi:true,truthfulDeleteRetentionCopy:true,nonActiveWarehouseStateIsolated:true,atomicDeleteLeaseDelegatedToTrustedProcesses:true,demoWarehouseSeedBlocked:true,pendingDeleteBlocksWorkspace:true,guardedReloadFallbackBlocks:true,periodicRegistryTransition:true,unreadableDefaultsIgnored:true,writableFirstBootstrapPreserved:true,genericDirtyDeleteSuppressed:true,explicitDeleteJournalPreserved:true,cleanEmployeeWarehouseNormalizationIgnored:true,conflictResolutionWarehouseNormalizationIgnored:true,quarantinedLegacyWarehouseSelfHeal:true,serverEquivalentWarehouseMigration:true,safeWarehouseOutboxPrefix:true,quarantineTitleTruthful:true})))
   .catch(error=>{console.error(error);process.exitCode=1});

@@ -152,6 +152,7 @@ function createScenario({online}){
     reconcileServerEquivalentWarehouseOutboxV784:()=>0,
     entityKey:(type,id)=>`${type}:${id}`,
     entityFingerprint:value=>JSON.stringify(value),
+    semanticEntityFingerprintV784:(_type,_id,payload)=>JSON.stringify(payload),
     recoveryKnownEntitiesFromServer:(_local,_server,known)=>known,
     buildPendingEntityChanges:()=>[],
     localOutboxEntry:()=>{throw new Error('no recovery command expected')},
