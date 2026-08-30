@@ -26,6 +26,7 @@ assert.equal(gateContext.gate({reliabilityScore:80,actions:[]}).tone,'warn');
 assert.equal(gateContext.gate({reliabilityScore:95,actions:[]}).tone,'good');
 const route=read('source/application/web/assets/js/90-route-engine.js'),routeContext=vm.createContext({asArray:value=>Array.isArray(value)?value:[],routeLifecycleV560:def=>({code:def.code})});vm.runInContext(`${functionSource(route,'buildOutcomeCounts')};this.counts=buildOutcomeCounts`,routeContext);
 assert.deepEqual(JSON.parse(JSON.stringify(routeContext.counts([{code:'ready'},{code:'needs_action'},{code:'draft'}]))),{ready:1,problems:1,drafts:1});
+assert.match(route,/signature:routeSignature\(def\.orders,def\.id\)/);
 const finalizeSource=functionSource(route,'calculateFinalizeV570');
 assert.match(finalizeSource,/plan\.lifecycleStatus=finalization\.safe\?'ready_to_release':'needs_decision'/);
 assert.match(finalizeSource,/if\(finalization\.safe\)\{freezeRouteOrders\(def\);markRouteWarehouseReserved\(def\)\}/);
