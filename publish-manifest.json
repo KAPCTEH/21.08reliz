@@ -3,13 +3,13 @@
   "branch": "audit-ledger",
   "orphan_history_required": true,
   "baseline_id": "baseline-20260822-8fc993e",
-  "generated_at_utc": "2026-08-23T07:16:50.4323498Z",
+  "generated_at_utc": "2026-08-31T07:56:19.124Z",
   "raw_sensitive_evidence_published": false,
   "exclusions": [
     "raw Cloudflare inventory with company, warehouse, entity, and Telegram identifiers"
   ],
   "file_count": 179,
-  "total_bytes": 5608881,
+  "total_bytes": 5633426,
   "files": [
     {
       "path": "baselines/baseline-20260821-f8e12ec/allowlist.json",
@@ -903,8 +903,8 @@
     },
     {
       "path": "test-map.yml",
-      "bytes": 89587,
-      "sha256": "a7dbe1accf97b5b9b659c68602de2a71028fefa025b53331f029be87dd5da565"
+      "bytes": 113156,
+      "sha256": "f9bf82169234f16fb906aa4e621244189de5a88176f7a37ceb5fd453fbbb0419"
     }
   ]
 }
