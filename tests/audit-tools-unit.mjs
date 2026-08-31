@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -211,7 +211,16 @@ async function testRunnerPolicy() {
   assert.equal(report.failed, 1);
   assert.equal(report.blocking_failed, 1);
   const probe = JSON.parse(report.results[0].stdout_tail.trim());
-  assert.equal(path.resolve(probe.cwd), path.resolve(fixture));
+  const [actualCwd, expectedCwd] = await Promise.all([
+    stat(probe.cwd, { bigint: true }),
+    stat(fixture, { bigint: true }),
+  ]);
+  assert.equal(actualCwd.isDirectory(), true);
+  assert.equal(expectedCwd.isDirectory(), true);
+  assert.notEqual(actualCwd.ino, 0n);
+  assert.notEqual(expectedCwd.ino, 0n);
+  assert.equal(actualCwd.dev, expectedCwd.dev);
+  assert.equal(actualCwd.ino, expectedCwd.ino);
   assert.equal(probe.allowed, "allowed-value");
   assert.equal(probe.blocked, null);
   assert.equal(probe.normal, "kept-value");
