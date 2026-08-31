@@ -30,7 +30,7 @@ try {
   const canonicalReleaseBytes = fs.readFileSync(path.join(repositoryRoot, 'source', 'application', 'release.json'));
   const canonicalRelease = JSON.parse(canonicalReleaseBytes.toString('utf8'));
   const canonicalReleaseSha256 = crypto.createHash('sha256').update(canonicalReleaseBytes).digest('hex');
-  const publishWorkflow = fs.readFileSync(path.join(repositoryRoot, '.github', 'workflows', '_publish-update-catalog.yml'), 'utf8');
+  const publishWorkflow = fs.readFileSync(path.join(repositoryRoot, '.github', 'workflows', '_publish-update-catalog.yml'), 'utf8').replace(/\r\n/g, '\n');
   const stagingPublishWorkflow = fs.readFileSync(path.join(repositoryRoot, '.github', 'workflows', 'publish-staging.yml'), 'utf8');
   const stablePublishWorkflow = fs.readFileSync(path.join(repositoryRoot, '.github', 'workflows', 'publish-stable.yml'), 'utf8');
   const windowsNativeWorkflow = fs.readFileSync(path.join(repositoryRoot, '.github', 'workflows', 'windows-native-783.yml'), 'utf8');
