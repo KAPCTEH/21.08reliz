@@ -75,18 +75,31 @@ checked('release-contract-shape', () => {
 
 checked('contract-versions', () => {
   const contracts = release?.contracts || {};
-  for (const name of ['update_manifest', 'reg_api', 'license_auth', 'license_auth_context', 'telegram_broker', 'storage_protocol']) {
+  for (const name of ['update_manifest', 'reg_api', 'license_auth', 'license_auth_context', 'telegram_broker', 'storage_protocol', 'address_search', 'warehouse_delete_prepare', 'warehouse_delete_lease', 'telegram_broker_deprovision', 'telegram_native_deprovision', 'vps_attestation', 'warehouse_delete_release_outbox']) {
     assert(Number.isInteger(contracts[name]) && contracts[name] > 0, `release contract ${name} is invalid`);
   }
   const main = readText('source/application/main.js');
   const server = readText('source/application/integrations/reg-vps/server/server.py');
   const license = readText('source/license-server/worker.mjs');
   const broker = readText('source/company-telegram-broker/worker.mjs');
+  const telegramWorker = readText('source/application/integrations/telegram-cloudflare-native/worker/index.js');
   assert(main.includes(`const REG_API_CONTRACT=${contracts.reg_api};`), 'desktop REG API contract differs from release.json');
   assert(server.includes(`API_CONTRACT = ${contracts.reg_api}`), 'VPS API contract differs from release.json');
+  assert(main.includes(`const ADDRESS_API_CONTRACT=${contracts.address_search};`), 'desktop address API contract differs from release.json');
+  assert(server.includes(`ADDRESS_API_CONTRACT = ${contracts.address_search}`), 'VPS address API contract differs from release.json');
+  assert(main.includes('address_search: RELEASE.contracts.address_search'), 'desktop updater does not advertise the address search contract');
+  for (const name of ['warehouse_delete_prepare', 'warehouse_delete_lease', 'telegram_broker_deprovision', 'telegram_native_deprovision', 'vps_attestation', 'warehouse_delete_release_outbox']) {
+    assert(main.includes(`${name}: RELEASE.contracts.${name}`), `desktop updater does not advertise the ${name} contract`);
+  }
   assert(license.includes(`auth_contract: ${contracts.license_auth}`), 'license auth contract differs from release.json');
   assert(license.includes(`auth_context_version: ${contracts.license_auth_context}`), 'license auth context differs from release.json');
+  assert(license.includes(`warehouse_delete_lease_contract: ${contracts.warehouse_delete_lease}`), 'warehouse delete lease contract differs from release.json');
   assert(broker.includes(`broker_contract: ${contracts.telegram_broker}`), 'Telegram broker contract differs from release.json');
+  assert(broker.includes(`telegram_deprovision_contract: ${contracts.telegram_broker_deprovision}`), 'Telegram broker deprovision contract differs from release.json');
+  assert(telegramWorker.includes(`telegram_deprovision_contract: ${contracts.telegram_native_deprovision}`), 'native Telegram deprovision contract differs from release.json');
+  assert(server.includes(`WAREHOUSE_DELETE_PREPARE_CONTRACT = ${contracts.warehouse_delete_prepare}`), 'VPS warehouse delete prepare contract differs from release.json');
+  assert(server.includes(`VPS_ATTESTATION_CONTRACT = ${contracts.vps_attestation}`), 'VPS attestation contract differs from release.json');
+  assert(server.includes(`WAREHOUSE_DELETE_RELEASE_OUTBOX_CONTRACT = ${contracts.warehouse_delete_release_outbox}`), 'VPS delete release outbox contract differs from release.json');
 });
 
 checked('package-versions', () => {
@@ -99,8 +112,7 @@ checked('package-versions', () => {
     ['source/update-catalog-service', release?.service_versions?.update_catalog_service],
   ]);
   assert(release?.service_versions?.desktop === release?.version, 'desktop service version must equal product version');
-  assert(release?.service_versions?.reg_api === release?.version, 'REG API service version must equal product version');
-  assert(release?.service_versions?.telegram_worker === release?.version, 'Telegram Worker version must equal product version');
+  for (const [service, version] of Object.entries(release?.service_versions || {})) assert(semverPattern.test(version || ''), `${service} service version is not SemVer`);
   for (const [directory, expectedVersion] of expected) {
     const packageJson = readJson(`${directory}/package.json`);
     const packageLock = readJson(`${directory}/package-lock.json`);
@@ -119,6 +131,14 @@ checked('runtime-version-consumers', () => {
   const windowsWorkflow = readText('.github/workflows/windows-native-783.yml');
   const installerAcceptance = readText('tests/installer-full-acceptance-test.ps1');
   const preload = readText('source/application/preload.js');
+  const rendererVersionConsumers = [
+    'source/application/web/assets/js/99-stability-v595.js',
+    'source/application/web/assets/js/100-multi-warehouse-v600.js',
+    'source/application/web/assets/js/101-release-hardening-v601.js',
+    'source/application/web/assets/js/102-professional-workspace-v610.js',
+    'source/application/web/assets/js/103-regression-recovery-v611.js',
+    'source/application/web/assets/js/110-desktop-platform-v750.js'
+  ].map(file => [file, readText(file)]);
   const nativeSsh = readText('source/application/integrations/reg-vps/native-ssh.cjs');
   const provisioner = readText('source/application/integrations/telegram-cloudflare-native/provisioner.cjs');
   const premiumProject = readText('source/installer/premium-ui/JustFunPremiumSetup.csproj');
@@ -140,7 +160,7 @@ checked('runtime-version-consumers', () => {
   assert(!/^VERSION\s*=\s*['"]\d/m.test(payload), 'payload builder contains a hard-coded product VERSION');
   assert(hardener.includes("path.join(appDir, 'release.json')"), 'payload hardener does not load release.json');
   assert(!/setProductVersion\(7,\s*8,\s*3/.test(hardener), 'Windows resources contain a hard-coded product version');
-  assert(installer.includes('version = (payload / "version")'), 'installer does not derive its version from the verified payload');
+  assert(installer.includes('def verify_release_inputs(') && installer.includes('version_path = payload / "version"') && installer.includes('verify_release_inputs('), 'installer does not derive its version from the verified payload');
   assert(!/^VERSION\s*=\s*['"]\d/m.test(installer), 'installer contains a hard-coded product VERSION');
   assert(windowsWorkflow.includes('JF_PRODUCT_VERSION'), 'Windows workflow does not export the canonical product version');
   assert(windowsWorkflow.includes('verify-release-contract.mjs'), 'Windows workflow does not validate the release contract');
@@ -150,8 +170,12 @@ checked('runtime-version-consumers', () => {
   assert(!installerAcceptance.includes(`version = '${release.version}'`), 'installer acceptance contains a hard-coded result version');
   assert(preload.includes("startsWith('--jf-version=')") && preload.includes('version: bootstrapVersion'), 'sandboxed preload does not consume the canonical version argument');
   assert(main.includes('`--jf-version=${VERSION}`'), 'main process does not pass the canonical version into sandboxed preloads');
-  assert(nativeSsh.includes("require('../../release.json')") && nativeSsh.includes('version: RELEASE.version'), 'VPS provisioning version is not derived from release.json');
-  assert(provisioner.includes("require('../../release.json')") && provisioner.includes('const DEPLOYMENT_VERSION = RELEASE.version;'), 'Telegram provisioning version is not derived from release.json');
+  for (const [file, source] of rendererVersionConsumers) {
+    assert(source.includes('window.JustFunDesktop?.version'), `${file} does not consume the canonical preload version`);
+    assert(!/const\s+(?:BUILD|VERSION)\s*=\s*['"]\d/.test(source), `${file} contains a hard-coded displayed product version`);
+  }
+  assert(nativeSsh.includes("require('../../release.json')") && nativeSsh.includes('version: RELEASE.service_versions.reg_api'), 'VPS provisioning version is not derived from its release service version');
+  assert(provisioner.includes("require('../../release.json')") && provisioner.includes('const DEPLOYMENT_VERSION = RELEASE.service_versions.telegram_worker;'), 'Telegram provisioning version is not derived from its release service version');
   assert(!main.includes(`'JustFun-OrdersLogistics-self-test-${release.version}.json'`), 'main self-test path contains a hard-coded product version');
   assert(!main.includes(`'JustFun-OrdersLogistics-installer-smoke-${release.version}.json'`), 'main installer smoke path contains a hard-coded product version');
   assert(!premiumProject.includes(`<Version>${release.version}</Version>`), '.NET installer metadata contains a hard-coded product version');
@@ -205,6 +229,9 @@ checked('release-formats-and-compatibility', () => {
   assert(JSON.stringify(updateCatalogSchema?.properties?.directive?.properties?.mode?.enum) === JSON.stringify(['release', 'halt', 'rollback']), 'update catalog directive modes are invalid');
   for (const field of ['mode', 'withdrawn_build_ids', 'rollback_from_versions', 'message']) assert(updateCatalogSchema?.properties?.directive?.required?.includes(field), `signed update directive field is missing: ${field}`);
   for (const field of ['unpacked_bytes', 'file_count', 'file_manifest_sha256']) assert(updateCatalogSchema?.properties?.release?.properties?.payload?.required?.includes(field), `signed update payload constraint is missing: ${field}`);
+  for (const name of ['address_search', 'warehouse_delete_prepare', 'warehouse_delete_lease', 'telegram_broker_deprovision', 'telegram_native_deprovision', 'vps_attestation', 'warehouse_delete_release_outbox']) {
+    assert(updateCatalogSchema?.properties?.release?.properties?.required_contracts?.required?.includes(name), `signed update catalog does not require the ${name} contract`);
+  }
   assert(updateCatalogSchema?.properties?.release?.required?.includes('summary'), 'signed release summary is missing');
   assert(updatePlanSchema?.required?.includes('from_version'), 'update plan must bind the installed source version');
   assert(compatibility?.schema_version === 1, 'compatibility policy schema_version must be 1');
@@ -331,6 +358,8 @@ checked('test-catalog', () => {
   }
   for (const id of [
     'JF-TEST-RELEASE-CONTRACT',
+    'JF-TEST-AUDIT-TOOLS-UNIT',
+    'JF-TEST-UPDATE-CATALOG-SERVICE-CHECK',
     'JF-TEST-UPDATE-CORE-UNIT',
     'JF-TEST-UPDATE-DOWNLOADER-UNIT',
     'JF-TEST-UPDATE-CONTROLLER-UNIT',

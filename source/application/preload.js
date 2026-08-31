@@ -18,11 +18,21 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
   startupStage: (stage, detail='') => ipcRenderer.send('desktop:startup-stage', {stage:String(stage || ''), detail:String(detail || '')}),
   startupReady: (payload={}) => ipcRenderer.invoke('desktop:renderer-ready', payload),
   setActiveWarehouse: (payload={}) => ipcRenderer.invoke('desktop:set-active-warehouse', payload),
+  getActiveWarehousePreference: () => ipcRenderer.invoke('desktop:get-active-warehouse-preference'),
   getSession: () => ipcRenderer.invoke('desktop:get-session'),
   getAppInfo: () => ipcRenderer.invoke('desktop:get-app-info'),
   openLogFolder: () => ipcRenderer.invoke('desktop:open-log-folder'),
   copyText: (text) => ipcRenderer.invoke('desktop:copy-text', String(text ?? '')),
   openSupport: (channel) => ipcRenderer.invoke('desktop:open-support', channel),
+  documents: Object.freeze({
+    previewPdf: (payload={}) => ipcRenderer.invoke('desktop:document-preview-pdf', payload)
+  }),
+  backups: Object.freeze({
+    save: (payload={}) => ipcRenderer.invoke('desktop:backup-save', payload)
+  }),
+  audit: Object.freeze({
+    event: (payload={}) => ipcRenderer.invoke('desktop:audit-event', payload)
+  }),
   updates: Object.freeze({
     status: () => ipcRenderer.invoke('desktop:update-status'),
     check: () => ipcRenderer.invoke('desktop:update-check'),
@@ -42,9 +52,12 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
     registerOwner: (payload) => ipcRenderer.invoke('desktop:auth-register-owner', payload||{}),
     login: (payload) => ipcRenderer.invoke('desktop:auth-login', payload||{}),
     acceptInvitation: (payload) => ipcRenderer.invoke('desktop:auth-accept-invitation', payload||{}),
+    refreshContext: () => ipcRenderer.invoke('desktop:auth-refresh-context'),
     logout: () => ipcRenderer.invoke('desktop:auth-logout'),
     users: () => ipcRenderer.invoke('desktop:auth-users'),
+    invitations: () => ipcRenderer.invoke('desktop:auth-invitations'),
     invite: (payload) => ipcRenderer.invoke('desktop:auth-invite', payload||{}),
+    revokeInvitation: (payload) => ipcRenderer.invoke('desktop:auth-invitation-revoke', payload||{}),
     setUserStatus: (payload) => ipcRenderer.invoke('desktop:auth-user-status', payload||{}),
     setUserAccess: (payload) => ipcRenderer.invoke('desktop:auth-user-access', payload||{}),
     devices: () => ipcRenderer.invoke('desktop:auth-devices'),
@@ -60,6 +73,7 @@ contextBridge.exposeInMainWorld('JustFunDesktop', Object.freeze({
     writeWarehouse: (payload) => ipcRenderer.invoke('desktop:reg-warehouse-write', payload||{})
   }),
   maps: Object.freeze({
+    addressSearch: (payload) => ipcRenderer.invoke('desktop:address-search', payload||{}),
     geocode: (payload) => ipcRenderer.invoke('desktop:maps-geocode', payload||{}),
     route: (payload) => ipcRenderer.invoke('desktop:maps-route', payload||{}),
     diagnostic: (payload) => ipcRenderer.invoke('desktop:maps-diagnostic', payload||{})

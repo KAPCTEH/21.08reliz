@@ -2,7 +2,7 @@ Unicode True
 ManifestDPIAware True
 RequestExecutionLevel user
 CRCCheck force
-SetCompressor /SOLID lzma
+SetCompressor zlib
 
 !ifndef VERSION
   !error "VERSION must come from the canonical release contract"
@@ -36,6 +36,7 @@ VIAddVersionKey /LANG=1049 "ProductName" "JustFun Логистика — диа�
 VIAddVersionKey /LANG=1049 "CompanyName" "JustFun"
 VIAddVersionKey /LANG=1049 "FileDescription" "Диагностика JustFun Логистика"
 VIAddVersionKey /LANG=1049 "FileVersion" "${FILE_VERSION}"
+VIAddVersionKey /LANG=1049 "ProductVersion" "${VERSION}"
 VIAddVersionKey /LANG=1049 "LegalCopyright" "JustFun"
 
 !define MUI_ICON "${ASSETS_DIR}\JustFun.ico"

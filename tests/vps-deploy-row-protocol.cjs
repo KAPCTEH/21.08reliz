@@ -7,11 +7,11 @@ const { Client } = require('../source/application/node_modules/ssh2');
 
 const secretsPath = process.env.JF_TEST_SECRETS_PATH || 'C:\\Users\\zvd1\\.justfun-test-secrets.json';
 const sourcePath = path.resolve(__dirname, '../source/application/integrations/reg-vps/server/server.py');
-const secrets = JSON.parse(fs.readFileSync(path.resolve(secretsPath), 'utf8'));
-const host = String(secrets?.vps?.host || '').trim();
-const port = Number(secrets?.vps?.port || 22);
-const username = String(secrets?.vps?.username || process.env.JF_VPS_USERNAME || 'root').trim();
-const password = String(secrets?.vps?.password || '');
+const secrets = fs.statSync(path.resolve(secretsPath),{throwIfNoEntry:false})?.isFile()?JSON.parse(fs.readFileSync(path.resolve(secretsPath), 'utf8')):{};
+const host = String(process.env.JF_VPS_HOST || secrets?.vps?.host || '').trim();
+const port = Number(process.env.JF_VPS_PORT || secrets?.vps?.port || 22);
+const username = String(process.env.JF_VPS_USERNAME || secrets?.vps?.username || 'root').trim();
+const password = String(process.env.JF_VPS_PASSWORD || secrets?.vps?.password || '');
 const expectedHash = crypto.createHash('sha256').update(fs.readFileSync(sourcePath)).digest('hex');
 const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
 const backupDir = `/var/backups/justfun-orders-logistics/codex-${stamp}`;
@@ -71,20 +71,28 @@ function upload(client) {
 }
 
 async function rollback(client) {
-  await execute(client, `cp -a '${backupDir}/server.py' '${target}'`);
-  await execute(client, "systemctl restart orders-logistics");
+  await must(client, 'systemctl stop orders-logistics');
+  await must(client, "sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 -c \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='orderslogistics' AND pid<>pg_backend_pid()\"");
+  await must(client, 'sudo -u postgres dropdb --if-exists orderslogistics');
+  await must(client, 'sudo -u postgres createdb --owner=orderslogistics orderslogistics');
+  await must(client, `cat '${backupDir}/orderslogistics.dump' | sudo -u postgres pg_restore --exit-on-error --dbname=orderslogistics`, 120000);
+  await must(client, `cp -a '${backupDir}/server.py' '${target}'`);
+  await must(client, "systemctl restart orders-logistics");
 }
 
 async function main() {
   const client = await connect();
   let replaced = false;
   try {
-    await must(client, `install -d -m 0700 '${backupDir}'`);
+    const environmentKeys=await must(client,"sed -n 's/^\\([A-Z0-9_][A-Z0-9_]*\\)=.*/\\1/p' /etc/orders-logistics/server.env");
+    for(const required of ['JF_API_KEY_SHA256','JF_VPS_ATTESTATION_SECRET'])if(!environmentKeys.split(/\r?\n/).includes(required))throw new Error(`Protected full installer is required before row deployment: ${required} is missing`);
+    await must(client, `install -d -o root -g postgres -m 0750 '${backupDir}'`);
     await must(client, `cp -a '${target}' '${backupDir}/server.py'`);
     await must(client, `cp -a /etc/orders-logistics/server.env '${backupDir}/server.env'`);
     await must(client, `sudo -u postgres pg_dump --format=custom orderslogistics > '${backupDir}/orderslogistics.dump'`, 120000);
+    await must(client, `pg_restore --list '${backupDir}/orderslogistics.dump' > '${backupDir}/orderslogistics.restore-list'`);
     await must(client, `sha256sum '${backupDir}/server.py' '${backupDir}/orderslogistics.dump' > '${backupDir}/SHA256SUMS'`);
-    const backupCheck = await must(client, `stat -c '%n|%s|%a|%U|%G' '${backupDir}/server.py' '${backupDir}/server.env' '${backupDir}/orderslogistics.dump' '${backupDir}/SHA256SUMS'`);
+    const backupCheck = await must(client, `stat -c '%n|%s|%a|%U|%G' '${backupDir}/server.py' '${backupDir}/server.env' '${backupDir}/orderslogistics.dump' '${backupDir}/orderslogistics.restore-list' '${backupDir}/SHA256SUMS'`);
 
     await upload(client);
     const uploadedHash = (await must(client, `sha256sum '${staging}'`)).split(/\s+/)[0].toLowerCase();
@@ -95,7 +103,7 @@ async function main() {
     await must(client, `mv -f '${staging}' '${target}'`);
     replaced = true;
     await must(client, 'systemctl restart orders-logistics');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await must(client, "for attempt in $(seq 1 30); do test \"$(systemctl is-active orders-logistics 2>/dev/null)\" = active && exit 0; sleep 1; done; systemctl status orders-logistics --no-pager; exit 1", 45000);
     const active = await must(client, 'systemctl is-active orders-logistics');
     const health = await must(client, 'curl -ksS --max-time 12 https://127.0.0.1/health');
     const database = await must(client, "sudo -u postgres psql -d orderslogistics -X -tAc \"SELECT tablename FROM pg_tables WHERE schemaname='public' ORDER BY tablename; SELECT version || ':' || name FROM schema_migrations ORDER BY version;\"");
@@ -103,7 +111,7 @@ async function main() {
     if (active.trim() !== 'active' || currentHash !== expectedHash) throw new Error('Service verification failed after deployment');
     const parsedHealth = JSON.parse(health);
     if (!parsedHealth.ok || parsedHealth.database !== 'ready') throw new Error('Health check failed after deployment');
-    const requiredTables = ['processed_commands', 'schema_migrations', 'warehouse_snapshots', 'workspace_change_events', 'workspace_entities'];
+    const requiredTables = ['business_audit_v3', 'business_commands_v3', 'business_events_v3', 'business_records_v3', 'schema_migrations', 'warehouse_delete_operations_v3', 'warehouse_delete_release_outbox_v3'];
     for (const table of requiredTables) if (!database.includes(table)) throw new Error(`Required table is missing: ${table}`);
     process.stdout.write(`${JSON.stringify({ ok: true, backupDir, expectedHash, active, health: parsedHealth, database: database.split(/\r?\n/).filter(Boolean), backup: backupCheck.split(/\r?\n/).filter(Boolean) }, null, 2)}\n`);
   } catch (error) {

@@ -2,7 +2,7 @@
 /* ===== PERFECT ROUTE ENGINE LOGIC v5.7.0 ===== */
 (function(){
   'use strict';
-  const ENGINE_VERSION='7.8.3';
+  const ENGINE_VERSION='7.8.4';
   const ENGINE_KEY=window.TeplitsaWarehouseBootstrap?.dataKey('teplitsa_route_engine_v570')||'teplitsa_route_engine_v570';
   const STATUS_SUFFIX=/\s*[·—-]\s*(?:в пути|ожидает закрытия|готов к выезду|готов к выпуску|требует решения|закрыт|черновик)\s*$/i;
   const engine={version:ENGINE_VERSION,building:false,lastBuild:null,lastAudit:null,startLocks:new Set(),buildToken:0};
@@ -15,12 +15,25 @@
   const activeExecution=id=>{const e=routeExecutions?.[id];return e&&['in_transit','awaiting_close'].includes(e.status)?e:null};
   const activeIds=()=>new Set(Object.entries(routeExecutions||{}).filter(([,e])=>e&&['in_transit','awaiting_close'].includes(e.status)).map(([id])=>id));
   const activeOrderIds=()=>new Set(Object.values(routeExecutions||{}).filter(e=>e&&['in_transit','awaiting_close'].includes(e.status)).flatMap(e=>asArray(e.orderIds)));
+  function routeBuildLocked(id){if(activeExecution(id))return true;if(routePlans?.[id]?.lifecycleStatus==='loading')return true;return asArray(orders).some(order=>routeAssignments?.[order.id]===id&&(order.fulfillmentStatus==='picking'||order.warehouseFlowStatus==='picking'))}
   const warehouseId=()=>{try{return currentWarehouseIdV560()}catch(_){return String(settings?.warehouse?.id||settings?.warehouse?.address||'main')};};
   const orderWarehouse=o=>{try{return entityWarehouseIdV560(o)}catch(_){return String(o?.warehouseId||warehouseId())};};
   const driverWarehouse=d=>{try{return entityWarehouseIdV560(d)}catch(_){return String(d?.warehouseId||warehouseId())};};
   const routeModeFor=def=>{try{const ov=routeOverride(def?.id);return ov?.routeMode&&ov.routeMode!=='inherit'?ov.routeMode:(settings.routeMode||'round')}catch(_){return settings.routeMode||'round'}};
   const returnsFor=def=>routeModeFor(def)!=='oneway';
   const cleanRouteTitle=text=>String(text||'').replace(STATUS_SUFFIX,'').replace(/^Сборный рейс:\s*$/i,'Сборный рейс').trim()||'Рейс';
+
+  function buildOutcomeCounts(definitions=[]){
+    const counts={ready:0,problems:0,drafts:0};
+    for(const def of asArray(definitions)){
+      const code=routeLifecycleV560(def).code;
+      if(code==='ready')counts.ready++;
+      else if(code==='needs_action')counts.problems++;
+      else counts.drafts++;
+    }
+    return counts
+  }
+  engine.buildOutcomeCounts=buildOutcomeCounts;
 
   function validGeo(o){const lat=Number(o?.geo?.lat),lon=Number(o?.geo?.lon);return Number.isFinite(lat)&&Number.isFinite(lon)&&Math.abs(lat)<=90&&Math.abs(lon)<=180&&!(lat===0&&lon===0)}
   function orderPlanningIssues(o){
@@ -39,14 +52,15 @@
     return uniq(issues)
   }
   function routeEngineSignature(def){
-    const ordersShape=asArray(def?.orders).map(o=>({id:o.id,u:o.updatedAt||o.createdAt||'',d:o.deliveryDate,a:o.deliveryAddress,g:[Number(o.geo?.lat||0),Number(o.geo?.lon||0),o.geo?.region||'',o.geo?.district||''],w:orderWarehouse(o),i:asArray(o.items).map(i=>[i.productId||i.name,Number(i.qty||0),Number(i.volumeM3||0),Number(i.weightKg||0),Number(i.lengthMm||0),Number(i.widthMm||0),Number(i.heightMm||0),!!i.fragile,!!i.keepDry,!!i.topLoadOnly,!!i.longLoad])})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+    const ordersShape=asArray(def?.orders).map(o=>({id:o.id,d:o.deliveryDate,a:o.deliveryAddress,g:[Number(o.geo?.lat||0),Number(o.geo?.lon||0),o.geo?.region||'',o.geo?.district||''],w:orderWarehouse(o),i:asArray(o.items).map(i=>[i.productId||i.name,Number(i.qty||0),Number(i.volumeM3||0),Number(i.weightKg||0),Number(i.lengthMm||0),Number(i.widthMm||0),Number(i.heightMm||0),!!i.fragile,!!i.keepDry,!!i.topLoadOnly,!!i.longLoad])})).sort((a,b)=>String(a.id).localeCompare(String(b.id)));
     return hashString(JSON.stringify({engine:ENGINE_VERSION,route:def?.id||'',mode:routeModeFor(def),orders:ordersShape,warehouse:[warehouseId(),settings.warehouse?.lat,settings.warehouse?.lon],rules:[settings.maxStops,settings.maxRoundKm,settings.minRouteHours,settings.maxRouteHours,settings.serviceMinMinutes,settings.serviceMaxMinutes],loading:[settings.loadingStartTime,settings.loadingBayCount,settings.loadingMinutes,settings.loadingIntervalMinutes,settings.driverArrivalLeadMinutes,settings.arrivalWindowMinutes,settings.loadingPriority]}))
   }
+  function loadingPlanCompatible(def,plan){const group=asArray(def?.orders);return plan?.lifecycleStatus==='loading'&&group.length>0&&group.every(order=>order.fulfillmentStatus==='picking'&&order.warehouseFlowStatus==='picking'&&routeAssignments?.[order.id]===def.id&&routeLocks?.[order.id]===def.id)}
 
   const legacyValidRoutePlan=validRoutePlan;
   validRoutePlan=function(def){
     const p=routePlans?.[def?.id];if(!p)return null;
-    if(p.engineSignature)return p.engineSignature===routeEngineSignature(def)?p:null;
+    if(p.engineSignature)return p.signature===routeSignature(def.orders,def.id)&&(p.engineSignature===routeEngineSignature(def)||loadingPlanCompatible(def,p))?p:null;
     return legacyValidRoutePlan(def)
   };
 
@@ -96,12 +110,14 @@
   calculateRoute=async function(def){
     if(!def?.orders?.length)throw new Error('Нет заказов с подтверждёнными координатами');
     const bad=def.orders.flatMap(o=>orderPlanningIssues(o).map(issue=>`${o.number||o.id}: ${issue}`));if(bad.length)throw new Error(bad.slice(0,4).join('; ')+(bad.length>4?'…':''));
-    const points=[{lat:Number(settings.warehouse.lat),lon:Number(settings.warehouse.lon)},...def.orders.map(o=>({lat:Number(o.geo.lat),lon:Number(o.geo.lon)}))];let matrix;
+    const warehouseMetadataEpoch=Number(window.__jfWarehouseMetadataEpochV783||0),points=[{lat:Number(settings.warehouse.lat),lon:Number(settings.warehouse.lon)},...def.orders.map(o=>({lat:Number(o.geo.lat),lon:Number(o.geo.lon)}))];let matrix;
     try{matrix=await osrmTable(points);matrix.source='osrm-table';matrix.confidence=92}catch(err){matrix=fallbackMatrix(points);matrix.warning=err.message}
+    if(Number(window.__jfWarehouseMetadataEpochV783||0)!==warehouseMetadataEpoch)throw new Error('Адрес или координаты склада изменились во время расчёта. Запустите построение маршрута повторно.');
     const returns=returnsFor(def),seq=optimizeRouteSequence(def,matrix),ordered=seq.map(i=>def.orders[i-1]).filter(Boolean),routePoints=[points[0],...seq.map(i=>points[i]),...(returns?[points[0]]:[])];let route=null;
     if(!matrix.fallback){try{route=await osrmRoute(routePoints)}catch(err){matrix.warning=(matrix.warning?matrix.warning+'; ':'')+err.message}}
+    if(Number(window.__jfWarehouseMetadataEpochV783||0)!==warehouseMetadataEpoch)throw new Error('Адрес или координаты склада изменились во время расчёта. Запустите построение маршрута повторно.');
     const slot=routeLoadingSlot(def),schedule=buildSchedule(seq,matrix,def,slot?.departureTime||settings.routeStartTime),distance=route?.distance??sequenceMetric(seq,matrix.distance,returns),duration=route?.duration??sequenceMetric(seq,matrix.duration,returns),roundDistance=returns?distance:sequenceMetric(seq,matrix.distance,true),roundDuration=returns?duration:sequenceMetric(seq,matrix.duration,true),confidence=route?100:matrix.fallback?64:84;
-    const plan={id:def.id,engineVersion:ENGINE_VERSION,engineSignature:routeEngineSignature(def),signature:routeSignature(def.orders),calculatedAt:new Date().toISOString(),algorithm:def.orders.length<=11?'Точный динамический расчёт':'Мультистарт + 2-opt + relocate',orderedIds:ordered.map(o=>o.id),routeMode:routeModeFor(def),returnsToWarehouse:returns,distance,duration,roundDistance,roundDuration,startTime:schedule.startTime,loadingSlot:slot,finish:schedule.finish,finishAbsMin:schedule.finishAbsMin,returnTravelMin:schedule.returnTravelMin,totalWithServiceMin:schedule.totalWithServiceMin,unloadMinutes:schedule.unloadMinutes,schedule:schedule.stops.map(({etaAbsMin,departAbsMin,...x})=>x),geometry:route?.geometry||null,fallback:!!matrix.fallback,confidence,warning:matrix.warning||'',source:route?'OSRM дорожная сеть':matrix.fallback?'Локальная резервная модель':'OSRM матрица + резервная геометрия'};
+    const plan={id:def.id,engineVersion:ENGINE_VERSION,engineSignature:routeEngineSignature(def),signature:routeSignature(def.orders,def.id),calculatedAt:new Date().toISOString(),algorithm:def.orders.length<=11?'Точный динамический расчёт':'Мультистарт + 2-opt + relocate',orderedIds:ordered.map(o=>o.id),routeMode:routeModeFor(def),returnsToWarehouse:returns,distance,duration,roundDistance,roundDuration,startTime:schedule.startTime,loadingSlot:slot,finish:schedule.finish,finishAbsMin:schedule.finishAbsMin,returnTravelMin:schedule.returnTravelMin,totalWithServiceMin:schedule.totalWithServiceMin,unloadMinutes:schedule.unloadMinutes,schedule:schedule.stops.map(({etaAbsMin,departAbsMin,...x})=>x),geometry:route?.geometry||null,fallback:!!matrix.fallback,confidence,warning:matrix.warning||'',source:route?'OSRM дорожная сеть':matrix.fallback?'Локальная резервная модель':'OSRM матрица + резервная геометрия'};
     const payment=driverPaymentForPlan(plan,ordered.length);plan.driverPayment=payment.total;plan.driverPaymentDetails=payment;plan.rules=routeRuleMetrics(plan,ordered.length);return plan
   };
 
@@ -149,12 +165,13 @@
     const plan=await calculateRoute(def),finalization=routeFinalizationState(def,plan);plan.finalization=clone(finalization);plan.finalized=finalization.safe;plan.reviewReasons=finalization.reasons;plan.reviewWarnings=finalization.warnings;
     const splittable=allowSplit&&settings.smartRoute?.autoSplitOverload!==false&&depth<8&&def.orders.length>1&&!finalization.stockShortages.length&&!finalization.hardReasons.some(x=>/дата|склад|координат|адрес|товар|хронолог|составу/.test(x));
     if(splittable&&!finalization.safe){const chunks=forceSplit(def.orders);if(chunks.length>1&&chunks.every(c=>c.length<def.orders.length)){const children=materializeRouteChunks(def,chunks),result=[];for(const child of children)result.push(...await calculateFinalizeV570(child,true,depth+1));return result}}
-    routePlans[def.id]=plan;if(finalization.safe)freezeRouteOrders(def);else releaseRouteLocks(def);persistRoutes();return[def]
+    plan.lifecycleStatus=finalization.safe?'ready_to_release':'needs_decision';plan.lifecycleUpdatedAt=new Date().toISOString();routePlans[def.id]=plan;if(finalization.safe){freezeRouteOrders(def);markRouteWarehouseReserved(def)}else releaseRouteLocks(def);persistRoutes();return[def]
   }
   calculateFinalizeRoute=calculateFinalizeV570;
 
   const legacyAutoAssign=autoAssignBestDrivers;
   autoAssignBestDrivers=function(defs=[]){
+    if(typeof window==='undefined'||window.JustFunPermissionAccessV783?.has('drivers.assign')!==true)return 0;
     const state=routeState(),targets=asArray(defs).filter(d=>d&&!activeExecution(d.id)),targetIds=new Set(targets.map(d=>d.id)),active=activeIds(),reservedByDate=new Map(),previous={...routeDriverAssignments};
     for(const [routeId,driverId] of Object.entries(routeDriverAssignments)){const def=state.allDefs.find(d=>d.id===routeId);if(!def)continue;if(active.has(routeId)||!targetIds.has(routeId)){if(!reservedByDate.has(def.date))reservedByDate.set(def.date,new Set());reservedByDate.get(def.date).add(driverId)}}
     const byDate=new Map();for(const def of targets){if(!byDate.has(def.date))byDate.set(def.date,[]);byDate.get(def.date).push(def)}
@@ -166,8 +183,8 @@
     persistRouteDrivers();return repairDriverDateConflicts()
   };
 
-  function snapshotState(){return{routeAssignments:clone(routeAssignments),routeCatalog:clone(routeCatalog),routeDriverAssignments:clone(routeDriverAssignments),routeLocks:clone(routeLocks),routePlans:clone(routePlans),routeOverrides:clone(routeOverrides)}}
-  function restoreState(s){routeAssignments=s.routeAssignments;routeCatalog=s.routeCatalog;routeDriverAssignments=s.routeDriverAssignments;routeLocks=s.routeLocks;routePlans=s.routePlans;routeOverrides=s.routeOverrides;persistRouteAssignments();persistRouteDrivers();persistRouteLocks();persistRoutes();persistRouteOverrides()}
+  function snapshotState(){return{orders:clone(orders),routeAssignments:clone(routeAssignments),routeCatalog:clone(routeCatalog),routeDriverAssignments:clone(routeDriverAssignments),routeLocks:clone(routeLocks),routePlans:clone(routePlans),routeOverrides:clone(routeOverrides)}}
+  function restoreState(s){orders=s.orders;routeAssignments=s.routeAssignments;routeCatalog=s.routeCatalog;routeDriverAssignments=s.routeDriverAssignments;routeLocks=s.routeLocks;routePlans=s.routePlans;routeOverrides=s.routeOverrides;persistOrders();persistRouteAssignments();persistRouteDrivers();persistRouteLocks();persistRoutes();persistRouteOverrides()}
   function activeFingerprint(){const out={};for(const id of activeIds()){const e=routeExecutions[id];out[id]=JSON.stringify({e,plan:routePlans[id],driver:routeDriverAssignments[id],orders:asArray(e?.orderIds).map(oid=>[oid,routeAssignments[oid],routeLocks[oid]])})}return out}
   function activeFingerprintEqual(before){const after=activeFingerprint(),keys=uniq([...Object.keys(before),...Object.keys(after)]);return keys.every(k=>before[k]===after[k])}
   function cleanupStale(){const referenced=new Set([...Object.values(routeAssignments).filter(x=>x&&x!=='__unassigned__'),...Object.keys(routeExecutions||{}),...asArray(routeArchives).map(x=>x.id).filter(Boolean)]);for(const id of Object.keys(routeCatalog))if(!referenced.has(id)){delete routeCatalog[id];delete routePlans[id];delete routeDriverAssignments[id];delete routeOverrides[id]}persistRouteAssignments();persistRouteDrivers();persistRoutes();persistRouteOverrides()}
@@ -194,8 +211,8 @@
 
   buildAllRoutes=async function(){
     if(engine.building){alert('Построение маршрутов уже выполняется. Дождитесь завершения.');return}
-    repairIntegrity();const active=activeIds(),state=routeState(),initial=state.allDefs.filter(def=>def.orders.length&&!active.has(def.id)&&!def.orders.some(o=>activeOrderIds().has(o.id))),readyPoints=initial.reduce((s,d)=>s+d.orders.length,0),unready=state.allDefs.reduce((s,d)=>s+d.unready.length,0);
-    if(!initial.length){alert(active.size?'Нет изменяемых рейсов. Активные рейсы защищены от перестроения.':'Нет заказов с подтверждёнными координатами.');return}
+    repairIntegrity();const active=activeIds(),state=routeState(),protectedIds=new Set(state.allDefs.filter(def=>routeBuildLocked(def.id)).map(def=>def.id)),initial=state.allDefs.filter(def=>def.orders.length&&!protectedIds.has(def.id)&&!def.orders.some(o=>activeOrderIds().has(o.id))),readyPoints=initial.reduce((s,d)=>s+d.orders.length,0),unready=state.allDefs.reduce((s,d)=>s+d.unready.length,0);
+    if(!initial.length){alert(protectedIds.size?'Нет изменяемых рейсов. Рейсы в комплектации и выполнении защищены от перестроения.':'Нет заказов с подтверждёнными координатами.');return}
     if(!await jfConfirm(`Полное перестроение системы маршрутов:\n\n• рейсов для расчёта: ${initial.length}\n• готовых точек: ${readyPoints}\n• адресов требуют исправления: ${unready}\n• активных рейсов защищено: ${active.size}\n\nСистема проверит даты, склады, географию, вместимость, остатки, нормативы, порядок точек, график погрузки и водителей. Продолжить?`,{title:'Перестроить маршруты',confirmLabel:'Перестроить'}))return;
     const snapshot=snapshotState(),activeBefore=activeFingerprint(),btn=$('buildRoutesBtn'),token=++engine.buildToken;engine.building=true;document.getElementById('tripsView')?.classList.add('route-engine-busy-v570');if(btn)btn.disabled=true;let finished=[];
     try{
@@ -203,14 +220,14 @@
       persistRoutes();persistRouteLocks();
       for(let i=0;i<initial.length;i++){if(token!==engine.buildToken)throw new Error('Расчёт отменён новой операцией');const def=initial[i];setProgress(`Маршрутный движок ${ENGINE_VERSION}: рейс ${i+1} из ${initial.length} · ${cleanRouteTitle(def.displayDistrict)}…`,true);finished.push(...await calculateFinalizeV570(def,true,0))}
       autoAssignBestDrivers(finished);repairAllRouteSchedulesV560();cleanupStale();if(!activeFingerprintEqual(activeBefore))throw new Error('Защита активного рейса обнаружила изменение данных и отменила перестроение');const audit=routeAudit(true);if(audit.critical)throw new Error(`Проверка целостности обнаружила критические нарушения: ${audit.critical}`);
-      engine.lastBuild={at:new Date().toISOString(),routes:finished.length,orders:finished.reduce((s,d)=>s+d.orders.length,0),ready:finished.filter(d=>routeReadinessV560(d).ready).length,problems:finished.filter(d=>!routeReadinessV560(d).ready).length,activeProtected:active.size,algorithm:'exact<=11 / multistart>11'};try{localStorage.setItem(ENGINE_KEY,JSON.stringify(engine.lastBuild))}catch(_){}
-      persistRouteAssignments();persistRouteLocks();persistRouteDrivers();persistRoutes();persistRouteOverrides();renderTripsPreview();renderOrders();renderDrivers();setProgress(`Перестроение завершено: ${engine.lastBuild.routes} рейс(ов), ${engine.lastBuild.orders} точек. Готовы к выезду: ${engine.lastBuild.ready}. Требуют решения: ${engine.lastBuild.problems}. Активных рейсов сохранено без изменений: ${active.size}.`,false,engine.lastBuild.problems>0)
+      const outcomes=buildOutcomeCounts(finished);engine.lastBuild={at:new Date().toISOString(),routes:finished.length,orders:finished.reduce((s,d)=>s+d.orders.length,0),...outcomes,activeProtected:active.size,algorithm:'exact<=11 / multistart>11'};try{localStorage.setItem(ENGINE_KEY,JSON.stringify(engine.lastBuild))}catch(_){}
+      persistRouteAssignments();persistRouteLocks();persistRouteDrivers();persistRoutes();persistRouteOverrides();renderTripsPreview();renderOrders();renderDrivers();setProgress(`Перестроение завершено: ${engine.lastBuild.routes} рейс(ов), ${engine.lastBuild.orders} точек. Готовы к выезду: ${engine.lastBuild.ready}. Требуют решения: ${engine.lastBuild.problems}. Ожидают завершения подготовки: ${engine.lastBuild.drafts}. Активных рейсов сохранено без изменений: ${active.size}.`,false,engine.lastBuild.problems>0)
     }catch(err){console.error(err);restoreState(snapshot);renderTripsPreview();renderOrders();renderDrivers();setProgress('Перестроение отменено без потери данных: '+(err?.message||err),false,true);alert('Изменения не применены. '+(err?.message||err))}
     finally{engine.building=false;document.getElementById('tripsView')?.classList.remove('route-engine-busy-v570');if(btn)btn.disabled=false}
   };
 
   buildSingleRoute=async function(id){
-    if(engine.building)return;const def=routeState().allDefs.find(d=>d.id===id);if(!def||!def.orders.length||activeExecution(id))return;const snapshot=snapshotState();try{setProgress(`Точный пересчёт: ${cleanRouteTitle(def.displayDistrict)}…`,true);const result=await calculateFinalizeV570(def,true,0);autoAssignBestDrivers(result);repairAllRouteSchedulesV560();const audit=routeAudit(false);if(audit.critical)throw new Error('обнаружено нарушение целостности');activeRouteId=result[0]?.id||id;renderTripsPreview();renderOrders();renderDrivers();setProgress(`Рейс пересчитан: ${result.length} маршрут(ов).`,false,result.some(d=>!routeReadinessV560(d).ready));if(activeRouteId)showRouteOnMap(activeRouteId,false)}catch(err){restoreState(snapshot);renderTripsPreview();setProgress('Пересчёт отменён: '+(err?.message||err),false,true)}
+    if(engine.building)return;const def=routeState().allDefs.find(d=>d.id===id);if(!def||!def.orders.length)return;if(routeBuildLocked(id)){alert('Рейс уже находится в комплектации или выполнении. Его план, состав и резерв нельзя пересчитать до закрытия или безопасной отмены.');return}const snapshot=snapshotState();try{setProgress(`Точный пересчёт: ${cleanRouteTitle(def.displayDistrict)}…`,true);const result=await calculateFinalizeV570(def,true,0);autoAssignBestDrivers(result);repairAllRouteSchedulesV560();const audit=routeAudit(false);if(audit.critical)throw new Error('обнаружено нарушение целостности');activeRouteId=result[0]?.id||id;renderTripsPreview();renderOrders();renderDrivers();setProgress(`Рейс пересчитан: ${result.length} маршрут(ов).`,false,result.some(d=>!routeReadinessV560(d).ready));if(activeRouteId)showRouteOnMap(activeRouteId,false)}catch(err){restoreState(snapshot);renderTripsPreview();setProgress('Пересчёт отменён: '+(err?.message||err),false,true)}
   };
 
   const legacyReadiness=routeReadinessV560;

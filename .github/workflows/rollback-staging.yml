@@ -1,0 +1,26 @@
+name: Halt or roll back staging update release
+
+on:
+  workflow_dispatch:
+    inputs:
+      catalog_path:
+        description: Newly signed higher-sequence staging halt or rollback catalog
+        required: true
+        default: release/catalogs/staging-rollback.json
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  publish:
+    uses: ./.github/workflows/_publish-update-catalog.yml
+    with:
+      channel: staging
+      catalog_path: ${{ inputs.catalog_path }}
+      wrangler_environment: staging
+      protected_environment: update-staging
+      required_directive: halt-or-rollback
+      production_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_PRODUCTION_KV_NAMESPACE_ID }}
+      staging_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_STAGING_KV_NAMESPACE_ID }}

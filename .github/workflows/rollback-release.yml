@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   publish:
@@ -21,4 +22,5 @@ jobs:
       wrangler_environment: production
       protected_environment: update-production
       required_directive: halt-or-rollback
-    secrets: inherit
+      production_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_PRODUCTION_KV_NAMESPACE_ID }}
+      staging_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_STAGING_KV_NAMESPACE_ID }}

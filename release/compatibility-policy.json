@@ -8,11 +8,18 @@
   "full_payload_only": true,
   "required_contracts": {
     "reg_api": { "minimum": 3, "maximum": 3 },
-    "license_auth": { "minimum": 4, "maximum": 4 },
+    "license_auth": { "minimum": 6, "maximum": 6 },
     "license_auth_context": { "minimum": 2, "maximum": 2 },
-    "telegram_broker": { "minimum": 1, "maximum": 1 },
+    "telegram_broker": { "minimum": 4, "maximum": 4 },
     "storage_protocol": { "minimum": 3, "maximum": 3 },
-    "update_manifest": { "minimum": 1, "maximum": 1 }
+    "update_manifest": { "minimum": 1, "maximum": 1 },
+    "address_search": { "minimum": 1, "maximum": 1 },
+    "warehouse_delete_prepare": { "minimum": 1, "maximum": 1 },
+    "warehouse_delete_lease": { "minimum": 3, "maximum": 3 },
+    "telegram_broker_deprovision": { "minimum": 3, "maximum": 3 },
+    "telegram_native_deprovision": { "minimum": 1, "maximum": 1 },
+    "vps_attestation": { "minimum": 1, "maximum": 1 },
+    "warehouse_delete_release_outbox": { "minimum": 1, "maximum": 1 }
   },
   "catalog_rules": {
     "https_only": true,

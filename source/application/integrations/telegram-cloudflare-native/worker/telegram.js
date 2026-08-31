@@ -38,7 +38,12 @@ export async function telegramCall(env, method, payload = {}, timeoutMs = 12000)
 
 export const getMe = env => telegramCall(env, 'getMe');
 export const getWebhookInfo = env => telegramCall(env, 'getWebhookInfo');
-export const deleteWebhook = env => telegramCall(env, 'deleteWebhook', { drop_pending_updates: false }, 15000);
+export const deleteWebhook = (env, { dropPendingUpdates = false } = {}) => telegramCall(
+  env,
+  'deleteWebhook',
+  { drop_pending_updates: dropPendingUpdates === true },
+  15000
+);
 export const sendMessage = (env, payload) => telegramCall(env, 'sendMessage', payload, 15000);
 
 export function answerCallbackQuery(env, callbackQueryId, text = '') {

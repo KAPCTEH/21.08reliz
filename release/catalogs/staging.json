@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "product_id": "justfun-logistics",
+  "channel": "staging",
+  "catalog_sequence": 2,
+  "generated_at": "2026-08-26T10:53:46.463Z",
+  "expires_at": "2026-09-02T10:53:46.463Z",
+  "directive": {
+    "mode": "release",
+    "withdrawn_build_ids": [],
+    "rollback_from_versions": [],
+    "message": "Приёмочный кандидат JustFun 7.8.4 для проверки обновления и отката."
+  },
+  "release": {
+    "version": "7.8.4",
+    "build_id": "jf-7.8.4-00ee971a6665",
+    "commit_sha": "00ee971a6665e848ee20ae9c7ddc2c5528ff74be",
+    "published_at": "2026-08-25T14:13:47.000Z",
+    "minimum_supported_version": "7.8.3",
+    "mandatory_after": null,
+    "rollout_percent": 100,
+    "summary": "Исправлен центр обновлений и подтверждён полный цикл установки и удаления Windows-сборки.",
+    "release_notes_url": "https://github.com/KAPCTEH/21.08reliz/releases/tag/v7.8.4-rc1",
+    "required_contracts": {
+      "reg_api": 3,
+      "license_auth": 5,
+      "telegram_broker": 4,
+      "storage_protocol": 3,
+      "address_search": 1,
+      "warehouse_delete_prepare": 1,
+      "warehouse_delete_lease": 3,
+      "telegram_broker_deprovision": 3,
+      "telegram_native_deprovision": 1,
+      "vps_attestation": 1,
+      "warehouse_delete_release_outbox": 1
+    },
+    "payload": {
+      "file_name": "JustFun-7.8.4-win-x64.zip",
+      "url": "https://github.com/KAPCTEH/21.08reliz/releases/download/v7.8.4-rc1/JustFun-7.8.4-win-x64.zip",
+      "bytes": 183201489,
+      "sha256": "b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0",
+      "unpacked_bytes": 411227803,
+      "file_count": 81,
+      "file_manifest_sha256": "2b06e493535762c928d82add9ecb42f9b9d7fa31e21327f95311dbc5700c848a"
+    }
+  },
+  "signature": {
+    "algorithm": "Ed25519",
+    "key_id": "justfun-update-2026-08",
+    "value": "nBVk1lZsY3FT2jo4zhxPMh1GplWqW8JMsujvIYV2xYHb6ZGP7Aayr2km2TuxyGCoc+PxmxRPtCjkU1tqYDEtAQ=="
+  }
+}

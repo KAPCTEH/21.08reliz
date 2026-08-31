@@ -16,6 +16,7 @@ const UPDATE_TRUST_STORE = Object.freeze(require('./update/trusted-keys.json'));
 const UPDATE_HELPER_IDENTITY = Object.freeze(require('./update/helper-identity.json'));
 const telegramProvisioner = require('./integrations/telegram-cloudflare-native/provisioner.cjs');
 const regVpsNativeSsh = require('./integrations/reg-vps/native-ssh.cjs');
+const addressIntelligence = require('./web/assets/js/04-address-intelligence-v783.js');
 const RELEASE = Object.freeze(require('./release.json'));
 
 const VERSION = RELEASE.version;
@@ -38,8 +39,10 @@ const STARTUP_TIMEOUT_MS = 30000;
 const RENDERER_READY_TIMEOUT_MS = 90000;
 const REG_STATE_NAME = 'reg-vps-state.json';
 const SECRET_STORE_NAME = 'native-secrets.json';
+const ACTIVE_WAREHOUSE_CONTEXT_NAME = 'active-warehouse-context-v784.json';
 const LICENSE_API_ORIGIN = 'https://justfun-license-api.l2maloy47rus.workers.dev';
 const LICENSE_API_HOST = 'justfun-license-api.l2maloy47rus.workers.dev';
+const STRICT_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const COMPANY_TELEGRAM_BROKER_ORIGIN = 'https://justfun-company-telegram.l2maloy47rus.workers.dev';
 const COMPANY_TELEGRAM_BROKER_HOST = 'justfun-company-telegram.l2maloy47rus.workers.dev';
 const TELEGRAM_COMPANY_PUBLISH_RETRY_BASE_MS = 15 * 1000;
@@ -66,9 +69,16 @@ let mainWindow = null;
 let splashWindow = null;
 let demoTimer = null;
 let currentSession = null;
+let cloudAuthEpoch = 0;
+const cloudSessionRotationFlights = new Map();
+const cloudSessionRefreshFlights = new Map();
+const cloudAuthContextVerificationFlights = new Map();
+const cloudAuthWorkflowControllers = new Set();
 let startupLog = null;
 let rendererReadyResolve = null;
+let rendererStartupState = {phase:'idle', recoveryReason:'', readyPayload:null};
 let activeRendererWarehouseId = '';
+let confirmedWarehouseRegistry = {scopeKey:'', allowedIds:new Set()};
 let singleInstanceLock = false;
 let ipcRegistered = false;
 let activeIntegrationWizard = null;
@@ -83,7 +93,9 @@ let updateCheckTimer = null;
 let updateCheckInterval = null;
 let updateHelperPollTimer = null;
 let updateCloseApplyStarted = false;
+let applicationQuitAccepted = false;
 const DESKTOP_UNIT_TEST_MODE = process.env.JF_DESKTOP_UNIT_TEST === '1' && !process.versions.electron;
+const SOURCE_LIVE_DEBUG = process.env.JF_SOURCE_LIVE_DEBUG === '1' && process.defaultApp === true;
 const runtimeHardeningReport = {sandboxEnabled:false, removedSwitches:[], devToolsGuardInstalled:false, errors:[]};
 const registeredAppProtocolSessions = new WeakSet();
 
@@ -92,13 +104,14 @@ function recordRuntimeHardeningError(stage,error) {
 }
 
 function enforceEarlyRuntimeHardening() {
+  const debugSwitches = new Set(['remote-debugging-port', 'remote-debugging-pipe', 'inspect', 'inspect-brk', 'inspect-brk-node', 'inspect-port', 'user-data-dir']);
   const blockedSwitches = [
     'remote-debugging-port', 'remote-debugging-pipe',
     'inspect', 'inspect-brk', 'inspect-brk-node', 'inspect-port',
     'js-flags', 'no-sandbox', 'disable-web-security',
     'allow-running-insecure-content', 'ignore-certificate-errors',
     'disable-site-isolation-trials', 'user-data-dir'
-  ];
+  ].filter(name => !(SOURCE_LIVE_DEBUG && debugSwitches.has(name)));
   for (const name of blockedSwitches) {
     try {
       if (app.commandLine?.hasSwitch?.(name)) {
@@ -109,7 +122,7 @@ function enforceEarlyRuntimeHardening() {
   }
   try { app.enableSandbox?.(); runtimeHardeningReport.sandboxEnabled=true; }
   catch (error) { recordRuntimeHardeningError('enable-sandbox',error); }
-  if (typeof app.on === 'function') {
+  if (!SOURCE_LIVE_DEBUG && typeof app.on === 'function') {
     app.on('web-contents-created', (_event, contents) => {
       contents.on('devtools-opened', () => {
         try { contents.closeDevTools(); }
@@ -165,6 +178,28 @@ function writeJsonAtomic(file, value) {
   fs.writeFileSync(tmp, JSON.stringify(value, null, 2), {encoding: 'utf8', mode: 0o600});
   fs.renameSync(tmp, file);
 }
+function saveBackupPayload(payload={},rootDir=''){
+  const backup=payload?.backup;if(!backup||typeof backup!=='object'||Array.isArray(backup))throw Object.assign(new Error('Резервная копия не содержит объект данных.'),{code:'BACKUP_INVALID'});
+  const kind=['manual','safety','server'].includes(String(payload?.kind||''))?String(payload.kind):'manual',safeName=String(payload?.fileName||'justfun-backup.json').replace(/[\\/:*?"<>|]/g,'_').replace(/^\.+/,'').slice(0,160)||'justfun-backup.json',storageRoot=String(rootDir||readInstallConfig().data_dir||localRoot()),directory=path.resolve(storageRoot,'Экспорт');ensureDir(directory);let target=path.resolve(directory,safeName);if(path.dirname(target)!==directory)throw Object.assign(new Error('Недопустимое имя резервной копии.'),{code:'BACKUP_PATH_REJECTED'});if(fs.existsSync(target)){const ext=path.extname(safeName)||'.json',base=path.basename(safeName,ext);target=path.join(directory,`${base}-${Date.now()}${ext}`)}writeJsonAtomic(target,backup);const written=fs.readFileSync(target),parsed=JSON.parse(written.toString('utf8')),canonical=JSON.stringify(parsed);if(!canonical||canonical==='{}'&&Object.keys(backup).length)throw Object.assign(new Error('Проверка записанного файла не пройдена.'),{code:'BACKUP_VERIFY_FAILED'});return{ok:true,path:target,bytes:written.length,sha256:crypto.createHash('sha256').update(written).digest('hex'),kind,at:new Date().toISOString()}
+}
+function safeRendererAuditPayload(payload={}){
+  const safeToken=(value,max=120)=>String(value??'').replace(/[^A-Za-z0-9_.:-]/g,'').slice(0,max);
+  const allowedDetailKeys=new Set(['kind','targetId','commandId','changes','code','state','critical','warehouseId','environment']);
+  const detail={};
+  for(const[key,value]of Object.entries(payload?.detail&&typeof payload.detail==='object'?payload.detail:{})){
+    if(!allowedDetailKeys.has(key))continue;
+    if(key==='changes')detail[key]=Math.max(0,Math.min(1000,Number(value)||0));
+    else if(key==='critical')detail[key]=value===true;
+    else detail[key]=safeToken(value);
+  }
+  return{
+    correlationId:safeToken(payload?.correlationId,80),
+    action:safeToken(payload?.action,100)||'renderer_audit_event',
+    warehouseId:safeToken(payload?.warehouseId,120),
+    environment:['live','demo'].includes(String(payload?.environment||''))?String(payload.environment):'unknown',
+    detail
+  };
+}
 function writeFailureArtifact(file,value,label) {
   try {
     writeJsonAtomic(file,value);
@@ -208,6 +243,13 @@ function getUpdateController() {
       license_auth: RELEASE.contracts.license_auth,
       telegram_broker: RELEASE.contracts.telegram_broker,
       storage_protocol: RELEASE.contracts.storage_protocol,
+      address_search: RELEASE.contracts.address_search,
+      warehouse_delete_prepare: RELEASE.contracts.warehouse_delete_prepare,
+      warehouse_delete_lease: RELEASE.contracts.warehouse_delete_lease,
+      telegram_broker_deprovision: RELEASE.contracts.telegram_broker_deprovision,
+      telegram_native_deprovision: RELEASE.contracts.telegram_native_deprovision,
+      vps_attestation: RELEASE.contracts.vps_attestation,
+      warehouse_delete_release_outbox: RELEASE.contracts.warehouse_delete_release_outbox,
     },
     policy: UPDATE_POLICY,
     trustStore: UPDATE_TRUST_STORE,
@@ -272,12 +314,61 @@ function scheduleUpdateChecks() {
   updateCheckTimer.unref?.();
 }
 
-function withTimeout(promise, timeoutMs, message) {
+function withTimeout(promise, timeoutMs, message, code='OPERATION_TIMEOUT') {
   let timer = null;
   return Promise.race([
     promise,
-    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(message)), timeoutMs); })
+    new Promise((_, reject) => { timer = setTimeout(() => reject(Object.assign(new Error(message),{code})), timeoutMs); })
   ]).finally(() => { if (timer) clearTimeout(timer); });
+}
+function transitionRendererStartupState(state,event,payload={}) {
+  const current=state&&typeof state==='object'?state:{phase:'idle',recoveryReason:'',readyPayload:null};
+  if(event==='begin')return{phase:'loading',recoveryReason:'',readyPayload:null};
+  if(event==='window-closed')return{...current,phase:'closed'};
+  if(event==='startup-failed')return{...current,phase:'failed',recoveryReason:String(payload?.reason||current.recoveryReason||'')};
+  if(event==='load-timeout'){
+    if(current.phase==='ready'||current.phase==='closed'||current.phase==='failed')return current;
+    return{...current,phase:'recovery',recoveryReason:String(payload?.reason||'')}
+  }
+  if(event==='renderer-ready'){
+    if(current.phase==='closed'||current.phase==='failed')return current;
+    return{...current,phase:'ready',readyPayload:payload&&typeof payload==='object'?{...payload}:null}
+  }
+  return current
+}
+async function coordinateRendererStartup(loadPromise,rendererReady,options={}) {
+  const wait=typeof options.wait==='function'?options.wait:withTimeout;
+  const observedLoad=Promise.resolve(loadPromise);
+  let recovered=false,lateLoadFailure=null;
+  try{
+    await wait(observedLoad,Number(options.loadTimeoutMs)||STARTUP_TIMEOUT_MS,'Рабочая страница не завершила загрузку за 30 секунд','RENDERER_LOAD_TIMEOUT');
+    await options.onLoadComplete?.()
+  }catch(error){
+    if(String(error?.code||'')!=='RENDERER_LOAD_TIMEOUT')throw error;
+    recovered=true;await options.onLoadTimeout?.(error);
+    const never=new Promise(()=>{});
+    lateLoadFailure=observedLoad.then(()=>never,lateError=>Promise.reject(lateError))
+  }
+  const readinessSignals=[Promise.resolve(rendererReady)];
+  if(options.windowClosed)readinessSignals.push(Promise.resolve(options.windowClosed));
+  if(lateLoadFailure)readinessSignals.push(lateLoadFailure);
+  const readyPayload=await wait(Promise.race(readinessSignals),Number(options.readyTimeoutMs)||RENDERER_READY_TIMEOUT_MS,'Рабочий интерфейс загрузился, но не подтвердил готовность','RENDERER_READY_TIMEOUT');
+  return{recovered,readyPayload}
+}
+function revealRendererStartupWindows(targetMain,targetSplash) {
+  if(!targetMain||targetMain.isDestroyed?.())return{shown:false,splashClosed:false};
+  targetMain.show();targetMain.focus();let splashClosed=false;
+  if(targetSplash&&!targetSplash.isDestroyed?.()){try{targetSplash.close();splashClosed=true}catch{}}
+  return{shown:true,splashClosed}
+}
+function finalizeRendererStartupReady(state,payload,targetMain,targetSplash) {
+  const current=state&&typeof state==='object'?state:{phase:'idle',recoveryReason:'',readyPayload:null};
+  if(!targetMain||targetMain.isDestroyed?.()||current.phase==='closed'||current.phase==='failed')return{state:current,shown:false,splashClosed:false,recovered:false,alreadyReady:false};
+  if(current.phase==='ready')return{state:current,shown:true,splashClosed:false,recovered:false,alreadyReady:true};
+  const next=transitionRendererStartupState(current,'renderer-ready',payload);
+  if(next===current||next.phase!=='ready')return{state:current,shown:false,splashClosed:false,recovered:false,alreadyReady:false};
+  const revealed=revealRendererStartupWindows(targetMain,targetSplash);
+  return{state:revealed.shown?next:current,...revealed,recovered:current.phase==='recovery',alreadyReady:false}
 }
 function safeError(error) {
   return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
@@ -619,6 +710,28 @@ function createSplash() {
 function sendSplash(stage, detail, progress) {
   sendWindowMessage(splashWindow,'splash-status',{stage, detail, progress});
 }
+function allowRendererUnloadAfterAcceptedQuit(event, quitAccepted) {
+  if (quitAccepted !== true) return false;
+  event.preventDefault();
+  return true;
+}
+function enterRendererStartupRecovery(error) {
+  const previous=rendererStartupState;
+  rendererStartupState=transitionRendererStartupState(previous,'load-timeout',{reason:safeError(error)});
+  if(rendererStartupState===previous||rendererStartupState.phase!=='recovery')return false;
+  sendSplash('Восстанавливаем запуск','Рабочая страница запускается дольше обычного. JustFun продолжает ждать подтверждённую готовность; локальные данные не изменяются.',88);
+  appendLog('renderer load timeout; recoverable wait continues',{error:safeError(error)});
+  return true
+}
+function confirmRendererStartupReady(payload={}) {
+  const result=finalizeRendererStartupReady(rendererStartupState,payload,mainWindow,splashWindow);
+  if(!result.shown)return false;
+  if(result.alreadyReady)return true;
+  rendererStartupState=result.state;
+  if(result.splashClosed||!splashWindow||splashWindow.isDestroyed())splashWindow=null;
+  appendLog(result.recovered?'main window shown after startup recovery':'main window shown',{surface:String(payload?.surface||'').slice(0,80)});
+  return true
+}
 async function createMainWindow() {
   const bounds = readJson(path.join(localRoot(), 'window-state.json'), {});
   const companyScope=String(currentSession?.cloudAuth?.company?.id || '').replace(/[^A-Za-z0-9_-]/g,'').slice(0,80);
@@ -634,7 +747,7 @@ async function createMainWindow() {
     webPreferences:{
       preload:path.join(__dirname,'preload.js'), nodeIntegration:false, contextIsolation:true,
       sandbox:true, webSecurity:true, allowRunningInsecureContent:false,
-      devTools:false, spellcheck:true, backgroundThrottling:false,
+      devTools:SOURCE_LIVE_DEBUG, spellcheck:true, backgroundThrottling:false,
       additionalArguments:[
         `--jf-edition=${currentSession?.edition === 'demo' ? 'demo' : 'full'}`,
         `--jf-company-id=${companyScope}`,
@@ -642,6 +755,9 @@ async function createMainWindow() {
       ]
     }
   });
+  rendererStartupState=transitionRendererStartupState(rendererStartupState,'begin');
+  let rendererWindowClosedReject=null;
+  const rendererWindowClosed=new Promise((_,reject)=>{rendererWindowClosedReject=reject});
   Menu.setApplicationMenu(null);
   mainWindow.setMenuBarVisibility(false);
   mainWindow.webContents.setWindowOpenHandler(({url}) => {
@@ -655,6 +771,10 @@ async function createMainWindow() {
       event.preventDefault();
       appendLog('blocked malformed navigation', {url:String(url || '').slice(0,500), error:safeError(error)});
     }
+  });
+  mainWindow.webContents.on('will-prevent-unload', event => {
+    if (!allowRendererUnloadAfterAcceptedQuit(event,applicationQuitAccepted)) return;
+    appendLog('renderer unload guard bypassed for accepted application quit');
   });
   mainWindow.webContents.on('did-start-navigation', (_event, _url, _isInPlace, isMainFrame) => {
     if (isMainFrame) activeRendererWarehouseId='';
@@ -687,23 +807,26 @@ async function createMainWindow() {
     try { writeJsonAtomic(path.join(localRoot(), 'window-state.json'), b); }
     catch (error) { appendLog('window state write failed',{error:safeError(error)}); }
   });
-  mainWindow.on('closed',()=>{activeRendererWarehouseId='';stopTelegramCompanyPublishRetry();mainWindow=null});
+  mainWindow.on('closed',()=>{
+    rendererStartupState=transitionRendererStartupState(rendererStartupState,'window-closed');
+    const rejectClosed=rendererWindowClosedReject;rendererWindowClosedReject=null;
+    if(rejectClosed)rejectClosed(Object.assign(new Error('Рабочее окно было закрыто во время запуска'),{code:'RENDERER_WINDOW_CLOSED'}));
+    activeRendererWarehouseId='';stopTelegramCompanyPublishRetry();mainWindow=null
+  });
   const rendererReady = new Promise(resolve => { rendererReadyResolve = resolve; });
   try {
-    await withTimeout(
-      mainWindow.loadURL(appRendererUrl('web/index.html')),
-      STARTUP_TIMEOUT_MS,
-      'Рабочая страница не завершила загрузку за 30 секунд'
-    );
-    sendSplash('Проверяем интерфейс','Ожидаем готовность входа и рабочей области',78);
-    await withTimeout(rendererReady, RENDERER_READY_TIMEOUT_MS, 'Рабочий интерфейс загрузился, но не подтвердил готовность');
+    const startup=await coordinateRendererStartup(mainWindow.loadURL(appRendererUrl('web/index.html')),rendererReady,{
+      onLoadComplete:()=>sendSplash('Проверяем интерфейс','Ожидаем готовность входа и рабочей области',78),
+      onLoadTimeout:enterRendererStartupRecovery,
+      windowClosed:rendererWindowClosed
+    });
     if (!mainWindow || mainWindow.isDestroyed()) throw new Error('Рабочее окно было закрыто во время запуска');
-    mainWindow.show(); mainWindow.focus();
-    if (splashWindow && !splashWindow.isDestroyed()) splashWindow.close();
-    splashWindow = null;
-    appendLog('main window shown');
+    if(!confirmRendererStartupReady(startup.readyPayload))throw new Error('Рабочий интерфейс подтвердил готовность, но главное окно не удалось показать');
+  } catch(error) {
+    rendererStartupState=transitionRendererStartupState(rendererStartupState,'startup-failed',{reason:safeError(error)});
+    throw error
   } finally {
-    rendererReadyResolve = null;
+    rendererReadyResolve = null;rendererWindowClosedReject=null;
   }
 }
 function isAllowedExternal(url) {
@@ -718,6 +841,7 @@ function showRecoveryError(title, details) {
   dialog.showMessageBox({type:'error', title:'JustFun — восстановление запуска', message:title, detail:`${details}\n\nЖурналы запуска:\n${paths}`, buttons:['Перезапустить','Открыть журнал','Закрыть'], defaultId:0, cancelId:2, noLink:true}).then(({response}) => {
     if (response === 0) { app.relaunch(); app.exit(0); }
     if (response === 1) shell.showItemInFolder(logFile());
+    if (response === 2) app.quit();
   });
 }
 
@@ -771,9 +895,12 @@ function telegramRoot(companyId='',warehouseId=activeRendererWarehouseId){
 }
 function telegramStatePath(companyId='',warehouseId=activeRendererWarehouseId) { return path.join(telegramRoot(companyId,warehouseId), 'state.json'); }
 function telegramCursorPath(companyId='',warehouseId=activeRendererWarehouseId) { return path.join(telegramRoot(companyId,warehouseId), 'event-cursors.json'); }
+function telegramSecretNameForScope(scope){
+  return `telegramClientApiKey.${scope.companyId}.${scope.environment}.${scope.warehouseId}`;
+}
 function telegramSecretName(companyId='',warehouseId=activeRendererWarehouseId){
   const scope=currentTelegramScope(warehouseId,companyId);
-  return `telegramClientApiKey.${scope.companyId}.${scope.environment}.${scope.warehouseId}`;
+  return telegramSecretNameForScope(scope);
 }
 function explicitLegacyTelegramState(scope){
   const legacyPath=path.join(telegramBaseRoot(),'state.json');
@@ -804,7 +931,7 @@ function bundledIntegrationPath(...parts) { return path.join(__dirname, 'integra
 
 function requireSecureStorage() {
   if (!safeStorage || typeof safeStorage.isEncryptionAvailable !== 'function' || !safeStorage.isEncryptionAvailable()) {
-    throw new Error('Защищённое хранилище Windows недоступно. Войдите в обычную учётную запись Windows и повторите запуск.');
+    throw Object.assign(new Error('Защищённое хранилище Windows недоступно. Войдите в обычную учётную запись Windows и повторите запуск.'), { code: 'NATIVE_SECRET_STORAGE_UNAVAILABLE' });
   }
 }
 function readNativeSecret(name) {
@@ -813,7 +940,12 @@ function readNativeSecret(name) {
   const encoded = String(store[name] || '');
   if (!encoded) return '';
   try { return safeStorage.decryptString(Buffer.from(encoded, 'base64')); }
-  catch { throw new Error('Защищённый локальный ключ повреждён или создан другим пользователем Windows.'); }
+  catch (cause) {
+    throw Object.assign(new Error('Защищённый локальный ключ временно недоступен. Выполните обычный вход; сохранённые данные ключа не удалены.'), {
+      code: 'NATIVE_SECRET_DECRYPT_FAILED',
+      causeCode: String(cause?.code || cause?.name || '')
+    });
+  }
 }
 function writeNativeSecret(name, value) {
   requireSecureStorage();
@@ -884,6 +1016,7 @@ function combinedCloudClaims(accessToken,offlineToken){
     sub:consistentCloudId('пользователя',claimsList.map(item=>item.sub)),
     cid:consistentCloudId('компании',claimsList.map(item=>item.cid)),
     did:consistentCloudId('компьютера',claimsList.map(item=>item.did)),
+    sid:consistentCloudId('сессии',claimsList.map(item=>item.sid)),
     role:roleValues[0]||'',
     permissions:permissionLists[0]||[]
   };
@@ -941,6 +1074,9 @@ function normalizeCloudAuthState(value, fallback={}) {
   const claimDevice=normalizedCloudId(claims.did);
   const explicitDevice=normalizedCloudId(value.device_id||fallback.device_id);
   if(claimDevice&&explicitDevice&&claimDevice!==explicitDevice)throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Сессия относится к другому компьютеру. Выполните вход повторно.');
+  const claimSession=normalizedCloudId(claims.sid);
+  const explicitSession=normalizedCloudId(value.session_id||fallback.session_id);
+  if(claimSession&&explicitSession&&claimSession!==explicitSession)throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Токены относятся к другой серверной сессии. Выполните вход повторно.');
   return {
     ...fallback,
     ...value,
@@ -953,6 +1089,8 @@ function normalizeCloudAuthState(value, fallback={}) {
     offline_expires_at:Number(value.offline_expires_at||fallback.offline_expires_at||tokenExpiresAt(offlineToken)||0),
     refresh_expires_at:String(value.refresh_expires_at||fallback.refresh_expires_at||''),
     device_id:claimDevice||explicitDevice,
+    session_id:claimSession||explicitSession,
+    session_binding_contract:Number(value.session_binding_contract||fallback.session_binding_contract||0),
     auth_context_version:Number(value.auth_context_version||fallback.auth_context_version||1),
     last_verified_at:String(value.last_verified_at||fallback.last_verified_at||''),
     offline:Boolean(value.offline)
@@ -973,9 +1111,10 @@ function readCloudAuthState() {
     }
     return normalized;
   } catch (error) {
-    appendLog('cloud auth state rejected', {code:String(error?.code||''),error:safeIntegrationError(error)});
-    try{deleteNativeSecret(CLOUD_AUTH_SECRET)}
-    catch(deleteError){appendLog('rejected cloud auth secret delete failed',{error:safeIntegrationError(deleteError)})}
+    const code=String(error?.code||''),preserveEncryptedState=['NATIVE_SECRET_DECRYPT_FAILED','NATIVE_SECRET_STORAGE_UNAVAILABLE'].includes(code);
+    appendLog(preserveEncryptedState?'cloud auth state temporarily unavailable':'cloud auth state rejected', {code,error:safeIntegrationError(error),causeCode:String(error?.causeCode||'')});
+    if(!preserveEncryptedState){try{deleteNativeSecret(CLOUD_AUTH_SECRET)}
+    catch(deleteError){appendLog('rejected cloud auth secret delete failed',{error:safeIntegrationError(deleteError)})}}
     return null;
   }
 }
@@ -985,7 +1124,8 @@ function writeCloudAuthState(value) {
   return normalized;
 }
 function clearCloudAuthState() {
-  try { deleteNativeSecret(CLOUD_AUTH_SECRET); } catch (error) { appendLog('cloud auth clear failed', safeIntegrationError(error)); }
+  deleteNativeSecret(CLOUD_AUTH_SECRET);
+  if(readNativeSecret(CLOUD_AUTH_SECRET))throw cloudAuthError('NATIVE_SECRET_DELETE_UNCONFIRMED','Windows не подтвердил удаление сохранённой сессии. Выход отменён.');
 }
 function cloudFriendlyError(code) {
   const map = {
@@ -994,23 +1134,44 @@ function cloudFriendlyError(code) {
     REQUIRED_FIELDS_MISSING:'Заполните все обязательные поля.', PASSWORD_TOO_SHORT:'Пароль должен содержать не менее 10 символов.', PASSWORD_TOO_LONG:'Пароль слишком длинный.',
     PASSWORD_MUST_CONTAIN_LETTERS_AND_NUMBERS:'Пароль должен содержать буквы и цифры.', INVALID_CREDENTIALS:'Неверный код компании, логин или пароль.',
     TOO_MANY_ATTEMPTS:'Слишком много попыток входа. Подождите и повторите позже.', USER_BLOCKED:'Пользователь заблокирован.', DEVICE_BLOCKED:'Этот компьютер заблокирован.',
-    DEVICE_LIMIT_REACHED:'Достигнут лимит компьютеров для пользователя.', INVALID_SESSION:'Сессия завершена. Выполните вход снова.', ACCESS_BLOCKED:'Доступ заблокирован.',
-    INVITATION_INVALID_OR_EXPIRED:'Приглашение не найдено, уже использовано или просрочено.', LOGIN_ALREADY_EXISTS_OR_INVITATION_USED:'Логин уже занят или приглашение использовано.',
+    DEVICE_LIMIT_REACHED:'Достигнут лимит компьютеров для пользователя.', INVALID_SESSION:'Сессия завершена. Выполните вход снова.', SESSION_UPGRADE_REQUIRED:'Сессия требует безопасного обновления.', ACCESS_BLOCKED:'Доступ заблокирован.',
+    INVITATION_INVALID_OR_EXPIRED:'Приглашение не найдено, отозвано, уже использовано или просрочено.', INVITATION_NOT_FOUND:'Приглашение больше не найдено.',
+    INVITATION_ALREADY_USED:'Приглашение уже принято сотрудником и не может быть отозвано.', INVITATION_ALREADY_EXPIRED:'Срок приглашения уже истёк.', INVITATION_STATE_CHANGED:'Состояние приглашения изменилось на другом компьютере. Обновите список.',
+    LOGIN_ALREADY_EXISTS_OR_INVITATION_USED:'Логин уже занят или приглашение использовано.',
     EMPLOYEE_LIMIT_REACHED:'Достигнут лимит сотрудников компании.', LOGIN_ALREADY_EXISTS:'Такой логин уже существует.', DEMO_EXPIRED:'Демонстрационный период завершён.',
     USER_NOT_FOUND:'Пользователь не найден.', DEVICE_NOT_FOUND:'Компьютер не найден.', CANNOT_BLOCK_SELF:'Нельзя заблокировать собственную учётную запись.',
     OWNER_CANNOT_BE_BLOCKED_HERE:'Владельца нельзя заблокировать из этого раздела.', OWNER_CANNOT_BE_CHANGED_HERE:'Роль и права владельца нельзя изменить из этого раздела.', CANNOT_CHANGE_SELF:'Нельзя изменить собственную роль или права.', INVALID_STATUS:'Недопустимый статус.', NOT_FOUND:'Метод сервера не найден.', INTERNAL_ERROR:'Внутренняя ошибка сервера.',
-    AUTH_CONTEXT_INCOMPLETE:'Сервер лицензий вернул неполные данные компании. Выполните вход повторно.', AUTH_CONTEXT_MISMATCH:'Данные пользователя, компании или компьютера не совпадают. Сессия остановлена.', AUTH_TOKEN_INVALID:'Токен сессии повреждён или выдан другим сервером. Выполните вход повторно.', AUTH_REQUIRED:'Сначала выполните вход.',
+    AUTH_CONTEXT_INCOMPLETE:'Сервер лицензий вернул неполные данные компании. Выполните вход повторно.', AUTH_CONTEXT_MISMATCH:'Данные пользователя, компании или компьютера не совпадают. Сессия остановлена.', AUTH_TOKEN_INVALID:'Токен сессии повреждён или выдан другим сервером. Выполните вход повторно.', AUTH_SESSION_CHANGED:'Учётная запись изменилась во время операции. Повторите действие.', INVALID_ROTATION_ID:'Сервер отклонил идентификатор обновления сессии.', AUTH_REQUIRED:'Сначала выполните вход.',
     TELEGRAM_NOT_CONFIGURED:'Telegram ещё не подключён к компании. Владельцу нужно один раз выполнить настройку или восстановление.', TELEGRAM_SERVICE_INVALID:'Параметры Telegram/Cloudflare имеют неверный формат.', TELEGRAM_BOT_MISMATCH:'Cloudflare подтвердил другого Telegram-бота.', TELEGRAM_CONFIGURATION_REQUIRED:'Защищённый ключ Telegram на сервере компании нужно обновить. Владельцу следует выполнить «Проверить и восстановить».',
     TELEGRAM_UPSTREAM_UNAVAILABLE:'Telegram/Cloudflare временно не отвечает.', TELEGRAM_UPSTREAM_INVALID:'Сервер профиля получил некорректный ответ от Telegram Worker.', TELEGRAM_WORKER_ROUTING_BLOCKED:'Cloudflare заблокировал обращение сервера профиля к Telegram Worker. На сервере нужно включить разрешённый публичный вызов Worker.', TELEGRAM_UPSTREAM_ERROR:'Telegram/Cloudflare отклонил запрос.', TELEGRAM_REQUEST_INVALID:'Параметры Telegram-запроса имеют неверный формат.',
+    TELEGRAM_DEPROVISION_UNCONFIRMED:'Telegram не подтвердил безопасное отключение склада. Удаление остановлено.', TELEGRAM_DEPROVISION_LOCAL_KEY_REQUIRED:'Не найден защищённый ключ старого Telegram Worker. Выполните восстановление Telegram и повторите удаление.', TELEGRAM_DEPROVISION_SCOPE_MISMATCH:'Локальный Telegram-профиль относится к другому складу. Удаление остановлено.', TELEGRAM_INSTALLATION_DEPROVISIONED:'Telegram этого склада уже окончательно отключён.',
     AUTH_SERVICE_UNAVAILABLE:'Сервер учётных записей временно недоступен. Повторите проверку позже.', AUTH_SERVICE_INVALID:'Сервер учётных записей вернул неподтверждённые данные.',
-    WAREHOUSE_REQUIRED:'Не выбран склад.', ENVIRONMENT_REQUIRED:'Не выбрана рабочая среда.', WAREHOUSE_ACCESS_DENIED:'У этой учётной записи нет доступа к выбранному складу.'
+    WAREHOUSE_REQUIRED:'Не выбран склад.', ENVIRONMENT_REQUIRED:'Не выбрана рабочая среда.', WAREHOUSE_ACCESS_DENIED:'У этой учётной записи нет доступа к выбранному складу.',
+    WAREHOUSE_CODE_REQUIRED:'Код склада имеет неверный формат.', WAREHOUSE_ASSIGNED:'Склад назначен сотрудникам или есть в действующем приглашении. Сначала уберите точное назначение.',
+    WAREHOUSE_DELETE_LEASE_ACTIVE:'Удаление этого склада уже выполняется на другом компьютере.', WAREHOUSE_DELETE_IN_PROGRESS:'Назначение склада временно заблокировано: идёт его удаление.',
+    WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED:'Защитное разрешение на удаление устарело. Повторите операцию.', WAREHOUSE_DELETE_LEASE_REACQUIRE_REQUIRED:'Не хватило времени на безопасное удаление. Повторите операцию.',
+    WAREHOUSE_DELETE_LEASE_SUPERSEDED:'Удаление продолжает другой компьютер. На этом компьютере операция остановлена без изменения данных.', warehouse_delete_lease_superseded:'Удаление продолжает другой компьютер. На этом компьютере операция остановлена без изменения данных.',
+    WAREHOUSE_DELETE_GLOBAL_ACCESS_REQUIRED:'Удалить склад может только владелец или администратор с доступом ко всем складам.', WAREHOUSE_DELETE_ACTOR_MISMATCH:'Незавершённое удаление может продолжить только пользователь, который его подтвердил.',
+    WAREHOUSE_DELETE_SESSION_CHANGED:'Пользователь изменился во время удаления. Операция безопасно остановлена до повторного входа.', WAREHOUSE_DELETE_PREPARE_UNCONFIRMED:'VPS не подтвердил безопасную подготовку удаления. Telegram и данные склада не затронуты.', WAREHOUSE_DELETE_COMPLETION_UNCONFIRMED:'VPS не подтвердил завершение подготовленного удаления.', WAREHOUSE_DELETE_STATE_MISMATCH:'Состояние удаления на ПК и VPS не совпало. Автоматическое продолжение остановлено.', WAREHOUSE_DELETE_LEASE_RELEASE_UNCONFIRMED:'Сервер не подтвердил снятие защитной блокировки. Операция будет продолжена автоматически.'
   };
   return map[String(code || '')] || String(code || 'Неизвестная ошибка сервера.');
+}
+function licenseWorkerVersionOverrideHeader() {
+  // A Worker version override is a source-only live-preview facility. Requiring
+  // both Electron's unpackaged flag and its default-app launch mode keeps an
+  // installed/package-built executable unable to opt in through its environment.
+  if (app.isPackaged !== false || process.defaultApp !== true) return '';
+  const version=String(process.env.JF_LICENSE_WORKER_VERSION_OVERRIDE||'').trim();
+  return STRICT_UUID_PATTERN.test(version)
+    ? `justfun-license-api="${version.toLowerCase()}"`
+    : '';
 }
 function cloudRequest(method, requestPath, body=null, accessToken='', timeoutMs=15000) {
   return new Promise((resolve, reject) => {
     const payload = body === null ? null : Buffer.from(JSON.stringify(body), 'utf8');
     const headers = {Accept:'application/json', 'User-Agent':`JustFunOrdersLogistics/${VERSION}`};
+    const versionOverride=licenseWorkerVersionOverrideHeader();
+    if(versionOverride)headers['Cloudflare-Workers-Version-Overrides']=versionOverride;
     if (payload) { headers['Content-Type']='application/json; charset=utf-8'; headers['Content-Length']=String(payload.length); }
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
     // ClientRequest's socket timeout does not include every DNS/TCP/TLS phase.
@@ -1090,9 +1251,109 @@ function publicCloudAuth(state) {
     return {user:normalized.user, company:normalized.company, device_id:normalized.device_id, offline:!!normalized.offline, offline_expires_at:normalized.offline_expires_at || null, last_verified_at:normalized.last_verified_at || null};
   }catch{return null;}
 }
-function saveCloudSession(result, context={}) {
+function cloudAuthorizationSignature(state) {
+  const normalized=normalizeCloudAuthState(state);
+  return JSON.stringify({userId:normalized.user.id,companyId:normalized.company.id,role:normalized.user.role,permissions:[...normalized.user.permissions].sort(),userStatus:normalized.user.status,companyStatus:normalized.company.status,authContextVersion:normalized.auth_context_version,sessionBindingContract:normalized.session_binding_contract});
+}
+function cloudRefreshTokenFingerprint(value) {
+  const token=String(value||'');
+  return token?crypto.createHash('sha256').update(token,'utf8').digest('base64url'):'';
+}
+function cloudAuthPrincipalIdentity(state) {
+  const normalized=normalizeCloudAuthState(state);
+  return `${normalized.user.id}:${normalized.company.id}:${normalized.device_id}`;
+}
+function cloudAuthSessionIdentity(state) {
+  const normalized=normalizeCloudAuthState(state);
+  return `${cloudAuthPrincipalIdentity(normalized)}:${cloudRefreshTokenFingerprint(normalized.refresh_token)}`;
+}
+function cloudAuthSessionChanged() {
+  return cloudAuthError('AUTH_SESSION_CHANGED','Учётная запись изменилась во время сетевой операции. Повторите действие.');
+}
+function captureCloudAuthOperation(stateOverride=null) {
+  const state=normalizeCloudAuthState(stateOverride||currentSession?.cloudAuth||readCloudAuthState());
+  if(!cloudSessionComplete(state)||!state.refresh_token)throw cloudAuthError('AUTH_REQUIRED','Сначала выполните вход.');
+  return {epoch:cloudAuthEpoch,principal:cloudAuthPrincipalIdentity(state),identity:cloudAuthSessionIdentity(state),state};
+}
+function cloudAuthFlightKey(operation){return `${operation.epoch}:${operation.identity}`}
+function assertCloudAuthOperation(operation,stateOverride=null) {
+  if(!operation||operation.epoch!==cloudAuthEpoch)throw cloudAuthSessionChanged();
+  const state=normalizeCloudAuthState(currentSession?.cloudAuth||stateOverride||operation.state);
+  if(!state||cloudAuthSessionIdentity(state)!==operation.identity)throw cloudAuthSessionChanged();
+  return state;
+}
+function advanceCloudAuthOperation(operation,state) {
+  if(!operation||operation.epoch!==cloudAuthEpoch)throw cloudAuthSessionChanged();
+  const normalized=normalizeCloudAuthState(state);
+  if(cloudAuthPrincipalIdentity(normalized)!==operation.principal)throw cloudAuthSessionChanged();
+  if(currentSession?.cloudAuth&&cloudAuthSessionIdentity(currentSession.cloudAuth)!==cloudAuthSessionIdentity(normalized))throw cloudAuthSessionChanged();
+  operation.identity=cloudAuthSessionIdentity(normalized);operation.state=normalized;
+  return normalized;
+}
+function beginCloudAuthWorkflow(operation) {
+  assertCloudAuthOperation(operation,operation?.state);
+  const controller=new AbortController();
+  const abortError=()=>controller.signal.reason instanceof Error?controller.signal.reason:cloudAuthSessionChanged();
+  const guard=()=>{
+    if(controller.signal.aborted)throw abortError();
+    const state=assertCloudAuthOperation(operation,operation.state);
+    if(controller.signal.aborted)throw abortError();
+    return state;
+  };
+  cloudAuthWorkflowControllers.add(controller);
+  return {signal:controller.signal,guard,release:()=>cloudAuthWorkflowControllers.delete(controller)};
+}
+function invalidateCloudAuthOperations() {
+  cloudAuthEpoch+=1;
+  const reason=cloudAuthSessionChanged();
+  for(const controller of cloudAuthWorkflowControllers){try{controller.abort(reason)}catch{}}
+  cloudAuthWorkflowControllers.clear();
+  cloudSessionRotationFlights.clear();cloudSessionRefreshFlights.clear();cloudAuthContextVerificationFlights.clear();
+}
+function resetCloudAuthScopedRuntime() {
+  stopTelegramCompanyPublishRetry();
+  stopWarehouseDeleteResume();
+  telegramCompanyPublishRetryFailures=0;
+  activeRendererWarehouseId='';
+  for(const win of [telegramSetupWindow,regVpsSetupWindow]){
+    try{if(win&&!win.isDestroyed())win.destroy()}catch{}
+  }
+  telegramSetupWindow=null;regVpsSetupWindow=null;activeIntegrationWizard=null;
+}
+function replaceCloudAuthSession(state,reason='auth-replace') {
+  if(!currentSession)throw cloudAuthError('AUTH_REQUIRED','Рабочая сессия приложения ещё не создана.');
+  const saved=writeCloudAuthState(normalizeCloudAuthState(state));
+  resetCloudAuthScopedRuntime();
+  invalidateCloudAuthOperations();
+  currentSession.cloudAuth=saved;
+  currentSession.authorized=true;
+  appendLog('cloud auth runtime replaced',{reason,company:saved.company.id,user:saved.user.id});
+  return saved;
+}
+function clearCloudAuthSession(reason='logout') {
+  // Persistent deletion is confirmed before the runtime reports logout. If
+  // Windows protected storage cannot commit the deletion, the live account is
+  // intentionally left authorized instead of being resurrected on restart.
+  clearCloudAuthState();
+  resetCloudAuthScopedRuntime();
+  invalidateCloudAuthOperations();
+  if(currentSession){currentSession.cloudAuth=null;currentSession.authorized=false}
+  appendLog('cloud auth runtime cleared',{reason});
+  return true;
+}
+function validCloudRefreshRotationId(value){return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value||''))}
+function prepareCloudRefreshRotation(starting,operation) {
+  const live=assertCloudAuthOperation(operation,starting),parentHash=cloudRefreshTokenFingerprint(live.refresh_token);
+  const reuse=validCloudRefreshRotationId(live.refresh_rotation_id)&&String(live.refresh_rotation_parent_hash||'')===parentHash;
+  const rotationId=reuse?String(live.refresh_rotation_id):crypto.randomUUID();
+  const prepared=writeCloudAuthState({...live,refresh_rotation_id:rotationId,refresh_rotation_parent_hash:parentHash});
+  Object.assign(starting,prepared);operation.state=prepared;
+  if(currentSession)currentSession.cloudAuth=prepared;
+  return {state:prepared,rotationId};
+}
+function saveCloudSession(result, context={}, persist=true) {
   const accessToken=String(result?.access_token||context.access_token||''),offlineToken=String(result?.offline_token||context.offline_token||''),refreshToken=String(result?.refresh_token||context.refresh_token||'');
-  const candidate={
+  const candidate=normalizeCloudAuthState({
     ...context,
     user:{...(context.user||{}),...(result?.user||{})},
     company:{...(context.company||{}),...(result?.company||{})},
@@ -1104,26 +1365,66 @@ function saveCloudSession(result, context={}) {
     access_expires_at:tokenExpiresAt(accessToken)||(Date.now()+Number(result?.access_expires_in||900)*1000),
     offline_expires_at:tokenExpiresAt(offlineToken)||(Date.now()+Number(result?.offline_expires_in||259200)*1000),
     refresh_expires_at:String(result?.refresh_expires_at||context.refresh_expires_at||''),
+    session_id:String(result?.session_id||context.session_id||''),
+    session_binding_contract:Number(result?.session_binding_contract||context.session_binding_contract||0),
     auth_context_version:Number(result?.auth_context_version||context.auth_context_version||1),
-    last_verified_at:new Date().toISOString(),offline:false
-  };
-  return writeCloudAuthState(candidate);
+    auth_context_verified:true,last_verified_at:new Date().toISOString(),offline:false
+  },context);
+  const confirmed=confirmedCloudAuthorizationContext(result,{assumeActive:true});
+  requireCloudTokenAuthorization(candidate,confirmed,{requireFresh:true});
+  delete candidate.refresh_rotation_id;delete candidate.refresh_rotation_parent_hash;
+  return persist===false?candidate:writeCloudAuthState(candidate);
+}
+async function requestCloudSessionRotation(starting,operationOverride=null) {
+  const operation=operationOverride||captureCloudAuthOperation(starting),key=cloudAuthFlightKey(operation);
+  const existing=cloudSessionRotationFlights.get(key);if(existing)return existing;
+  const prepared=prepareCloudRefreshRotation(starting,operation);
+  const flight=(async()=>{
+    const execute=()=>{assertCloudAuthOperation(operation,prepared.state);return cloudRequest('POST','/v1/auth/refresh',{refresh_token:prepared.state.refresh_token,rotation_id:prepared.rotationId,device_id:getMachineCode()},'',9000)};
+    const result=await withCloudNetworkRetry(execute,{attempts:3,onRetry:(error,attempt,maxAttempts)=>appendLog('cloud refresh rotation retry',{attempt,maxAttempts,code:String(error?.code||'NETWORK_ERROR')})});
+    assertCloudAuthOperation(operation,prepared.state);
+    if(String(result?.rotation_id||'')!==prepared.rotationId)throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Сервер не подтвердил точный идентификатор ротации сессии. Сессия остановлена.');
+    return {result,prepared:prepared.state,rotationId:prepared.rotationId};
+  })();
+  cloudSessionRotationFlights.set(key,flight);
+  try{return await flight}finally{if(cloudSessionRotationFlights.get(key)===flight)cloudSessionRotationFlights.delete(key)}
+}
+async function refreshCloudSession(stateOverride=null,operationOverride=null) {
+  const operation=operationOverride||captureCloudAuthOperation(stateOverride),key=cloudAuthFlightKey(operation);
+  const verification=cloudAuthContextVerificationFlights.get(key);
+  if(verification){const saved=await verification;return advanceCloudAuthOperation(operation,saved)}
+  const existing=cloudSessionRefreshFlights.get(key);
+  if(existing){const saved=await existing;return advanceCloudAuthOperation(operation,saved)}
+  const flight=(async()=>{
+    const starting=assertCloudAuthOperation(operation,stateOverride);
+    const rotated=await requestCloudSessionRotation(starting,operation);
+    assertCloudAuthOperation(operation,rotated.prepared);
+    const saved=saveCloudSession(rotated.result,rotated.prepared);
+    if(currentSession){assertCloudAuthOperation(operation,rotated.prepared);currentSession.cloudAuth=saved}
+    return advanceCloudAuthOperation(operation,saved)
+  })();
+  cloudSessionRefreshFlights.set(key,flight);
+  try{return await flight}finally{if(cloudSessionRefreshFlights.get(key)===flight)cloudSessionRefreshFlights.delete(key)}
 }
 async function restoreCloudAuthSession() {
   const state=readCloudAuthState();
   if (!state?.refresh_token || !cloudSessionComplete(state)) return null;
   try {
-    const result=await cloudRequest('POST','/v1/auth/refresh',{refresh_token:state.refresh_token,device_id:getMachineCode()},'',9000);
-    return saveCloudSession(result,state);
+    return await refreshCloudSession(state);
   } catch (error) {
-    if (['INVALID_SESSION','ACCESS_BLOCKED','LICENSE_BLOCKED','USER_BLOCKED','DEVICE_BLOCKED'].includes(String(error.code || ''))) {
+    if (['INVALID_SESSION','LICENSE_BLOCKED','USER_BLOCKED','DEVICE_BLOCKED'].includes(String(error.code || ''))) {
       clearCloudAuthState();
       appendLog('cloud auth session revoked', {code:error.code});
       return null;
     }
+    if(['AUTH_CONTEXT_MISMATCH','AUTH_TOKEN_INVALID','AUTH_SESSION_CHANGED','INVALID_ROTATION_ID'].includes(String(error.code||''))){
+      appendLog('cloud auth session verification stopped',{code:String(error.code),error:safeIntegrationError(error)});
+      return null;
+    }
     if (Number(state.offline_expires_at || 0) > Date.now()) {
-      state.offline=true;
-      const saved=writeCloudAuthState(state);
+      const offlineState=readCloudAuthState()||state;
+      offlineState.offline=true;
+      const saved=writeCloudAuthState(offlineState);
       appendLog('cloud auth offline grace used', {company:saved.company.id,until:new Date(saved.offline_expires_at).toISOString(), error:safeIntegrationError(error)});
       return saved;
     }
@@ -1131,32 +1432,32 @@ async function restoreCloudAuthSession() {
     return null;
   }
 }
-async function ensureCloudAccessToken() {
-  let state=currentSession?.cloudAuth || readCloudAuthState();
-  if (!cloudSessionComplete(state)) throw cloudAuthError('AUTH_REQUIRED','Сначала выполните вход.');
+async function ensureCloudAccessToken(operationOverride=null) {
+  const operation=operationOverride||captureCloudAuthOperation();
+  let state=assertCloudAuthOperation(operation,operation.state);
   if (state.access_token && Number(state.access_expires_at || 0) > Date.now()+60000) return state.access_token;
   if(!state.refresh_token)throw cloudAuthError('INVALID_SESSION','Сессия завершена. Выполните вход снова.');
-  const result=await cloudRequest('POST','/v1/auth/refresh',{refresh_token:state.refresh_token,device_id:getMachineCode()},'',9000);
-  state=saveCloudSession(result,state);
-  if (currentSession) currentSession.cloudAuth=state;
+  state=await refreshCloudSession(state,operation);
   return state.access_token;
 }
-async function cloudAuthenticatedRequest(method, requestPath, body=null) {
-  let token=await ensureCloudAccessToken();
-  try { return await cloudRequest(method,requestPath,body,token); }
+async function cloudAuthenticatedRequest(method, requestPath, body=null,operationOverride=null) {
+  const operation=operationOverride||captureCloudAuthOperation();
+  let token=await ensureCloudAccessToken(operation);
+  const execute=async()=>{assertCloudAuthOperation(operation,operation.state);const result=await cloudRequest(method,requestPath,body,token);assertCloudAuthOperation(operation,operation.state);return result};
+  try { return await execute(); }
   catch(error) {
     if (String(error.code || '') !== 'INVALID_TOKEN' && Number(error.status)!==401) throw error;
-    const state=currentSession?.cloudAuth || readCloudAuthState();
-    if(!cloudSessionComplete(state)||!state.refresh_token)throw cloudAuthError('INVALID_SESSION','Сессия завершена. Выполните вход снова.');
-    const refreshed=await cloudRequest('POST','/v1/auth/refresh',{refresh_token:state.refresh_token,device_id:getMachineCode()},'',9000);
-    const saved=saveCloudSession(refreshed,state); if(currentSession)currentSession.cloudAuth=saved; token=saved.access_token;
-    return cloudRequest(method,requestPath,body,token);
+    const state=assertCloudAuthOperation(operation,operation.state);
+    const saved=await refreshCloudSession(state,operation);token=saved.access_token;
+    return execute();
   }
 }
-async function companyTelegramBrokerRequest(method, requestPath, body=null) {
+async function companyTelegramBrokerRequest(method, requestPath, body=null,operationOverride=null) {
+  const authOperation=operationOverride||captureCloudAuthOperation();
   const executeOnce=async token=>{
+    assertCloudAuthOperation(authOperation,authOperation.state);
     try{
-      return await jsonRequest({
+      const result=await jsonRequest({
         hostname:COMPANY_TELEGRAM_BROKER_HOST,
         method,
         requestPath,
@@ -1165,6 +1466,8 @@ async function companyTelegramBrokerRequest(method, requestPath, body=null) {
         maxBytes:3*1024*1024,
         timeoutMs:30000
       });
+      assertCloudAuthOperation(authOperation,authOperation.state);
+      return result;
     }catch(error){
       const upstreamMessage=String(error?.details?.upstream_message||'').replace(/[\r\n]+/g,' ').trim().slice(0,500);
       const upstreamCode=String(error?.details?.upstream_code||'').trim().slice(0,120);
@@ -1180,45 +1483,154 @@ async function companyTelegramBrokerRequest(method, requestPath, body=null) {
   };
   const execute=token=>{
     const operation=()=>executeOnce(token);
-    if(!['GET','PUT'].includes(String(method).toUpperCase()))return operation();
+    const normalizedMethod=String(method).toUpperCase(),retryable=['GET','PUT'].includes(normalizedMethod);
+    if(!retryable)return operation();
     return withCloudNetworkRetry(operation,{attempts:3,onRetry:(error,attempt,maxAttempts)=>appendLog('Telegram company broker retry',{requestPath,attempt,maxAttempts,code:String(error?.code||'NETWORK_ERROR')})});
   };
-  let token=await ensureCloudAccessToken();
+  let token=await ensureCloudAccessToken(authOperation);
   try{return await execute(token)}
   catch(error){
     if(String(error?.code||'')!=='INVALID_TOKEN'&&Number(error?.status)!==401)throw error;
-    const state=currentSession?.cloudAuth||readCloudAuthState();
-    if(!cloudSessionComplete(state)||!state.refresh_token)throw cloudAuthError('INVALID_SESSION','Сессия завершена. Выполните вход снова.');
-    const refreshed=await cloudRequest('POST','/v1/auth/refresh',{refresh_token:state.refresh_token,device_id:getMachineCode()},'',9000);
-    const saved=saveCloudSession(refreshed,state);if(currentSession)currentSession.cloudAuth=saved;token=saved.access_token;
+    const state=assertCloudAuthOperation(authOperation,authOperation.state);
+    const saved=await refreshCloudSession(state,authOperation);token=saved.access_token;
     return execute(token);
   }
 }
-async function verifyCloudAuthContext() {
-  const existing=currentSession?.cloudAuth||readCloudAuthState();
-  if(!cloudSessionComplete(existing))throw cloudAuthError('AUTH_REQUIRED','Сначала выполните вход.');
-  const result=await withCloudNetworkRetry(
-    ()=>cloudAuthenticatedRequest('POST','/v1/auth/introspect',{}),
-    {attempts:3,onRetry:(error,attempt,maxAttempts)=>appendLog('cloud auth context retry',{attempt,maxAttempts,code:String(error?.code||'NETWORK_ERROR')})}
-  );
-  if(result?.active!==true||!result?.user||!result?.company)throw cloudAuthError('AUTH_CONTEXT_INCOMPLETE','Сервер лицензий не подтвердил пользователя и компанию.');
-  const latest=currentSession?.cloudAuth||readCloudAuthState()||existing;
-  const verified=writeCloudAuthState({
-    ...latest,
-    user:{...(latest.user||{}),...(result.user||{})},
-    company:{...(latest.company||{}),...(result.company||{})},
-    user_id:String(result.user_id||result.user?.id||''),
-    company_id:String(result.company_id||result.company?.id||''),
-    role:String(result.role||result.user?.role||''),
-    permissions:Array.isArray(result.permissions)?result.permissions:result.user?.permissions,
-    device_id:String(result.device_id||latest.device_id||''),
-    auth_context_version:Number(result.auth_context_version||latest.auth_context_version||1),
-    auth_context_verified:true,
+function confirmedCloudAuthorizationContext(source,{assumeActive=false}={}) {
+  if(!source||typeof source!=='object'||Array.isArray(source)||(!assumeActive&&source.active!==true)||!source.user||!source.company){
+    throw cloudAuthError('AUTH_CONTEXT_INCOMPLETE','Сервер лицензий не подтвердил пользователя и компанию.');
+  }
+  const userIds=[source.user_id,source.user?.id],companyIds=[source.company_id,source.company?.id],deviceIds=[source.device_id];
+  for(const [label,values] of [['пользователя',userIds],['компании',companyIds],['компьютера',deviceIds]]){
+    if(values.some(value=>String(value||'').trim()&&!normalizedCloudId(value)))throw cloudAuthError('AUTH_CONTEXT_MISMATCH',`Сервер вернул недопустимый идентификатор ${label}. Сессия остановлена.`);
+  }
+  const userId=consistentCloudId('пользователя',userIds);
+  const companyId=consistentCloudId('компании',companyIds);
+  const deviceId=consistentCloudId('компьютера',deviceIds);
+  const roles=[...new Set([source.role,source.user?.role].map(value=>String(value||'').trim()).filter(Boolean))];
+  const permissionLists=[source.permissions,source.user?.permissions].filter(Array.isArray).map(normalizedPermissions);
+  if(!userId||!companyId||!deviceId||roles.length!==1||normalizedCloudRole(roles[0])!==roles[0]||!permissionLists.length){
+    throw cloudAuthError('AUTH_CONTEXT_INCOMPLETE','Сервер лицензий вернул неполный контекст полномочий. Сессия остановлена.');
+  }
+  if(permissionLists.length>1&&!sameStringList(permissionLists[0],permissionLists[1])){
+    throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Сервер лицензий вернул противоречивые права пользователя. Сессия остановлена.');
+  }
+  const userStatus=String(source.user?.status||(source.active===true||assumeActive?'active':'')).trim();
+  const companyStatus=String(source.company?.status||(source.active===true||assumeActive?'active':'')).trim();
+  const authContextVersion=Number(source.auth_context_version);
+  const sessionBindingContract=Number(source.session_binding_contract||0);
+  const sessionId=normalizedCloudId(source.session_id);
+  if(userStatus!=='active'||companyStatus!=='active'||authContextVersion!==2){
+    throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Сервер лицензий не подтвердил активный статус и версию контекста. Сессия остановлена.');
+  }
+  if(![0,1].includes(sessionBindingContract)||(sessionBindingContract===1&&!sessionId)){
+    throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Сервер лицензий не подтвердил привязку токена к активной сессии. Сессия остановлена.');
+  }
+  return {userId,companyId,deviceId,role:roles[0],permissions:permissionLists[0],userStatus,companyStatus,authContextVersion,sessionBindingContract};
+}
+function sameConfirmedCloudAuthorization(left,right) {
+  return left.userId===right.userId&&left.companyId===right.companyId&&left.deviceId===right.deviceId&&left.role===right.role&&sameStringList(left.permissions,right.permissions)&&left.userStatus===right.userStatus&&left.companyStatus===right.companyStatus&&left.authContextVersion===right.authContextVersion&&left.sessionBindingContract===right.sessionBindingContract;
+}
+function requireCloudTokenAuthorization(tokenState,confirmed,{requireFresh=false}={}) {
+  const accessToken=String(tokenState?.access_token||''),offlineToken=String(tokenState?.offline_token||'');
+  if(!accessToken||!offlineToken)throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Сервер лицензий не вернул оба токена контекста. Сессия остановлена.');
+  const accessClaims=justFunTokenClaims(accessToken,'access'),offlineClaims=justFunTokenClaims(offlineToken,'offline');
+  const claims=combinedCloudClaims(accessToken,offlineToken);
+  if(claims.sub!==confirmed.userId||claims.cid!==confirmed.companyId||claims.did!==confirmed.deviceId||String(claims.role||'')!==confirmed.role||!sameStringList(claims.permissions,confirmed.permissions)){
+    throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Новые токены не совпадают с подтверждёнными сервером полномочиями. Сессия остановлена.');
+  }
+  const sessionBindingContract=Number(tokenState?.session_binding_contract||0),sessionId=normalizedCloudId(tokenState?.session_id);
+  if(sessionBindingContract!==confirmed.sessionBindingContract){
+    throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Договор привязки токена не совпадает с подтверждённой серверной сессией. Сессия остановлена.');
+  }
+  if(sessionBindingContract===1&&(!sessionId||claims.sid!==sessionId)){
+    throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Новые токены не привязаны к подтверждённой серверной сессии. Сессия остановлена.');
+  }
+  for(const item of [accessClaims,offlineClaims]){
+    if(String(item.user_status||'')!==confirmed.userStatus)throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Статус пользователя в токене не совпадает с сервером. Сессия остановлена.');
+    if(String(item.company_status||'')!==confirmed.companyStatus)throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Статус компании в токене не совпадает с сервером. Сессия остановлена.');
+    if(Number(item.auth_context_version)!==confirmed.authContextVersion)throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Версия контекста в токене не совпадает с сервером. Сессия остановлена.');
+  }
+  if(requireFresh&&(tokenExpiresAt(accessToken)<=Date.now()+60000||tokenExpiresAt(offlineToken)<=Date.now())){
+    throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Сервер лицензий вернул уже истёкший контекст сессии. Сессия остановлена.');
+  }
+  return true;
+}
+function cloudTokenAuthorizationMatches(tokenState,confirmed) {
+  try{return requireCloudTokenAuthorization(tokenState,confirmed,{requireFresh:true})}
+  catch(error){if(['AUTH_CONTEXT_MISMATCH','AUTH_TOKEN_INVALID'].includes(String(error?.code||'')))return false;throw error}
+}
+function verifiedCloudAuthCandidate(base,source,confirmed,rotated=null) {
+  const tokens=rotated||base;
+  const candidate=normalizeCloudAuthState({
+    ...base,...(rotated||{}),
+    user:{...(base.user||{}),...(rotated?.user||{}),...(source.user||{}),id:confirmed.userId,role:confirmed.role,permissions:confirmed.permissions,status:confirmed.userStatus},
+    company:{...(base.company||{}),...(rotated?.company||{}),...(source.company||{}),id:confirmed.companyId,status:confirmed.companyStatus},
+    user_id:confirmed.userId,company_id:confirmed.companyId,device_id:confirmed.deviceId,
+    role:confirmed.role,permissions:confirmed.permissions,
+    access_token:String(tokens.access_token||''),offline_token:String(tokens.offline_token||''),refresh_token:String(tokens.refresh_token||''),
+    session_id:String(tokens.session_id||source.session_id||base.session_id||''),session_binding_contract:confirmed.sessionBindingContract,
+    auth_context_version:confirmed.authContextVersion,auth_context_verified:true,
     last_verified_at:new Date().toISOString(),offline:false
-  });
-  if(currentSession)currentSession.cloudAuth=verified;
-  appendLog('cloud auth context verified',{company:verified.company.id,user:verified.user.id,role:verified.user.role,contract:verified.auth_context_version});
-  return verified;
+  },base);
+  delete candidate.refresh_rotation_id;delete candidate.refresh_rotation_parent_hash;
+  return candidate;
+}
+function currentCloudAuthForAtomicCommit(starting,operation) {
+  if(!currentSession?.cloudAuth)throw cloudAuthSessionChanged();
+  const live=assertCloudAuthOperation(operation,starting);
+  if(String(live.refresh_token||'')!==String(starting.refresh_token||''))throw cloudAuthSessionChanged();
+  return live;
+}
+async function performCloudAuthContextVerification(operation) {
+  const existing=assertCloudAuthOperation(operation,operation.state);
+  let result=null,rotated=null;
+  if(existing.access_token&&tokenExpiresAt(existing.access_token)>Date.now()+60000){
+    try{
+      result=await withCloudNetworkRetry(
+        ()=>{assertCloudAuthOperation(operation,existing);return cloudRequest('POST','/v1/auth/introspect',{},existing.access_token)},
+        {attempts:3,onRetry:(error,attempt,maxAttempts)=>appendLog('cloud auth context retry',{attempt,maxAttempts,code:String(error?.code||'NETWORK_ERROR')})}
+      );
+      assertCloudAuthOperation(operation,existing);
+    }catch(error){
+      assertCloudAuthOperation(operation,existing);
+      if(String(error?.code||'')!=='INVALID_TOKEN'&&Number(error?.status)!==401)throw error;
+    }
+  }
+  if(!result){
+    rotated=await requestCloudSessionRotation(existing,operation);
+    result=rotated.result;
+  }
+  const confirmed=confirmedCloudAuthorizationContext(result,{assumeActive:Boolean(rotated)});
+  const preview=verifiedCloudAuthCandidate(existing,result,confirmed,rotated?.result||null);
+  const rotationRequired=Boolean(rotated)||Boolean(existing.refresh_rotation_id)||cloudAuthorizationSignature(existing)!==cloudAuthorizationSignature(preview)||!cloudTokenAuthorizationMatches(existing,confirmed);
+  if(rotationRequired&&!rotated)rotated=await requestCloudSessionRotation(existing,operation);
+  if(rotated){
+    const rotatedResult=rotated.result,rotatedContext=confirmedCloudAuthorizationContext(rotatedResult,{assumeActive:true});
+    if(!sameConfirmedCloudAuthorization(rotatedContext,confirmed))throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Контекст после ротации не совпадает с подтверждёнными сервером полномочиями. Сессия остановлена.');
+    requireCloudTokenAuthorization(rotatedResult,confirmed,{requireFresh:true});
+    const refreshExpiresAt=Date.parse(rotatedResult.refresh_expires_at);
+    if(!String(rotatedResult.refresh_token||'')||String(rotatedResult.refresh_token)===String(existing.refresh_token)||!Number.isFinite(refreshExpiresAt)||refreshExpiresAt<=Date.now()){
+      throw cloudAuthError('AUTH_CONTEXT_MISMATCH','Сервер лицензий не подтвердил безопасную ротацию refresh-токена. Сессия остановлена.');
+    }
+  }
+  const latest=currentCloudAuthForAtomicCommit(existing,operation);
+  const candidate=verifiedCloudAuthCandidate(latest,result,confirmed,rotated?.result||null);
+  assertCloudAuthOperation(operation,latest);
+  const saved=writeCloudAuthState(candidate);
+  currentSession.cloudAuth=saved;
+  advanceCloudAuthOperation(operation,saved);
+  appendLog(rotated?'cloud auth context verified and token rotated':'cloud auth context verified',{company:saved.company.id,user:saved.user.id,role:saved.user.role,contract:saved.auth_context_version});
+  return saved;
+}
+async function verifyCloudAuthContext(operationOverride=null) {
+  const authOperation=operationOverride||captureCloudAuthOperation(),key=cloudAuthFlightKey(authOperation);
+  const refreshing=cloudSessionRefreshFlights.get(key);
+  if(refreshing){const saved=await refreshing;advanceCloudAuthOperation(authOperation,saved);return verifyCloudAuthContext(authOperation)}
+  const existing=cloudAuthContextVerificationFlights.get(key);if(existing){const saved=await existing;return advanceCloudAuthOperation(authOperation,saved)}
+  const verification=performCloudAuthContextVerification(authOperation);
+  cloudAuthContextVerificationFlights.set(key,verification);
+  try{return await verification}finally{if(cloudAuthContextVerificationFlights.get(key)===verification)cloudAuthContextVerificationFlights.delete(key)}
 }
 async function normalizeDemoStateWithCloud(dataDir) {
   const local=normalizeDemoState(dataDir);
@@ -1286,6 +1698,73 @@ function validateEnvironment(value) {
   return environment;
 }
 function currentEnvironment() { return currentSession?.edition === 'demo' ? 'demo' : 'live'; }
+function activeWarehouseContextPath(){return path.join(localRoot(),ACTIVE_WAREHOUSE_CONTEXT_NAME)}
+function activeWarehousePreferenceScope(authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  let normalized=null;
+  try{normalized=normalizeCloudAuthState(authState)}catch{return null}
+  const companyId=normalizedCloudId(normalized?.company?.id),userId=normalizedCloudId(normalized?.user?.id);
+  let resolvedEnvironment='';try{resolvedEnvironment=validateEnvironment(environment)}catch{return null}
+  return companyId&&userId?{companyId,userId,environment:resolvedEnvironment}:null
+}
+function activeWarehousePreferenceScopeKey(scope){return scope?`${scope.companyId}:${scope.userId}:${scope.environment}`:''}
+function normalizeActiveWarehousePreferenceRecord(value){
+  if(!value||typeof value!=='object'||Array.isArray(value))return null;
+  const companyId=normalizedCloudId(value.company_id),userId=normalizedCloudId(value.user_id),updatedAt=String(value.updated_at||'');
+  let environment='',warehouseId='';try{environment=validateEnvironment(value.environment);warehouseId=validateWarehouseId(value.warehouse_id)}catch{return null}
+  if(!companyId||!userId)return null;
+  return{company_id:companyId,user_id:userId,environment,warehouse_id:warehouseId,updated_at:Number.isFinite(Date.parse(updatedAt))?updatedAt:new Date(0).toISOString()}
+}
+function readActiveWarehousePreferenceDocument(){
+  const file=activeWarehouseContextPath();
+  try{
+    const raw=fs.readFileSync(file),text=raw.length>=2&&raw[0]===0xFF&&raw[1]===0xFE?raw.subarray(2).toString('utf16le'):raw.toString('utf8').replace(/^\uFEFF/,''),value=JSON.parse(text);
+    if(!value||typeof value!=='object'||Array.isArray(value)||value.schema_version!==1||!Array.isArray(value.records))throw Object.assign(new Error('Файл предпочтения активного склада имеет неподдерживаемый формат.'),{code:'ACTIVE_WAREHOUSE_PREFERENCE_INVALID'});
+    const normalized=value.records.map(normalizeActiveWarehousePreferenceRecord),records=normalized.filter(Boolean);
+    if(records.length!==value.records.length)appendRecurringLog('active warehouse preference records ignored',{code:'ACTIVE_WAREHOUSE_PREFERENCE_RECORD_INVALID',invalid:value.records.length-records.length});
+    return{schema_version:1,records}
+  }catch(error){
+    if(String(error?.code||'')!=='ENOENT')appendRecurringLog('active warehouse preference read failed',{code:String(error?.code||'ACTIVE_WAREHOUSE_PREFERENCE_READ_FAILED'),error:safeError(error)});
+    return{schema_version:1,records:[]}
+  }
+}
+function readConfirmedActiveWarehousePreference(authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)return'';
+  const matches=readActiveWarehousePreferenceDocument().records.filter(item=>item.company_id===scope.companyId&&item.user_id===scope.userId&&item.environment===scope.environment);
+  if(matches.length!==1){if(matches.length>1)appendRecurringLog('duplicate active warehouse preferences ignored',{code:'ACTIVE_WAREHOUSE_PREFERENCE_DUPLICATE',companyId:scope.companyId,userId:scope.userId,environment:scope.environment,count:matches.length});return''}
+  return String(matches[0]?.warehouse_id||'')
+}
+function activeWarehouseRecoveryPreference(authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)return{companyId:'',userId:'',environment:'',warehouseId:''};
+  return{...scope,warehouseId:readConfirmedActiveWarehousePreference(authState,scope.environment)}
+}
+function persistConfirmedActiveWarehousePreference(warehouseId,authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  try{
+    const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)throw cloudAuthError('AUTH_CONTEXT_INCOMPLETE','Нельзя сохранить активный склад без подтверждённой компании и пользователя.');
+    const id=validateWarehouseId(warehouseId),document=readActiveWarehousePreferenceDocument(),record={company_id:scope.companyId,user_id:scope.userId,environment:scope.environment,warehouse_id:id,updated_at:new Date().toISOString()},records=[record,...document.records.filter(item=>!(item.company_id===scope.companyId&&item.user_id===scope.userId&&item.environment===scope.environment))].slice(0,64);
+    writeJsonAtomic(activeWarehouseContextPath(),{schema_version:1,records});return id
+  }catch(error){
+    appendRecurringLog('active warehouse preference write failed',{code:String(error?.code||'ACTIVE_WAREHOUSE_PREFERENCE_WRITE_FAILED'),error:safeError(error)});return false
+  }
+}
+function rememberConfirmedWarehouseRegistry(warehouses,authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  const scope=activeWarehousePreferenceScope(authState,environment),allowedIds=new Set();
+  if(scope)for(const item of Array.isArray(warehouses)?warehouses:[]){if(item?.status==='archived')continue;try{allowedIds.add(validateWarehouseId(item?.id))}catch{}}
+  confirmedWarehouseRegistry={scopeKey:activeWarehousePreferenceScopeKey(scope),allowedIds};return confirmedWarehouseRegistry
+}
+function persistRendererWarehousePreferenceIfConfirmed(warehouseId,authState=currentSession?.cloudAuth,environment=currentEnvironment()){
+  const scope=activeWarehousePreferenceScope(authState,environment);if(!scope)return false;
+  let id='';try{id=validateWarehouseId(warehouseId)}catch{return false}
+  if(confirmedWarehouseRegistry.scopeKey!==activeWarehousePreferenceScopeKey(scope)||!confirmedWarehouseRegistry.allowedIds.has(id))return false;
+  return persistConfirmedActiveWarehousePreference(id,authState,environment)===id
+}
+function resolveAllowedActiveWarehousePreference(warehouses,authState=currentSession?.cloudAuth,environment=currentEnvironment(),rendererWarehouseId=activeRendererWarehouseId){
+  const list=Array.isArray(warehouses)?warehouses:[],registry=rememberConfirmedWarehouseRegistry(list,authState,environment);
+  let preferred='';try{preferred=validateWarehouseId(rendererWarehouseId)}catch{}
+  if(preferred&&registry.allowedIds.has(preferred))persistConfirmedActiveWarehousePreference(preferred,authState,environment);
+  else preferred=readConfirmedActiveWarehousePreference(authState,environment);
+  if(!registry.allowedIds.has(preferred))preferred='';
+  return{warehouses:list,preferredWarehouseId:preferred}
+}
 function requireCurrentEnvironment(value) {
   const environment = validateEnvironment(value);
   if (environment !== currentEnvironment()) throw new Error('Операция другой среды заблокирована: LIVE и DEMO полностью разделены.');
@@ -1344,6 +1823,9 @@ function validateWarehouseSnapshot(snapshot, expectedWarehouseId, expectedEnviro
 
 function validateSnapshotEntityIdentifiers(data) {
   const safe=value=>value === '' || /^[A-Za-z0-9_-]{1,160}$/.test(String(value));
+  const safeForKey=(value,key)=>key==='addressId'
+    ? value === '' || /^[A-Za-z0-9_.:-]{1,200}$/.test(String(value))
+    : safe(value);
   const visit=(value,key='',depth=0)=>{
     if(depth>40)throw new Error('Снимок имеет недопустимую глубину вложенности.');
     if(Array.isArray(value)){
@@ -1352,7 +1834,7 @@ function validateSnapshotEntityIdentifiers(data) {
       return;
     }
     if(!value||typeof value!=='object'){
-      if(/(?:^id$|Id$)/.test(key)&&!safe(value))throw new Error(`Снимок содержит небезопасный идентификатор ${key}.`);
+      if(/(?:^id$|Id$)/.test(key)&&!safeForKey(value,key))throw new Error(`Снимок содержит небезопасный идентификатор ${key}.`);
       return;
     }
     for(const [childKey,child] of Object.entries(value))visit(child,childKey,depth+1);
@@ -1492,6 +1974,11 @@ function regApiSecretName(companyId='') {
   const scope=normalizedCloudId(companyId);
   return scope ? `regApiKey:${scope}` : 'regApiKey';
 }
+function regVpsAttestationSecretName(companyId='') {
+  const scope=normalizedCloudId(companyId);
+  if(!scope)throw new Error('Не удалось определить компанию для ключа подтверждения VPS.');
+  return`regVpsAttestation:${scope}`;
+}
 function readLocalRegState(authState=currentSession?.cloudAuth,edition=currentSession?.edition||'full') {
   if(edition!=='full')return readJson(regStatePath(),null);
   let companyId='';
@@ -1516,13 +2003,400 @@ function canConfigureCompanyServer(authState) {
   const permissions=Array.isArray(authState?.user?.permissions)?authState.user.permissions.map(String):[];
   return role==='owner'||permissions.includes('*')||permissions.includes('integrations.manage')||permissions.includes('company.update');
 }
+function canManageCompanyWarehouses(authState) {
+  const role=String(authState?.user?.role||''),permissions=Array.isArray(authState?.user?.permissions)?authState.user.permissions.map(String):[];
+  return role==='owner'||permissions.includes('*')||permissions.includes('warehouses.manage')||permissions.includes('warehouses.*');
+}
+function canCreateCompanyWarehouses(authState) {
+  const role=String(authState?.user?.role||''),permissions=Array.isArray(authState?.user?.permissions)?authState.user.permissions.map(String):[];
+  return canManageCompanyWarehouses(authState)&&(role==='owner'||permissions.includes('*')||permissions.includes('jf.warehouse:*'));
+}
+function canImportLocalMigration(authState) {
+  const role=String(authState?.user?.role||''),permissions=Array.isArray(authState?.user?.permissions)?authState.user.permissions.map(String):[];
+  const allWarehouses=permissions.includes('*')||permissions.includes('jf.warehouse:*'),managesWarehouses=permissions.includes('*')||permissions.includes('warehouses.manage')||permissions.includes('warehouses.*');
+  return role==='owner'&&allWarehouses&&managesWarehouses;
+}
+function canDeleteCompanyWarehouses(authState) {
+  return canCreateCompanyWarehouses(authState);
+}
+function validateWarehouseCode(value) {
+  const code=String(value||'').trim();
+  if(!/^[A-ZА-ЯЁ0-9]{1,3}$/u.test(code))throw Object.assign(new Error('Код склада имеет неверный формат.'),{code:'WAREHOUSE_CODE_INVALID'});
+  return code;
+}
+function validateWarehouseDeleteLease(result,warehouseId,warehouseCode,authState=currentSession?.cloudAuth) {
+  const id=validateWarehouseId(warehouseId),code=validateWarehouseCode(warehouseCode),lease=result?.lease,token=String(result?.lease_token||''),status=String(lease?.status||''),active=status==='active',prepared=status==='prepared';
+  const remainingRaw=result?.remaining_seconds,remaining=active?Number(remainingRaw):null,expiresRaw=lease?.expires_at,expiresAt=active?Date.parse(String(expiresRaw||'')):null;
+  const activeTimingValid=active&&Number.isSafeInteger(remaining)&&remaining>=30&&Number.isFinite(expiresAt)&&expiresAt>Date.now()+25_000;
+  const preparedTimingValid=prepared&&result?.prepared===true&&remainingRaw===null&&expiresRaw===null;
+  if(result?.ok!==true||result?.active!==true||String(result?.status||'')!==status||!lease||typeof lease!=='object'||Array.isArray(lease)||String(lease.company_id||'')!==companyWorkspaceId(authState)||String(lease.warehouse_id||'')!==id||String(lease.warehouse_code||'')!==code||!/^wdl_[A-Za-z0-9_-]{8,160}$/.test(String(lease.id||''))||!/^jfdl_[A-Za-z0-9_-]{32,220}$/.test(token)||(!activeTimingValid&&!preparedTimingValid)){
+    throw Object.assign(new Error('Сервер не выдал корректное защитное разрешение на удаление.'),{code:'WAREHOUSE_DELETE_LEASE_INVALID'});
+  }
+  return{token,leaseId:String(lease.id),expiresAt:active?String(expiresRaw):null,remainingSeconds:remaining,status,prepared};
+}
+async function acquireCloudWarehouseDeleteLease(warehouseId,warehouseCode,authOperation=null) {
+  const id=validateWarehouseId(warehouseId),code=validateWarehouseCode(warehouseCode);
+  const operation=authOperation||captureCloudAuthOperation(),authState=assertCloudAuthOperation(operation,operation.state);
+  const result=await cloudAuthenticatedRequest('POST','/v1/warehouse-delete-leases/acquire',{warehouse_id:id,warehouse_code:code},operation);
+  return validateWarehouseDeleteLease(result,id,code,authState);
+}
+function warehouseDeleteLeaseSecretName(companyId,warehouseId,actorUserId){
+  const company=normalizedCloudId(companyId),warehouse=validateWarehouseId(warehouseId),actor=normalizedCloudId(actorUserId);
+  if(!company)throw new Error('Не удалось определить компанию для защитного разрешения удаления.');
+  if(!actor)throw new Error('Не удалось определить пользователя для защитного разрешения удаления.');
+  return`warehouseDeleteLease:${crypto.createHash('sha256').update(`${company}:${warehouse}:${actor}`).digest('hex').slice(0,32)}`;
+}
+function validWarehouseDeleteLeaseToken(value){return /^jfdl_[A-Za-z0-9_-]{32,220}$/.test(String(value||''))}
+function warehouseDeleteLeaseTerminalReleaseError(error){
+  return new Set(['WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED','WAREHOUSE_DELETE_LEASE_SUPERSEDED','warehouse_delete_lease_superseded']).has(String(error?.code||''));
+}
+function warehouseDeletePrepareFailureAction(code,stage){
+  const normalized=String(code||'');
+  if(new Set(['WAREHOUSE_DELETE_LEASE_SUPERSEDED','warehouse_delete_lease_superseded']).has(normalized))return'superseded';
+  if(new Set(['WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED','WAREHOUSE_DELETE_LEASE_REACQUIRE_REQUIRED']).has(normalized))return String(stage||'')==='confirmed'?'reacquire':'superseded';
+  return'propagate';
+}
+function assertWarehouseDeleteSession(authState=currentSession?.cloudAuth,authOperation=null){
+  if(authOperation){
+    try{assertCloudAuthOperation(authOperation,authState)}
+    catch{throw Object.assign(new Error('Сессия изменилась во время удаления склада. Операция безопасно остановлена.'),{code:'WAREHOUSE_DELETE_SESSION_CHANGED'})}
+  }
+  const liveAuth=currentSession?.cloudAuth;
+  if(!liveAuth||companyWorkspaceId(liveAuth)!==companyWorkspaceId(authState)||warehouseDeleteActorId(liveAuth)!==warehouseDeleteActorId(authState)){
+    throw Object.assign(new Error('Пользователь изменился во время удаления склада. Операция безопасно остановлена и будет продолжена после повторного входа того же пользователя.'),{code:'WAREHOUSE_DELETE_SESSION_CHANGED'});
+  }
+  return true;
+}
+async function releaseCloudWarehouseDeleteLease(warehouseId,warehouseCode,leaseToken,authState=currentSession?.cloudAuth,authOperation=null){
+  assertWarehouseDeleteSession(authState,authOperation);
+  const id=validateWarehouseId(warehouseId),code=validateWarehouseCode(warehouseCode),result=await cloudAuthenticatedRequest('POST','/v1/warehouse-delete-leases/release',{
+    warehouse_id:id,
+    warehouse_code:code,
+    lease_token:String(leaseToken||'')
+  },authOperation);
+  assertWarehouseDeleteSession(authState,authOperation);
+  if(result?.ok!==true||result?.released!==true||String(result?.lease?.company_id||'')!==companyWorkspaceId(authState)||String(result?.lease?.warehouse_id||'')!==id||String(result?.lease?.warehouse_code||'')!==code||String(result?.lease?.status||'')!=='released')throw Object.assign(new Error('Сервер не подтвердил снятие защитной блокировки удаления.'),{code:'WAREHOUSE_DELETE_LEASE_RELEASE_UNCONFIRMED'});
+  return true;
+}
+const WAREHOUSE_DELETE_JOURNAL_PREFIX='warehouse-delete-v3-';
+const WAREHOUSE_DELETE_JOURNAL_STAGES=new Set(['confirmed','vps_prepared','telegram_deprovisioned','vps_delete_pending','vps_deleted']);
+function warehouseDeleteActorId(authState=currentSession?.cloudAuth){
+  const actorId=normalizedCloudId(authState?.user?.id);
+  if(!actorId)throw cloudAuthError('AUTH_CONTEXT_INCOMPLETE','Сервер не подтвердил пользователя для удаления склада. Выполните вход повторно.');
+  return actorId;
+}
+function warehouseDeleteJournalPath(companyId,warehouseId,actorUserId){
+  const company=normalizedCloudId(companyId),warehouse=validateWarehouseId(warehouseId),actor=normalizedCloudId(actorUserId);
+  if(!company)throw new Error('Не удалось определить компанию для журнала удаления склада.');
+  if(!actor)throw new Error('Не удалось определить пользователя для журнала удаления склада.');
+  const digest=crypto.createHash('sha256').update(`${company}:${warehouse}:${actor}`).digest('hex').slice(0,32);
+  return path.join(telegramBaseRoot(),`${WAREHOUSE_DELETE_JOURNAL_PREFIX}${digest}.json`);
+}
+function normalizeWarehouseDeleteBatch(value,warehouseId){
+  const source=value&&typeof value==='object'&&!Array.isArray(value)?value:{};
+  const rendererShape=source.command_id?{
+    commandId:String(source.command_id||''),
+    changes:(Array.isArray(source.changes)?source.changes:[]).map(item=>({
+      type:item?.type,id:item?.id,baseVersion:item?.base_version,deleted:item?.deleted===true,payload:item?.payload
+    })),
+    intent:source.intent?{kind:source.intent.kind,targetId:source.intent.target_id}:null
+  }:source;
+  return validateRegEntityBatch(rendererShape,warehouseId);
+}
+function validateWarehouseDeleteJournal(value,authState=currentSession?.cloudAuth){
+  if(!value||typeof value!=='object'||Array.isArray(value)||value.schema_version!==3)throw new Error('Журнал удаления склада повреждён.');
+  const companyId=companyWorkspaceId(authState),actorId=warehouseDeleteActorId(authState),warehouseId=validateWarehouseId(value.warehouse_id),warehouseCode=validateWarehouseCode(value.warehouse_code),environment=validateEnvironment(value.environment);
+  if(String(value.company_id||'')!==companyId||environment!=='live'||!WAREHOUSE_DELETE_JOURNAL_STAGES.has(String(value.stage||'')))throw new Error('Журнал удаления относится к другой компании или среде.');
+  if(String(value.actor_user_id||'')!==actorId)throw Object.assign(new Error('Незавершённое удаление было подтверждено другим пользователем. Его может продолжить только тот же пользователь.'),{code:'WAREHOUSE_DELETE_ACTOR_MISMATCH'});
+  const batch=normalizeWarehouseDeleteBatch(value.batch,warehouseId),warehouseChanges=batch.changes.filter(item=>item.type==='warehouse'&&item.id===warehouseId&&item.deleted===true);
+  if(batch.intent||batch.changes.length!==1||warehouseChanges.length!==1)throw new Error('Журнал удаления содержит посторонние данные.');
+  return{...value,company_id:companyId,actor_user_id:actorId,warehouse_id:warehouseId,warehouse_code:warehouseCode,environment,batch,stage:String(value.stage)};
+}
+function writeWarehouseDeleteJournal(value){
+  ensureDir(telegramBaseRoot());
+  const normalized={...value,updated_at:new Date().toISOString()};
+  writeJsonAtomic(warehouseDeleteJournalPath(normalized.company_id,normalized.warehouse_id,normalized.actor_user_id),normalized);
+  return normalized;
+}
+function readWarehouseDeleteJournal(companyId,warehouseId,authState=currentSession?.cloudAuth){
+  const value=readJson(warehouseDeleteJournalPath(companyId,warehouseId,warehouseDeleteActorId(authState)),null);
+  return value?validateWarehouseDeleteJournal(value,authState):null;
+}
+function beginWarehouseDeleteJournal(warehouseId,warehouseCode,batch,authState=currentSession?.cloudAuth){
+  const companyId=companyWorkspaceId(authState),existing=readWarehouseDeleteJournal(companyId,warehouseId,authState);
+  if(existing){
+    if(existing.warehouse_code!==validateWarehouseCode(warehouseCode))throw new Error('Код склада не совпадает с незавершённой операцией удаления.');
+    return existing;
+  }
+  return writeWarehouseDeleteJournal({
+    schema_version:3,
+    company_id:companyId,
+    actor_user_id:warehouseDeleteActorId(authState),
+    warehouse_id:validateWarehouseId(warehouseId),
+    warehouse_code:validateWarehouseCode(warehouseCode),
+    environment:'live',
+    stage:'confirmed',
+    batch:normalizeWarehouseDeleteBatch(batch,warehouseId),
+    created_at:new Date().toISOString(),
+    result:null,
+    telegram:null,
+    lease_released:false,
+    local_cleanup_error:''
+  });
+}
+function validateTelegramDeprovisionResult(result,warehouseId,{installationId='',source='Telegram',reportedWarehouseId='',expectedCompanyId='',expectedWarehouseCode='',expectedDeleteCommandId='',expectedDeleteBaseVersion=0}={}){
+  const id=validateWarehouseId(warehouseId),expectedReportedWarehouse=String(reportedWarehouseId||id),reportedInstallation=String(result?.installation_id||''),companyId=String(expectedCompanyId||''),warehouseCode=String(expectedWarehouseCode||''),deleteCommandId=String(expectedDeleteCommandId||''),deleteBaseVersion=Number(expectedDeleteBaseVersion||0);
+  if(result?.ok!==true||result?.deprovisioned!==true||String(result?.warehouse_id||'')!==expectedReportedWarehouse||(installationId&&reportedInstallation!==installationId)||(companyId&&String(result?.company_id||'')!==companyId)||(warehouseCode&&String(result?.warehouse_code||'')!==warehouseCode)||(deleteCommandId&&String(result?.delete_command_id||'')!==deleteCommandId)||(deleteBaseVersion&&Number(result?.delete_base_version)!==deleteBaseVersion)||(reportedInstallation&&!/^[A-Za-z0-9._:-]{8,160}$/.test(reportedInstallation))){
+    throw Object.assign(new Error(`${source} не подтвердил отключение удаляемого склада.`),{code:'TELEGRAM_DEPROVISION_UNCONFIRMED'});
+  }
+  return{warehouseId:id,installationId:reportedInstallation,alreadyDeprovisioned:result?.already_deprovisioned===true};
+}
+function warehouseTelegramScopes(companyId,warehouseId){
+  return['live','demo'].map(environment=>telegramScopeParts(companyId,warehouseId,environment));
+}
+async function deprovisionWarehouseLegacyTelegramWorkers(warehouseId,authState=currentSession?.cloudAuth,authOperation=null){
+  assertWarehouseDeleteSession(authState,authOperation);
+  const id=validateWarehouseId(warehouseId),companyId=companyWorkspaceId(authState),pending=[],direct=[];
+  for(const scope of warehouseTelegramScopes(companyId,id)){
+    const statePath=path.join(telegramScopeRoot(scope),'state.json'),rawState=readJson(statePath,null);
+    if(!rawState)continue;
+    if(String(rawState.company_id||'')!==scope.companyId||String(rawState.warehouse_id||'')!==scope.warehouseId||String(rawState.environment||'')!==scope.environment){
+      throw Object.assign(new Error('Локальный Telegram-профиль относится к другой компании, складу или среде.'),{code:'TELEGRAM_DEPROVISION_SCOPE_MISMATCH'});
+    }
+    const installationId=String(rawState.installation_id||'');
+    let key='';
+    try{key=readNativeSecret(telegramSecretNameForScope(scope))}catch(error){throw Object.assign(error,{code:'TELEGRAM_DEPROVISION_LOCAL_KEY_REQUIRED'})}
+    if(!key)throw Object.assign(new Error('Не найден защищённый ключ старого Telegram Worker. Выполните восстановление Telegram и повторите удаление.'),{code:'TELEGRAM_DEPROVISION_LOCAL_KEY_REQUIRED'});
+    pending.push({scope,installationId,key,validated:validateWorkerState(rawState)});
+  }
+  for(const item of pending){
+    assertWarehouseDeleteSession(authState,authOperation);
+    const result=await jsonRequest({
+      hostname:item.validated.url.hostname,
+      method:'POST',
+      requestPath:'/v1/deprovision',
+      headers:{Authorization:`Bearer ${item.key}`},
+      body:{},
+      maxBytes:1024*1024,
+      timeoutMs:30000
+    });
+    assertWarehouseDeleteSession(authState,authOperation);
+    direct.push(validateTelegramDeprovisionResult(result,id,{installationId:item.installationId,source:'Telegram Worker',reportedWarehouseId:telegramWarehouseScope(item.scope.warehouseId,item.scope.environment),expectedCompanyId:item.scope.companyId}));
+    item.key='';
+  }
+  return{direct:direct.map(item=>({installationId:item.installationId,alreadyDeprovisioned:item.alreadyDeprovisioned}))};
+}
+function deleteTelegramScopeDirectory(scope){
+  const base=path.resolve(telegramBaseRoot()),target=path.resolve(telegramScopeRoot(scope)),relative=path.relative(base,target);
+  if(!relative||relative.startsWith('..')||path.isAbsolute(relative))throw new Error('Путь локального Telegram-профиля вышел за разрешённую область.');
+  fs.rmSync(target,{recursive:true,force:true,maxRetries:3,retryDelay:100});
+}
+function finalizeWarehouseTelegramLocalCleanup(warehouseId,authState=currentSession?.cloudAuth,authOperation=null){
+  assertWarehouseDeleteSession(authState,authOperation);
+  const id=validateWarehouseId(warehouseId),companyId=companyWorkspaceId(authState),scopes=warehouseTelegramScopes(companyId,id);
+  for(const scope of scopes){deleteNativeSecret(telegramSecretNameForScope(scope));deleteTelegramScopeDirectory(scope)}
+  for(const scope of scopes){
+    const legacy=explicitLegacyTelegramState(scope);if(!legacy)continue;
+    for(const name of ['state.json','event-cursors.json']){
+      const target=path.join(telegramBaseRoot(),name);if(fs.existsSync(target))fs.rmSync(target,{force:true})
+    }
+    deleteNativeSecret('telegramClientApiKey');break;
+  }
+  const liveAuth=currentSession?.cloudAuth;
+  if(!liveAuth||companyWorkspaceId(liveAuth)!==companyId||warehouseDeleteActorId(liveAuth)!==warehouseDeleteActorId(authState)){
+    appendLog('Warehouse Telegram auth cache cleanup skipped after session change',{companyId,warehouseId:id});
+    return true;
+  }
+  const current=normalizeCloudAuthState(liveAuth),company={...current.company},services=company.telegram_services&&typeof company.telegram_services==='object'&&!Array.isArray(company.telegram_services)?{...company.telegram_services}:{};
+  delete services[id];company.telegram_services=services;
+  if(String(company.telegram_service?.warehouse_id||'')===id)delete company.telegram_service;
+  const saved=writeCloudAuthState({...current,company});if(currentSession)currentSession.cloudAuth=saved;
+  return true;
+}
+const warehouseDeleteOperationLocks=new Map();
+async function withWarehouseDeleteOperationLock(companyId,warehouseId,task){
+  const company=normalizedCloudId(companyId),warehouse=validateWarehouseId(warehouseId);if(!company||typeof task!=='function')throw new Error('Не удалось создать блокировку удаления склада.');
+  const lockKey=`${company}:${warehouse}`,previous=warehouseDeleteOperationLocks.get(lockKey)||Promise.resolve(),current=previous.catch(()=>{}).then(task);
+  warehouseDeleteOperationLocks.set(lockKey,current);
+  try{return await current}finally{if(warehouseDeleteOperationLocks.get(lockKey)===current)warehouseDeleteOperationLocks.delete(lockKey)}
+}
+async function completeWarehouseDeleteOperation(args){
+  const authOperation=args?.authOperation||captureCloudAuthOperation(args?.authState||currentSession?.cloudAuth);
+  const authState=assertCloudAuthOperation(authOperation,args?.authState||authOperation.state),companyId=companyWorkspaceId(authState),warehouseId=validateWarehouseId(args?.warehouseId);
+  return withWarehouseDeleteOperationLock(companyId,warehouseId,()=>completeWarehouseDeleteOperationUnlocked({...args,warehouseId,authState,authOperation}));
+}
+async function completeWarehouseDeleteOperationUnlocked({warehouseId,warehouseCode,batch,state,authState=currentSession?.cloudAuth,authOperation=null}){
+  assertWarehouseDeleteSession(authState,authOperation);
+  let journal=beginWarehouseDeleteJournal(warehouseId,warehouseCode,batch,authState),result=journal.result||null,telegram=journal.telegram||null,lease=null,leaseReleased=journal.lease_released===true;
+  const leaseSecretName=warehouseDeleteLeaseSecretName(journal.company_id,journal.warehouse_id,journal.actor_user_id),storedLeaseToken=readNativeSecret(leaseSecretName);
+  if(journal.stage!=='vps_deleted'&&!state)throw Object.assign(new Error('VPS REG.RU ещё не подключён; удаление склада остановлено.'),{code:'REG_VPS_NOT_CONFIGURED'});
+  if(journal.stage==='vps_deleted'&&storedLeaseToken&&!leaseReleased){
+    try{await releaseCloudWarehouseDeleteLease(journal.warehouse_id,journal.warehouse_code,storedLeaseToken,authState,authOperation);leaseReleased=true;journal=writeWarehouseDeleteJournal({...journal,stage:'vps_deleted',result,telegram,lease_released:true,lease_release_error:''})}
+    catch(error){
+      if(!warehouseDeleteLeaseTerminalReleaseError(error))throw error;
+      leaseReleased=true;
+      journal=writeWarehouseDeleteJournal({...journal,stage:'vps_deleted',result,telegram,lease_released:true,lease_release_terminal:true,lease_release_error:''});
+    }
+  }
+  if(!leaseReleased){
+    if(validWarehouseDeleteLeaseToken(storedLeaseToken))lease={token:storedLeaseToken,prepared:journal.stage!=='confirmed',status:journal.stage==='confirmed'?'active-or-prepared':'prepared'};
+    else{assertWarehouseDeleteSession(authState,authOperation);lease=await acquireCloudWarehouseDeleteLease(journal.warehouse_id,journal.warehouse_code,authOperation);writeNativeSecret(leaseSecretName,lease.token)}
+  }
+  if(journal.stage!=='vps_deleted'){
+    let prepared;
+    try{prepared=await prepareRegWarehouseDelete(state,journal,lease.token,authOperation)}
+    catch(error){
+      const prepareCode=String(error?.code||''),leaseFailureAction=warehouseDeletePrepareFailureAction(prepareCode,journal.stage);
+      if(leaseFailureAction==='superseded'){throw Object.assign(new Error('Операцию удаления продолжает другой компьютер. Этот компьютер больше не меняет защитный токен.'),{code:'WAREHOUSE_DELETE_LEASE_SUPERSEDED'})}
+      else if(leaseFailureAction==='reacquire'){assertWarehouseDeleteSession(authState,authOperation);lease=await acquireCloudWarehouseDeleteLease(journal.warehouse_id,journal.warehouse_code,authOperation);writeNativeSecret(leaseSecretName,lease.token);prepared=await prepareRegWarehouseDelete(state,journal,lease.token,authOperation)}
+      else{
+      const alreadyCompleted=journal.stage==='confirmed'&&prepareCode==='warehouse_delete_completed';
+      const safeToRestart=journal.stage==='confirmed'&&new Set(['entity_version_conflict','warehouse_delete_requires_archived','warehouse_deleted','invalid_warehouse_code','warehouse_delete_prepare_mismatch']).has(prepareCode);
+      if(alreadyCompleted){
+        try{
+          await releaseCloudWarehouseDeleteLease(journal.warehouse_id,journal.warehouse_code,lease.token,authState,authOperation);
+          deleteNativeSecret(leaseSecretName);
+          fs.rmSync(warehouseDeleteJournalPath(journal.company_id,journal.warehouse_id,journal.actor_user_id),{force:true});
+          sendWindowMessage(mainWindow,'desktop:app-event',{type:'warehouse-delete-refresh',status:'completed-elsewhere',warehouseId:journal.warehouse_id,message:'Склад уже удалён на другом компьютере. Обновляем список складов с VPS.'});
+        }catch(releaseError){appendLog('Completed warehouse delete cleanup deferred',{warehouseId:journal.warehouse_id,code:String(releaseError?.code||'')});throw releaseError}
+        throw Object.assign(new Error('Склад уже удалён на другом компьютере. Список складов обновляется с VPS.'),{code:'WAREHOUSE_DELETE_ALREADY_COMPLETED'});
+      }
+      if(safeToRestart){
+        try{
+          await releaseCloudWarehouseDeleteLease(journal.warehouse_id,journal.warehouse_code,lease.token,authState,authOperation);
+          deleteNativeSecret(leaseSecretName);
+          fs.rmSync(warehouseDeleteJournalPath(journal.company_id,journal.warehouse_id,journal.actor_user_id),{force:true});
+          sendWindowMessage(mainWindow,'desktop:app-event',{type:'warehouse-delete-refresh',status:'reset',warehouseId:journal.warehouse_id,message:'Удаление безопасно остановлено. Обновляем склад с VPS перед новой попыткой.'});
+          appendLog('Warehouse delete prepare rejected safely; confirmation reset',{warehouseId:journal.warehouse_id,code:prepareCode});
+        }catch(releaseError){appendLog('Warehouse delete prepare reset deferred',{warehouseId:journal.warehouse_id,code:String(releaseError?.code||'')})}
+      }
+      throw error;
+      }
+    }
+    if(prepared.recoveredExisting&&prepared.commandId!==journal.batch.command_id){
+      const change=journal.batch.changes[0],adoptedBatch={command_id:prepared.commandId,changes:[{...change,base_version:prepared.baseVersion}],intent:null};
+      journal=writeWarehouseDeleteJournal({...journal,batch:adoptedBatch,recovered_existing:true,recovered_at:new Date().toISOString()});
+    }
+    if(prepared.status==='completed'){
+      result=await submitRegEntityBatch(
+        state,
+        journal.warehouse_id,
+        journal.environment,
+        {...journal.batch,warehouse_delete_lease_token:lease.token,warehouse_delete_warehouse_code:journal.warehouse_code},
+        authOperation
+      );
+      telegram=await deprovisionWarehouseLegacyTelegramWorkers(journal.warehouse_id,authState,authOperation);
+      journal=writeWarehouseDeleteJournal({...journal,stage:'vps_deleted',result,telegram,completed_elsewhere:true,local_cleanup_error:''});
+    }
+    if(journal.stage==='confirmed')journal=writeWarehouseDeleteJournal({...journal,stage:'vps_prepared',prepared_at:prepared.preparedAt});
+    if(journal.stage==='vps_prepared'){
+      telegram=await deprovisionWarehouseLegacyTelegramWorkers(journal.warehouse_id,authState,authOperation);
+      journal=writeWarehouseDeleteJournal({...journal,stage:'telegram_deprovisioned',telegram});
+    }
+    if(journal.stage!=='vps_deleted'){
+      journal=writeWarehouseDeleteJournal({...journal,stage:'vps_delete_pending'});
+      result=await submitRegEntityBatch(
+        state,
+        journal.warehouse_id,
+        journal.environment,
+        {...journal.batch,warehouse_delete_lease_token:lease.token,warehouse_delete_warehouse_code:journal.warehouse_code},
+        authOperation
+      );
+      journal=writeWarehouseDeleteJournal({...journal,stage:'vps_deleted',result,local_cleanup_error:''});
+    }
+  }
+  if(!leaseReleased){
+    try{await releaseCloudWarehouseDeleteLease(journal.warehouse_id,journal.warehouse_code,lease.token,authState,authOperation);leaseReleased=true;journal=writeWarehouseDeleteJournal({...journal,stage:'vps_deleted',result,telegram,lease_released:true,lease_release_error:''})}
+    catch(error){
+      if(warehouseDeleteLeaseTerminalReleaseError(error)){
+        leaseReleased=true;
+        journal=writeWarehouseDeleteJournal({...journal,stage:'vps_deleted',result,telegram,lease_released:true,lease_release_terminal:true,lease_release_error:''});
+      }else{
+        writeWarehouseDeleteJournal({...journal,stage:'vps_deleted',result,telegram,local_cleanup_error:'',lease_release_error:safeIntegrationError(error)});throw error;
+      }
+    }
+  }
+  deleteNativeSecret(leaseSecretName);
+  let localCleanupPending=false;
+  try{
+    finalizeWarehouseTelegramLocalCleanup(journal.warehouse_id,authState,authOperation);
+    fs.rmSync(warehouseDeleteJournalPath(journal.company_id,journal.warehouse_id,journal.actor_user_id),{force:true});
+  }catch(error){
+    localCleanupPending=true;
+    writeWarehouseDeleteJournal({...journal,stage:'vps_deleted',result,telegram,local_cleanup_error:safeIntegrationError(error)});
+    appendLog('Warehouse Telegram local cleanup pending',{warehouseId:journal.warehouse_id,error:safeIntegrationError(error)});
+  }
+  return{result,telegram,localCleanupPending,commandId:journal.batch.command_id};
+}
+async function resumePendingWarehouseDeleteOperations(authState=currentSession?.cloudAuth){
+  if(!authState)return[];
+  const companyId=companyWorkspaceId(authState),base=telegramBaseRoot(),resumed=[];
+  if(!fs.existsSync(base))return resumed;
+  for(const entry of fs.readdirSync(base,{withFileTypes:true})){
+    if(!entry.isFile()||!entry.name.startsWith(WAREHOUSE_DELETE_JOURNAL_PREFIX)||!entry.name.endsWith('.json'))continue;
+    let journal;
+    try{journal=validateWarehouseDeleteJournal(readJson(path.join(base,entry.name),null),authState)}catch(error){appendLog('Warehouse delete journal rejected',{file:entry.name,error:safeIntegrationError(error)});continue}
+    if(journal.company_id!==companyId)continue;
+    try{
+      const completed=await completeWarehouseDeleteOperation({warehouseId:journal.warehouse_id,warehouseCode:journal.warehouse_code,batch:journal.batch,state:regState(),authState});
+      resumed.push({warehouseId:journal.warehouse_id,ok:true,localCleanupPending:completed.localCleanupPending});
+    }catch(error){appendLog('Warehouse delete resume deferred',{warehouseId:journal.warehouse_id,code:String(error?.code||''),error:safeIntegrationError(error)});resumed.push({warehouseId:journal.warehouse_id,ok:false,code:String(error?.code||'')})}
+  }
+  return resumed;
+}
+const WAREHOUSE_DELETE_RESUME_DELAYS_MS=[5000,15000,30000,60000,120000,300000,600000,900000];
+let warehouseDeleteResumeRunning=false,warehouseDeleteResumeTimer=null,warehouseDeleteResumeRetryIndex=0,warehouseDeleteResumeGeneration=0;
+function stopWarehouseDeleteResume(){
+  if(warehouseDeleteResumeTimer)clearTimeout(warehouseDeleteResumeTimer);
+  warehouseDeleteResumeTimer=null;warehouseDeleteResumeRetryIndex=0;warehouseDeleteResumeGeneration++;
+}
+function schedulePendingWarehouseDeleteResume(reason='session',delayMs=0){
+  if(warehouseDeleteResumeRunning||warehouseDeleteResumeTimer||currentSession?.edition!=='full'||!currentSession?.cloudAuth||!canDeleteCompanyWarehouses(currentSession.cloudAuth))return false;
+  const delay=Math.max(0,Math.min(900000,Number(delayMs)||0)),scheduledGeneration=warehouseDeleteResumeGeneration,scheduledAuth=currentSession.cloudAuth,scheduledCompanyId=companyWorkspaceId(scheduledAuth),scheduledActorId=warehouseDeleteActorId(scheduledAuth);
+  warehouseDeleteResumeTimer=setTimeout(async()=>{
+    warehouseDeleteResumeTimer=null;
+    const sessionMatches=()=>warehouseDeleteResumeGeneration===scheduledGeneration&&currentSession?.edition==='full'&&currentSession?.cloudAuth&&companyWorkspaceId(currentSession.cloudAuth)===scheduledCompanyId&&warehouseDeleteActorId(currentSession.cloudAuth)===scheduledActorId;
+    if(!sessionMatches())return;
+    warehouseDeleteResumeRunning=true;
+    let results=[],fatalError=null;
+    try{results=await resumePendingWarehouseDeleteOperations(scheduledAuth);if(results.length)appendLog('Warehouse delete journals resumed',{reason,results})}
+    catch(error){fatalError=error;appendLog('Warehouse delete journal resume failed',{reason,code:String(error?.code||''),error:safeIntegrationError(error)})}
+    finally{warehouseDeleteResumeRunning=false}
+    if(!sessionMatches()){
+      appendLog('Warehouse delete resume result ignored after session change',{reason,companyId:scheduledCompanyId,actorId:scheduledActorId});
+      if(currentSession?.edition==='full'&&currentSession?.cloudAuth&&canDeleteCompanyWarehouses(currentSession.cloudAuth))schedulePendingWarehouseDeleteResume('session-changed',0);
+      return;
+    }
+    const terminalCodes=new Set(['WAREHOUSE_DELETE_ALREADY_COMPLETED','WAREHOUSE_DELETE_LEASE_SUPERSEDED','warehouse_delete_lease_superseded','WAREHOUSE_DELETE_ACTOR_MISMATCH']),attentionRequired=results.some(item=>item.ok!==true&&terminalCodes.has(String(item.code||'')));
+    const retryRequired=Boolean(fatalError)||results.some(item=>item.ok!==true&&!terminalCodes.has(String(item.code||'')));
+    if(retryRequired&&warehouseDeleteResumeRetryIndex<WAREHOUSE_DELETE_RESUME_DELAYS_MS.length){
+      const nextDelay=WAREHOUSE_DELETE_RESUME_DELAYS_MS[warehouseDeleteResumeRetryIndex++];
+      sendWindowMessage(mainWindow,'desktop:app-event',{type:'warehouse-delete-resume',status:'retrying',retryInSeconds:Math.ceil(nextDelay/1000),message:`Удаление склада ещё не завершено из-за временной ошибки. Повтор через ${Math.ceil(nextDelay/1000)} сек.`});
+      schedulePendingWarehouseDeleteResume('automatic-retry',nextDelay);
+    }else if(retryRequired){
+      warehouseDeleteResumeRetryIndex=0;
+      sendWindowMessage(mainWindow,'desktop:app-event',{type:'warehouse-delete-resume',status:'attention',message:'Автоматическое удаление склада пока не завершено. Данные сохранены; проверьте VPS и Telegram и повторите действие.'});
+    }else if(attentionRequired){
+      warehouseDeleteResumeRetryIndex=0;
+      sendWindowMessage(mainWindow,'desktop:app-event',{type:'warehouse-delete-resume',status:'attention',message:'Удаление этого склада продолжает другой компьютер или другой пользователь. Этот компьютер не меняет защитные данные.'});
+    }else{
+      warehouseDeleteResumeRetryIndex=0;
+      if(results.some(item=>item.ok===true))sendWindowMessage(mainWindow,'desktop:app-event',{type:'warehouse-delete-resume',status:'completed',message:'Отложенное удаление склада безопасно завершено.'});
+    }
+  },delay);
+  warehouseDeleteResumeTimer.unref?.();
+  return true;
+}
 const REG_ENTITY_TYPES=new Set([
   'warehouse','orders','products','inventoryMovements','drivers','settings','reportingData','company',
   'routePlans','routeAssignments','routeCatalog','routeDriverAssignments','routeLocks','routeOverrides',
   'routeExecutions','routeArchives','warehouseReservations','manualRouteSequences'
 ]);
-const REG_ENTITY_INTENTS=new Set(['route_approve','route_picking','route_cancel','route_start','route_return','route_close','pickup_ready','pickup_collected']);
+const REG_LOCAL_MIGRATION_INTENT='local_migration_import',REG_LOCAL_MIGRATION_FINGERPRINT=/^[0-9a-z]{1,7}:[0-9a-z]{1,7}:[1-9][0-9]{0,9}$/,REG_LOCAL_MIGRATION_MAX_CHUNKS=10000;
+const REG_ENTITY_INTENTS=new Set(['route_approve','route_picking','route_cancel','route_start','route_return','route_close','pickup_ready','pickup_collected',REG_LOCAL_MIGRATION_INTENT]);
 const REG_API_CONTRACT=3;
+const ADDRESS_API_CONTRACT=1;
+const ADDRESS_PUBLIC_FALLBACK_ALLOWED=RELEASE.release_status==='development';
 function regEntityPath(state,warehouseId,environment,kind='entities'){
   const workspace=String(state?.workspace_id||'');
   if(!/^[A-Za-z0-9_-]{16,80}$/.test(workspace))throw new Error('Идентификатор подключения VPS повреждён.');
@@ -1531,6 +2405,16 @@ function regEntityPath(state,warehouseId,environment,kind='entities'){
   if(kind==='batch')return`${root}/entities/${env}/batch`;
   if(kind==='changes')return`${root}/changes/${env}`;
   return`${root}/entities/${env}`;
+}
+function regWarehouseDeletePreparePath(state,warehouseId){
+  const workspace=String(state?.workspace_id||'');
+  if(!/^[A-Za-z0-9_-]{16,80}$/.test(workspace))throw new Error('Идентификатор подключения VPS повреждён.');
+  return`/v1/workspaces/${encodeURIComponent(workspace)}/warehouses/${encodeURIComponent(validateWarehouseId(warehouseId))}/delete-prepare`;
+}
+function regAddressSearchPath(state,warehouseId,environment){
+  const workspace=String(state?.workspace_id||'');
+  if(!/^[A-Za-z0-9_-]{16,80}$/.test(workspace))throw new Error('Идентификатор подключения VPS повреждён.');
+  return`/v1/workspaces/${encodeURIComponent(workspace)}/warehouses/${encodeURIComponent(validateWarehouseId(warehouseId))}/address-search/${validateEnvironment(environment)}`;
 }
 function validateRegEntity(item,warehouseId,{event=false}={}){
   if(!item||typeof item!=='object'||Array.isArray(item))throw new Error('VPS вернул повреждённую сущность.');
@@ -1546,7 +2430,7 @@ function validateRegEntity(item,warehouseId,{event=false}={}){
   if(declaredWarehouse&&declaredWarehouse!==warehouseId)throw new Error('VPS вернул сущность другого склада.');
   return{...item,type,id,version,payload,operation};
 }
-function validateRegEntityBatch(payload,warehouseId){
+function validateRegEntityBatch(payload,warehouseId,environment=''){
   const commandId=String(payload?.commandId||'');
   if(!/^[A-Za-z0-9_.:-]{16,180}$/.test(commandId))throw new Error('Для записи не создан безопасный идентификатор команды.');
   const source=Array.isArray(payload?.changes)?payload.changes:[];
@@ -1563,14 +2447,32 @@ function validateRegEntityBatch(payload,warehouseId){
   });
   let intent=null;
   if(payload?.intent!=null){
-    const kind=String(payload.intent?.kind||''),targetId=String(payload.intent?.targetId||'');
+    const sourceIntent=payload.intent,kind=String(sourceIntent?.kind||''),targetId=String(sourceIntent?.targetId||'');
     if(!REG_ENTITY_INTENTS.has(kind)||!/^[A-Za-z0-9_-]{1,160}$/.test(targetId))throw new Error('Назначение серверной команды повреждено.');
-    intent={kind,target_id:targetId};
+    if(kind===REG_LOCAL_MIGRATION_INTENT){
+      const keys=sourceIntent&&typeof sourceIntent==='object'&&!Array.isArray(sourceIntent)?Object.keys(sourceIntent).sort().join(','):'';
+      const snapshotFingerprint=String(sourceIntent?.snapshotFingerprint||''),chunkIndex=sourceIntent?.chunkIndex,chunkCount=sourceIntent?.chunkCount;
+      if(keys!=='chunkCount,chunkIndex,kind,snapshotFingerprint,targetId'||targetId!==warehouseId||environment!=='live'||!REG_LOCAL_MIGRATION_FINGERPRINT.test(snapshotFingerprint)||!Number.isSafeInteger(chunkIndex)||!Number.isSafeInteger(chunkCount)||chunkCount<1||chunkCount>REG_LOCAL_MIGRATION_MAX_CHUNKS||chunkIndex<0||chunkIndex>=chunkCount||changes.some(item=>item.base_version!==0||item.deleted))throw Object.assign(new Error('Пакет переноса локальной базы повреждён или относится к другой области данных.'),{code:'LOCAL_MIGRATION_METADATA_INVALID'});
+      intent={kind,target_id:targetId,metadata:{snapshot_fingerprint:snapshotFingerprint,chunk_index:chunkIndex,chunk_count:chunkCount}};
+    }else intent={kind,target_id:targetId};
   }
   return{command_id:commandId,changes,intent};
 }
-async function submitRegEntityBatch(state,warehouseId,environment,batch){
-  const result=await regApiRequest('POST',regEntityPath(state,warehouseId,environment,'batch'),batch);
+function validateRegEntityBatchAck(entities,cursor,batch){
+  const expected=new Map(batch.changes.map(item=>[`${item.type}:${item.id}`,item]));
+  if(entities.length!==expected.size)throw Object.assign(new Error('VPS вернул неполное подтверждение пакета сущностей.'),{code:'REG_ENTITY_ACK_INCOMPLETE'});
+  const seen=new Set();let maxEventId=0;
+  for(const item of entities){const key=`${item.type}:${item.id}`,change=expected.get(key),expectedVersion=item.unchanged===true?Number(change?.base_version):Number(change?.base_version)+1;if(!change||seen.has(key)||(item.deleted===true)!==(change.deleted===true)||!Number.isSafeInteger(expectedVersion)||item.version!==expectedVersion||!/^[a-f0-9]{64}$/i.test(item.digest)||(item.unchanged!==true&&item.eventId<=0))throw Object.assign(new Error('VPS вернул повреждённое подтверждение записи пакета.'),{code:'REG_ENTITY_ACK_INVALID'});seen.add(key);maxEventId=Math.max(maxEventId,item.eventId)}
+  if(seen.size!==expected.size||cursor<maxEventId)throw Object.assign(new Error('VPS не подтвердил каждую запись пакета или вернул устаревший курсор.'),{code:'REG_ENTITY_ACK_INCOMPLETE'});return true
+}
+function regWriteFailureContract(error,{requestAttempted=false}={}){
+  const status=Number(error?.status),preflight=requestAttempted!==true,definitiveServerRejection=requestAttempted===true&&Number.isInteger(status)&&status>=400&&status<500,definitive=preflight||definitiveServerRejection,ackValidation=error?.regWritePhase==='ack_validation'||String(error?.code||'').startsWith('REG_ENTITY_ACK_');
+  return{writeOutcome:definitive?'definitive_rejection':'uncertain',failureOrigin:preflight?'client_preflight':definitiveServerRejection?'server_rejection':ackValidation?'ack_validation':'transport_or_response',retrySameCommand:!definitive}
+}
+async function submitRegEntityBatch(state,warehouseId,environment,batch,authOperation=null){
+  const warehouseDelete=batch?.changes?.length===1&&batch.changes[0]?.type==='warehouse'&&batch.changes[0]?.deleted===true;
+  const result=await regApiRequest('POST',regEntityPath(state,warehouseId,environment,'batch'),batch,{timeoutMs:warehouseDelete?120000:30000,authOperation,state});
+  try{
   if(String(result.workspace_id||'')!==String(state.workspace_id||'')||String(result.warehouse_id||'')!==warehouseId||String(result.environment||'')!==environment||String(result.command_id||'')!==batch.command_id)throw new Error('VPS вернул подтверждение другой команды или области данных.');
   const cursor=Number(result.cursor);if(!Number.isSafeInteger(cursor)||cursor<0)throw new Error('VPS вернул повреждённый курсор изменений.');
   const entities=(Array.isArray(result.entities)?result.entities:[]).map(item=>{
@@ -1578,10 +2480,34 @@ async function submitRegEntityBatch(state,warehouseId,environment,batch){
     if(!REG_ENTITY_TYPES.has(type)||!/^[A-Za-z0-9_-]{1,160}$/.test(id)||!Number.isSafeInteger(version)||version<0||!Number.isSafeInteger(eventId)||eventId<0)throw new Error('VPS вернул повреждённое подтверждение сущности.');
     return{type,id,version,eventId,digest:String(item?.digest_sha256||''),deleted:item?.deleted===true,unchanged:item?.unchanged===true};
   });
-  return{cursor,entities,replayed:result.replayed===true}
+  validateRegEntityBatchAck(entities,cursor,batch);
+  const cascadeDeleted=Number(result.cascade_deleted??0),rawCascadeByEnvironment=result.cascade_by_environment??{live:0,demo:0};if(!Number.isSafeInteger(cascadeDeleted)||cascadeDeleted<0||!rawCascadeByEnvironment||typeof rawCascadeByEnvironment!=='object'||Array.isArray(rawCascadeByEnvironment))throw new Error('VPS вернул повреждённый результат каскадного удаления.');
+  const cascadeByEnvironment={};for(const environmentName of ['live','demo']){const count=Number(rawCascadeByEnvironment[environmentName]??0);if(!Number.isSafeInteger(count)||count<0)throw new Error('VPS вернул повреждённый результат каскадного удаления.');cascadeByEnvironment[environmentName]=count}if(cascadeByEnvironment.live+cascadeByEnvironment.demo!==cascadeDeleted)throw new Error('VPS вернул несогласованный результат каскадного удаления.');
+  const historyPayloadsRedacted=Number(result.history_payloads_redacted??0);if(!Number.isSafeInteger(historyPayloadsRedacted)||historyPayloadsRedacted<0)throw new Error('VPS вернул повреждённый результат очистки истории склада.');
+  if(warehouseDelete&&(Number(result.delete_prepare_contract)!==1||String(result.delete_operation_status||'')!=='completed'||result.delete_operation_completed!==true||result.telegram_deprovisioned!==true||Number(result.delete_operation_base_version)!==Number(batch.changes[0].base_version)||String(result.delete_operation_warehouse_code||'')!==String(batch.warehouse_delete_warehouse_code||'')||(String(result.telegram_installation_id||'')&&!/^[A-Za-z0-9._:-]{8,160}$/.test(String(result.telegram_installation_id)))))throw Object.assign(new Error('VPS не подтвердил завершение подготовленной операции удаления и отключение Telegram.'),{code:'WAREHOUSE_DELETE_COMPLETION_UNCONFIRMED'});
+  return{cursor,entities,replayed:result.replayed===true,cascade_deleted:cascadeDeleted,cascade_by_environment:cascadeByEnvironment,history_payloads_redacted:historyPayloadsRedacted,delete_operation_completed:warehouseDelete,telegram_deprovisioned:warehouseDelete&&result.telegram_deprovisioned===true,telegram_already_deprovisioned:warehouseDelete&&result.telegram_already_deprovisioned===true,telegram_installation_id:warehouseDelete?String(result.telegram_installation_id||''):''}
+  }catch(error){error.regWritePhase='ack_validation';throw error}
 }
-async function regApiRequest(method, requestPath, body=null) {
-  const state = regState();
+async function prepareRegWarehouseDelete(state,journal,leaseToken,authOperation=null){
+  const change=journal?.batch?.changes?.[0],body={
+    command_id:String(journal?.batch?.command_id||''),
+    base_version:Number(change?.base_version),
+    warehouse_code:validateWarehouseCode(journal?.warehouse_code),
+    warehouse_delete_lease_token:String(leaseToken||'')
+  };
+  if(change?.type!=='warehouse'||change?.id!==journal?.warehouse_id||change?.deleted!==true||journal?.batch?.changes?.length!==1||!Number.isSafeInteger(body.base_version)||body.base_version<1||!/^jfdl_[A-Za-z0-9_-]{32,220}$/.test(body.warehouse_delete_lease_token))throw new Error('Нельзя подготовить повреждённую команду удаления склада.');
+  const result=await regApiRequest('POST',regWarehouseDeletePreparePath(state,journal.warehouse_id),body,{timeoutMs:60000,authOperation,state}),status=String(result?.status||''),preparedAt=String(result?.prepared_at||''),completedAt=result?.completed_at==null?null:String(result.completed_at),commandId=String(result?.command_id||''),baseVersion=Number(result?.base_version),recoveredExisting=result?.recovered_existing===true;
+  const commandMatches=commandId===body.command_id&&baseVersion===body.base_version;
+  if(result?.ok!==true||String(result.workspace_id||'')!==String(state.workspace_id||'')||String(result.warehouse_id||'')!==journal.warehouse_id||Number(result.delete_prepare_contract)!==1||String(result.operation||'')!=='warehouse_delete'||!['prepared','completed'].includes(status)||!/^[A-Za-z0-9_.:-]{16,180}$/.test(commandId)||String(result.warehouse_code||'')!==body.warehouse_code||!Number.isSafeInteger(baseVersion)||baseVersion<1||(!commandMatches&&!recoveredExisting)||!Number.isFinite(Date.parse(preparedAt))||(status==='completed'?!Number.isFinite(Date.parse(completedAt||'')):completedAt!==null))throw Object.assign(new Error('VPS не подтвердил безопасную подготовку удаления склада.'),{code:'WAREHOUSE_DELETE_PREPARE_UNCONFIRMED'});
+  return{status,replayed:result.replayed===true,preparedAt,completedAt,commandId,baseVersion,recoveredExisting};
+}
+async function regApiRequest(method, requestPath, body=null, options={}) {
+  let state=null,authOperation=options?.authOperation||null;
+  if(currentSession?.edition!=='demo'){
+    authOperation=authOperation||captureCloudAuthOperation();
+    const authState=assertCloudAuthOperation(authOperation,authOperation.state);
+    state=options?.state||selectRegState(authState,readLocalRegState(authState,'full'),'full');
+  }else state=options?.state||regState();
   if (!state) throw new Error('VPS REG.RU ещё не подключён.');
   const address=String(state.address || '');
   if (!nodeNet.isIP(address) && !/^(?=.{1,253}$)(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)*[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/.test(address)) {
@@ -1589,16 +2515,29 @@ async function regApiRequest(method, requestPath, body=null) {
   }
   let token='';
   if (currentSession?.edition !== 'demo') {
-    const authState=normalizeCloudAuthState(currentSession?.cloudAuth||readCloudAuthState());
+    const authState=assertCloudAuthOperation(authOperation,authOperation.state);
     const companyId=companyWorkspaceId(authState);
     if(String(state.workspace_id||'')!==companyId)throw new Error('Подключение REG.RU относится к другой компании. Передача данных заблокирована.');
-    token=await ensureCloudAccessToken();
+    token=await ensureCloudAccessToken(authOperation);
   } else {
     token=readNativeSecret(regApiSecretName());
   }
   if (!token) throw new Error('Сначала выполните вход в свою учётную запись.');
-  return jsonRequest({hostname:state.address, port:Number(state.api_port)||443, method, requestPath,
-    headers:{Authorization:`Bearer ${token}`,'X-JustFun-API-Contract':String(REG_API_CONTRACT),'X-JustFun-Client-Version':VERSION}, body, fingerprint:state.tls_sha256});
+  const timeoutMs=Math.min(120000,Math.max(5000,Number(options?.timeoutMs)||30000));
+  const execute=accessToken=>jsonRequest({hostname:state.address, port:Number(state.api_port)||443, method, requestPath,
+    headers:{Authorization:`Bearer ${accessToken}`,'X-JustFun-API-Contract':String(REG_API_CONTRACT),'X-JustFun-Client-Version':VERSION}, body, fingerprint:state.tls_sha256,timeoutMs});
+  let result;
+  try{result=await execute(token)}
+  catch(error){
+    if(!authOperation||Number(error?.status)!==401)throw error;
+    const authState=assertCloudAuthOperation(authOperation,authOperation.state);
+    const refreshed=await refreshCloudSession(authState,authOperation);
+    token=String(refreshed?.access_token||'');
+    if(!token)throw cloudAuthError('INVALID_SESSION','Сессия завершена. Выполните вход снова.');
+    result=await execute(token);
+  }
+  if(authOperation)assertCloudAuthOperation(authOperation,authOperation.state);
+  return result;
 }
 function validateMapCoordinate(value,min,max,label){
   const number=Number(value);
@@ -1615,6 +2554,73 @@ function validateDesktopGeocodePayload(payload){
   }
   if(mode==='reverse')return{mode,lat:validateMapCoordinate(payload?.lat,-90,90,'широты'),lon:validateMapCoordinate(payload?.lon,-180,180,'долготы')};
   throw new Error('Неизвестный режим поиска адреса.');
+}
+function validateDesktopAddressSearchPayload(payload){
+  const query=String(payload?.query||'').replace(/\s+/g,' ').trim();
+  if(query.length<3||query.length>300)throw new Error('Введите адрес длиной от 3 до 300 символов.');
+  const requestId=String(payload?.requestId||'');
+  if(!/^[A-Za-z0-9_-]{8,80}$/.test(requestId))throw new Error('Идентификатор адресного запроса повреждён.');
+  const interaction=String(payload?.interaction||'');
+  if(!['autocomplete','explicit'].includes(interaction))throw new Error('Режим адресного поиска повреждён.');
+  const warehouseId=validateWarehouseId(payload?.warehouseId),environment=currentEnvironment();
+  const preferredRegion=String(payload?.preferredRegion||'').replace(/\s+/g,' ').trim().slice(0,160);
+  return{
+    requestId,query,warehouseId,environment,preferredRegion,interaction,
+    requestBody:{request_id:requestId,query,preferred_region:preferredRegion,language:'ru',limit:3,client_version:VERSION,address_contract:ADDRESS_API_CONTRACT,interaction}
+  };
+}
+function addressProviderText(value,max,label,{required=false}={}){
+  if(value===null||value===undefined||value===''){
+    if(required)throw new Error(`VPS не вернул ${label}.`);
+    return'';
+  }
+  if(typeof value!=='string')throw new Error(`VPS вернул повреждённое поле ${label}.`);
+  const text=value.trim();
+  if((required&&!text)||text.length>max||/[\u0000-\u001f\u007f]/.test(text))throw new Error(`VPS вернул повреждённое поле ${label}.`);
+  return text;
+}
+function canonicalAddressToNominatim(item,input,provider){
+  if(!item||typeof item!=='object'||Array.isArray(item))throw new Error('VPS вернул повреждённый вариант адреса.');
+  const id=String(item.id||''),displayName=addressProviderText(item.display_name,1000,'полный адрес',{required:true});
+  if(!/^[A-Za-z0-9_.:-]{1,200}$/.test(id))throw new Error('VPS вернул повреждённый идентификатор адреса.');
+  const components=item.components&&typeof item.components==='object'&&!Array.isArray(item.components)?item.components:{};
+  const coordinates=item.coordinates&&typeof item.coordinates==='object'&&!Array.isArray(item.coordinates)?item.coordinates:{};
+  const optionalCoordinate=(value,min,max)=>{if(value===null||value===undefined||value==='')return null;const number=Number(value);if(!Number.isFinite(number)||number<min||number>max)throw new Error('VPS вернул повреждённые координаты адреса.');return number};
+  const lat=optionalCoordinate(coordinates.lat,-90,90),lon=optionalCoordinate(coordinates.lon,-180,180);
+  if((lat===null)!==(lon===null))throw new Error('VPS вернул неполную пару координат адреса.');
+  const confidence=String(item.confidence||'');
+  if(!['high','medium','low'].includes(confidence))throw new Error('VPS вернул повреждённую оценку адреса.');
+  const score=Number(item.match_score);
+  if(!Number.isFinite(score)||score<0||score>1)throw new Error('VPS вернул повреждённый рейтинг адреса.');
+  const boundedList=(value,label)=>{if(!Array.isArray(value)||value.length>8)throw new Error(`VPS вернул повреждённый список ${label}.`);return value.map(entry=>addressProviderText(entry,180,label,{required:true}))};
+  const reasons=boundedList(item.match_reason,'причин совпадения');
+  const warnings=boundedList(item.warnings,'предупреждений');
+  const source=item.source&&typeof item.source==='object'&&!Array.isArray(item.source)?item.source:{};
+  const providerIds=item.provider_ids&&typeof item.provider_ids==='object'&&!Array.isArray(item.provider_ids)?Object.fromEntries(Object.entries(item.provider_ids).filter(([key,value])=>/^[A-Za-z0-9_.:-]{1,80}$/.test(String(key))&&typeof value==='string'&&value.length>0&&value.length<=160).slice(0,8)):{};
+  const fiasId=addressProviderText(item.fias_id,36,'идентификатор ФИАС');
+  if(fiasId&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(fiasId))throw new Error('VPS вернул повреждённый идентификатор ФИАС.');
+  const sourceDate=addressProviderText(source.date||provider.queried_at.slice(0,10),10,'дату источника');
+  if(sourceDate&&!/^\d{4}-\d{2}-\d{2}$/.test(sourceDate))throw new Error('VPS вернул повреждённую дату источника.');
+  return{
+    place_id:id,display_name:displayName,lat:lat===null?'':String(lat),lon:lon===null?'':String(lon),importance:score,
+    address:{state:addressProviderText(components.region,160,'регион'),state_district:addressProviderText(components.district,200,'район'),city:addressProviderText(components.settlement,200,'населённый пункт'),allotments:addressProviderText(components.territory,200,'территорию'),road:addressProviderText(components.street,240,'улицу'),house_number:addressProviderText(components.house,80,'дом'),postcode:addressProviderText(components.postal_code,16,'индекс')},
+    __jfAddressMeta:{version:String(provider.api_version||''),confidence,confidencePercent:Math.round(score*100),reasons,warnings},
+    __jfCanonicalAddress:{id,fiasId,providerIds,objectType:addressProviderText(item.object_type,80,'тип адреса'),coordinateAccuracy:addressProviderText(coordinates.accuracy||'unknown',40,'точность координат',{required:true}),sourceName:addressProviderText(source.name||provider.name,80,'название источника',{required:true}),sourceVersion:addressProviderText(source.version||provider.api_version,80,'версию источника',{required:true}),sourceDate,datasetVersion:'',datasetChecksum:'',originalInput:input.query,normalizedInput:String(input.normalizedQuery||''),official:Boolean(fiasId),manual:false}
+  };
+}
+function validateAddressSearchResponse(result,input,state){
+  if(!result||typeof result!=='object'||Array.isArray(result))throw new Error('VPS вернул повреждённый ответ адресного поиска.');
+  if(result.ok!==true)throw new Error('VPS не подтвердил успешный адресный поиск.');
+  if(String(result.workspace_id||'')!==String(state?.workspace_id||'')||String(result.warehouse_id||'')!==input.warehouseId||String(result.environment||'')!==input.environment)throw new Error('VPS вернул адреса другой компании, склада или среды.');
+  if(Number(result.address_contract)!==ADDRESS_API_CONTRACT||String(result.request_id||'')!==input.requestId)throw new Error('VPS вернул ответ другого адресного запроса или договора.');
+  const provider=result.provider&&typeof result.provider==='object'&&!Array.isArray(result.provider)?result.provider:null;
+  const queriedAt=String(provider?.queried_at||''),cacheTtl=Number(provider?.cache_ttl_seconds);
+  if(!provider||!/^[A-Za-z0-9_.:-]{1,80}$/.test(String(provider.name||''))||!/^[A-Za-z0-9_.:-]{1,80}$/.test(String(provider.api_version||''))||!/^[A-Za-z0-9_.:-]{1,80}$/.test(String(provider.reference||''))||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/.test(queriedAt)||Number.isNaN(Date.parse(queriedAt))||!Number.isSafeInteger(cacheTtl)||cacheTtl<60||cacheTtl>86400)throw new Error('VPS не подтвердил источник адресного поиска.');
+  if(!Array.isArray(result.results))throw new Error('VPS вернул повреждённый список адресов.');
+  const source=result.results;
+  if(source.length>3)throw new Error('VPS нарушил лимит адресных вариантов.');
+  input.normalizedQuery=String(result.normalized_query||'').slice(0,500);
+  return source.map(item=>canonicalAddressToNominatim(item,input,provider));
 }
 function validateDesktopRoutePayload(payload){
   const operation=String(payload?.operation||'route'),source=Array.isArray(payload?.points)?payload.points:[];
@@ -1643,6 +2649,30 @@ async function directOpenStreetMapRoute(payload){
   const data=await jsonRequest({hostname:'router.project-osrm.org',requestPath,headers:{'User-Agent':`JustFun-OrdersLogistics/${VERSION}`},maxBytes:12*1024*1024,timeoutMs:20000});
   if(!data||data.code!=='Ok'||(input.operation==='route'&&!Array.isArray(data.routes)))throw Object.assign(new Error(String(data?.message||'OSRM не построил маршрут.')),{code:'MAP_PUBLIC_INVALID'});
   return data;
+}
+async function resolveDesktopAddressSearch(payload,{state=regState(),server=async(input,currentState)=>regApiRequest('POST',regAddressSearchPath(currentState,input.warehouseId,input.environment),input.requestBody),direct=directOpenStreetMapGeocode,publicFallbackAllowed=ADDRESS_PUBLIC_FALLBACK_ALLOWED}={}){
+  const input=validateDesktopAddressSearchPayload(payload),configured=!!state;
+  let serverError=null;
+  if(configured){
+    try{
+      const response=await server(input,state),data=validateAddressSearchResponse(response,input,state);
+      appendRecurringLog('Address provider search completed',{requestId:input.requestId,warehouseId:input.warehouseId,environment:input.environment,interaction:input.interaction,results:data.length,provider:String(response?.provider?.name||'')});
+      return{ok:true,configured:true,requestId:input.requestId,source:'company-address-provider',data};
+    }catch(error){
+      serverError=error;
+      appendRecurringLog('Company address provider failed',{requestId:input.requestId,warehouseId:input.warehouseId,interaction:input.interaction,code:String(error?.code||''),error:safeIntegrationError(error)});
+      if(input.interaction==='autocomplete'||!publicFallbackAllowed)return{ok:false,configured:true,requestId:input.requestId,code:String(error?.code||'ADDRESS_PROVIDER_FAILED'),error:safeIntegrationError(error)};
+    }
+  }
+  if(input.interaction==='autocomplete')return{ok:false,configured,requestId:input.requestId,code:'ADDRESS_AUTOCOMPLETE_REQUIRES_PROVIDER',error:'Автоподсказки появятся после подключения адресного сервиса. Используйте кнопку поиска.'};
+  if(!publicFallbackAllowed)return{ok:false,configured:false,requestId:input.requestId,code:'ADDRESS_VPS_REQUIRED',error:'Для релизной версии требуется подключённый адресный сервис компании.'};
+  try{
+    const normalizedQuery=addressIntelligence.normalizeQuery(input.query)||input.query,data=await direct({mode:'search',query:normalizedQuery,limit:10,addressOnly:true});
+    appendRecurringLog('Development address search used public fallback',{requestId:input.requestId,configured,serverCode:String(serverError?.code||''),queryCorrected:normalizedQuery!==input.query.toLowerCase()});
+    return{ok:true,configured,requestId:input.requestId,source:'development-public-nominatim',degraded:true,warning:'Использован временный публичный поиск: результат необходимо проверить.',data};
+  }catch(error){
+    return{ok:false,configured,requestId:input.requestId,code:String(error?.code||serverError?.code||'ADDRESS_SEARCH_FAILED'),error:configured?`Адресный сервис: ${safeIntegrationError(serverError)}; временный поиск: ${safeIntegrationError(error)}`:safeIntegrationError(error)};
+  }
 }
 async function resolveDesktopMapGeocode(payload,{configured=!!regState(),direct=directOpenStreetMapGeocode,fallback=async value=>(await regApiRequest('POST','/v1/maps/geocode',value)).data}={}){
   const requestId=String(payload?.requestId||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,80);
@@ -1676,19 +2706,21 @@ function regDiagnosticStage(error,fallback='api'){
   if(code.includes('DATABASE')||code.includes('POSTGRES'))return'database';
   return fallback;
 }
-async function getRegStatus() {
-  const state = regState();
+async function getRegStatus(authOperation=null,stateOverride=null) {
+  const state = stateOverride||regState();
   if (!state) return {configured:false, status:'not_configured'};
   let phase='health';
   try {
     const health = await jsonRequest({hostname:state.address, port:Number(state.api_port)||443, requestPath:'/health', fingerprint:state.tls_sha256, maxBytes:1024*1024, timeoutMs:15000});
+    if(authOperation)assertCloudAuthOperation(authOperation,authOperation.state);
     if(health.database!=='ready')throw Object.assign(new Error('PostgreSQL на VPS не подтвердил готовность.'),{code:'DATABASE_NOT_READY'});
     if(Number(health.api_contract)!==REG_API_CONTRACT)throw Object.assign(new Error(`VPS использует несовместимый договор API (${health.api_contract||'не указан'} вместо ${REG_API_CONTRACT}).`),{code:'API_CONTRACT_MISMATCH'});
     phase='authorization';
-    const authenticated = await regApiRequest('GET','/v1/status');
+    const authenticated = await regApiRequest('GET','/v1/status',null,{authOperation,state});
     if (String(authenticated.workspace_id || '') !== String(state.workspace_id || '')) throw Object.assign(new Error('VPS подтвердил другое рабочее пространство.'),{code:'WORKSPACE_MISMATCH'});
     return {configured:true, online:true, status:'ready', diagnosticStage:'complete', diagnostics:{dns:'ok',connection:'ok',tls:'ok',api:'ok',authorization:'ok',database:'ok'}, address:state.address, sshUser:state.ssh_user, sshPort:state.ssh_port, version:health.version, database:health.database, configuredAt:state.configured_at, checkedAt:new Date().toISOString()};
   } catch (error) {
+    if(String(error?.code||'')==='AUTH_SESSION_CHANGED')throw error;
     const diagnosticStage=regDiagnosticStage(error,phase);
     appendRecurringLog('REG.RU status failed',{code:String(error?.code||''),stage:diagnosticStage,error:safeIntegrationError(error)});
     return {configured:true, online:false, status:'unavailable', diagnosticStage, address:state.address, sshUser:state.ssh_user, sshPort:state.ssh_port, error:safeIntegrationError(error), errorCode:String(error?.code||''), configuredAt:state.configured_at, checkedAt:new Date().toISOString()};
@@ -1760,62 +2792,87 @@ async function configureRegVps(payload) {
   if (!Number.isInteger(sshPort)||sshPort<1||sshPort>65535) throw new Error('Проверьте SSH-порт.');
   requireSecureStorage();
   const authState=await verifyCloudAuthContext();
+  const authOperation=captureCloudAuthOperation(authState);
   if(!canConfigureCompanyServer(authState))throw new Error('Настроить общий сервер может только владелец компании или администратор с правом управления компанией.');
   const workspaceId=companyWorkspaceId(authState);
   const previous=regState();
   const sameServer=Boolean(previous&&String(previous.address)===address&&String(previous.ssh_user)===sshUser&&Number(previous.ssh_port)===sshPort);
   const scopedSecret=regApiSecretName(workspaceId);
+  const scopedAttestationSecret=regVpsAttestationSecretName(workspaceId);
   let previousApiKey=readNativeSecret(scopedSecret);
   if(!previousApiKey&&previous&&String(previous.workspace_id||'')===workspaceId){
     const legacyApiKey=readNativeSecret('regApiKey');
     if(legacyApiKey){previousApiKey=legacyApiKey;writeNativeSecret(scopedSecret,legacyApiKey);appendLog('REG.RU legacy API key migrated',{company:workspaceId});}
   }
   let apiKey=String(sameServer&&previousApiKey?previousApiKey:randomIntegrationId()+randomIntegrationId());
+  let attestationSecret=String(sameServer?readNativeSecret(scopedAttestationSecret):'');
+  if(!/^jfvps_[A-Za-z0-9_-]{43,120}$/.test(attestationSecret))attestationSecret=`jfvps_${crypto.randomBytes(36).toString('base64url')}`;
   if(activeIntegrationWizard)throw new Error(`Уже выполняется мастер «${activeIntegrationWizard.name}». Завершите его перед запуском другого.`);
+  const authWorkflow=beginCloudAuthWorkflow(authOperation);
   activeIntegrationWizard={name:'REG.RU VPS',startedAt:new Date().toISOString()};
-  let sshPassword='';
+  let sshPassword='',regSessionChangeLogged=false;
   try {
     sshPassword=await openRegVpsPasswordWindow();
+    authWorkflow.guard();
     if(sshPassword===null)return{canceled:true,configured:Boolean(previous)};
     const setupOptions={
-      host:address,username:sshUser,port:sshPort,password:sshPassword,installationId:workspaceId,apiKey,
+      host:address,username:sshUser,port:sshPort,password:sshPassword,installationId:workspaceId,apiKey,attestationSecret,
       packageRoot:bundledIntegrationPath('reg-vps','server'),
       acceptedFingerprint:'',
+      signal:authWorkflow.signal,
+      guard:authWorkflow.guard,
       confirmFingerprint:async fingerprint=>{
+        authWorkflow.guard();
         const accepted=await confirmRegVpsFingerprint(fingerprint,sameServer?previous?.ssh_host_sha256:'');
+        authWorkflow.guard();
         if(accepted)setupOptions.acceptedFingerprint=fingerprint;
         return accepted;
       },
       onProgress:chunk=>{
+        try{assertCloudAuthOperation(authOperation,authState)}catch(error){if(!regSessionChangeLogged){regSessionChangeLogged=true;appendLog('REG.RU setup detached after account change',{code:String(error?.code||'AUTH_SESSION_CHANGED')})}return}
         const tail=String(chunk||'').replace(/[\r\n]+/g,' ').trim().slice(-240);
         if(tail)appendLog('REG.RU native SSH progress',{detail:tail});
       }
     };
     appendLog('REG.RU native SSH setup started',{address,sshUser,sshPort,architecture:'ssh2-host-key-pinned'});
+    authWorkflow.guard();
     const result=await regVpsNativeSsh.installRegVps(setupOptions);
+    authWorkflow.guard();
     if (!result||String(result.address)!==address||String(result.workspace_id)!==workspaceId||normalizeFingerprint(result.tls_sha256).length!==64) throw new Error('Мастер не вернул подтверждённые настройки VPS.');
+    assertCloudAuthOperation(authOperation,authState);
     writeNativeSecret(scopedSecret,apiKey);
+    writeNativeSecret(scopedAttestationSecret,attestationSecret);
     writeJsonAtomic(regStatePath(workspaceId),result);
     appendLog('REG.RU native SSH setup completed',{address,sshUser,sshPort,version:result.version,sshFingerprint:result.ssh_host_sha256});
-    const status=await getRegStatus();
-    if (!status.online) throw new Error(`VPS установлен, но контрольное HTTPS-подключение не прошло: ${status.error || 'неизвестная ошибка'}`);
+    const status=await getRegStatus(authOperation,result);
+    assertCloudAuthOperation(authOperation,authState);
+    if (!status.online) {
+      const statusError=new Error(`VPS установлен, но контрольное HTTPS-подключение не прошло: ${status.error || 'неизвестная ошибка'}`);
+      if(String(status.errorCode||'')==='AUTH_SESSION_CHANGED')statusError.code='AUTH_SESSION_CHANGED';
+      throw statusError;
+    }
     const published=await cloudAuthenticatedRequest('PUT','/v1/company/data-service',{
       address:result.address,
       api_port:Number(result.api_port)||443,
-      tls_sha256:normalizeFingerprint(result.tls_sha256)
-    });
+      tls_sha256:normalizeFingerprint(result.tls_sha256),
+      attestation_secret:attestationSecret
+    },authOperation);
+    const liveAuth=assertCloudAuthOperation(authOperation,authOperation.state);
     if (!published?.company?.data_service) throw new Error('Сервер учётных записей не сохранил подключение компании.');
     const savedAuth=writeCloudAuthState({
-      ...(currentSession?.cloudAuth||readCloudAuthState()||authState),
-      company:{...((currentSession?.cloudAuth||authState).company||{}),...published.company},
+      ...liveAuth,
+      company:{...(liveAuth.company||{}),...published.company},
       company_id:String(published.company?.id||workspaceId),
       last_verified_at:new Date().toISOString(),offline:false
     });
-    if (currentSession) currentSession.cloudAuth=savedAuth;
+    assertCloudAuthOperation(authOperation,liveAuth);
+    if (currentSession){currentSession.cloudAuth=savedAuth;advanceCloudAuthOperation(authOperation,savedAuth)}
     return status;
   } finally {
+    authWorkflow.release();
     sshPassword='';
     apiKey='';
+    attestationSecret='';
     appendLog('REG.RU native SSH wizard released',{name:activeIntegrationWizard?.name||'REG.RU VPS'});
     activeIntegrationWizard=null;
   }
@@ -1951,8 +3008,8 @@ function currentTelegramService(warehouseId=activeRendererWarehouseId){
     return legacy&&String(legacy.warehouse_id||'')===requested?legacy:null;
   }catch{return null}
 }
-function savePublishedCompany(company,authFallback=null){
-  const current=currentSession?.cloudAuth||readCloudAuthState()||authFallback;
+function savePublishedCompany(company,authFallback=null,authOperation=null){
+  const current=authOperation?assertCloudAuthOperation(authOperation,authFallback):currentSession?.cloudAuth||readCloudAuthState()||authFallback;
   if(!current||!company)return current;
   const saved=writeCloudAuthState({
     ...current,
@@ -1960,10 +3017,13 @@ function savePublishedCompany(company,authFallback=null){
     company_id:String(company.id||current.company?.id||current.company_id||''),
     last_verified_at:new Date().toISOString(),offline:false
   });
-  if(currentSession)currentSession.cloudAuth=saved;
+  if(authOperation)assertCloudAuthOperation(authOperation,current);
+  if(currentSession){currentSession.cloudAuth=saved;if(authOperation)advanceCloudAuthOperation(authOperation,saved)}
   return saved;
 }
-async function publishTelegramCompanyService(state,clientApiKey,authState=null,warehouseId=activeRendererWarehouseId){
+async function publishTelegramCompanyService(state,clientApiKey,authState=null,warehouseId=activeRendererWarehouseId,authOperation=null){
+  const operation=authOperation||captureCloudAuthOperation(authState);
+  const verifiedAuth=assertCloudAuthOperation(operation,authState);
   const validated=validateWorkerState(state).state;
   const scopedWarehouseId=validateWarehouseId(warehouseId);
   const published=await companyTelegramBrokerRequest('PUT','/v1/company/telegram-service',{
@@ -1973,12 +3033,13 @@ async function publishTelegramCompanyService(state,clientApiKey,authState=null,w
     bot_username:String(validated.bot_username||''),
     installation_id:String(validated.installation_id||''),
     deployment_version:String(validated.deployment_version||'')
-  });
+  },operation);
+  const current=assertCloudAuthOperation(operation,verifiedAuth);
   if(!published?.service?.base_url)throw new Error('Корпоративный Telegram-сервис не сохранил подключение компании.');
-  const current=normalizeCloudAuthState(currentSession?.cloudAuth||readCloudAuthState()||authState);
   const services=current.company?.telegram_services&&typeof current.company.telegram_services==='object'&&!Array.isArray(current.company.telegram_services)?{...current.company.telegram_services}:{};
   services[scopedWarehouseId]=published.service;
-  savePublishedCompany({...current.company,telegram_services:services,telegram_service:published.service},authState);
+  savePublishedCompany({...current.company,telegram_services:services,telegram_service:published.service},current,operation);
+  assertCloudAuthOperation(operation,operation.state);
   const localPath=telegramStatePath('',scopedWarehouseId),local=readJson(localPath,null);
   if(local&&typeof local==='object'){
     delete local.company_publish_pending;
@@ -1992,10 +3053,10 @@ async function publishTelegramCompanyService(state,clientApiKey,authState=null,w
   appendLog('Telegram company service published',{company:current.company.id,warehouse:scopedWarehouseId,broker:COMPANY_TELEGRAM_BROKER_ORIGIN,workerHost:new URL(published.service.base_url).hostname,botUsername:published.service.bot_username});
   return published.service;
 }
-async function migrateLegacyTelegramCompanyService(warehouseId=activeRendererWarehouseId){
+async function migrateLegacyTelegramCompanyService(warehouseId=activeRendererWarehouseId,authOperation=null){
   if(!usesCompanyTelegramBroker())return false;
-  let authState;
-  try{authState=normalizeCloudAuthState(currentSession?.cloudAuth||readCloudAuthState())}catch{return false}
+  let authState,operation=authOperation;
+  try{operation=operation||captureCloudAuthOperation();authState=assertCloudAuthOperation(operation,operation.state)}catch{return false}
   if(!canConfigureCompanyServer(authState))return false;
   let validated,key;
   try{
@@ -2007,11 +3068,12 @@ async function migrateLegacyTelegramCompanyService(warehouseId=activeRendererWar
   }
   if(!key)return false;
   try{
-    await publishTelegramCompanyService(validated.state,key,authState,warehouseId);
+    await publishTelegramCompanyService(validated.state,key,authState,warehouseId,operation);
     return true;
   }finally{key=''}
 }
-function markTelegramCompanyPublishPending(state,error,warehouseId=activeRendererWarehouseId){
+function markTelegramCompanyPublishPending(state,error,warehouseId=activeRendererWarehouseId,authOperation=null){
+  if(authOperation)assertCloudAuthOperation(authOperation,authOperation.state);
   const statePath=telegramStatePath('',warehouseId),previous=readJson(statePath,{})||{};
   const now=new Date().toISOString();
   const pendingState={
@@ -2031,36 +3093,44 @@ function stopTelegramCompanyPublishRetry(){
   telegramCompanyPublishRetryTimer=null;
   telegramCompanyPublishRetryAt=0;
 }
-function canRetryTelegramCompanyPublish(){
+function canRetryTelegramCompanyPublish(authOperation=null,warehouseId=activeRendererWarehouseId){
   if(!usesCompanyTelegramBroker()||!currentSession?.authorized)return false;
   let authState;
-  try{authState=normalizeCloudAuthState(currentSession?.cloudAuth||readCloudAuthState())}catch{return false}
+  try{authState=authOperation?assertCloudAuthOperation(authOperation,authOperation.state):normalizeCloudAuthState(currentSession?.cloudAuth||readCloudAuthState())}catch{return false}
   if(!canConfigureCompanyServer(authState))return false;
-  const state=readJson(telegramStatePath('',activeRendererWarehouseId),null);
+  const state=readJson(telegramStatePath('',warehouseId),null);
   return Boolean(state&&state.company_publish_pending);
 }
-function scheduleTelegramCompanyPublishRetry(reason='pending',delayMs=null){
+function scheduleTelegramCompanyPublishRetry(reason='pending',delayMs=null,authOperation=null,warehouseId=activeRendererWarehouseId){
   stopTelegramCompanyPublishRetry();
-  if(!canRetryTelegramCompanyPublish())return false;
+  let operation=authOperation;
+  try{operation=operation||captureCloudAuthOperation()}catch{return false}
+  const scopedWarehouseId=validateWarehouseId(warehouseId);
+  if(!canRetryTelegramCompanyPublish(operation,scopedWarehouseId))return false;
   const hasExplicitDelay=delayMs!==null&&delayMs!==undefined&&Number.isFinite(Number(delayMs));
   const delay=Math.max(1000,hasExplicitDelay?Number(delayMs):telegramCompanyPublishRetryDelay(telegramCompanyPublishRetryFailures));
   telegramCompanyPublishRetryAt=Date.now()+delay;
   telegramCompanyPublishRetryTimer=setTimeout(()=>{
     telegramCompanyPublishRetryTimer=null;
     telegramCompanyPublishRetryAt=0;
-    retryPendingTelegramCompanyService('scheduled').catch(error=>appendLog('Telegram company publication retry crashed',{code:String(error?.code||''),error:safeIntegrationError(error)}));
+    try{assertCloudAuthOperation(operation,operation.state)}catch(error){appendLog('Telegram company publication retry canceled after account change',{code:String(error?.code||'AUTH_SESSION_CHANGED')});return}
+    retryPendingTelegramCompanyService('scheduled',operation,scopedWarehouseId).catch(error=>appendLog('Telegram company publication retry crashed',{code:String(error?.code||''),error:safeIntegrationError(error)}));
   },delay);
   telegramCompanyPublishRetryTimer.unref?.();
   appendLog('Telegram company publication retry scheduled',{reason,delayMs:delay,failures:telegramCompanyPublishRetryFailures});
   return true;
 }
-async function retryPendingTelegramCompanyService(trigger='manual-status'){
+async function retryPendingTelegramCompanyService(trigger='manual-status',authOperation=null,warehouseId=activeRendererWarehouseId){
   if(telegramCompanyPublishRetryInFlight)return false;
-  if(activeIntegrationWizard){scheduleTelegramCompanyPublishRetry('wizard-active',TELEGRAM_COMPANY_PUBLISH_RETRY_BASE_MS);return false}
-  if(!canRetryTelegramCompanyPublish())return false;
+  let operation=authOperation;
+  try{operation=operation||captureCloudAuthOperation();assertCloudAuthOperation(operation,operation.state)}catch{return false}
+  const scopedWarehouseId=validateWarehouseId(warehouseId);
+  if(activeIntegrationWizard){scheduleTelegramCompanyPublishRetry('wizard-active',TELEGRAM_COMPANY_PUBLISH_RETRY_BASE_MS,operation,scopedWarehouseId);return false}
+  if(!canRetryTelegramCompanyPublish(operation,scopedWarehouseId))return false;
   telegramCompanyPublishRetryInFlight=true;
   try{
-    const published=await migrateLegacyTelegramCompanyService();
+    const published=await migrateLegacyTelegramCompanyService(scopedWarehouseId,operation);
+    assertCloudAuthOperation(operation,operation.state);
     if(!published)return false;
     telegramCompanyPublishRetryFailures=0;
     stopTelegramCompanyPublishRetry();
@@ -2068,16 +3138,17 @@ async function retryPendingTelegramCompanyService(trigger='manual-status'){
     sendWindowMessage(mainWindow,'desktop:telegram-company-published',{ok:true,at:new Date().toISOString()});
     return true;
   }catch(error){
+    if(String(error?.code||'')==='AUTH_SESSION_CHANGED')return false;
     telegramCompanyPublishRetryFailures=Math.min(10,telegramCompanyPublishRetryFailures+1);
     let localState=null;
-    try{localState=loadWorkerState(activeRendererWarehouseId).state}
-    catch(stateError){appendLog('Telegram company retry state load failed',{warehouseId:activeRendererWarehouseId,error:safeIntegrationError(stateError)})}
-    if(localState)markTelegramCompanyPublishPending(localState,error,activeRendererWarehouseId);
+    try{assertCloudAuthOperation(operation,operation.state);localState=loadWorkerState(scopedWarehouseId).state}
+    catch(stateError){appendLog('Telegram company retry state load failed',{warehouseId:scopedWarehouseId,error:safeIntegrationError(stateError)})}
+    if(localState)markTelegramCompanyPublishPending(localState,error,scopedWarehouseId,operation);
     appendLog('Telegram company publication retry failed',{trigger,failures:telegramCompanyPublishRetryFailures,code:String(error?.code||'NETWORK_ERROR'),error:safeIntegrationError(error)});
     return false;
   }finally{
     telegramCompanyPublishRetryInFlight=false;
-    if(activeRendererWarehouseId&&readJson(telegramStatePath('',activeRendererWarehouseId),null)?.company_publish_pending)scheduleTelegramCompanyPublishRetry('retry-backoff');
+    try{if(assertCloudAuthOperation(operation,operation.state)&&readJson(telegramStatePath('',scopedWarehouseId),null)?.company_publish_pending)scheduleTelegramCompanyPublishRetry('retry-backoff',null,operation,scopedWarehouseId)}catch{}
   }
 }
 function telegramCompanyPublishPendingMessage(errorCode='',retryScheduled=false){
@@ -2096,28 +3167,26 @@ function telegramCompanyPublishPendingMessage(errorCode='',retryScheduled=false)
 async function configureTelegram(repair=false,warehouseId=activeRendererWarehouseId) {
   requireSecureStorage();
   if(usesCompanyTelegramBroker())warehouseId=requireActiveRendererWarehouse(warehouseId);
-  let authState=null,cachedAuthState=null,companyAuthDeferred=false;
+  let authState=null,cachedAuthState=null,authOperation=null;
   if(usesCompanyTelegramBroker()){
     cachedAuthState=normalizeCloudAuthState(currentSession?.cloudAuth||readCloudAuthState());
-    if(!canConfigureCompanyServer(cachedAuthState))throw new Error('Настроить общий Telegram-бот может только владелец компании или администратор с правом управления компанией.');
-    authState=cachedAuthState;
+    authOperation=captureCloudAuthOperation(cachedAuthState);
   }
   if(activeIntegrationWizard)throw new Error(`Уже выполняется мастер «${activeIntegrationWizard.name}». Завершите его перед запуском другого.`);
+  const authWorkflow=authOperation?beginCloudAuthWorkflow(authOperation):null;
   activeIntegrationWizard={name:'Telegram + Cloudflare',startedAt:new Date().toISOString()};
-  let credentials=null,cloudflareToken='',botToken='';
+  let credentials=null,cloudflareToken='',botToken='',provisionSessionChangeLogged=false;
   try {
     credentials=await openTelegramSetupWizard(repair);
+    if(authWorkflow)authWorkflow.guard();
     if(!credentials)return{canceled:true,configured:Boolean(currentTelegramService(warehouseId)||readJson(telegramStatePath('',warehouseId),null))};
     cloudflareToken=credentials.cloudflareToken;botToken=credentials.botToken;
     credentials.cloudflareToken='';credentials.botToken='';
     if(usesCompanyTelegramBroker()){
-      publishTelegramProgress({stage:'company_auth',title:'Проверяем права компании',detail:'Подтверждаем владельца или администратора. При кратком сбое сети мастер продолжит настройку по защищённой локальной сессии.',percent:4});
-      try{authState=await verifyCloudAuthContext()}
-      catch(error){
-        if(!isTemporaryCompanyServiceError(error))throw Object.assign(error,{stage:error?.stage||'company_auth'});
-        companyAuthDeferred=true;authState=cachedAuthState;
-        appendLog('Telegram company verification deferred',{code:String(error?.code||'NETWORK_ERROR'),error:safeIntegrationError(error),company:String(authState?.company?.id||'')});
-      }
+      publishTelegramProgress({stage:'company_auth',title:'Проверяем права компании',detail:'Сервер подтверждает действующие права владельца или администратора до начала настройки.',percent:4});
+      try{authState=await verifyCloudAuthContext(authOperation);authWorkflow.guard()}
+      catch(error){throw Object.assign(error,{stage:error?.stage||'company_auth'})}
+      if(!canConfigureCompanyServer(authState))throw Object.assign(new Error('Настроить общий Telegram-бот может только владелец компании или администратор с правом управления компанией.'),{stage:'company_auth',code:'COMPANY_SERVER_PERMISSION_REQUIRED'});
     }
     migrateExplicitLegacyTelegramScope('',warehouseId);
     const scope=currentTelegramScope(warehouseId),statePath=telegramStatePath('',warehouseId),secretName=telegramSecretName('',warehouseId);
@@ -2125,6 +3194,7 @@ async function configureTelegram(repair=false,warehouseId=activeRendererWarehous
     let existingClientApiKey='';
     try{existingClientApiKey=readNativeSecret(secretName)}catch(error){appendLog('Telegram scoped local key unavailable',{scope:scope.key,error:safeIntegrationError(error)})}
     appendLog('Telegram native Cloudflare setup started',{repair,architecture:'native-cloudflare-api-v3-shared-d1',existingWorker:String(existingState.worker_name||'')});
+    if(authOperation)assertCloudAuthOperation(authOperation,authState);
     const result=await telegramProvisioner.provision({
       cloudflareToken,botToken,existingState,existingClientApiKey,resourceScope:scope.key,
       companyId:scope.companyId,
@@ -2134,32 +3204,41 @@ async function configureTelegram(repair=false,warehouseId=activeRendererWarehous
       migrationFile:bundledIntegrationPath('telegram-cloudflare-native','migrations','0001_init.sql'),
       migrationFiles:[
         bundledIntegrationPath('telegram-cloudflare-native','migrations','0001_init.sql'),
-        bundledIntegrationPath('telegram-cloudflare-native','migrations','0002_shared_installations.sql')
+        bundledIntegrationPath('telegram-cloudflare-native','migrations','0002_shared_installations.sql'),
+        bundledIntegrationPath('telegram-cloudflare-native','migrations','0003_deprovision.sql')
       ],
-      onProgress:publishTelegramProgress
+      signal:authWorkflow?.signal,
+      guard:authWorkflow?.guard,
+      onProgress:progress=>{
+        if(authWorkflow){try{authWorkflow.guard()}catch(error){if(!provisionSessionChangeLogged){provisionSessionChangeLogged=true;appendLog('Telegram setup detached after account change',{code:String(error?.code||'AUTH_SESSION_CHANGED')})}return}}
+        publishTelegramProgress(progress)
+      }
     });
+    if(authOperation)assertCloudAuthOperation(authOperation,authState);
     const scopedState={...result.state,company_id:scope.companyId,warehouse_id:scope.warehouseId,environment:scope.environment};
     writeNativeSecret(secretName,result.clientApiKey);
     writeJsonAtomic(statePath,scopedState);
     let companyPublishPending=false,companyPublishErrorCode='',companyPublishRetryScheduled=false;
     if(usesCompanyTelegramBroker()){
-      try{await publishTelegramCompanyService(scopedState,result.clientApiKey,authState,warehouseId)}
+      try{await publishTelegramCompanyService(scopedState,result.clientApiKey,authState,warehouseId,authOperation)}
       catch(error){
         if(!isTemporaryCompanyServiceError(error))throw Object.assign(error,{stage:error?.stage||'company_publish'});
         companyPublishPending=true;
         companyPublishErrorCode=String(error?.code||'NETWORK_ERROR');
-        markTelegramCompanyPublishPending(scopedState,error,warehouseId);
-        companyPublishRetryScheduled=scheduleTelegramCompanyPublishRetry('configure-deferred');
+        markTelegramCompanyPublishPending(scopedState,error,warehouseId,authOperation);
+        companyPublishRetryScheduled=scheduleTelegramCompanyPublishRetry('configure-deferred',null,authOperation,warehouseId);
         appendLog('Telegram company publication deferred',{code:String(error?.code||'NETWORK_ERROR'),error:safeIntegrationError(error),workerHost:new URL(result.state.base_url).hostname});
       }
     }
-    const status=companyPublishPending?await getLocalTelegramStatus(warehouseId):await getTelegramStatus(warehouseId);
+    const status=companyPublishPending?await getLocalTelegramStatus(warehouseId):await getTelegramStatus(warehouseId,authOperation);
+    if(authOperation)assertCloudAuthOperation(authOperation,authOperation.state);
     if(!status.online)throw Object.assign(new Error(status.error||'Итоговая проверка webhook не пройдена.'),{stage:'final_check',code:'TG-CF-FINAL-STATUS'});
     appendLog(companyPublishPending?'Telegram native Cloudflare infrastructure completed; company publication pending':'Telegram native Cloudflare setup completed',{botUsername:status.botUsername,workerHost:new URL(result.state.base_url).hostname,architecture:result.state.architecture,companyPublishPending,cloudflareTokenSaved:false});
-    return{...status,companyPublishPending,companyPublishErrorCode,companyPublishRetryScheduled,error:companyPublishPending?telegramCompanyPublishPendingMessage(companyPublishErrorCode,companyPublishRetryScheduled):status.error,companyAuthDeferred,deleteCloudflareTokenRecommended:true,cloudflareTokenSaved:false};
+    return{...status,companyPublishPending,companyPublishErrorCode,companyPublishRetryScheduled,error:companyPublishPending?telegramCompanyPublishPendingMessage(companyPublishErrorCode,companyPublishRetryScheduled):status.error,deleteCloudflareTokenRecommended:true,cloudflareTokenSaved:false};
   } catch(error) {
     const safe=telegramProvisioningError(error);appendLog('Telegram native Cloudflare setup failed',safe);throw Object.assign(new Error(safe.display),safe);
   } finally {
+    authWorkflow?.release();
     cloudflareToken='';botToken='';credentials=null;
     appendLog('Telegram native Cloudflare setup released',{name:activeIntegrationWizard?.name||'Telegram + Cloudflare'});
     activeIntegrationWizard=null;
@@ -2180,26 +3259,32 @@ async function getLocalTelegramStatus(warehouseId=activeRendererWarehouseId) {
     return{configured:true,online:false,status:'degraded',architecture:String(state.architecture||'legacy'),deploymentVersion:String(state.deployment_version||''),baseUrl:String(state.base_url||''),botUsername:String(state.bot_username||''),error:safeIntegrationError(error),errorCode:String(error?.code||''),companyPublishPending:Boolean(state.company_publish_pending),cloudflareTokenSaved:false,checkedAt:new Date().toISOString()};
   }
 }
-async function getTelegramStatus(warehouseId=activeRendererWarehouseId) {
+async function getTelegramStatus(warehouseId=activeRendererWarehouseId,authOperation=null) {
   if(usesCompanyTelegramBroker()){
     warehouseId=requireActiveRendererWarehouse(warehouseId);
+    const operation=authOperation||captureCloudAuthOperation();
+    assertCloudAuthOperation(operation,operation.state);
     let profile=currentTelegramService(warehouseId);
     try{
       let full;
-      try{full=await companyTelegramBrokerRequest('GET',`/v1/company/telegram/status?warehouse_id=${encodeURIComponent(warehouseId)}`)}
+      try{full=await companyTelegramBrokerRequest('GET',`/v1/company/telegram/status?warehouse_id=${encodeURIComponent(warehouseId)}`,null,operation)}
       catch(error){
         if(String(error?.code)!=='TELEGRAM_NOT_CONFIGURED')throw error;
-        if(!(await migrateLegacyTelegramCompanyService(warehouseId))){
+        if(!(await migrateLegacyTelegramCompanyService(warehouseId,operation))){
+          assertCloudAuthOperation(operation,operation.state);
           const local=await getLocalTelegramStatus(warehouseId);
+          assertCloudAuthOperation(operation,operation.state);
           if(local.configured)return{...local,architecture:'company-broker-pending-v1',brokerOffline:true,companyPublishPending:true,companyPublishRetryScheduled:false,error:telegramCompanyPublishPendingMessage('TELEGRAM_NOT_CONFIGURED',false)};
           return{configured:false,online:false,status:'not_configured',repairRequired:Boolean(profile===null&&canConfigureCompanyServer(currentSession?.cloudAuth)),error:cloudFriendlyError(error.code),cloudflareTokenSaved:false,checkedAt:new Date().toISOString()};
         }
         profile=currentTelegramService(warehouseId);
-        full=await companyTelegramBrokerRequest('GET',`/v1/company/telegram/status?warehouse_id=${encodeURIComponent(warehouseId)}`);
+        full=await companyTelegramBrokerRequest('GET',`/v1/company/telegram/status?warehouse_id=${encodeURIComponent(warehouseId)}`,null,operation);
       }
+      assertCloudAuthOperation(operation,operation.state);
       const service=full?.service||profile||{};
       return{configured:true,online:true,status:'ready',architecture:'company-broker-v1',deploymentVersion:String(service.deployment_version||''),baseUrl:String(service.base_url||''),botUsername:String(full?.bot?.username||service.bot_username||''),webhookUrl:String(full?.webhook?.url||''),pendingUpdates:Number(full?.webhook?.pending_update_count)||0,lastError:String(full?.webhook?.last_error_message||''),version:String(service.deployment_version||VERSION),cloudflareTokenSaved:false,deleteCloudflareTokenRecommended:true,checkedAt:new Date().toISOString()};
     }catch(error){
+      assertCloudAuthOperation(operation,operation.state);
       appendLog('Telegram company status failed',{code:String(error?.code||''),error:safeIntegrationError(error)});
       if(isTemporaryCompanyServiceError(error)){
         const errorCode=String(error?.code||'NETWORK_ERROR');
@@ -2208,12 +3293,13 @@ async function getTelegramStatus(warehouseId=activeRendererWarehouseId) {
           try{
             const localState=loadWorkerState(warehouseId).state;
             if(readNativeSecret(telegramSecretName('',warehouseId))){
-              markTelegramCompanyPublishPending(localState,error,warehouseId);
-              retryScheduled=scheduleTelegramCompanyPublishRetry('status-deferred')||retryScheduled;
+              markTelegramCompanyPublishPending(localState,error,warehouseId,operation);
+              retryScheduled=scheduleTelegramCompanyPublishRetry('status-deferred',null,operation,warehouseId)||retryScheduled;
             }
           }catch(localError){appendLog('Telegram company publication could not be queued',{error:safeIntegrationError(localError)})}
         }
         const local=await getLocalTelegramStatus(warehouseId);
+        assertCloudAuthOperation(operation,operation.state);
         if(local.configured){
           const publicationPending=Boolean(local.companyPublishPending||!profile);
           return{...local,architecture:'company-broker-pending-v1',brokerOffline:true,companyPublishPending:publicationPending,companyPublishErrorCode:errorCode,companyPublishRetryScheduled:publicationPending&&retryScheduled,companyPublishRetryAt:publicationPending&&retryScheduled?new Date(telegramCompanyPublishRetryAt).toISOString():'',error:local.online?(publicationPending?telegramCompanyPublishPendingMessage(errorCode,retryScheduled):'Профиль компании сохранён, но серверная проверка Telegram временно недоступна.'):String(local.error||safeIntegrationError(error))};
@@ -2244,6 +3330,17 @@ function validateDeliveredTelegramNotification(result){
   }
   return notification;
 }
+function validateTelegramRouteUrl(value){
+  const routeUrl=String(value||'').trim();
+  if(!routeUrl)return'';
+  if(routeUrl.length>3500)throw new Error('Ссылка маршрута слишком длинная.');
+  let parsed;
+  try{parsed=new URL(routeUrl)}catch{throw new Error('Ссылка маршрута имеет неверный формат.');}
+  if(parsed.protocol!=='https:'||parsed.hostname.toLowerCase()!=='yandex.ru'||!/^\/maps\/?$/.test(parsed.pathname)||parsed.username||parsed.password){
+    throw new Error('Разрешена только защищённая ссылка маршрута Яндекс Карт.');
+  }
+  return parsed.toString()
+}
 async function sendTelegramNotification(payload) {
   const warehouseId=validateWarehouseId(payload?.warehouseId), environment=currentEnvironment(), scopedWarehouseId=telegramWarehouseScope(warehouseId,environment), entityType=String(payload?.entityType||''), entityId=String(payload?.entityId||'');
   if (!['driver','warehouse'].includes(entityType)||!/^[A-Za-z0-9_-]{1,120}$/.test(entityId)) throw new Error('Получатель Telegram имеет неверный формат.');
@@ -2252,6 +3349,7 @@ async function sendTelegramNotification(payload) {
   const text=String(payload?.text||'').trim(); if(!text||text.length>3500)throw new Error('Текст уведомления пуст или слишком длинный.');
   const routeId=String(payload?.routeId||'').trim().slice(0,160);
   if (/[\u0000-\u001f]/.test(routeId)) throw new Error('Идентификатор рейса повреждён.');
+  const routeUrl=validateTelegramRouteUrl(payload?.routeUrl);
   const title=String(payload?.title||'').trim().slice(0,300);
   const metadata=payload?.metadata&&typeof payload.metadata==='object'&&!Array.isArray(payload.metadata)?payload.metadata:{};
   const requestBody={
@@ -2265,6 +3363,8 @@ async function sendTelegramNotification(payload) {
     title,
     metadata,
     text,
+    route_url:routeUrl,
+    disable_link_preview:payload?.disableLinkPreview===true,
     status_buttons:payload?.statusButtons!==false
   };
   const result=usesCompanyTelegramBroker()
@@ -2356,23 +3456,30 @@ function registerIPC(config) {
       readyState:String(payload?.readyState || '').slice(0,40),
       warehouseId:String(payload?.warehouseId || '').slice(0,120)
     };
-    if (/^[A-Za-z0-9_-]{1,120}$/.test(safePayload.warehouseId)) activateRendererWarehouse(safePayload.warehouseId);
+    const shown=confirmRendererStartupReady(safePayload);
+    if(!shown){appendLog('renderer ready ignored after terminal startup state',{phase:rendererStartupState.phase});return false}
+    if (/^[A-Za-z0-9_-]{1,120}$/.test(safePayload.warehouseId)) {
+      activateRendererWarehouse(safePayload.warehouseId);
+      persistRendererWarehousePreferenceIfConfirmed(safePayload.warehouseId,currentSession?.cloudAuth,currentEnvironment());
+    }
     appendLog('renderer ready confirmed', safePayload);
     if (rendererReadyResolve) rendererReadyResolve(safePayload);
     confirmUpdateHealthIfRequested();
-    return true;
+    return shown;
   });
   handleMainIPC('desktop:set-active-warehouse', (_event, payload) => {
     try {
       const environment=requireCurrentEnvironment(payload?.environment);
       const warehouseId=activateRendererWarehouse(payload?.warehouseId);
-      appendLog('renderer warehouse context confirmed',{warehouseId,environment});
+      const preferencePersisted=persistRendererWarehousePreferenceIfConfirmed(warehouseId,currentSession?.cloudAuth,environment);
+      appendLog('renderer warehouse context confirmed',{warehouseId,environment,preferencePersisted});
       return {ok:true,warehouseId,environment};
     } catch(error) {
       appendLog('renderer warehouse context rejected',{code:String(error?.code||''),error:safeIntegrationError(error)});
       return {ok:false,error:safeIntegrationError(error),code:String(error?.code||'WAREHOUSE_CONTEXT_REJECTED')};
     }
   });
+  handleMainIPC('desktop:get-active-warehouse-preference', () => ({ok:true,...activeWarehouseRecoveryPreference(currentSession?.cloudAuth,currentEnvironment())}));
   handleMainIPC('desktop:get-session', () => ({
     edition:currentSession?.edition, authorized:currentSession?.authorized,
     demoRemainingMs:currentSession?.edition === 'demo' ? remainingDemoMs(currentSession.demoState) : null,
@@ -2380,6 +3487,16 @@ function registerIPC(config) {
     version:VERSION, dataDir:config.data_dir, licenseApi:LICENSE_API_ORIGIN,
     auth:publicCloudAuth(currentSession?.cloudAuth)
   }));
+  handleMainIPC('desktop:auth-refresh-context', async () => {
+    try {
+      const state=await verifyCloudAuthContext();
+      return {ok:true,auth:publicCloudAuth(state)};
+    } catch(error) {
+      const code=String(error?.code||'NETWORK_ERROR');
+      appendLog('cloud auth context refresh failed',{code,error:safeIntegrationError(error)});
+      return {ok:false,error:code,message:safeIntegrationError(error)};
+    }
+  });
   handleMainIPC('desktop:get-app-info', () => ({name:APP_NAME, version:VERSION, company:COMPANY, dataDir:config.data_dir, logDir:logDir(), machineCode:getMachineCode()}));
   handleMainIPC('desktop:update-status', () => ({ok:true, ...getUpdateController().status()}));
   handleMainIPC('desktop:update-check', async () => {
@@ -2395,41 +3512,61 @@ function registerIPC(config) {
     const error=await shell.openPath(logDir());
     return error ? {ok:false,error:String(error)} : {ok:true,path:logDir()};
   });
+  handleMainIPC('desktop:backup-save', async (_event,payload) => {try{const result=saveBackupPayload(payload);appendLog('backup file verified',{kind:result.kind,path:result.path,bytes:result.bytes,sha256:result.sha256});return result}catch(error){appendLog('backup file failed',{code:String(error?.code||'BACKUP_WRITE_FAILED'),error:safeError(error)});return{ok:false,code:String(error?.code||'BACKUP_WRITE_FAILED'),message:safeError(error)}}});
+  handleMainIPC('desktop:audit-event', async (_event,payload) => {const event=safeRendererAuditPayload(payload);appendLog('renderer business audit',event);return{ok:true,correlationId:event.correlationId};});
   handleMainIPC('desktop:auth-license-check', async (_event, payload) => {
     try { const result=await cloudRequestWithRetry('POST','/v1/license/check',{license_key:String(payload?.licenseKey||'')}); return {ok:true,...result}; }
     catch(error){appendLog('license check failed',{code:error.code,error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};}
   });
   handleMainIPC('desktop:auth-register-owner', async (_event, payload) => {
     try {
+      const replacementEpoch=cloudAuthEpoch;
       const licenseKey=String(payload?.licenseKey||''),fullName=String(payload?.fullName||''),login=String(payload?.login||''),password=String(payload?.password||'');
       // Owner registration is the only operation allowed to consume a
       // one-time key. A separate pre-check would create a race.
       const result=await cloudRequest('POST','/v1/owner/register',{license_key:licenseKey,full_name:fullName,login,password,device_id:getMachineCode(),device_name:os.hostname()||'Главный компьютер'});
-      const state=saveCloudSession(result,{user:{id:'',full_name:fullName,login:login.trim().toLowerCase(),role:'owner',permissions:['*']}});
-      currentSession.cloudAuth=state; appendLog('cloud owner registered',{company:state.company?.code,login:state.user?.login}); return{ok:true,auth:publicCloudAuth(state)};
+      if(cloudAuthEpoch!==replacementEpoch)throw cloudAuthSessionChanged();
+      const candidate=saveCloudSession(result,{user:{id:'',full_name:fullName,login:login.trim().toLowerCase(),role:'owner',permissions:['*']}},false);
+      const state=replaceCloudAuthSession(candidate,'owner-register');schedulePendingWarehouseDeleteResume('owner-register');appendLog('cloud owner registered',{company:state.company?.code,login:state.user?.login}); return{ok:true,auth:publicCloudAuth(state)};
     }catch(error){appendLog('owner registration failed',{code:error.code,error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};}
   });
   handleMainIPC('desktop:auth-login', async (_event, payload) => {
-    try { const result=await cloudRequestWithRetry('POST','/v1/auth/login',{company_code:String(payload?.companyCode||''),login:String(payload?.login||''),password:String(payload?.password||''),device_id:getMachineCode(),device_name:os.hostname()||'Компьютер'}); const state=saveCloudSession(result); currentSession.cloudAuth=state; appendLog('cloud login success',{company:state.company?.code,login:state.user?.login}); return{ok:true,auth:publicCloudAuth(state)}; }
+    try { const replacementEpoch=cloudAuthEpoch;const result=await cloudRequestWithRetry('POST','/v1/auth/login',{company_code:String(payload?.companyCode||''),login:String(payload?.login||''),password:String(payload?.password||''),device_id:getMachineCode(),device_name:os.hostname()||'Компьютер'});if(cloudAuthEpoch!==replacementEpoch)throw cloudAuthSessionChanged();const candidate=saveCloudSession(result,{},false);const state=replaceCloudAuthSession(candidate,'login');schedulePendingWarehouseDeleteResume('login');appendLog('cloud login success',{company:state.company?.code,login:state.user?.login}); return{ok:true,auth:publicCloudAuth(state)}; }
     catch(error){appendLog('cloud login failed',{code:error.code,error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};}
   });
   handleMainIPC('desktop:auth-accept-invitation', async (_event, payload) => {
-    try { const result=await cloudRequest('POST','/v1/invitations/accept',{invitation_code:String(payload?.invitationCode||''),password:String(payload?.password||''),device_id:getMachineCode(),device_name:os.hostname()||'Компьютер сотрудника'}); const state=saveCloudSession(result); currentSession.cloudAuth=state; appendLog('cloud invitation accepted',{company:state.company?.code,login:state.user?.login}); return{ok:true,auth:publicCloudAuth(state)}; }
+    try { const replacementEpoch=cloudAuthEpoch;const result=await cloudRequest('POST','/v1/invitations/accept',{invitation_code:String(payload?.invitationCode||''),password:String(payload?.password||''),device_id:getMachineCode(),device_name:os.hostname()||'Компьютер сотрудника'});if(cloudAuthEpoch!==replacementEpoch)throw cloudAuthSessionChanged();const candidate=saveCloudSession(result,{},false);const state=replaceCloudAuthSession(candidate,'invitation-accept');schedulePendingWarehouseDeleteResume('invitation-accept');appendLog('cloud invitation accepted',{company:state.company?.code,login:state.user?.login}); return{ok:true,auth:publicCloudAuth(state)}; }
     catch(error){appendLog('cloud invitation failed',{code:error.code,error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};}
   });
-  handleMainIPC('desktop:auth-logout', async () => { stopTelegramCompanyPublishRetry();telegramCompanyPublishRetryFailures=0;clearCloudAuthState(); if(currentSession)currentSession.cloudAuth=null; appendLog('cloud logout'); return{ok:true}; });
-  handleMainIPC('desktop:auth-users', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/users'))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-invite', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('POST','/v1/users/invite',{full_name:String(payload?.fullName||''),login:String(payload?.login||''),role:String(payload?.role||'manager'),permissions:Array.isArray(payload?.permissions)?payload.permissions:[],expires_in_hours:Number(payload?.expiresInHours)||24}))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-user-status', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/users/${encodeURIComponent(String(payload?.userId||''))}/status`,{status:String(payload?.status||'')}))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-user-access', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/users/${encodeURIComponent(String(payload?.userId||''))}/access`,{role:String(payload?.role||''),permissions:Array.isArray(payload?.permissions)?payload.permissions:[]}))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-devices', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/devices'))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
-  handleMainIPC('desktop:auth-device-status', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/devices/${encodeURIComponent(String(payload?.deviceId||''))}/status`,{status:String(payload?.status||'')}))};}catch(error){return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-logout', async () => {
+    let captured=null;try{captured=currentSession?.cloudAuth?normalizeCloudAuthState(currentSession.cloudAuth):null}catch{}
+    const accessToken=String(captured?.access_token||'');
+    try{
+      clearCloudAuthSession('logout');
+      appendLog('cloud logout');
+      if(accessToken){
+        try{await cloudRequest('POST','/v1/auth/logout',{},accessToken,5000);appendLog('cloud server session revoked')}
+        catch(error){appendLog('cloud server logout not confirmed',{code:String(error?.code||'NETWORK_ERROR'),error:safeIntegrationError(error)})}
+      }
+      return{ok:true}
+    }
+    catch(error){appendLog('cloud logout failed',{code:String(error?.code||'NATIVE_SECRET_DELETE_UNCONFIRMED'),error:safeIntegrationError(error)});return{ok:false,error:String(error?.code||'NATIVE_SECRET_DELETE_UNCONFIRMED'),message:String(error?.message||'Не удалось подтвердить выход.').slice(0,500)}}
+  });
+  handleMainIPC('desktop:auth-users', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/users'))};}catch(error){appendLog('cloud user list failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-invitations', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/invitations'))};}catch(error){appendLog('cloud invitation list failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-invite', async (_event,payload) => { try{const result=await cloudAuthenticatedRequest('POST','/v1/users/invite',{full_name:String(payload?.fullName||''),login:String(payload?.login||''),role:String(payload?.role||'manager'),permissions:Array.isArray(payload?.permissions)?payload.permissions:[],expires_in_hours:Number(payload?.expiresInHours)||24});appendLog('cloud invitation created',{invitationId:result?.invitation?.id||'',login:String(payload?.login||'')});return{ok:true,...result};}catch(error){appendLog('cloud invitation create failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-invitation-revoke', async (_event,payload) => {const invitationId=String(payload?.invitationId||'');try{const result=await cloudAuthenticatedRequest('PATCH',`/v1/invitations/${encodeURIComponent(invitationId)}/revoke`,{});appendLog('cloud invitation revoked',{invitationId});return{ok:true,...result};}catch(error){appendLog('cloud invitation revoke failed',{invitationId,code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-user-status', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/users/${encodeURIComponent(String(payload?.userId||''))}/status`,{status:String(payload?.status||'')}))};}catch(error){appendLog('cloud user status failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-user-access', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/users/${encodeURIComponent(String(payload?.userId||''))}/access`,{role:String(payload?.role||''),permissions:Array.isArray(payload?.permissions)?payload.permissions:[]}))};}catch(error){appendLog('cloud user access failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-devices', async () => { try{return{ok:true,...(await cloudAuthenticatedRequest('GET','/v1/devices'))};}catch(error){appendLog('cloud device list failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
+  handleMainIPC('desktop:auth-device-status', async (_event,payload) => { try{return{ok:true,...(await cloudAuthenticatedRequest('PATCH',`/v1/devices/${encodeURIComponent(String(payload?.deviceId||''))}/status`,{status:String(payload?.status||'')}))};}catch(error){appendLog('cloud device status failed',{code:error.code||'NETWORK_ERROR',error:safeIntegrationError(error)});return{ok:false,error:error.code||'NETWORK_ERROR',message:error.message};} });
   handleMainIPC('desktop:copy-text', (_event, text) => { clipboard.writeText(text); return true; });
   handleMainIPC('desktop:open-support', (_event, channel) => {
     const map = {telegram:SUPPORT_TELEGRAM, vk:SUPPORT_VK, email:SUPPORT_EMAIL};
     const url = map[channel]; if (!url) return false; return shell.openExternal(url).then(() => true, () => false);
   });
   handleMainIPC('desktop:reg-status', async () => getRegStatus());
+  handleMainIPC('desktop:address-search',async(_event,payload)=>{try{return await resolveDesktopAddressSearch(payload)}catch(error){appendRecurringLog('Address search request rejected',{code:String(error?.code||'ADDRESS_REQUEST_REJECTED'),error:safeIntegrationError(error),queryLength:String(payload?.query||'').length,hasRequestId:Boolean(payload?.requestId)});return{ok:false,code:String(error?.code||'ADDRESS_REQUEST_REJECTED'),error:safeIntegrationError(error)}}});
   handleMainIPC('desktop:maps-geocode',async(_event,payload)=>resolveDesktopMapGeocode(payload));
   handleMainIPC('desktop:maps-diagnostic',async(_event,payload)=>{
     const requestId=String(payload?.requestId||'').replace(/[^A-Za-z0-9_-]/g,'').slice(0,80);
@@ -2449,13 +3586,15 @@ function registerIPC(config) {
   });
   handleMainIPC('desktop:reg-warehouses', async (_event, payload) => {
     try {
-      const environment=requireCurrentEnvironment(payload?.environment);
+      const environment='live';
       const state=regState();
       if(!state)return{ok:true,configured:false,warehouses:[]};
       const result=await regApiRequest('GET',`/v1/warehouses?environment=${encodeURIComponent(environment)}`);
       if(String(result.workspace_id||'')!==String(state.workspace_id||''))throw new Error('Сервер вернул склады другой компании.');
       const warehouses=Array.isArray(result.warehouses)?result.warehouses.filter(item=>item&&/^[A-Za-z0-9_-]{1,120}$/.test(String(item.id||''))):[];
-      return{ok:true,configured:true,environment,warehouses};
+      const preferred=resolveAllowedActiveWarehousePreference(warehouses,currentSession?.cloudAuth,environment,activeRendererWarehouseId);
+      const registryInitialized=typeof result.registry_initialized==='boolean'?result.registry_initialized:null;
+      return{ok:true,configured:true,environment,warehouses:preferred.warehouses,preferredWarehouseId:preferred.preferredWarehouseId,registryInitialized};
     }catch(error){
       appendRecurringLog('REG.RU warehouse registry failed',{code:String(error?.code||''),error:safeIntegrationError(error)});
       return{ok:false,error:safeIntegrationError(error),code:String(error?.code||'')};
@@ -2463,7 +3602,11 @@ function registerIPC(config) {
   });
   handleMainIPC('desktop:reg-configure', async (_event, payload) => {
     try { return {ok:true, ...(await configureRegVps(payload))}; }
-    catch (error) { appendLog('REG.RU setup failed',safeIntegrationError(error)); return {ok:false,error:safeIntegrationError(error)}; }
+    catch (error) {
+      appendLog('REG.RU setup failed',safeIntegrationError(error));
+      const response={ok:false,error:safeIntegrationError(error)};
+      return String(error?.code||'')==='AUTH_SESSION_CHANGED'?{...response,code:'AUTH_SESSION_CHANGED'}:response;
+    }
   });
   handleMainIPC('desktop:reg-entity-bootstrap',async(_event,payload)=>{
     try{
@@ -2478,22 +3621,33 @@ function registerIPC(config) {
     }catch(error){appendRecurringLog('VPS entity bootstrap failed',{code:String(error?.code||''),error:safeIntegrationError(error)});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||'')}}
   });
   handleMainIPC('desktop:reg-entity-sync',async(_event,payload)=>{
+    let requestAttempted=false;
     try{
-      const warehouseId=requireActiveRendererWarehouse(payload?.warehouseId),environment=requireCurrentEnvironment(payload?.environment),state=regState(),batch=validateRegEntityBatch(payload,warehouseId);
-      const result=await submitRegEntityBatch(state,warehouseId,environment,batch);
+      const warehouseId=requireActiveRendererWarehouse(payload?.warehouseId),environment=requireCurrentEnvironment(payload?.environment),state=regState(),batch=validateRegEntityBatch(payload,warehouseId,environment);
+      if(batch.intent?.kind===REG_LOCAL_MIGRATION_INTENT&&!canImportLocalMigration(currentSession?.cloudAuth))throw Object.assign(new Error('Перенос локальной базы может выполнить только владелец с доступом ко всем складам.'),{code:'LOCAL_MIGRATION_PERMISSION_DENIED'});
+      const createsWarehouse=batch.changes.some(item=>item.type==='warehouse'&&item.id===warehouseId&&item.deleted===false&&item.base_version===0);
+      if(createsWarehouse&&!canCreateCompanyWarehouses(currentSession?.cloudAuth))throw Object.assign(new Error('Создать склад может владелец или администратор с доступом ко всем складам.'),{code:'WAREHOUSE_CREATE_GLOBAL_ACCESS_REQUIRED'});
+      requestAttempted=true;const result=await submitRegEntityBatch(state,warehouseId,environment,batch);
       appendLog('VPS entity batch committed',{warehouseId,environment,cursor:result.cursor,entities:result.entities.length,replayed:result.replayed});
       return{ok:true,warehouseId,environment,commandId:batch.command_id,...result};
-    }catch(error){appendLog('VPS entity batch failed',{code:String(error?.code||''),error:safeIntegrationError(error),details:error?.details||{}});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||''),details:error?.details||{}}}
+    }catch(error){const failure=regWriteFailureContract(error,{requestAttempted});appendLog('VPS entity batch failed',{code:String(error?.code||''),error:safeIntegrationError(error),details:error?.details||{},...failure});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||''),details:error?.details||{},...failure}}
   });
   handleMainIPC('desktop:reg-warehouse-write',async(_event,payload)=>{
+    let requestAttempted=false;
     try{
-      if(!canConfigureCompanyServer(currentSession?.cloudAuth))throw Object.assign(new Error('Нет права изменять склады компании.'),{code:'WAREHOUSE_ACCESS_DENIED'});
-      const warehouseId=validateWarehouseId(payload?.warehouseId),environment=validateEnvironment(payload?.environment),state=regState(),batch=validateRegEntityBatch(payload,warehouseId);
-      if(batch.intent||batch.changes.length!==1||batch.changes[0].type!=='warehouse'||batch.changes[0].id!==warehouseId)throw new Error('Команда склада содержит посторонние данные.');
-      const result=await submitRegEntityBatch(state,warehouseId,environment,batch);
-      appendLog('VPS warehouse record committed',{warehouseId,environment,deleted:batch.changes[0].deleted,version:result.entities[0]?.version||0});
-      return{ok:true,warehouseId,environment,commandId:batch.command_id,...result};
-    }catch(error){appendLog('VPS warehouse record failed',{code:String(error?.code||''),error:safeIntegrationError(error),details:error?.details||{}});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||''),details:error?.details||{}}}
+      if(!canManageCompanyWarehouses(currentSession?.cloudAuth))throw Object.assign(new Error('Нет права изменять склады компании.'),{code:'WAREHOUSE_ACCESS_DENIED'});
+      const warehouseId=validateWarehouseId(payload?.warehouseId),environment=validateEnvironment(payload?.environment),state=regState(),batch=validateRegEntityBatch(payload,warehouseId,environment);
+      if(environment!=='live')throw Object.assign(new Error('Реестр складов можно изменять только в LIVE-контуре.'),{code:'WAREHOUSE_ENVIRONMENT_INVALID'});
+      const warehouseChanges=batch.changes.filter(item=>item.type==='warehouse'&&item.id===warehouseId),warehouseChange=warehouseChanges[0],supplemental=batch.changes.filter(item=>item!==warehouseChange),creating=warehouseChange?.deleted===false&&warehouseChange?.base_version===0,supplementalKeys=supplemental.map(item=>`${item.type}:${item.id}`);
+      if(creating&&!canCreateCompanyWarehouses(currentSession?.cloudAuth))throw Object.assign(new Error('Создать склад может владелец или администратор с доступом ко всем складам.'),{code:'WAREHOUSE_CREATE_GLOBAL_ACCESS_REQUIRED'});
+      if(warehouseChange?.deleted&&!canDeleteCompanyWarehouses(currentSession?.cloudAuth))throw Object.assign(new Error('Удалить склад может только владелец или администратор с доступом ко всем складам.'),{code:'WAREHOUSE_DELETE_GLOBAL_ACCESS_REQUIRED'});
+      const validSupplemental=creating&&supplemental.length<=2&&new Set(supplementalKeys).size===supplemental.length&&supplemental.every(item=>item.deleted===false&&item.base_version===0&&((item.type==='settings'&&item.id==='settings')||(item.type==='company'&&item.id==='company')));
+      if(batch.intent||warehouseChanges.length!==1||(!validSupplemental&&supplemental.length))throw new Error('Команда склада содержит посторонние данные.');
+      requestAttempted=true;const deletion=warehouseChange.deleted?await completeWarehouseDeleteOperation({warehouseId,warehouseCode:validateWarehouseCode(payload?.warehouseCode),batch,state}):null;
+      const result=deletion?.result||await submitRegEntityBatch(state,warehouseId,environment,batch),commandId=deletion?.commandId||batch.command_id;
+      const confirmed=result.entities.find(item=>item.type==='warehouse'&&item.id===warehouseId);appendLog('VPS warehouse record committed',{warehouseId,environment,deleted:warehouseChange.deleted,version:confirmed?.version||0,cascadeDeleted:result.cascade_deleted,telegramDeprovisioned:Boolean(deletion),telegramLocalCleanupPending:deletion?.localCleanupPending===true});
+      return{ok:true,warehouseId,environment,commandId,...result,telegram_deprovisioned:Boolean(deletion),telegram_local_cleanup_pending:deletion?.localCleanupPending===true};
+    }catch(error){const failure=regWriteFailureContract(error,{requestAttempted});appendLog('VPS warehouse record failed',{code:String(error?.code||''),error:safeIntegrationError(error),details:error?.details||{},...failure});return{ok:false,error:safeIntegrationError(error),code:String(error?.code||''),details:error?.details||{},...failure}}
   });
   handleMainIPC('desktop:reg-entity-changes',async(_event,payload)=>{
     try{
@@ -2532,6 +3686,32 @@ function registerIPC(config) {
   handleMainIPC('desktop:telegram-bindings', async (_event, payload) => {
     try { requireActiveRendererWarehouse(payload?.warehouseId); return await getTelegramBindings(payload); }
     catch(error) { appendLog('Telegram bindings failed',{code:String(error?.code||''),error:safeIntegrationError(error)}); return {ok:false,error:safeIntegrationError(error),code:String(error?.code||'TELEGRAM_BINDINGS_FAILED')}; }
+  });
+  handleMainIPC('desktop:document-preview-pdf', async (event, payload) => {
+    try {
+      const landscape = payload?.landscape === true;
+      const previewDirectory = path.join(app.getPath('temp'), 'JustFun', 'print-preview');
+      ensureDir(previewDirectory);
+      const fileName = `justfun-${landscape ? 'landscape' : 'portrait'}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
+      const filePath = path.join(previewDirectory, fileName);
+      const pdf = await event.sender.printToPDF({
+        printBackground:true,
+        pageSize:'A4',
+        landscape,
+        preferCSSPageSize:true,
+        margins:{top:0.25,bottom:0.25,left:0.25,right:0.25},
+        displayHeaderFooter:false
+      });
+      if (pdf.length < 10000 || pdf.subarray(0,5).toString('ascii') !== '%PDF-') throw new Error('Сформированный PDF пуст или повреждён.');
+      fs.writeFileSync(filePath, pdf);
+      const openError = await shell.openPath(filePath);
+      if (openError) throw new Error(openError);
+      appendLog('print preview opened',{landscape,bytes:pdf.length});
+      return {ok:true,bytes:pdf.length};
+    } catch (error) {
+      appendLog('print preview failed',{error:safeError(error)});
+      return {ok:false,error:'Не удалось открыть предварительный просмотр PDF.'};
+    }
   });
   handleMainIPC('desktop:save-text-file', async (_event, payload) => {
     const name = String(payload?.name || 'export.txt').replace(/[\\/:*?"<>|]/g,'_');
@@ -2618,6 +3798,7 @@ async function boot() {
   sendSplash('Запуск JustFun','Проверяем редакцию и лицензию',10);
   currentSession = await buildSession(config);
   appendLog('session evaluated', {edition:currentSession.edition, authorized:currentSession.authorized, recovery:currentSession.recovery});
+  schedulePendingWarehouseDeleteResume('startup');
   if (!currentSession.authorized && currentSession.edition === 'demo') {
     switchExpiredDemoToCloudSignIn(config);
     currentSession = await buildSession(config);
@@ -2923,9 +4104,12 @@ async function runVisualQa() {
     result.screens.push(await captureVisualQa(win,output,'04-update-center'));
     result.contracts.push({screen:'update-center',...(await collectVisualContract(win,['#jfUpdateTitle','#jfUpdateBadge','#jfUpdateStatus','#jfUpdateCheck','#jfUpdateDownload','#jfUpdateApply','#jfUpdateAfterClose','#jfUpdateRemindLater','#jfUpdateHistory','#jfUpdateDiagnostic']))});
 
-    await win.webContents.executeJavaScript("showView('programSettings');const box=document.querySelector('#jfRegIntegrationsBox');const toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610');if(box&&!box.classList.contains('open'))toggle?.click();box?.scrollIntoView({block:'start'});");
-    await waitForRenderer(win,"document.querySelector('#jfRegIntegrationsBox')?.classList.contains('open')&&!document.querySelector('#jfRegIntegrationsBox > .settings-accordion-body-v610')?.hidden");
+    await win.webContents.executeJavaScript("showView('programSettings')");
+    const regIntegrationOpenPredicate="(()=>{const box=document.querySelector('#jfRegIntegrationsBox'),toggle=box?.querySelector(':scope > .settings-accordion-toggle-v610'),body=box?.querySelector(':scope > .settings-accordion-body-v610');if(!box||!toggle||!body)return false;if(!box.classList.contains('open')||body.hidden)toggle.click();if(box.classList.contains('open')&&!body.hidden){box.scrollIntoView({block:'start'});return true}return false})()";
+    await new Promise(resolve=>setTimeout(resolve,500));
+    await waitForRenderer(win,regIntegrationOpenPredicate);
     await new Promise(resolve=>setTimeout(resolve,900));
+    await waitForRenderer(win,regIntegrationOpenPredicate);
     result.screens.push(await captureVisualQa(win,output,'04-settings-integrations'));
     result.contracts.push({screen:'settings-integrations',...(await collectVisualContract(win,['#jfRegIntegrationsBox h3','#jfRegIntegrationsBox .jf-integration-lead','#jfRegIntegrationsBox .jf-integration-card b','#jfRegIntegrationsBox .jf-integration-card label']))});
 
@@ -3136,7 +4320,10 @@ async function runPrintQa() {
       fs.writeFileSync(target,pdf);
       const bytes=fs.statSync(target).size;
       if(bytes<10000||pdf.subarray(0,5).toString('ascii')!=='%PDF-')throw new Error(`${document.name}: PDF пуст или повреждён (${bytes} байт)`);
-      result.documents.push({name:document.name,file:path.basename(target),bytes,context,contract});
+      const pdfSource=pdf.toString('latin1'),mediaBoxes=[...pdfSource.matchAll(/\/MediaBox\s*\[([^\]]+)\]/g)].map(match=>match[1].trim()),pageSizes=mediaBoxes.map(value=>value.split(/\s+/).map(Number)).filter(values=>values.length===4&&values.every(Number.isFinite)).map(values=>({width:values[2]-values[0],height:values[3]-values[1]})),expectsLandscape=context.type==='route',orientationOk=pageSizes.length>0&&pageSizes.every(size=>expectsLandscape?size.width>size.height:size.height>size.width),textLayer=pdfSource.includes('/Font')&&pdfSource.includes('/ToUnicode');
+      if(!orientationOk)throw new Error(`${document.name}: неверная ориентация PDF`);
+      if(!textLayer)throw new Error(`${document.name}: PDF не содержит проверяемого текстового слоя`);
+      result.documents.push({name:document.name,file:path.basename(target),bytes,context,contract:{...contract,pdf:{pages:pageSizes.length,orientation:expectsLandscape?'landscape':'portrait',orientationOk,textLayer}}});
       await win.webContents.executeJavaScript(`(() => {const area=document.getElementById('printArea');area.style.display='none';area.innerHTML=''})()`);
     }
   }catch(error){
@@ -3220,26 +4407,38 @@ function runRunningInstanceProbe(outputPath = '') {
   if (outputPath) fs.writeFileSync(path.resolve(outputPath), acquired ? 'NOT_RUNNING' : 'RUNNING', 'ascii');
   const exitCode = acquired ? 0 : 30;
   app.exit(exitCode);
+  // This mode is a short-lived native probe used by the uninstaller.  It runs
+  // before Electron reaches the normal ready lifecycle, so app.exit() may set
+  // the exit code without terminating promptly while top-level Node handles
+  // are still active.  The result file is written synchronously and the
+  // single-instance lock is already released; a hard process exit is therefore
+  // both safe and required to avoid keeping the installation directory locked.
+  if (!DESKTOP_UNIT_TEST_MODE) process.exit(exitCode);
   return exitCode;
 }
 
 if (DESKTOP_UNIT_TEST_MODE) {
   module.exports = {
-    VERSION, DEMO_DURATION_MS, DEMO_SCHEMA, DEMO_STATE_NAME, RENDERER_READY_TIMEOUT_MS,
+    VERSION, DEMO_DURATION_MS, DEMO_SCHEMA, DEMO_STATE_NAME, STARTUP_TIMEOUT_MS, RENDERER_READY_TIMEOUT_MS,
     readInstallConfig, persistInstallConfig, buildSession,
     getMachineCode, normalizeDemoState, normalizeDemoStateWithCloud, reconcileDemoStateWithCloud, remainingDemoMs, makeDemoState,
     signObject, validSignedObject, demoLocations, persistDemoState,
-    appendLog, logCandidates, logFile, localRoot, readJson,
+    appendLog, logCandidates, logFile, localRoot, readJson, saveBackupPayload, safeRendererAuditPayload,
     validateWarehouseId, validateEnvironment, validateWarehouseSnapshot, validateSnapshotEntityIdentifiers, telegramWarehouseScope,
+    activeWarehousePreferenceScope, readConfirmedActiveWarehousePreference, activeWarehouseRecoveryPreference, persistConfirmedActiveWarehousePreference,
+    rememberConfirmedWarehouseRegistry, persistRendererWarehousePreferenceIfConfirmed, resolveAllowedActiveWarehousePreference,
     telegramScopeParts, telegramScopeRoot, validateDeliveredTelegramNotification,
     normalizeFingerprint, pinnedHttpsAgent, validateWorkerState, loadWorkerState,
     cloudFriendlyError, friendlyCloudNetworkError, isRetryableCloudNetworkError, isTemporaryCompanyServiceError, telegramCompanyPublishRetryDelay, telegramCompanyPublishPendingMessage, withCloudNetworkRetry, decodeJwtPayload, tokenExpiresAt, justFunTokenClaims, combinedCloudClaims, normalizeCloudUser, normalizeCloudCompany, normalizeCloudAuthState, publicCloudAuth,
-    readCloudAuthState, writeCloudAuthState, clearCloudAuthState, saveCloudSession, cloudSessionComplete,
-    companyWorkspaceId, cloudRegState, selectRegState, canConfigureCompanyServer,
-    regStatePath, regApiSecretName, readLocalRegState, regDiagnosticStage,
+    readCloudAuthState, writeCloudAuthState, clearCloudAuthState, saveCloudSession, cloudSessionComplete, cloudAuthorizationSignature,
+    companyWorkspaceId, cloudRegState, selectRegState, canConfigureCompanyServer, canManageCompanyWarehouses, canCreateCompanyWarehouses, canImportLocalMigration, canDeleteCompanyWarehouses, validateWarehouseCode, validateWarehouseDeleteLease, validateTelegramDeprovisionResult, normalizeWarehouseDeleteBatch, validateRegEntityBatch, validateRegEntityBatchAck, regWriteFailureContract, warehouseDeleteLeaseSecretName, warehouseDeletePrepareFailureAction, withWarehouseDeleteOperationLock, regWarehouseDeletePreparePath,
+    regStatePath, regApiSecretName, regVpsAttestationSecretName, readLocalRegState, regDiagnosticStage,
     installerSmokeOutputPath, setInstallerSmokeSessionDefaults, runInstallerSmokeTest, runRunningInstanceProbe, parseCssColor, contrastRatio,
+    transitionRendererStartupState, coordinateRendererStartup, revealRendererStartupWindows, finalizeRendererStartupReady,
+    allowRendererUnloadAfterAcceptedQuit,
     appRendererUrl, resolveAppRendererPath, isTrustedAppUrl, verifyPackagedApplicationIntegrity,
-    directOpenStreetMapGeocode, resolveDesktopMapGeocode
+    directOpenStreetMapGeocode, resolveDesktopMapGeocode,
+    validateDesktopAddressSearchPayload, canonicalAddressToNominatim, validateAddressSearchResponse, resolveDesktopAddressSearch, regAddressSearchPath
   };
 } else {
   const runningInstanceProbeArgument = process.argv.find(value=>String(value).startsWith('--running-instance-probe-output='));
@@ -3251,7 +4450,8 @@ if (DESKTOP_UNIT_TEST_MODE) {
   const selfTestMode = process.argv.includes('--self-test');
   const visualQaMode = process.argv.some(value=>String(value).startsWith('--visual-qa-output='));
   const printQaMode = process.argv.some(value=>String(value).startsWith('--print-qa-output='));
-  singleInstanceLock = runningInstanceProbeMode || selfTestMode || installerSmokeMode || visualQaMode || printQaMode
+  const multiInstanceLiveTestMode = !app.isPackaged && process.env.JF_ALLOW_MULTI_INSTANCE_LIVE_TEST === '1';
+  singleInstanceLock = runningInstanceProbeMode || selfTestMode || installerSmokeMode || visualQaMode || printQaMode || multiInstanceLiveTestMode
     ? true
     : app.requestSingleInstanceLock();
   if (!runningInstanceProbeMode && !singleInstanceLock) app.quit();
@@ -3276,7 +4476,8 @@ if (DESKTOP_UNIT_TEST_MODE) {
           }
         } catch(error) { appendLog('deferred update decision failed',{code:String(error?.code||'UPDATE_DEFER_FAILED'),error:safeError(error)}); }
       }
-      clearInterval(demoTimer); stopTelegramCompanyPublishRetry(); stopUpdateSchedule(); flushRecurringLogs(); appendLog('application exiting');
+      applicationQuitAccepted=true;
+      clearInterval(demoTimer); stopTelegramCompanyPublishRetry(); stopWarehouseDeleteResume(); stopUpdateSchedule(); flushRecurringLogs(); appendLog('application exiting');
     });
     process.on('uncaughtException', error => { appendLog('uncaughtException', diagnosticError(error)); showRecoveryError('Не удалось продолжить запуск программы.', safeError(error)); });
     process.on('unhandledRejection', error => appendLog('unhandledRejection', diagnosticError(error)));

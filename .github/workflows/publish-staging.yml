@@ -8,9 +8,14 @@ on:
         required: true
         default: release/catalogs/staging.json
         type: string
+      build_run_id:
+        description: Successful exact-SHA Windows native release gate run ID
+        required: true
+        type: string
 
 permissions:
-  contents: read
+  contents: write
+  actions: read
 
 jobs:
   publish:
@@ -21,4 +26,6 @@ jobs:
       wrangler_environment: staging
       protected_environment: update-staging
       required_directive: release
-    secrets: inherit
+      build_run_id: ${{ inputs.build_run_id }}
+      production_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_PRODUCTION_KV_NAMESPACE_ID }}
+      staging_kv_namespace_id: ${{ vars.CLOUDFLARE_UPDATE_CATALOG_STAGING_KV_NAMESPACE_ID }}

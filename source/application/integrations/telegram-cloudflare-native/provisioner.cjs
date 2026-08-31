@@ -4,12 +4,13 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { AsyncLocalStorage } = require('async_hooks');
 const RELEASE = require('../../release.json');
 
 const CLOUDFLARE_HOST = 'api.cloudflare.com';
 const TELEGRAM_HOST = 'api.telegram.org';
-const DEPLOYMENT_VERSION = RELEASE.version;
-const SCHEMA_VERSION = 2;
+const DEPLOYMENT_VERSION = RELEASE.service_versions.telegram_worker;
+const SCHEMA_VERSION = 3;
 const DEFAULT_WORKER_NAME = 'justfun-logistics-bot';
 const DEFAULT_DATABASE_NAME = 'justfun-logistics-bot-db';
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -22,6 +23,52 @@ class ProvisioningError extends Error {
     this.code = String(code || 'TG-CF-UNKNOWN');
     this.details = String(details || '');
   }
+}
+
+const provisioningRuntime = new AsyncLocalStorage();
+
+function provisioningCancellationError(signal) {
+  return signal?.reason instanceof Error
+    ? signal.reason
+    : Object.assign(new Error('Учётная запись изменилась во время настройки Telegram.'), {code: 'AUTH_SESSION_CHANGED'});
+}
+
+function assertProvisioningActive() {
+  const runtime = provisioningRuntime.getStore();
+  if (!runtime || runtime.rollback) return;
+  if (runtime.signal?.aborted) throw provisioningCancellationError(runtime.signal);
+  if (typeof runtime.guard === 'function') runtime.guard();
+  if (runtime.signal?.aborted) throw provisioningCancellationError(runtime.signal);
+}
+
+function throwIfProvisioningCanceled(error) {
+  if (String(error?.code || '') === 'AUTH_SESSION_CHANGED') throw error;
+}
+
+function runProvisioningRollback(operation) {
+  const runtime = provisioningRuntime.getStore() || {};
+  return provisioningRuntime.run({...runtime, signal: null, guard: null, rollback: true}, operation);
+}
+
+function provisioningDelay(ms) {
+  assertProvisioningActive();
+  const signal = provisioningRuntime.getStore()?.signal;
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener?.('abort', onAbort);
+      fn(value);
+    };
+    const onAbort = () => finish(reject, provisioningCancellationError(signal));
+    const timer = setTimeout(() => {
+      try { assertProvisioningActive(); finish(resolve); }
+      catch (error) { finish(reject, error); }
+    }, ms);
+    signal?.addEventListener?.('abort', onAbort, {once: true});
+  });
 }
 
 function safeText(value, max = 800) {
@@ -63,10 +110,32 @@ function emit(onProgress, stage, title, detail, percent) {
   }
 }
 
-function requestBuffer({hostname, method = 'GET', requestPath = '/', headers = {}, body = null, timeoutMs = REQUEST_TIMEOUT_MS, maxBytes = 8 * 1024 * 1024}) {
+function transportError(error) {
+  if (error?.code === 'RESPONSE_TOO_LARGE' || error?.code === 'NETWORK_TIMEOUT') return error;
+  const rawCode = safeText(error?.code || error?.errno || '', 80).toUpperCase();
+  const code = /^[A-Z0-9_:-]{2,80}$/.test(rawCode) ? rawCode : 'NETWORK_ERROR';
+  return Object.assign(new Error(`Не удалось установить защищённое сетевое соединение (${code}).`), {code});
+}
+
+function nodeRequestBuffer({hostname, method = 'GET', requestPath = '/', headers = {}, body = null, timeoutMs = REQUEST_TIMEOUT_MS, maxBytes = 8 * 1024 * 1024, signal = null}) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(provisioningCancellationError(signal)); return; }
     const payload = body == null ? null : (Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8'));
-    const req = https.request({
+    let req = null;
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      signal?.removeEventListener?.('abort', onAbort);
+      fn(value);
+    };
+    const onAbort = () => {
+      const error = provisioningCancellationError(signal);
+      try { req?.destroy?.(error); } catch {}
+      finish(reject, error);
+    };
+    signal?.addEventListener?.('abort', onAbort, {once: true});
+    req = https.request({
       hostname,
       port: 443,
       method,
@@ -85,23 +154,109 @@ function requestBuffer({hostname, method = 'GET', requestPath = '/', headers = {
       response.on('data', chunk => {
         size += chunk.length;
         if (size > maxBytes) {
-          req.destroy(new Error('Ответ сервера превышает допустимый размер.'));
+          req.destroy(Object.assign(new Error('Ответ сервера превышает допустимый размер.'), {code: 'RESPONSE_TOO_LARGE'}));
           return;
         }
         chunks.push(chunk);
       });
-      response.on('end', () => resolve({
+      response.on('end', () => finish(resolve, {
         status: Number(response.statusCode || 0),
         headers: response.headers,
         body: Buffer.concat(chunks)
       }));
     });
-    req.once('timeout', () => req.destroy(new Error('Сервер не ответил за отведённое время.')));
-    req.once('error', reject);
+    req.once('timeout', () => req.destroy(Object.assign(new Error('Сервер не ответил за отведённое время.'), {code: 'NETWORK_TIMEOUT'})));
+    req.once('error', error => finish(reject, signal?.aborted ? provisioningCancellationError(signal) : transportError(error)));
     if (payload) req.write(payload);
     req.end();
   });
 }
+
+function loadElectronNet() {
+  try {
+    const electron = require('electron');
+    return electron && typeof electron === 'object' && typeof electron.net?.request === 'function' ? electron.net : null;
+  } catch {
+    return null;
+  }
+}
+
+function electronRequestBuffer(electronNet, {hostname, method = 'GET', requestPath = '/', headers = {}, body = null, timeoutMs = REQUEST_TIMEOUT_MS, maxBytes = 8 * 1024 * 1024, signal = null}) {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) { reject(provisioningCancellationError(signal)); return; }
+    const payload = body == null ? null : (Buffer.isBuffer(body) ? body : Buffer.from(String(body), 'utf8'));
+    const requestHeaders = {
+      Accept: 'application/json',
+      'User-Agent': `JustFunOrdersLogistics/${DEPLOYMENT_VERSION}`,
+      ...headers
+    };
+    let req = null;
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener?.('abort', onAbort);
+      fn(value);
+    };
+    const onAbort = () => {
+      const error = provisioningCancellationError(signal);
+      try { req?.abort?.(); } catch {}
+      finish(reject, error);
+    };
+    const timer = setTimeout(() => {
+      const error = Object.assign(new Error('Сервер не ответил за отведённое время.'), {code: 'NETWORK_TIMEOUT'});
+      try { req?.abort?.(); } catch {}
+      finish(reject, error);
+    }, timeoutMs);
+    signal?.addEventListener?.('abort', onAbort, {once: true});
+    try {
+      req = electronNet.request({method, url: `https://${hostname}${requestPath}`, redirect: 'error'});
+      for (const [name, value] of Object.entries(requestHeaders)) req.setHeader(name, value);
+      req.once('response', response => {
+        const chunks = [];
+        let size = 0;
+        response.on('data', chunk => {
+          if (settled) return;
+          const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          size += buffer.length;
+          if (size > maxBytes) {
+            try { response.destroy?.(); } catch {}
+            finish(reject, Object.assign(new Error('Ответ сервера превышает допустимый размер.'), {code: 'RESPONSE_TOO_LARGE'}));
+            return;
+          }
+          chunks.push(buffer);
+        });
+        response.once('end', () => finish(resolve, {
+          status: Number(response.statusCode || 0),
+          headers: response.headers || {},
+          body: Buffer.concat(chunks)
+        }));
+        response.once('error', error => finish(reject, transportError(error)));
+      });
+      req.once('error', error => finish(reject, transportError(error)));
+      if (payload) req.write(payload);
+      req.end();
+    } catch (error) {
+      finish(reject, transportError(error));
+    }
+  });
+}
+
+function createRequestBuffer(electronNet = loadElectronNet()) {
+  return async options => {
+    assertProvisioningActive();
+    const runtime = provisioningRuntime.getStore();
+    const requestOptions = {...options, signal: options?.signal || runtime?.signal || null};
+    const result = await (electronNet && typeof electronNet.request === 'function'
+      ? electronRequestBuffer(electronNet, requestOptions)
+      : nodeRequestBuffer(requestOptions));
+    assertProvisioningActive();
+    return result;
+  };
+}
+
+const requestBuffer = createRequestBuffer();
 
 function parseJsonResponse(response, service) {
   let parsed;
@@ -168,9 +323,9 @@ async function probeAccount(token, account) {
   if (!/^[a-f0-9]{32}$/i.test(id)) return {ok: false, account, errors: ['Некорректный Account ID']};
   const errors = [];
   try { await cfRequest(token, 'GET', `/accounts/${id}/d1/database?per_page=5`); }
-  catch (error) { errors.push(`D1: ${safeText(error.message, 250)}`); }
+  catch (error) { throwIfProvisioningCanceled(error); errors.push(`D1: ${safeText(error.message, 250)}`); }
   try { await cfRequest(token, 'GET', `/accounts/${id}/workers/scripts`); }
-  catch (error) { errors.push(`Workers: ${safeText(error.message, 250)}`); }
+  catch (error) { throwIfProvisioningCanceled(error); errors.push(`Workers: ${safeText(error.message, 250)}`); }
   return {ok: errors.length === 0, account, errors};
 }
 
@@ -183,6 +338,7 @@ async function selectAccount(token, existingState) {
       if (probe.ok) return probe.account;
       throw new ProvisioningError('account_selection', 'CF-SAVED-ACCOUNT-PERMISSIONS', `Токен не имеет нужных прав в ранее подключённом аккаунте: ${probe.errors.join('; ')}`);
     } catch (error) {
+      throwIfProvisioningCanceled(error);
       if (error instanceof ProvisioningError && error.code === 'CF-SAVED-ACCOUNT-PERMISSIONS') throw error;
       throw new ProvisioningError('account_selection', 'CF-SAVED-ACCOUNT-UNAVAILABLE', 'Временный токен создан не для ранее подключённого Cloudflare-аккаунта. Создайте токен именно для него.');
     }
@@ -219,6 +375,7 @@ async function ensureWorkersSubdomain(token, accountId) {
       if (result?.subdomain) return String(result.subdomain);
       return candidate;
     } catch (error) {
+      throwIfProvisioningCanceled(error);
       if (attempt === 5) throw new ProvisioningError('subdomain', 'CF-WORKERS-DEV-FAILED', `Не удалось создать бесплатный адрес workers.dev: ${safeText(error.message)}`);
     }
   }
@@ -284,8 +441,36 @@ async function ensureDatabase(token, accountId, existingState, defaultDatabaseNa
 }
 
 function splitSql(sql) {
-  const withoutComments = String(sql || '').replace(/^\s*--.*$/gm, '').trim();
-  return withoutComments.split(';').map(statement => statement.trim()).filter(Boolean);
+  const withoutComments = String(sql || '').replace(/^\s*--.*$/gm, '');
+  const statements = [];
+  let ordinary = [];
+  let trigger = [];
+
+  const flushOrdinary = () => {
+    const source = ordinary.join('\n');
+    ordinary = [];
+    statements.push(...source.split(';').map(statement => statement.trim()).filter(Boolean));
+  };
+
+  for (const line of withoutComments.split(/\r?\n/)) {
+    if (trigger.length) {
+      trigger.push(line);
+      if (/^\s*END\s*;\s*$/i.test(line)) {
+        statements.push(trigger.join('\n').trim().replace(/;\s*$/, ''));
+        trigger = [];
+      }
+      continue;
+    }
+    if (/^\s*CREATE\s+TRIGGER\b/i.test(line)) {
+      flushOrdinary();
+      trigger = [line];
+      continue;
+    }
+    ordinary.push(line);
+  }
+  if (trigger.length) throw new Error('Незавершённый CREATE TRIGGER в D1-миграции');
+  flushOrdinary();
+  return statements;
 }
 
 async function d1Query(token, accountId, databaseId, sql, params = []) {
@@ -575,8 +760,8 @@ async function waitForWorker(baseUrl) {
     try {
       const health = await workerJson(baseUrl, '/health');
       if (health?.ok) return health;
-    } catch (error) { lastError = error; }
-    await new Promise(resolve => setTimeout(resolve, 1200 + attempt * 250));
+    } catch (error) { throwIfProvisioningCanceled(error); lastError = error; }
+    await provisioningDelay(1200 + attempt * 250);
   }
   throw new ProvisioningError('worker_check', 'WORKER-NOT-READY', `Опубликованный Worker не ответил: ${safeText(lastError?.message || 'нет ответа')}`);
 }
@@ -591,7 +776,7 @@ async function waitForAuthorizedWorker(baseUrl, clientApiKey) {
       lastError = error;
       if (!['WORKER-HTTP-401', 'WORKER-HTTP-503'].includes(String(error?.code || ''))) throw error;
     }
-    await new Promise(resolve => setTimeout(resolve, 1200 + attempt * 300));
+    await provisioningDelay(1200 + attempt * 300);
   }
   throw new ProvisioningError(
     'final_check',
@@ -605,10 +790,20 @@ function formatProvisioningError(error, stage) {
     if (!error.stage || error.stage === 'cloudflare' || error.stage === 'telegram') error.stage = stage || error.stage;
     return error;
   }
+  if (String(error?.code || '') === 'AUTH_SESSION_CHANGED') {
+    return new ProvisioningError(stage || 'authorization', 'AUTH_SESSION_CHANGED', safeText(error?.message || 'Учётная запись изменилась во время настройки Telegram.'));
+  }
   return new ProvisioningError(stage || 'unknown', 'TG-CF-UNEXPECTED', safeText(error?.message || error));
 }
 
 async function provision(options) {
+  const runtime = {
+    signal: options?.signal && typeof options.signal === 'object' ? options.signal : null,
+    guard: typeof options?.guard === 'function' ? options.guard : null,
+    rollback: false
+  };
+  return provisioningRuntime.run(runtime, async () => {
+  assertProvisioningActive();
   let stage = 'starting';
   const onProgress = options?.onProgress;
   const token = String(options?.cloudflareToken || '').trim();
@@ -626,7 +821,11 @@ async function provision(options) {
   const migrationFiles = Array.from(new Set(
     (Array.isArray(options?.migrationFiles) && options.migrationFiles.length
       ? options.migrationFiles
-      : [migrationFile, path.join(path.dirname(migrationFile), '0002_shared_installations.sql')])
+      : [
+          migrationFile,
+          path.join(path.dirname(migrationFile), '0002_shared_installations.sql'),
+          path.join(path.dirname(migrationFile), '0003_deprovision.sql')
+        ])
       .map(file => path.resolve(String(file || '')))
   ));
   if (!/^[A-Za-z0-9_\-.]{20,300}$/.test(token)) throw new ProvisioningError('token_input', 'CF-TOKEN-FORMAT', 'Проверьте формат Cloudflare API-токена.');
@@ -729,6 +928,9 @@ async function provision(options) {
     stage = 'webhook';
     emit(onProgress, stage, 'Подключаем защищённый webhook', 'Telegram будет принимать только запросы с секретной подписью.', 86);
     const webhookUrl = `${baseUrl}/telegram`;
+    // Treat an in-flight setWebhook as touched: the request may have reached
+    // Telegram even when local cancellation wins the response race.
+    webhookChanged = true;
     await telegramRequest(botToken, 'setWebhook', {
       url: webhookUrl,
       secret_token: webhookSecret,
@@ -736,7 +938,6 @@ async function provision(options) {
       max_connections: 20,
       drop_pending_updates: false
     });
-    webhookChanged = true;
     const webhook = await telegramRequest(botToken, 'getWebhookInfo');
     if (String(webhook?.url || '') !== webhookUrl) throw new ProvisioningError(stage, 'TG-WEBHOOK-MISMATCH', 'Telegram подтвердил другой адрес webhook.');
 
@@ -781,7 +982,7 @@ async function provision(options) {
     let rolledBack = false;
     if (webhookChanged && !String(previousWebhook?.url || '')) {
       try {
-        await telegramRequest(botToken, 'deleteWebhook', {drop_pending_updates: false});
+        await runProvisioningRollback(() => telegramRequest(botToken, 'deleteWebhook', {drop_pending_updates: false}));
         rolledBack = true;
       } catch (rollbackError) {
         rollbackErrors.push(`webhook: ${safeText(rollbackError?.message || rollbackError, 250)}`);
@@ -789,7 +990,7 @@ async function provision(options) {
     }
     if (workerTouched && !workerWasExisting && (!webhookChanged || !String(previousWebhook?.url || ''))) {
       try {
-        await deleteWorker(token, accountId, workerName);
+        await runProvisioningRollback(() => deleteWorker(token, accountId, workerName));
         rolledBack = true;
       } catch (rollbackError) {
         rollbackErrors.push(`Worker: ${safeText(rollbackError?.message || rollbackError, 250)}`);
@@ -800,7 +1001,7 @@ async function provision(options) {
       operation.status = rolledBack && rollbackErrors.length === 0 ? 'rolled_back' : 'failed';
       operation.errorCode = formatted.code;
       operation.errorMessage = formatted.message;
-      try { await writeProvisioningOperation(token, accountId, databaseId, operation); }
+      try { await runProvisioningRollback(() => writeProvisioningOperation(token, accountId, databaseId, operation)); }
       catch (journalError) { rollbackErrors.push(`журнал: ${safeText(journalError?.message || journalError, 250)}`); }
     }
     if (rollbackErrors.length) {
@@ -808,6 +1009,7 @@ async function provision(options) {
     }
     throw formatted;
   }
+  });
 }
 
 module.exports = {
@@ -820,5 +1022,6 @@ module.exports = {
   validResourceName,
   scopedResourceName,
   sharedDatabaseName,
-  selectSharedDatabase
+  selectSharedDatabase,
+  createRequestBuffer
 };

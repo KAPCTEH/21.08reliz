@@ -47,7 +47,7 @@ function responseError(code, message, retryable = false) {
   return error;
 }
 
-async function requestPart(url, partialFile, startAt, options) {
+async function requestPart(url, partialFile, startAt, options, redirectCount = 0) {
   const requestImpl = options.requestImpl || https.request;
   const headers = { Accept: 'application/octet-stream', 'Accept-Encoding': 'identity', 'User-Agent': `JustFun-Updater/${options.clientVersion || 'unknown'}` };
   if (startAt > 0) headers.Range = `bytes=${startAt}-`;
@@ -65,9 +65,21 @@ async function requestPart(url, partialFile, startAt, options) {
           response.resume();
           throw responseError('UPDATE_DOWNLOAD_SERVER', `Payload server returned HTTP ${status}.`, true);
         }
+        if ([301, 302, 303, 307, 308].includes(status)) {
+          response.resume();
+          if (redirectCount >= 3) throw responseError('UPDATE_DOWNLOAD_REDIRECT_LIMIT', 'Payload download exceeded the safe redirect limit.');
+          const location = String(response.headers.location || '').trim();
+          if (!location) throw responseError('UPDATE_DOWNLOAD_REDIRECT', 'Payload redirect does not contain a destination.');
+          let target;
+          try { target = allowedHttpsUrl(new URL(location, url).toString(), options.allowedHosts); }
+          catch (error) { throw error?.code?.startsWith('UPDATE_') ? error : responseError('UPDATE_DOWNLOAD_REDIRECT', 'Payload redirect destination is invalid.'); }
+          const received = await requestPart(target, partialFile, startAt, options, redirectCount + 1);
+          finish(null, received);
+          return;
+        }
         if (status >= 300 && status < 400) {
           response.resume();
-          throw responseError('UPDATE_DOWNLOAD_REDIRECT', 'Payload redirects are not accepted; the signed catalog must contain the final URL.');
+          throw responseError('UPDATE_DOWNLOAD_REDIRECT', `Payload server returned unsupported redirect HTTP ${status}.`);
         }
         if (![200, 206].includes(status)) {
           response.resume();
@@ -149,6 +161,7 @@ async function downloadVerifiedPayload(input) {
         maximumPayloadBytes,
         timeoutMs: Math.max(1000, Math.min(10 * 60_000, Number(input.timeoutMs || 60_000))),
         requestImpl: input.requestImpl,
+        allowedHosts: input.allowedHosts,
         signal: input.signal,
         clientVersion: input.clientVersion,
         onProgress: input.onProgress,

@@ -1,4 +1,11 @@
 {
   "schema_version": 1,
-  "keys": []
+  "keys": [
+    {
+      "key_id": "justfun-update-2026-08",
+      "algorithm": "Ed25519",
+      "status": "active",
+      "public_key_spki_base64": "MCowBQYDK2VwAyEAgZZQ5hSXd8A7aMvTfEN9mn+pT9NK5fq6vwUDroNZh+I="
+    }
+  ]
 }

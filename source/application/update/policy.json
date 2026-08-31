@@ -1,14 +1,22 @@
 {
   "schema_version": 1,
-  "enabled": false,
+  "enabled": true,
   "catalog_endpoints": {
-    "internal": null,
-    "staging": null,
-    "stable": null
+    "internal": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/internal",
+    "staging": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/staging",
+    "stable": "https://justfun-update-catalog.pw-fanat.workers.dev/v1/catalog/stable"
   },
-  "allowed_catalog_hosts": [],
-  "allowed_payload_hosts": [],
-  "allowed_release_notes_hosts": [],
+  "allowed_catalog_hosts": [
+    "justfun-update-catalog-staging.pw-fanat.workers.dev",
+    "justfun-update-catalog.pw-fanat.workers.dev"
+  ],
+  "allowed_payload_hosts": [
+    "github.com",
+    "release-assets.githubusercontent.com"
+  ],
+  "allowed_release_notes_hosts": [
+    "github.com"
+  ],
   "check_delay_seconds": 60,
   "check_interval_seconds": 21600,
   "max_catalog_bytes": 262144,

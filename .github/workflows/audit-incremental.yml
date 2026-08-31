@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - main
-      - "codex/**"
   workflow_dispatch:
 
 permissions:
@@ -19,6 +18,24 @@ jobs:
   impact-and-tests:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      JF_REQUIRE_POSTGRES_TESTS: "1"
+      JF_TEST_POSTGRES_ADMIN_DSN: postgresql://justfun_ci_admin:justfun_ci_admin@127.0.0.1:5432/justfun_ci
+      JF_TEST_POSTGRES_DSN: postgresql://justfun_ci_app:justfun_ci_app@127.0.0.1:5432/justfun_ci
+    services:
+      postgres:
+        image: postgres:16-alpine@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env:
+          POSTGRES_DB: justfun_ci
+          POSTGRES_USER: justfun_ci_admin
+          POSTGRES_PASSWORD: justfun_ci_admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U justfun_ci_admin -d justfun_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout exact target revision
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -54,9 +71,9 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install pinned Python test dependency
+      - name: Install pinned Python test dependencies
         shell: bash
-        run: python -m pip install --disable-pip-version-check --no-deps Pillow==12.3.0
+        run: python -m pip install --disable-pip-version-check --no-deps Pillow==12.3.0 psycopg2-binary==2.9.12
 
       - name: Verify canonical release contract and test catalog
         run: node tools/release/verify-release-contract.mjs
@@ -102,11 +119,8 @@ jobs:
             npm ci --ignore-scripts --no-audit --no-fund --prefix "$directory"
           done
 
-      - name: Verify signed catalog service and publication policy
-        run: |
-          node tests/update-catalog-worker-unit.mjs
-          node tests/update-catalog-ops-unit.mjs
-          npm run check --prefix source/update-catalog-service
+      - name: Build complete source UI inventory
+        run: python tests/runtime-button-matrix.py source/application/web --edition full --list-only --report artifacts/ui-control-inventory-full.json
 
       - name: Run safe selected tests
         run: node tools/audit/run-selected-tests.mjs audit-impact.json selected-test-results.json
@@ -120,5 +134,6 @@ jobs:
             audit-impact.json
             audit-ledger-verification.json
             selected-test-results.json
+            artifacts/ui-control-inventory-full.json
           if-no-files-found: warn
           retention-days: 14

@@ -6,6 +6,12 @@ const path = require('path');
 const {JSDOM} = require('jsdom');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'source', 'application', 'web', 'assets', 'js', '01-action-dispatch-v783.js'), 'utf8');
+const index = fs.readFileSync(path.join(__dirname, '..', 'source', 'application', 'web', 'index.html'), 'utf8');
+const desktop = fs.readFileSync(path.join(__dirname, '..', 'source', 'application', 'web', 'assets', 'js', '110-desktop-platform-v750.js'), 'utf8');
+assert(index.includes('id="jfRunDataDiagnostics"'));
+assert(desktop.includes("diagnosticButton.onclick=()=>{const fixes=runDataDiagnostics(true)"));
+assert(desktop.includes("audit('manual_data_diagnostics_completed',{fixes:Number(fixes)||0})"));
+assert(desktop.includes("catch(error){clearTelegramProgress();integrationBadge('jfTelegramBadge','Ошибка','error')"));
 const dom = new JSDOM('<!doctype html><button id="action" data-jf-onclick="showView(\'orders\')"></button><input id="flag" type="checkbox" data-jf-onchange="syncFlag(this.checked)"><input id="date" value="2026-08-09"><button id="clear" data-jf-onclick="document.getElementById(\'date\').value=\'\';renderOrders()"></button><button id="route" data-jf-onclick="event.stopPropagation();startRoutePicking(\'route-1\')"></button><button id="blocked" data-jf-onclick="alert(\'unsafe\')"></button><button id="async-failure" data-jf-onclick="startAsyncFailure()"></button>', {
   runScripts: 'dangerously',
   url: 'https://justfun.invalid/',

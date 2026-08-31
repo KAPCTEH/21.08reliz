@@ -106,3 +106,164 @@ export async function cleanupExpiredData(db, scope, now = new Date()) {
       .bind(scope.installationId, notificationBefore)
   ]);
 }
+
+export async function getInstallationDeprovisionMarker(db, scope) {
+  return db.prepare(`
+    SELECT installation_id,company_id,warehouse_id,status,attempt_count,
+           last_error_code,requested_at,deprovisioned_at,updated_at
+    FROM telegram_deprovision_markers
+    WHERE installation_id=?1 AND company_id=?2 AND warehouse_id=?3
+    LIMIT 1
+  `).bind(...scopeValues(scope)).first();
+}
+
+export async function beginInstallationDeprovision(db, scope) {
+  const requestedAt = new Date().toISOString();
+  await db.prepare(`
+    INSERT INTO telegram_deprovision_markers(
+      installation_id,company_id,warehouse_id,status,attempt_count,last_error_code,
+      requested_at,deprovisioned_at,updated_at
+    ) VALUES(?1,?2,?3,'deprovisioning',1,'',?4,NULL,?4)
+    ON CONFLICT(installation_id) DO UPDATE SET
+      attempt_count=telegram_deprovision_markers.attempt_count+1,
+      last_error_code='',updated_at=excluded.updated_at
+    WHERE telegram_deprovision_markers.company_id=excluded.company_id
+      AND telegram_deprovision_markers.warehouse_id=excluded.warehouse_id
+      AND telegram_deprovision_markers.status='deprovisioning'
+  `).bind(...scopeValues(scope), requestedAt).run();
+  const marker = await getInstallationDeprovisionMarker(db, scope);
+  if (!marker) throw new Error('Не удалось зафиксировать отключение Telegram-установки');
+  return marker;
+}
+
+export async function recordInstallationDeprovisionFailure(db, scope, errorCode) {
+  const safeCode = String(errorCode || 'deprovision_failed').replace(/[^A-Za-z0-9_.:-]/g, '_').slice(0, 120);
+  return db.prepare(`
+    UPDATE telegram_deprovision_markers
+    SET last_error_code=?1,updated_at=?2
+    WHERE installation_id=?3 AND company_id=?4 AND warehouse_id=?5
+      AND status='deprovisioning'
+  `).bind(safeCode, new Date().toISOString(), ...scopeValues(scope)).run();
+}
+
+export async function hasLegacyWarehouseOwnershipConflict(db, scope) {
+  const row = await db.prepare(`
+    SELECT 1 AS conflict
+    FROM telegram_legacy_claims
+    WHERE installation_id!=?1
+      AND substr(source_key,1,10)='warehouse:'
+      AND substr(source_key,-(length(?3)+1))=(':' || ?3)
+      AND EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE source_key=('warehouse:' || ?2 || ':' || ?3)
+          AND installation_id=?1
+      )
+    LIMIT 1
+  `).bind(scope.installationId, scope.companyId, scope.warehouseId).first();
+  return Boolean(row?.conflict);
+}
+
+export async function completeInstallationDeprovision(db, scope) {
+  const completedAt = new Date().toISOString();
+  const statements = [
+    db.prepare(`DELETE FROM chat_bindings_v2
+      WHERE installation_id=?1 AND company_id=?2 AND warehouse_id=?3`).bind(...scopeValues(scope)),
+    db.prepare(`DELETE FROM link_codes_v2
+      WHERE installation_id=?1 AND company_id=?2 AND warehouse_id=?3`).bind(...scopeValues(scope)),
+    db.prepare(`DELETE FROM notifications_v2
+      WHERE installation_id=?1 AND company_id=?2 AND warehouse_id=?3`).bind(...scopeValues(scope)),
+    db.prepare(`DELETE FROM events_v2
+      WHERE installation_id=?1 AND company_id=?2 AND warehouse_id=?3`).bind(...scopeValues(scope)),
+    db.prepare(`DELETE FROM telegram_updates_v2
+      WHERE installation_id=?1 AND company_id=?2 AND warehouse_id=?3`).bind(...scopeValues(scope)),
+    db.prepare(`
+      DELETE FROM chat_bindings
+      WHERE warehouse_id=?3 AND EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE source_key=('warehouse:' || ?2 || ':' || ?3) AND installation_id=?1
+      ) AND NOT EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE installation_id!=?1
+          AND substr(source_key,1,10)='warehouse:'
+          AND substr(source_key,-(length(?3)+1))=(':' || ?3)
+      )
+    `).bind(...scopeValues(scope)),
+    db.prepare(`
+      DELETE FROM link_codes
+      WHERE warehouse_id=?3 AND EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE source_key=('warehouse:' || ?2 || ':' || ?3) AND installation_id=?1
+      ) AND NOT EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE installation_id!=?1
+          AND substr(source_key,1,10)='warehouse:'
+          AND substr(source_key,-(length(?3)+1))=(':' || ?3)
+      )
+    `).bind(...scopeValues(scope)),
+    db.prepare(`
+      DELETE FROM notifications
+      WHERE warehouse_id=?3 AND EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE source_key=('warehouse:' || ?2 || ':' || ?3) AND installation_id=?1
+      ) AND NOT EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE installation_id!=?1
+          AND substr(source_key,1,10)='warehouse:'
+          AND substr(source_key,-(length(?3)+1))=(':' || ?3)
+      )
+    `).bind(...scopeValues(scope)),
+    db.prepare(`
+      DELETE FROM events
+      WHERE warehouse_id=?3 AND EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE source_key=('warehouse:' || ?2 || ':' || ?3) AND installation_id=?1
+      ) AND NOT EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE installation_id!=?1
+          AND substr(source_key,1,10)='warehouse:'
+          AND substr(source_key,-(length(?3)+1))=(':' || ?3)
+      )
+    `).bind(...scopeValues(scope)),
+    db.prepare(`
+      DELETE FROM telegram_updates
+      WHERE EXISTS (
+        SELECT 1 FROM telegram_legacy_claims
+        WHERE source_key='telegram_updates:global' AND installation_id=?1
+      )
+    `).bind(...scopeValues(scope)),
+    db.prepare(`DELETE FROM telegram_provisioning_operations
+      WHERE installation_id=?1 AND company_id=?2 AND warehouse_id=?3`).bind(...scopeValues(scope)),
+    db.prepare(`
+      UPDATE telegram_deprovision_markers
+      SET status='deprovisioned',last_error_code='',deprovisioned_at=?1,updated_at=?1
+      WHERE installation_id=?2 AND company_id=?3 AND warehouse_id=?4
+        AND status='deprovisioning'
+    `).bind(completedAt, ...scopeValues(scope)),
+  ];
+  const results = await db.batch(statements);
+  const markerChanged = Number(results?.[11]?.meta?.changes || 0);
+  let alreadyDeprovisioned = false;
+  if (markerChanged !== 1) {
+    const marker = await getInstallationDeprovisionMarker(db, scope);
+    if (marker?.status !== 'deprovisioned') {
+      throw new Error('Не удалось завершить отключение Telegram-установки');
+    }
+    alreadyDeprovisioned = true;
+  }
+  return {
+    alreadyDeprovisioned,
+    purged: {
+      bindings: Math.max(0, Number(results?.[0]?.meta?.changes || 0)),
+      link_codes: Math.max(0, Number(results?.[1]?.meta?.changes || 0)),
+      notifications: Math.max(0, Number(results?.[2]?.meta?.changes || 0)),
+      events: Math.max(0, Number(results?.[3]?.meta?.changes || 0)),
+      updates: Math.max(0, Number(results?.[4]?.meta?.changes || 0)),
+      legacy_bindings: Math.max(0, Number(results?.[5]?.meta?.changes || 0)),
+      legacy_link_codes: Math.max(0, Number(results?.[6]?.meta?.changes || 0)),
+      legacy_notifications: Math.max(0, Number(results?.[7]?.meta?.changes || 0)),
+      legacy_events: Math.max(0, Number(results?.[8]?.meta?.changes || 0)),
+      legacy_updates: Math.max(0, Number(results?.[9]?.meta?.changes || 0)),
+      provisioning_operations: Math.max(0, Number(results?.[10]?.meta?.changes || 0)),
+    },
+  };
+}

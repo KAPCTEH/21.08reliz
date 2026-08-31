@@ -73,6 +73,7 @@ try {
       'source/application',
       'source/desktop-runtime',
       'source/installer',
+      'source/update-catalog-service',
       'tests'
     )) {
       Invoke-Checked 'npm.cmd' @('ci') (Join-Path $repo $directory)
@@ -89,19 +90,107 @@ try {
   )
   Invoke-Checked $updateHelperPath @("--self-test-report=$updateHelperSelfTest")
 
+  Invoke-Checked 'node' @('tests/audit-tools-unit.mjs')
   Invoke-Checked 'node' @('tests/security-audit.mjs', 'source', 'tools', '.github')
+  Invoke-Checked 'node' @('tests/security-manifest-unit.cjs')
+  Invoke-Checked 'node' @('tests/security-regression-v783.mjs')
   Invoke-Checked 'node' @('tests/source-hygiene-regression-v783.cjs')
   Invoke-Checked 'node' @('tests/static-audit-regression-v783.cjs')
   Invoke-Checked 'node' @('tests/main-unit.cjs')
+  Invoke-Checked 'node' @('tests/tz3-live-defects-unit.cjs')
+  Invoke-Checked 'node' @('tests/action-dispatch-unit.cjs')
+  Invoke-Checked 'node' @('tests/startup-auth-regression.cjs')
+  Invoke-Checked 'node' @('tests/license-server-unit.mjs')
+  Invoke-Checked 'node' @('tests/license-invitation-accept-unit.mjs')
+  Invoke-Checked 'node' @('tests/license-exact-permissions-runtime-unit.mjs')
+  Invoke-Checked 'python' @('tests/license-schema-test.py')
+  Invoke-Checked 'python' @('tests/license-custom-role-migration-test.py')
+  Invoke-Checked 'python' @('tests/license-exact-permission-migration-test.py')
+  Invoke-Checked 'python' @('tests/license-granular-permission-migration-test.py')
+  Invoke-Checked 'node' @('tests/auth-reg-source-contract.cjs')
+  Invoke-Checked 'node' @('tests/permission-compat-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/company-scope-test.mjs')
+  Invoke-Checked 'node' @('tests/local-outbox-v783-unit.cjs')
+  Invoke-Checked 'node' @('tests/atomic-mutation-async-regression-v783.cjs')
   Invoke-Checked 'node' @('tests/update-core-unit.cjs')
   Invoke-Checked 'node' @('tests/update-downloader-unit.cjs')
   Invoke-Checked 'node' @('tests/update-controller-unit.cjs')
+  Invoke-Checked 'node' @('tests/update-ui-unit.cjs')
   Invoke-Checked 'node' @('tests/update-helper-runner-unit.cjs')
+  Invoke-Checked 'node' @('tests/update-catalog-ops-unit.mjs')
+  Invoke-Checked 'node' @('tests/update-catalog-worker-unit.mjs')
+  Invoke-Checked 'npm.cmd' @('run', 'check') (Join-Path $repo 'source/update-catalog-service')
+  Invoke-Checked 'python' @('tests/release-evidence-unit.py')
+  Invoke-Checked 'python' @('tests/installer-builder-unit.py')
+  Invoke-Checked 'node' @('tests/reg-entity-source-contract.cjs')
+  Invoke-Checked 'python' @('tests/reg-api-contract-test.py')
+  Invoke-Checked 'python' @('tests/reg-entity-protocol-test.py')
+  Invoke-Checked 'python' @('tests/reg-map-proxy-test.py')
+  Invoke-Checked 'node' @('tests/reg-native-ssh-unit.cjs')
+  Invoke-Checked 'node' @('tests/reg-tls-source-test.cjs')
+  Invoke-Checked 'python' @('tests/reg-legacy-migration-unit.py')
+  Invoke-Checked 'python' @('tests/reg-legacy-migration-integration.py')
+  Invoke-Checked 'node' @('tests/entity-bootstrap-merge-unit.cjs')
+  Invoke-Checked 'node' @('tests/active-warehouse-persistence-unit.cjs')
+  Invoke-Checked 'node' @('tests/active-warehouse-recovery-runtime-unit.cjs')
+  Invoke-Checked 'node' @('tests/entity-remote-apply-atomicity-unit.cjs')
+  Invoke-Checked 'python' @('tests/reg-revision-test.py')
+  Invoke-Checked 'node' @('tests/background-cloud-sync-failure-regression-v783.cjs')
+  Invoke-Checked 'python' @('tests/company-telegram-broker-schema-test.py')
+  Invoke-Checked 'node' @('tests/company-telegram-broker-unit.mjs')
+  Invoke-Checked 'node' @('tests/telegram-scope-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/telegram-shared-d1-schema.cjs')
+  Invoke-Checked 'node' @('tests/telegram-system-proxy-transport-unit.cjs')
+  Invoke-Checked 'node' @('tests/telegram-wizard-open-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/telegram-worker-unit.mjs')
   Invoke-Checked 'node' @('tests/current-cycle-regression-v783.mjs')
+  Invoke-Checked 'node' @('tests/company-settings-mutation-contract.cjs')
+  Invoke-Checked 'node' @('tests/order-detail-control-permissions-contract.cjs')
+  Invoke-Checked 'node' @('tests/reverse-inventory-movement-guard-contract.cjs')
+  Invoke-Checked 'node' @('tests/route-closure-cleanup-contract.cjs')
+  Invoke-Checked 'node' @('tests/route-driver-terms-binding-contract.cjs')
+  Invoke-Checked 'node' @('tests/route-planning-permission-contract.cjs')
+  Invoke-Checked 'node' @('tests/address-intelligence-unit-v783.cjs')
+  Invoke-Checked 'python' @('tests/reg-address-search-test.py')
+  Invoke-Checked 'node' @('tests/design-token-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/product-drawer-accessibility-v783.cjs')
+  Invoke-Checked 'node' @('tests/dead-override-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/deep-business-fixture-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/desktop-dialog-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/error-boundary-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/icon-system-regression-v783.cjs')
+  Invoke-Checked 'python' @('tests/logo-transparency-test.py')
+  Invoke-Checked 'node' @('tests/map-diagnostic-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/route-stage-pagination-unit.cjs')
+  Invoke-Checked 'node' @('tests/runtime-overrides-regression-v783.cjs')
+  Invoke-Checked 'node' @('tests/role-matrix-all.mjs')
+  $env:JF_TEST_EDITION = 'demo'
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'accessibility')
   $env:JF_TEST_EDITION = 'full'
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'order-print')
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'order-save-integrity')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'security-fuzz')
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'atomic-mutation')
+  $env:JF_TEST_DATA_SERVICE_DISABLED = '1'
+  try {
+    Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-mutation-durability')
+    Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-warehouse')
+  } finally {
+    Remove-Item Env:JF_TEST_DATA_SERVICE_DISABLED -ErrorAction SilentlyContinue
+  }
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-first-offline')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-first-retry')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'bootstrap-version-conflict')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'bootstrap-scope-isolation')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'background-scope-race')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'outbox-aba-race')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'critical-scope-guard')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'critical-crash-recovery')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'critical-storage-failover')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'ordinary-crash-recovery')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'entity-ack-validation')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-to-server-migration')
+  Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'local-to-server-migration-resume')
   Invoke-Checked 'node' @('tests/runtime-smoke.mjs', 'source/application/web', 'deep-business')
   Invoke-Checked 'node' @('tests/experience-regression-v783.mjs')
   Invoke-Checked 'node' @('tests/visual-qa-contract-regression-v783.cjs')
@@ -130,6 +219,18 @@ try {
   )
   Invoke-Checked 'node' @('tests/update-payload-identity-test.mjs', $payload)
 
+  $printQa = Join-Path $evidence 'print-qa'
+  New-Item -ItemType Directory -Path $printQa -Force | Out-Null
+  $payloadApplication = Join-Path $payload 'OrdersLogistics.exe'
+  $printQaProcess = Start-Process -FilePath $payloadApplication -ArgumentList @("--print-qa-output=$printQa") -PassThru -Wait -WindowStyle Hidden
+  if ($printQaProcess.ExitCode -ne 0) {
+    throw "Защищённый payload завершил PDF-проверку с кодом $($printQaProcess.ExitCode)."
+  }
+  $printQaResult = Get-Content -LiteralPath (Join-Path $printQa 'PRINT-QA.json') -Raw | ConvertFrom-Json
+  if (@($printQaResult.errors).Count -ne 0 -or @($printQaResult.documents).Count -ne 5) {
+    throw 'Проверка PDF не создала пять корректных документов.'
+  }
+
   $installerArguments = @(
     'source/installer/build_windows.py',
     '--payload-dir', $payload,
@@ -157,6 +258,7 @@ try {
   if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) {
     throw "Установщик не создан: $setup"
   }
+
   if ($SkipInstallerAcceptance) {
     $gate.installer_acceptance = 'skipped'
   } else {

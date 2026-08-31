@@ -26,7 +26,12 @@ assert(main.includes('delete routeDriverAssignments[routeId]'));
 assert(main.includes("window.openRouteDecisionCenterV783?.(routeId)"));
 assert(main.includes("#routeDecisionModalV783.open .clarity-decision-list"));
 assert(main.includes("#routeDecisionModalV783.open .clarity-decision-summary"));
+const regAccordionRetry = "if(!box.classList.contains('open')||body.hidden)toggle.click()";
+const regAccordionVisible = "if(box.classList.contains('open')&&!body.hidden){box.scrollIntoView({block:'start'});return true}";
+assert(main.includes(regAccordionRetry), 'REG.RU visual QA must retry after an intermediate rerender');
+assert(main.includes(regAccordionVisible), 'REG.RU visual QA must accept only a visible open accordion');
+assert.equal(main.split('await waitForRenderer(win,regIntegrationOpenPredicate)').length - 1, 2, 'REG.RU visual QA must verify the open panel again immediately before capture');
 assert(clarityCss.includes('.clarity-decision-box>.modal-head{background-color:#117d4b}'));
 assert(clarityCss.includes('.jf-access-head{flex:0 0 auto;padding:22px 25px 18px;background-color:#073e2e;'));
 
-console.log(JSON.stringify({ ok: true, currentProductDrawer: true, deterministicBlockedRoute: true, solidHeaderFallbacks: true }));
+console.log(JSON.stringify({ ok: true, currentProductDrawer: true, deterministicBlockedRoute: true, regAccordionRaceGuarded: true, solidHeaderFallbacks: true }));

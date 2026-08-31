@@ -36,7 +36,7 @@ const options = {
   allowedPayloadHosts: ['downloads.justfun.invalid'],
   allowedReleaseNotesHosts: ['releases.justfun.invalid'],
   trustStore,
-  availableContracts: { reg_api: 3, license_auth: 4, telegram_broker: 1, storage_protocol: 3 },
+  availableContracts: { reg_api: 3, license_auth: 4, telegram_broker: 4, storage_protocol: 3, address_search: 1, warehouse_delete_prepare: 1, warehouse_delete_lease: 3, telegram_broker_deprovision: 3, telegram_native_deprovision: 1, vps_attestation: 1, warehouse_delete_release_outbox: 1 },
   currentVersion: '7.8.3',
   previousSequence: 40,
   installationId: 'unit-installation-01',
@@ -61,7 +61,7 @@ function unsignedCatalog() {
       rollout_percent: 100,
       summary: 'Улучшена надёжность обновления.',
       release_notes_url: 'https://releases.justfun.invalid/7.9.0',
-      required_contracts: { reg_api: 3, license_auth: 4, telegram_broker: 1, storage_protocol: 3 },
+      required_contracts: { reg_api: 3, license_auth: 4, telegram_broker: 4, storage_protocol: 3, address_search: 1, warehouse_delete_prepare: 1, warehouse_delete_lease: 3, telegram_broker_deprovision: 3, telegram_native_deprovision: 1, vps_attestation: 1, warehouse_delete_release_outbox: 1 },
       payload: {
         file_name: 'JustFun-7.9.0-win-x64.zip',
         url: 'https://downloads.justfun.invalid/JustFun-7.9.0-win-x64.zip',
@@ -115,6 +115,7 @@ expectCode('UPDATE_URL_INVALID', () => validateSignedCatalog(signedCatalog(c => 
 expectCode('UPDATE_URL_HOST', () => validateSignedCatalog(signedCatalog(c => { c.release.payload.url = 'https://attacker.invalid/file.zip'; }), options));
 expectCode('UPDATE_CONTRACT_MISMATCH', () => validateSignedCatalog(signedCatalog(c => { c.release.required_contracts.reg_api = 4; }), options));
 expectCode('UPDATE_CONTRACT_FORMAT', () => validateSignedCatalog(signedCatalog(c => { delete c.release.required_contracts.storage_protocol; }), options));
+expectCode('UPDATE_CONTRACT_MISMATCH', () => validateSignedCatalog(signedCatalog(c => { c.release.required_contracts.address_search = 2; }), options));
 expectCode('UPDATE_DOWNGRADE_REJECTED', () => validateSignedCatalog(signedCatalog(c => { c.release.version = '7.8.2'; c.release.build_id = 'jf-7.8.2-0123456789abcdef0123456789abcdef01234567'; }), options));
 expectCode('UPDATE_HALT_INVALID', () => validateSignedCatalog(signedCatalog(c => { c.directive.mode = 'halt'; }), options));
 expectCode('UPDATE_ROLLBACK_VERSIONS', () => validateSignedCatalog(signedCatalog(c => { c.directive.rollback_from_versions = ['7.9.0']; }), options));

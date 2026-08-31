@@ -1,6 +1,18 @@
 import { constantTimeEqual, randomId, randomLinkCode, sha256Hex } from './crypto.js';
 import { HttpError, bearerToken, corsPreflight, errorResponse, json, readJson, requireString, requireWarehouseId, routeParts, withCors } from './http.js';
-import { claimTelegramUpdate, cleanupExpiredData, completeTelegramUpdate, failTelegramUpdate, insertEvent, resolveChatBinding } from './db.js';
+import {
+  beginInstallationDeprovision,
+  claimTelegramUpdate,
+  cleanupExpiredData,
+  completeInstallationDeprovision,
+  completeTelegramUpdate,
+  failTelegramUpdate,
+  getInstallationDeprovisionMarker,
+  hasLegacyWarehouseOwnershipConflict,
+  insertEvent,
+  recordInstallationDeprovisionFailure,
+  resolveChatBinding
+} from './db.js';
 import { canTransition, nextKeyboard, parseStatusCallback, STATUS_LABELS } from './status.js';
 import { answerCallbackQuery, deleteWebhook, editMessageReplyMarkup, getMe, getWebhookInfo, sendMessage } from './telegram.js';
 
@@ -37,6 +49,65 @@ function serviceScope(env) {
   };
 }
 
+function deprovisionBlockedError(marker) {
+  const complete = marker?.status === 'deprovisioned';
+  return new HttpError(
+    410,
+    complete ? 'Telegram-установка удалена' : 'Telegram-установка отключается',
+    complete ? 'installation_deprovisioned' : 'installation_deprovisioning'
+  );
+}
+
+async function requireInstallationActive(env) {
+  const scope = serviceScope(env);
+  const marker = await getInstallationDeprovisionMarker(env.DB, scope);
+  if (marker) throw deprovisionBlockedError(marker);
+  return scope;
+}
+
+function publicDeprovisionResult(scope, alreadyDeprovisioned, purged = null) {
+  return {
+    ok: true,
+    deprovisioned: true,
+    already_deprovisioned: alreadyDeprovisioned === true,
+    installation_id: scope.installationId,
+    company_id: scope.companyId,
+    warehouse_id: scope.warehouseId,
+    ...(purged ? { purged } : {})
+  };
+}
+
+async function handleDeprovision(request, env) {
+  requireApiAccess(request, env);
+  const scope = serviceScope(env);
+  const existing = await getInstallationDeprovisionMarker(env.DB, scope);
+  if (existing?.status === 'deprovisioned') {
+    return json(publicDeprovisionResult(scope, true));
+  }
+  const marker = await beginInstallationDeprovision(env.DB, scope);
+  if (marker.status === 'deprovisioned') {
+    return json(publicDeprovisionResult(scope, true));
+  }
+  try {
+    if (await hasLegacyWarehouseOwnershipConflict(env.DB, scope)) {
+      throw new HttpError(
+        409,
+        'Legacy Telegram-данные этого склада имеют неоднозначного владельца',
+        'telegram_legacy_ownership_ambiguous'
+      );
+    }
+    const webhookDeleted = await deleteWebhook(env, { dropPendingUpdates: true });
+    if (webhookDeleted !== true) {
+      throw new HttpError(502, 'Telegram не подтвердил удаление webhook', 'telegram_disconnect_unconfirmed');
+    }
+    const result = await completeInstallationDeprovision(env.DB, scope);
+    return json(publicDeprovisionResult(scope, result.alreadyDeprovisioned, result.purged));
+  } catch (error) {
+    await recordInstallationDeprovisionFailure(env.DB, scope, error?.code || 'telegram_deprovision_failed');
+    throw error;
+  }
+}
+
 function requireScopedWarehouse(value, env) {
   const warehouseId = requireWarehouseId(value);
   if (warehouseId !== String(env.WAREHOUSE_ID || '')) {
@@ -67,6 +138,24 @@ function safeJson(value) {
   try { return JSON.parse(value || '{}'); } catch { return {}; }
 }
 
+function validateTelegramRouteUrl(value) {
+  const routeUrl = requireString(value || '', 'route_url', { max: 3500, allowEmpty: true });
+  if (!routeUrl) return '';
+  let parsed;
+  try { parsed = new URL(routeUrl); }
+  catch { throw new HttpError(400, 'Некорректная ссылка маршрута', 'validation_error', { field: 'route_url' }); }
+  if (
+    parsed.protocol !== 'https:'
+    || parsed.hostname.toLowerCase() !== 'yandex.ru'
+    || !/^\/maps\/?$/.test(parsed.pathname)
+    || parsed.username
+    || parsed.password
+  ) {
+    throw new HttpError(400, 'Разрешена только ссылка маршрута Яндекс Карт', 'validation_error', { field: 'route_url' });
+  }
+  return parsed.toString();
+}
+
 function publicNotification(row) {
   return {
     id: row.id,
@@ -84,6 +173,7 @@ function publicNotification(row) {
 
 async function handleStatus(request, env) {
   requireApiAccess(request, env);
+  await requireInstallationActive(env);
   const [bot, webhook] = await Promise.all([getMe(env), getWebhookInfo(env)]);
   return json({
     ok: true,
@@ -100,13 +190,14 @@ async function handleStatus(request, env) {
 
 async function handleDisconnect(request, env) {
   requireApiAccess(request, env);
+  await requireInstallationActive(env);
   await deleteWebhook(env);
   return json({ ok: true, disconnected: true });
 }
 
 async function handleLinkCode(request, env) {
   requireApiAccess(request, env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const body = await readJson(request);
   const entityType = requireString(body.entity_type, 'entity_type', { max: 20 });
   if (!['driver', 'warehouse'].includes(entityType)) {
@@ -282,7 +373,7 @@ async function acquireNotification(env, data) {
 
 async function handleSend(request, env) {
   requireApiAccess(request, env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const body = await readJson(request, 512 * 1024);
   const actor = requireString(body.actor || 'system', 'actor', { max: 20 });
   if (!['driver', 'warehouse', 'system'].includes(actor)) {
@@ -300,6 +391,7 @@ async function handleSend(request, env) {
   const idempotencyKey = requireString(body.idempotency_key, 'idempotency_key', { max: 180 });
   const text = requireString(body.text, 'text', { max: MAX_MESSAGE_LENGTH });
   const routeId = requireString(body.route_id || '', 'route_id', { max: 160, allowEmpty: true });
+  const routeUrl = validateTelegramRouteUrl(body.route_url);
 
   if (body.chat_id !== undefined) {
     throw new HttpError(400, 'Прямая отправка по chat_id отключена: используйте безопасную привязку', 'direct_chat_forbidden');
@@ -319,6 +411,7 @@ async function handleSend(request, env) {
     title: String(body.title || '').slice(0, 300),
     entity_type: entityType,
     entity_id: entityId,
+    route_url: routeUrl,
     metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {}
   };
   const acquired = await acquireNotification(env, {
@@ -336,11 +429,12 @@ async function handleSend(request, env) {
   if (acquired.state === 'unknown') throw new HttpError(409, 'Результат предыдущей отправки неизвестен; проверьте Telegram перед повтором', 'notification_unknown', publicNotification(acquired.row));
 
   const row = acquired.row;
-  const keyboard = body.status_buttons === false ? [] : nextKeyboard(actor, row.id, 'sent');
+  const keyboard = body.status_buttons === false ? [] : nextKeyboard(actor, row.id, 'sent', { routeUrl });
   try {
     const message = await sendMessage(env, {
       chat_id: row.chat_id,
       text,
+      link_preview_options: body.disable_link_preview === true ? { is_disabled: true } : undefined,
       reply_markup: keyboard.length ? { inline_keyboard: keyboard } : undefined
     });
     const telegramMessageId = Number(message?.message_id);
@@ -391,7 +485,7 @@ async function handleSend(request, env) {
 
 async function handleEvents(request, env) {
   requireApiAccess(request, env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const url = new URL(request.url);
   const warehouseId = requireScopedWarehouse(url.searchParams.get('warehouse_id'), env);
   const rawAfter = Number(url.searchParams.get('after_id') || 0);
@@ -421,7 +515,7 @@ async function handleEvents(request, env) {
 
 async function handleBindings(request, env) {
   requireApiAccess(request, env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const url = new URL(request.url);
   const warehouseId = requireScopedWarehouse(url.searchParams.get('warehouse_id'), env);
   const entityType = String(url.searchParams.get('entity_type') || '').trim();
@@ -465,6 +559,9 @@ async function handleCallback(env, callback) {
     await answerCallbackQuery(env, callback.id, 'Уведомление не найдено');
     return;
   }
+  let routeUrl = '';
+  try { routeUrl = validateTelegramRouteUrl(safeJson(row.payload_json)?.route_url); }
+  catch { /* Invalid stored URL is omitted from the keyboard. */ }
   const callbackChatId = String(callback.message?.chat?.id || '');
   if (!callbackChatId || callbackChatId !== String(row.chat_id)) {
     await answerCallbackQuery(env, callback.id, 'Кнопка открыта не в исходном чате');
@@ -515,7 +612,7 @@ async function handleCallback(env, callback) {
   });
 
   await answerCallbackQuery(env, callback.id, STATUS_LABELS[parsed.status] || parsed.status);
-  const keyboard = nextKeyboard(row.actor, row.id, parsed.status);
+  const keyboard = nextKeyboard(row.actor, row.id, parsed.status, { routeUrl });
   const messageId = callback.message?.message_id;
   if (messageId) {
     try { await editMessageReplyMarkup(env, callbackChatId, messageId, keyboard); }
@@ -562,7 +659,7 @@ async function handleMessage(env, message) {
 
 async function handleTelegramWebhook(request, env) {
   requireServiceConfig(env);
-  const scope = serviceScope(env);
+  const scope = await requireInstallationActive(env);
   const supplied = request.headers.get('x-telegram-bot-api-secret-token') || '';
   if (!supplied || !constantTimeEqual(supplied, env.WEBHOOK_SECRET)) {
     throw new HttpError(403, 'Неверная подпись Telegram webhook', 'webhook_forbidden');
@@ -593,13 +690,15 @@ async function dispatch(request, env) {
       ok: true,
       service: env.SERVICE_NAME || 'Orders & Logistics Telegram',
       configured: serviceConfigOk(env),
+      telegram_deprovision_contract: 1,
       installation_id: env.INSTALLATION_ID || '',
-      version: env.DEPLOYMENT_VERSION || '7.8.3',
+      version: env.DEPLOYMENT_VERSION || '7.8.4',
       time: nowIso()
     });
   }
   if (method === 'POST' && parts.length === 1 && parts[0] === 'telegram') return handleTelegramWebhook(request, env);
   if (parts.length === 2 && parts[0] === 'v1') {
+    if (method === 'POST' && parts[1] === 'deprovision') return handleDeprovision(request, env);
     if (method === 'GET' && parts[1] === 'status') return handleStatus(request, env);
     if (method === 'POST' && parts[1] === 'disconnect') return handleDisconnect(request, env);
     if (method === 'POST' && parts[1] === 'link-code') return handleLinkCode(request, env);

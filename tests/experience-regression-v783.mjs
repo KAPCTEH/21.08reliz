@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 
 const root=path.resolve(import.meta.dirname,'..');
 const read=relative=>fs.readFileSync(path.join(root,relative),'utf8');
@@ -29,6 +30,24 @@ const enter=desktop.slice(desktop.indexOf('async function enterWorkspace()'),des
 assert(enter.includes('mountWorkspace();setTimeout(()=>synchronizeWorkspaceInBackground(),0)'));
 assert(!enter.includes('await synchronizeCompanyWarehouseRegistry()'));
 assert(!enter.includes('await restoreFreshComputerWorkspace()'));
+const confirmStart=desktop.indexOf('async function confirmActiveWarehouseContext()');
+const confirmEnd=desktop.indexOf('async function synchronizeWorkspaceInBackground()',confirmStart);
+assert(confirmStart>=0&&confirmEnd>confirmStart);
+const warehouseContextCalls=[];
+const warehouseContext={
+  window:{JustFunDesktop:{setActiveWarehouse:async payload=>{warehouseContextCalls.push(payload);return{ok:true}}}},
+  isTrainingEnvironment:()=>true,
+  activeWarehouseId:()=> 'warehouse-1',
+  activeEnvironment:()=> 'demo',
+};
+vm.createContext(warehouseContext);
+vm.runInContext(`${desktop.slice(confirmStart,confirmEnd)}\nglobalThis.__confirmActiveWarehouseContext=confirmActiveWarehouseContext;`,warehouseContext);
+assert.equal(await warehouseContext.__confirmActiveWarehouseContext(),true);
+assert.equal(warehouseContextCalls.length,0,'a persisted training environment must not request a LIVE desktop-core context');
+warehouseContext.isTrainingEnvironment=()=>false;
+warehouseContext.activeEnvironment=()=> 'live';
+assert.equal(await warehouseContext.__confirmActiveWarehouseContext(),true);
+assert.equal(JSON.stringify(warehouseContextCalls),JSON.stringify([{warehouseId:'warehouse-1',environment:'live'}]),'the normal LIVE startup must still confirm the active warehouse with the desktop core');
 assert(desktop.includes('class="jf-help-scroll" tabindex="0"'));
 assert(css.includes('.jf-help-scroll{flex:1 1 auto;min-height:0;overflow-y:auto'));
 
@@ -55,11 +74,13 @@ assert(clarity.includes('Как формируется отчёт директо
 assert(clarityCss.includes('.product-transport-presets-v783'));
 assert(clarityCss.includes('.product-loading-guide-v783'));
 assert(clarityCss.includes('.report-settings-dialog-v783'));
-assert(clarity.includes('viewScrollV783'));
+assert(clarity.includes('window.scrollTo(0,0)'));
+assert(!clarity.includes('viewScrollV783'));
 assert(clarityCss.includes('.view-enter-v783'));
 assert(clarityCss.includes('#productsView .warehouse-toolbar .searchbox'));
 
 assert(company.includes("logo.style.setProperty('background-image'"));
+assert(company.includes("logo.style.setProperty('display','none','important')"));
 assert(company.includes('safeLogoDataUrl'));
 assert(company.includes("customLogo||'assets/justfun-official-transparent.png'"));
 assert(company.includes('print-company-info-grid-v783'));
@@ -101,7 +122,9 @@ assert(clarity.includes('data-product-qty'));
 assert(company.includes('warehouseAddressV600'));
 assert(company.includes('warehouse-location-search'));
 assert(company.includes('warehouseLocationMapV600'));
-assert(company.includes('jfTelegramSetupWarehouseV783'));
+assert(!company.includes("sessionStorage.setItem('jfTelegramSetupWarehouseV783'"));
+assert(company.includes('Telegram подключается отдельно'));
+assert(company.includes('>Сохранить склад</button>'));
 assert(!company.includes('>Широта<'));
 assert(!company.includes('>Долгота<'));
 assert(desktop.includes('Название роли'));
@@ -112,8 +135,8 @@ assert(desktop.includes('LOGIN_ALREADY_EXISTS'));
 assert(clarityCss.includes('.jf-access-scroll'));
 assert(clarityCss.includes('.jf-permission-tools'));
 assert(desktop.includes('function routeTelegramMessage'));
-assert(desktop.includes('JUSTFUN · ЛИСТ КОМПЛЕКТАЦИИ И ПОГРУЗКИ'));
-assert(desktop.includes('JUSTFUN · РЕЙС ДЛЯ ВОДИТЕЛЯ'));
+assert(desktop.includes('📦 Соберите груз для рейса'));
+assert(desktop.includes('🚚 Примите рейс'));
 assert(desktop.includes('yandex.ru/maps/?rtext='));
 assert(desktop.includes('openUserCreator'));
 assert(company.includes('Telegram этого склада'));

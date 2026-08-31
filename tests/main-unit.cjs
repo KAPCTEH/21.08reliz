@@ -64,13 +64,51 @@ assert.deepEqual(logWrite.files, [primaryLog]);
 assert.equal(fs.existsSync(primaryLog), true);
 assert.equal(fs.existsSync(emergencyLog), false);
 assert.equal(main.logCandidates().includes(path.join(path.dirname(process.execPath), 'logs', 'desktop.log')), false);
+const backupRoot=path.join(temporary,'backup-root'),backup=main.saveBackupPayload({backup:{version:'7.8.3',data:{orders:[{id:'order-1'}]}},fileName:'MAIN_WORK_backup.json',kind:'manual'},backupRoot);
+assert.equal(backup.ok,true);
+assert.equal(backup.kind,'manual');
+assert.match(backup.sha256,/^[a-f0-9]{64}$/);
+assert.deepEqual(JSON.parse(fs.readFileSync(backup.path,'utf8')).data.orders,[{id:'order-1'}]);
+assert.throws(()=>main.saveBackupPayload({backup:null},backupRoot),/Резервная копия/);
+const safeAudit=main.safeRendererAuditPayload({correlationId:'audit-123',action:'business_mutation_confirmed',warehouseId:'warehouse-1',environment:'live',detail:{kind:'order_payment',targetId:'order-1',commandId:'command-1',changes:1,critical:false,password:'secret',message:'personal data'}});
+assert.deepEqual(safeAudit,{correlationId:'audit-123',action:'business_mutation_confirmed',warehouseId:'warehouse-1',environment:'live',detail:{kind:'order_payment',targetId:'order-1',commandId:'command-1',changes:1,critical:false}});
+assert.equal(JSON.stringify(safeAudit).includes('secret'),false);
+assert.equal(JSON.stringify(safeAudit).includes('personal'),false);
 
 assert.equal(main.VERSION, release.version);
 assert.match(mainSource, /directOpenStreetMapGeocode/);
 assert.match(mainSource, /directOpenStreetMapRoute/);
 assert.ok(mainSource.indexOf("try{const data=await directOpenStreetMapGeocode(payload)") < mainSource.indexOf("regApiRequest('POST','\/v1\/maps\/geocode'"));
 assert.match(mainSource, /telegram_services:services/);
+assert.equal(main.STARTUP_TIMEOUT_MS, 30000);
 assert.equal(main.RENDERER_READY_TIMEOUT_MS, 90000);
+const startupLoading=main.transitionRendererStartupState(null,'begin');
+const startupRecovery=main.transitionRendererStartupState(startupLoading,'load-timeout',{reason:'30 seconds'});
+const startupReady=main.transitionRendererStartupState(startupRecovery,'renderer-ready',{surface:'workspace-cloud'});
+assert.equal(startupLoading.phase,'loading');
+assert.equal(startupRecovery.phase,'recovery');
+assert.equal(startupReady.phase,'ready');
+assert.equal(startupReady.readyPayload.surface,'workspace-cloud');
+assert.strictEqual(main.transitionRendererStartupState(startupReady,'load-timeout',{reason:'stale timeout'}),startupReady,'a stale timeout must not hide a renderer that is already ready');
+const startupClosed=main.transitionRendererStartupState(startupRecovery,'window-closed');
+assert.equal(main.transitionRendererStartupState(startupClosed,'renderer-ready',{surface:'stale'}).phase,'closed','a late event from a closed window must be ignored');
+const startupFailed=main.transitionRendererStartupState(startupRecovery,'startup-failed',{reason:'ready timeout'});
+assert.equal(startupFailed.phase,'failed');
+assert.strictEqual(main.transitionRendererStartupState(startupFailed,'renderer-ready',{surface:'late'}),startupFailed,'a late ready event must not revive a terminal startup failure');
+let startupShowCalls=0,startupFocusCalls=0,startupCloseCalls=0;
+assert.deepEqual(main.revealRendererStartupWindows({isDestroyed:()=>false,show:()=>{startupShowCalls++},focus:()=>{startupFocusCalls++}},{isDestroyed:()=>false,close:()=>{startupCloseCalls++}}),{shown:true,splashClosed:true});
+assert.deepEqual({startupShowCalls,startupFocusCalls,startupCloseCalls},{startupShowCalls:1,startupFocusCalls:1,startupCloseCalls:1});
+let guardedShowCalls=0,guardedFocusCalls=0,guardedSplashCloseCalls=0;
+const startupTarget={isDestroyed:()=>false,show:()=>{guardedShowCalls++},focus:()=>{guardedFocusCalls++}};
+const startupSplash={isDestroyed:()=>false,close:()=>{guardedSplashCloseCalls++}};
+const blockedLateReady=main.finalizeRendererStartupReady(startupFailed,{surface:'late'},startupTarget,startupSplash);
+assert.equal(blockedLateReady.shown,false);
+assert.deepEqual({guardedShowCalls,guardedFocusCalls,guardedSplashCloseCalls},{guardedShowCalls:0,guardedFocusCalls:0,guardedSplashCloseCalls:0},'terminal failure must block every window reveal side effect');
+const firstReady=main.finalizeRendererStartupReady(startupRecovery,{surface:'workspace-cloud'},startupTarget,startupSplash);
+const repeatedReady=main.finalizeRendererStartupReady(firstReady.state,{surface:'workspace-cloud'},startupTarget,startupSplash);
+assert.equal(firstReady.shown,true);
+assert.equal(repeatedReady.alreadyReady,true);
+assert.deepEqual({guardedShowCalls,guardedFocusCalls,guardedSplashCloseCalls},{guardedShowCalls:1,guardedFocusCalls:1,guardedSplashCloseCalls:1},'repeated renderer-ready must reveal the windows exactly once');
 assert.equal(main.appRendererUrl('web/index.html'), 'justfun://app/web/index.html');
 assert.equal(main.isTrustedAppUrl('justfun://app/web/index.html'), true);
 assert.equal(main.isTrustedAppUrl('justfun://evil/web/index.html'), false);
@@ -91,6 +129,7 @@ assert.equal(main.runRunningInstanceProbe(probeOutput), 30);
 assert.equal(singleInstanceReleaseCount, 0);
 assert.equal(appExitCode, 30);
 assert.equal(fs.readFileSync(probeOutput, 'ascii'), 'RUNNING');
+assert.equal(mainSource.includes('if (!DESKTOP_UNIT_TEST_MODE) process.exit(exitCode)'), true);
 assert.match(main.getMachineCode(), /^JF75-(?:[A-Z0-9_-]{5}-){4}[A-Z0-9_-]{5}$/);
 assert.equal(main.validateWarehouseId('warehouse_01'), 'warehouse_01');
 assert.throws(() => main.validateWarehouseId('../warehouse'));
@@ -214,11 +253,18 @@ const jwt = claims => {
   return `${encode({alg:'HS256',typ:'JWT'})}.${encode({iss:'justfun-license-api',typ:'access',exp:Math.floor(Date.now()/1000)+900,...claims})}.signature`;
 };
 const oldServerResult = {
-  access_token: jwt({sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*']}),
-  offline_token: jwt({typ:'offline',sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*']}),
+  access_token: jwt({sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*'],user_status:'active',company_status:'active',auth_context_version:2}),
+  offline_token: jwt({typ:'offline',sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*'],user_status:'active',company_status:'active',auth_context_version:2}),
   refresh_token: 'refresh-token',
-  user: {full_name:'Владелец',login:'admin',role:'owner',permissions:['*']},
-  company: {code:'JFWD4H54',name:'Компания'}
+  user_id: 'usr_owner_1234567890',
+  company_id: 'cmp_company_1234567890',
+  device_id: 'dev_pc_1234567890',
+  role: 'owner',
+  permissions: ['*'],
+  auth_context_version: 2,
+  session_binding_contract: 0,
+  user: {id:'usr_owner_1234567890',full_name:'Владелец',login:'admin',role:'owner',permissions:['*'],status:'active'},
+  company: {id:'cmp_company_1234567890',code:'JFWD4H54',name:'Компания',status:'active'}
 };
 const repaired = main.saveCloudSession(oldServerResult);
 assert.equal(repaired.company.id,'cmp_company_1234567890');
@@ -228,9 +274,95 @@ assert.equal(repaired.user.role,'owner');
 assert.equal(main.publicCloudAuth(repaired).company.id,'cmp_company_1234567890');
 assert.equal(main.cloudSessionComplete(repaired),true);
 assert.equal(main.companyWorkspaceId(repaired),'cmp_company_1234567890');
+const reorderedOwnerPermissions={...repaired,auth_context_verified:true,user:{...repaired.user,permissions:['inventory.read','orders.read']},permissions:['inventory.read','orders.read']};
+const sameReorderedOwnerPermissions={...reorderedOwnerPermissions,user:{...reorderedOwnerPermissions.user,permissions:['orders.read','inventory.read']},permissions:['orders.read','inventory.read']};
+const reducedOwnerPermissions={...reorderedOwnerPermissions,user:{...reorderedOwnerPermissions.user,permissions:['orders.read']},permissions:['orders.read']};
+assert.equal(main.cloudAuthorizationSignature(reorderedOwnerPermissions),main.cloudAuthorizationSignature(sameReorderedOwnerPermissions));
+assert.notEqual(main.cloudAuthorizationSignature(reorderedOwnerPermissions),main.cloudAuthorizationSignature(reducedOwnerPermissions));
+const nativeSecretPath=path.join(main.localRoot(),'integrations','native-secrets.json');
+const protectedSessionBefore=fs.readFileSync(nativeSecretPath);
+const originalDecryptString=electronMock.safeStorage.decryptString;
+let failDecryptOnce=true;
+electronMock.safeStorage.decryptString=value=>{if(failDecryptOnce){failDecryptOnce=false;const error=new Error('temporary DPAPI failure');error.code='DPAPI_TEMPORARY';throw error}return originalDecryptString(value)};
+assert.equal(main.readCloudAuthState(),null,'a temporary decrypt failure must request a normal login');
+assert.equal(fs.readFileSync(nativeSecretPath).equals(protectedSessionBefore),true,'temporary decrypt failure must preserve encrypted session bytes');
+electronMock.safeStorage.decryptString=originalDecryptString;
+assert.equal(main.readCloudAuthState().company.id,'cmp_company_1234567890','the same encrypted session must be readable after DPAPI recovers');
 assert.equal(main.canConfigureCompanyServer(repaired),true);
 assert.equal(main.canConfigureCompanyServer({user:{role:'manager',permissions:['integrations.manage']}}),true);
 assert.equal(main.canConfigureCompanyServer({user:{role:'manager',permissions:['users.read']}}),false);
+assert.equal(main.canManageCompanyWarehouses(repaired),true);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage']}}),true);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['warehouses.*']}}),true);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['integrations.manage']}}),false);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['company.update']}}),false);
+assert.equal(main.canManageCompanyWarehouses({user:{role:'manager',permissions:['users.read']}}),false);
+assert.equal(main.canCreateCompanyWarehouses(repaired),true);
+assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:*']}}),true);
+assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:warehouse_1234567890']}}),false);
+assert.equal(main.canCreateCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage']}}),false);
+assert.equal(main.canImportLocalMigration({user:{role:'owner',permissions:['*']}}),true);
+assert.equal(main.canImportLocalMigration({user:{role:'owner',permissions:['warehouses.manage','jf.warehouse:*']}}),true);
+assert.equal(main.canImportLocalMigration({user:{role:'manager',permissions:['*']}}),false);
+assert.equal(main.canImportLocalMigration({user:{role:'owner',permissions:['warehouses.manage']}}),false);
+const migrationWarehouse='warehouse_1234567890',migrationChanges=[
+  {type:'routeExecutions',id:'route-1',baseVersion:0,deleted:false,payload:{id:'route-1',warehouseId:migrationWarehouse}},
+  {type:'routeArchives',id:'archive-1',baseVersion:0,deleted:false,payload:{id:'archive-1',warehouseId:migrationWarehouse}},
+  {type:'warehouseReservations',id:'reservation-1',baseVersion:0,deleted:false,payload:{id:'reservation-1',warehouseId:migrationWarehouse}},
+],migrationPayload={
+  commandId:'client:migrate-v783:entities:warehouse_1234567890:0',
+  changes:migrationChanges,
+  intent:{kind:'local_migration_import',targetId:migrationWarehouse,snapshotFingerprint:'1a2b3c:4d5e6f:12345',chunkIndex:0,chunkCount:1},
+};
+const migrationBatch=main.validateRegEntityBatch(migrationPayload,migrationWarehouse,'live');
+assert.deepEqual(migrationBatch.intent,{kind:'local_migration_import',target_id:migrationWarehouse,metadata:{snapshot_fingerprint:'1a2b3c:4d5e6f:12345',chunk_index:0,chunk_count:1}});
+assert.deepEqual(migrationBatch.changes.map(item=>item.type),['routeExecutions','routeArchives','warehouseReservations']);
+const migrationAck=migrationBatch.changes.map((item,index)=>({type:item.type,id:item.id,version:1,eventId:index+1,digest:'a'.repeat(64),deleted:false,unchanged:false}));
+assert.equal(main.validateRegEntityBatchAck(migrationAck,3,migrationBatch),true);
+assert.throws(()=>main.validateRegEntityBatchAck(migrationAck.slice(0,2),3,migrationBatch),error=>error.code==='REG_ENTITY_ACK_INCOMPLETE');
+assert.throws(()=>main.validateRegEntityBatchAck(migrationAck.map((item,index)=>index?item:{...item,version:2}),3,migrationBatch),error=>error.code==='REG_ENTITY_ACK_INVALID');
+assert.throws(()=>main.validateRegEntityBatchAck(migrationAck.map((item,index)=>index?item:{...item,digest:'bad'}),3,migrationBatch),error=>error.code==='REG_ENTITY_ACK_INVALID');
+assert.throws(()=>main.validateRegEntityBatchAck(migrationAck,2,migrationBatch),error=>error.code==='REG_ENTITY_ACK_INCOMPLETE');
+assert.deepEqual(main.regWriteFailureContract(Object.assign(new Error('permission denied'),{code:'warehouse_access_denied'}),{requestAttempted:false}),{writeOutcome:'definitive_rejection',failureOrigin:'client_preflight',retrySameCommand:false});
+assert.deepEqual(main.regWriteFailureContract(Object.assign(new Error('version conflict'),{code:'entity_version_conflict',status:409}),{requestAttempted:true}),{writeOutcome:'definitive_rejection',failureOrigin:'server_rejection',retrySameCommand:false});
+assert.deepEqual(main.regWriteFailureContract(Object.assign(new Error('lost response'),{code:'NETWORK_TIMEOUT'}),{requestAttempted:true}),{writeOutcome:'uncertain',failureOrigin:'transport_or_response',retrySameCommand:true});
+assert.deepEqual(main.regWriteFailureContract(Object.assign(new Error('malformed acknowledgement'),{code:'REG_ENTITY_ACK_INVALID',regWritePhase:'ack_validation'}),{requestAttempted:true}),{writeOutcome:'uncertain',failureOrigin:'ack_validation',retrySameCommand:true});
+assert.throws(()=>main.validateRegEntityBatch({...migrationPayload,intent:{...migrationPayload.intent,targetId:'warehouse_other'}},migrationWarehouse,'live'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.throws(()=>main.validateRegEntityBatch({...migrationPayload,intent:{...migrationPayload.intent,snapshotFingerprint:'INVALID'}},migrationWarehouse,'live'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.throws(()=>main.validateRegEntityBatch({...migrationPayload,intent:{...migrationPayload.intent,chunkIndex:1}},migrationWarehouse,'live'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.throws(()=>main.validateRegEntityBatch(migrationPayload,migrationWarehouse,'demo'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.throws(()=>main.validateRegEntityBatch({...migrationPayload,changes:[{...migrationChanges[0],baseVersion:1}]},migrationWarehouse,'live'),error=>error.code==='LOCAL_MIGRATION_METADATA_INVALID');
+assert.equal(main.canDeleteCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:*']}}),true);
+assert.equal(main.canDeleteCompanyWarehouses({user:{role:'manager',permissions:['warehouses.manage','jf.warehouse:warehouse_1234567890']}}),false);
+assert.equal(main.validateWarehouseCode('СПБ'),'СПБ');
+assert.throws(()=>main.validateWarehouseCode('spb'),error=>error?.code==='WAREHOUSE_CODE_INVALID');
+const validDeleteLease={ok:true,active:true,prepared:false,status:'active',lease:{id:'wdl_1234567890abcdef',company_id:'cmp_company_1234567890',warehouse_id:'warehouse_1234567890',warehouse_code:'СПБ',status:'active',expires_at:new Date(Date.now()+120_000).toISOString()},lease_token:`jfdl_${'a'.repeat(43)}`,remaining_seconds:120};
+assert.equal(main.validateWarehouseDeleteLease(validDeleteLease,'warehouse_1234567890','СПБ',repaired).token,validDeleteLease.lease_token);
+const recoveredPreparedDeleteLease={...validDeleteLease,prepared:true,status:'prepared',recovered:true,lease:{...validDeleteLease.lease,status:'prepared',expires_at:null},remaining_seconds:null};
+assert.deepEqual(main.validateWarehouseDeleteLease(recoveredPreparedDeleteLease,'warehouse_1234567890','СПБ',repaired),{token:validDeleteLease.lease_token,leaseId:'wdl_1234567890abcdef',expiresAt:null,remainingSeconds:null,status:'prepared',prepared:true});
+assert.throws(()=>main.validateWarehouseDeleteLease({...recoveredPreparedDeleteLease,remaining_seconds:0},'warehouse_1234567890','СПБ',repaired),error=>error?.code==='WAREHOUSE_DELETE_LEASE_INVALID');
+assert.throws(()=>main.validateWarehouseDeleteLease({...validDeleteLease,lease:{...validDeleteLease.lease,company_id:'cmp_other_1234567890'}},'warehouse_1234567890','СПБ',repaired),error=>error?.code==='WAREHOUSE_DELETE_LEASE_INVALID');
+assert.throws(()=>main.validateWarehouseDeleteLease({...validDeleteLease,remaining_seconds:10},'warehouse_1234567890','СПБ',repaired),error=>error?.code==='WAREHOUSE_DELETE_LEASE_INVALID');
+assert.match(main.warehouseDeleteLeaseSecretName('cmp_company_1234567890','warehouse_1234567890','usr_owner_1234567890'),/^warehouseDeleteLease:[0-9a-f]{32}$/);
+assert.notEqual(main.warehouseDeleteLeaseSecretName('cmp_company_1234567890','warehouse_1234567890','usr_owner_1234567890'),main.warehouseDeleteLeaseSecretName('cmp_company_1234567890','warehouse_1234567890','usr_other_1234567890'));
+assert.equal(main.warehouseDeletePrepareFailureAction('WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED','confirmed'),'reacquire');
+assert.equal(main.warehouseDeletePrepareFailureAction('WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED','vps_prepared'),'superseded');
+assert.equal(main.warehouseDeletePrepareFailureAction('warehouse_delete_lease_superseded','confirmed'),'superseded');
+assert.equal(main.warehouseDeletePrepareFailureAction('entity_version_conflict','confirmed'),'propagate');
+assert.equal(main.regVpsAttestationSecretName('cmp_company_1234567890'),'regVpsAttestation:cmp_company_1234567890');
+assert.equal(main.regWarehouseDeletePreparePath({workspace_id:'cmp_company_1234567890'},'warehouse_1234567890'),'/v1/workspaces/cmp_company_1234567890/warehouses/warehouse_1234567890/delete-prepare');
+const validTelegramDeprovision={ok:true,deprovisioned:true,company_id:'cmp_company_1234567890',warehouse_id:'warehouse_1234567890',installation_id:'tg_installation_1234567890',already_deprovisioned:false};
+assert.equal(main.validateTelegramDeprovisionResult(validTelegramDeprovision,'warehouse_1234567890',{installationId:'tg_installation_1234567890'}).installationId,'tg_installation_1234567890');
+assert.throws(()=>main.validateTelegramDeprovisionResult({...validTelegramDeprovision,warehouse_id:'warehouse_other_1234567890'},'warehouse_1234567890'),error=>error?.code==='TELEGRAM_DEPROVISION_UNCONFIRMED');
+assert.throws(()=>main.validateTelegramDeprovisionResult({...validTelegramDeprovision,installation_id:'tg_other_1234567890'},'warehouse_1234567890',{installationId:'tg_installation_1234567890'}),error=>error?.code==='TELEGRAM_DEPROVISION_UNCONFIRMED');
+assert.throws(()=>main.validateTelegramDeprovisionResult({...validTelegramDeprovision,company_id:'cmp_other_1234567890'},'warehouse_1234567890',{expectedCompanyId:'cmp_company_1234567890'}),error=>error?.code==='TELEGRAM_DEPROVISION_UNCONFIRMED');
+const proofBoundTelegramDeprovision={...validTelegramDeprovision,warehouse_code:'СПБ',delete_command_id:'client:test:warehouse:delete:proof',delete_base_version:2};
+assert.equal(main.validateTelegramDeprovisionResult(proofBoundTelegramDeprovision,'warehouse_1234567890',{expectedWarehouseCode:'СПБ',expectedDeleteCommandId:'client:test:warehouse:delete:proof',expectedDeleteBaseVersion:2}).warehouseId,'warehouse_1234567890');
+assert.throws(()=>main.validateTelegramDeprovisionResult({...proofBoundTelegramDeprovision,delete_base_version:3},'warehouse_1234567890',{expectedWarehouseCode:'СПБ',expectedDeleteCommandId:'client:test:warehouse:delete:proof',expectedDeleteBaseVersion:2}),error=>error?.code==='TELEGRAM_DEPROVISION_UNCONFIRMED');
+const storedDeleteBatch=main.normalizeWarehouseDeleteBatch({command_id:'client:test:warehouse:delete:journal',changes:[{type:'warehouse',id:'warehouse_1234567890',base_version:2,deleted:true,payload:null}],intent:null},'warehouse_1234567890');
+assert.equal(storedDeleteBatch.command_id,'client:test:warehouse:delete:journal');
+assert.equal(storedDeleteBatch.changes[0].base_version,2);
+assert.equal(storedDeleteBatch.changes[0].deleted,true);
 assert.equal(main.normalizeCloudUser({id:'usr_custom_role_1234',role:'Старший кладовщик',permissions:['inventory.read']},{},{},{auth_context_verified:true,user_id:'usr_custom_role_1234'}).role,'Старший кладовщик');
 assert.equal(main.regDiagnosticStage({code:'ENOTFOUND'}),'dns');
 assert.equal(main.regDiagnosticStage({code:'ECONNRESET'}),'connection');
@@ -247,8 +379,8 @@ assert.equal(fs.existsSync(main.regStatePath('cmp_company_1234567890')),true);
 assert.equal(main.regApiSecretName('cmp_company_1234567890'),'regApiKey:cmp_company_1234567890');
 assert.throws(()=>main.normalizeCloudAuthState({...repaired,company:{...repaired.company,id:'cmp_other_1234567890'}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
 assert.throws(()=>main.normalizeCloudAuthState({...repaired,offline_token:jwt({typ:'offline',sub:'usr_owner_1234567890',cid:'cmp_other_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*']})}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
-assert.throws(()=>main.normalizeCloudAuthState({...repaired,user:{...repaired.user,role:'admin'}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
-assert.throws(()=>main.normalizeCloudAuthState({...repaired,user:{...repaired.user,permissions:['orders.read']}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
+assert.throws(()=>main.normalizeCloudAuthState({...repaired,auth_context_verified:false,role:'admin',user:{...repaired.user,role:'admin'}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
+assert.throws(()=>main.normalizeCloudAuthState({...repaired,auth_context_verified:false,permissions:['orders.read'],user:{...repaired.user,permissions:['orders.read']}}),error=>error?.code==='AUTH_CONTEXT_MISMATCH');
 const invalidIssuer=jwt({iss:'other-server',sub:'usr_owner_1234567890',cid:'cmp_company_1234567890',did:'dev_pc_1234567890',role:'owner',permissions:['*']});
 assert.throws(()=>main.normalizeCloudAuthState({...repaired,access_token:invalidIssuer}),error=>error?.code==='AUTH_TOKEN_INVALID');
 
@@ -262,16 +394,35 @@ assert.equal(registerHandler.includes('/v1/license/check'), false);
 assert.equal(registerHandler.includes('/v1/owner/register'), true);
 assert.equal(source.includes('--jf-company-id='), true);
 assert.equal(source.includes('/v1/warehouses?environment='), true);
+assert.equal(source.includes("typeof result.registry_initialized==='boolean'?result.registry_initialized:null"), true);
 assert.equal(source.includes("cloudAuthenticatedRequest('PUT','/v1/company/data-service'"), true);
 assert.equal(source.includes('desktop:auth-user-access'), true);
+assert.equal((source.match(/cloudRequest\('POST','\/v1\/auth\/refresh'/g)||[]).length,1);
+assert.equal(source.includes("handleMainIPC('desktop:auth-refresh-context'"), true);
+assert.equal(source.includes('coordinateRendererStartup(mainWindow.loadURL'),true);
+assert.equal(source.includes('onLoadTimeout:enterRendererStartupRecovery'),true);
+assert.equal(source.includes('const shown=confirmRendererStartupReady(safePayload)'),true);
+assert.equal(source.includes("'RENDERER_LOAD_TIMEOUT'"),true);
+assert.equal(source.includes("if (response === 2) app.quit();"),true);
+assert.equal(source.includes('renderer ready ignored after terminal startup state'),true);
 assert.equal(source.includes('/access`'), true);
 assert.equal(source.includes("setTimeout(()=>{app.relaunch();app.exit(0)},150)"), true);
 assert.equal(source.includes("setTimeout(()=>app.quit(),150)"), true);
+let unloadPrevented=0;
+const unloadEvent={preventDefault(){unloadPrevented+=1}};
+assert.equal(main.allowRendererUnloadAfterAcceptedQuit(unloadEvent,false),false);
+assert.equal(unloadPrevented,0,'an ordinary window close must preserve the renderer unload veto');
+assert.equal(main.allowRendererUnloadAfterAcceptedQuit(unloadEvent,true),true);
+assert.equal(unloadPrevented,1,'an accepted application quit must bypass the renderer unload veto exactly once');
+assert.equal(source.includes("mainWindow.webContents.on('will-prevent-unload'"),true);
+assert.match(source,/if \(!allowRendererUnloadAfterAcceptedQuit\(event,applicationQuitAccepted\)\) return;/);
+const beforeQuitHandler=source.match(/app\.on\('before-quit',[\s\S]*?process\.on\('uncaughtException'/)?.[0]||'';
+assert.match(beforeQuitHandler,/if \(controller\.shouldApplyOnClose\(\)\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?return;[\s\S]*?applicationQuitAccepted=true;/,'accepted-quit flag must be set only after the deferred-update veto branch');
 assert.equal(source.includes("appendLog('uncaughtException', diagnosticError(error))"), true);
 assert.equal(source.includes("function sendWindowMessage(target,channel,payload)"), true);
 assert.equal(source.includes("appendRecurringLog('Telegram event poll failed'"), true);
 assert.equal(source.includes("flushRecurringLogs(); appendLog('application exiting')"), true);
-assert.match(source, /token=await ensureCloudAccessToken\(\)/);
+assert.match(source, /token=await ensureCloudAccessToken\(authOperation\)/);
 assert.equal(main.isRetryableCloudNetworkError({code:'ECONNRESET'}),true);
 assert.equal(main.isRetryableCloudNetworkError({code:'INVALID_CREDENTIALS'}),false);
 assert.equal(main.isTemporaryCompanyServiceError({code:'TELEGRAM_WORKER_ROUTING_BLOCKED',status:503}),true);
@@ -283,6 +434,54 @@ assert.match(main.telegramCompanyPublishPendingMessage('TELEGRAM_UPSTREAM_INVALI
 assert.match(main.friendlyCloudNetworkError({code:'ECONNRESET',message:'socket reset'}).message,/сетью или VPN/);
 
 (async()=>{
+const startupEvents=[];
+const lateReadyPayload={surface:'workspace-cloud',readyState:'complete'};
+const coordinatedStartup=await main.coordinateRendererStartup(Promise.resolve(),{then(resolve){startupEvents.push('ready');resolve(lateReadyPayload)}},{
+  wait:async(promise,_timeout,_message,code)=>{if(code==='RENDERER_LOAD_TIMEOUT')throw Object.assign(new Error('slow load'),{code});return promise},
+  onLoadTimeout:()=>{startupEvents.push('recovery')}
+});
+assert.equal(coordinatedStartup.recovered,true);
+assert.deepEqual(coordinatedStartup.readyPayload,lateReadyPayload);
+assert.deepEqual(startupEvents,['recovery','ready'],'late renderer readiness must be consumed after the recoverable 30-second timeout');
+await assert.rejects(main.coordinateRendererStartup(Promise.resolve(),Promise.resolve(lateReadyPayload),{
+  wait:async(_promise,_timeout,_message,code)=>{if(code==='RENDERER_LOAD_TIMEOUT')throw Object.assign(new Error('load failed'),{code:'ERR_FILE_NOT_FOUND'});return lateReadyPayload},
+  onLoadTimeout:()=>{throw new Error('fatal load failure must not enter timeout recovery')}
+}),error=>error.code==='ERR_FILE_NOT_FOUND');
+let rejectLateLoad;
+const lateLoad=new Promise((_,reject)=>{rejectLateLoad=reject});
+const lateLoadStartup=main.coordinateRendererStartup(lateLoad,new Promise(()=>{}),{
+  wait:async(promise,_timeout,_message,code)=>{if(code==='RENDERER_LOAD_TIMEOUT')throw Object.assign(new Error('slow load'),{code});return promise},
+  onLoadTimeout:()=>{}
+});
+await new Promise(resolve=>setImmediate(resolve));
+const lateLoadError=Object.assign(new Error('main frame failed after timeout'),{code:'ERR_FILE_NOT_FOUND'});
+rejectLateLoad(lateLoadError);
+await assert.rejects(lateLoadStartup,error=>error===lateLoadError,'a real loadURL failure after the recoverable timeout must remain terminal and preserve its exact error');
+let rejectWindowClosed;
+const windowClosed=new Promise((_,reject)=>{rejectWindowClosed=reject});
+const closedStartup=main.coordinateRendererStartup(Promise.resolve(),new Promise(()=>{}),{
+  wait:async promise=>promise,
+  windowClosed
+});
+await new Promise(resolve=>setImmediate(resolve));
+const windowClosedError=Object.assign(new Error('window closed'),{code:'RENDERER_WINDOW_CLOSED'});
+rejectWindowClosed(windowClosedError);
+await assert.rejects(closedStartup,error=>error===windowClosedError,'closing the startup window must abort immediately instead of waiting for the 90-second timeout');
+let unlockFirstDelete;
+const deleteLockEvents=[];
+const firstDelete=main.withWarehouseDeleteOperationLock('cmp_company_1234567890','warehouse_1234567890',async()=>{
+  deleteLockEvents.push('first:start');
+  await new Promise(resolve=>{unlockFirstDelete=resolve});
+  deleteLockEvents.push('first:end');
+  return'first';
+});
+await new Promise(resolve=>setImmediate(resolve));
+const secondDelete=main.withWarehouseDeleteOperationLock('cmp_company_1234567890','warehouse_1234567890',async()=>{deleteLockEvents.push('second:start');return'second'});
+await new Promise(resolve=>setImmediate(resolve));
+assert.deepEqual(deleteLockEvents,['first:start']);
+unlockFirstDelete();
+assert.deepEqual(await Promise.all([firstDelete,secondDelete]),['first','second']);
+assert.deepEqual(deleteLockEvents,['first:start','first:end','second:start']);
 let retryCalls=0,retryEvents=0;
 const retryResult=await main.withCloudNetworkRetry(async()=>{
   retryCalls++;
@@ -318,6 +517,59 @@ const failedMapResult=await main.resolveDesktopMapGeocode(
 assert.equal(failedMapResult.ok,false);
 assert.equal(failedMapResult.code,'NETWORK_TIMEOUT');
 assert.match(failedMapResult.error,/OpenStreetMap: Error: public unavailable; VPS: Error: VPS unavailable/);
+const addressState={workspace_id:'cmp_company_1234567890'};
+assert.throws(()=>main.validateDesktopAddressSearchPayload({query:'Всеволожск',warehouseId:'warehouse_msk',interaction:'explicit'}),/Идентификатор адресного запроса повреждён/);
+let publicAddressCalls=0;
+const indexedAddressResult=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-1',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'autocomplete'},
+  {state:addressState,server:async(input,state)=>({
+    ok:true,workspace_id:state.workspace_id,warehouse_id:input.warehouseId,environment:input.environment,
+    request_id:input.requestId,address_contract:1,normalized_query:'всеволжск ленинградская область',
+    provider:{name:'dadata',api_version:'4_1',reference:'gar-fias',queried_at:'2026-08-23T00:00:00Z',cache_ttl_seconds:900},
+    results:[{id:'dadata:1',display_name:'Всеволожск, Ленинградская область',components:{region:'Ленинградская область',district:'Всеволожский район',settlement:'Всеволожск'},object_type:'город',coordinates:{lat:60.02,lon:30.64,accuracy:'settlement'},fias_id:'f26b876b-6857-4951-b060-ec6559f04a9a',provider_ids:{dadata:'1'},confidence:'high',match_score:.94,match_reason:['Точное текстовое совпадение'],warnings:[],source:{name:'dadata',version:'suggestions-api-4_1',date:'2026-08-23'}}]
+  }),direct:async()=>{publicAddressCalls++;return[]},publicFallbackAllowed:true},
+);
+assert.equal(indexedAddressResult.ok,true);
+assert.equal(indexedAddressResult.source,'company-address-provider');
+assert.equal(indexedAddressResult.data.length,1);
+assert.equal(indexedAddressResult.data[0].__jfCanonicalAddress.fiasId,'f26b876b-6857-4951-b060-ec6559f04a9a');
+assert.equal(indexedAddressResult.data[0].__jfCanonicalAddress.originalInput,'Всеволжск Лен обл');
+assert.equal(publicAddressCalls,0);
+await assert.rejects(
+  main.resolveDesktopAddressSearch(
+    {requestId:'address-request-bad-provider',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'explicit'},
+    {state:addressState,server:async(input,state)=>({ok:true,workspace_id:state.workspace_id,warehouse_id:input.warehouseId,environment:input.environment,request_id:input.requestId,address_contract:1,normalized_query:'всеволжск',provider:{name:'dadata',api_version:'4_1',reference:'gar-fias',queried_at:'not-a-date',cache_ttl_seconds:900},results:[]}),publicFallbackAllowed:false},
+  ).then(result=>{if(result.ok===false)throw Object.assign(new Error(result.error),{code:result.code});return result}),
+  /источник адресного поиска/,
+);
+const developmentAddressFallback=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-2',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'explicit'},
+  {state:addressState,server:async()=>{throw Object.assign(new Error('provider unavailable'),{code:'ADDRESS_PROVIDER_UNAVAILABLE'})},direct:async payload=>{publicAddressCalls++;assert.equal(payload.limit,10);return[{display_name:'Всеволожск',lat:'60',lon:'30'}]},publicFallbackAllowed:true},
+);
+assert.equal(developmentAddressFallback.ok,true);
+assert.equal(developmentAddressFallback.source,'development-public-nominatim');
+assert.equal(developmentAddressFallback.degraded,true);
+assert.equal(publicAddressCalls,1);
+const typoAddressFallback=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-typo',query:'санкт петербуг невский 28',warehouseId:'warehouse_msk',interaction:'explicit'},
+  {state:null,direct:async payload=>{publicAddressCalls++;assert.equal(payload.query,'санкт петербург невский 28');return[{display_name:'28, Невский проспект, Санкт-Петербург',lat:'59.9351',lon:'30.3255'}]},publicFallbackAllowed:true},
+);
+assert.equal(typoAddressFallback.ok,true);
+assert.equal(typoAddressFallback.data.length,1);
+assert.equal(publicAddressCalls,2);
+const autocompleteWithoutProvider=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-auto-3',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'autocomplete'},
+  {state:addressState,server:async()=>{throw Object.assign(new Error('autocomplete not configured'),{code:'address_autocomplete_not_configured'})},direct:async()=>{publicAddressCalls++;return[]},publicFallbackAllowed:true},
+);
+assert.equal(autocompleteWithoutProvider.ok,false);
+assert.equal(autocompleteWithoutProvider.code,'address_autocomplete_not_configured');
+assert.equal(publicAddressCalls,2);
+const releasedAddressWithoutVps=await main.resolveDesktopAddressSearch(
+  {requestId:'address-request-3',query:'Всеволжск Лен обл',warehouseId:'warehouse_msk',interaction:'explicit'},
+  {state:null,direct:async()=>{throw new Error('must not run')},publicFallbackAllowed:false},
+);
+assert.equal(releasedAddressWithoutVps.ok,false);
+assert.equal(releasedAddressWithoutVps.code,'ADDRESS_VPS_REQUIRED');
 console.log(JSON.stringify({
   ok: true,
   version: main.VERSION,
@@ -334,5 +586,10 @@ console.log(JSON.stringify({
   transientLoginRetry: true,
   slowNetworkStartupWindow: true,
   mapLookupDirectFirst: true,
+  addressProviderServerFirst: true,
+  autocompleteDoesNotUsePublicNominatim: true,
+  releasedAddressRequiresVps: true,
+  warehouseDeleteJournalReplay: true,
+  telegramDeprovisionValidation: true,
 }));
 })().catch(error=>{console.error(error);process.exitCode=1});

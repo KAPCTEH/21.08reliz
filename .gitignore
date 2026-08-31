@@ -1,5 +1,6 @@
 # Generated release artifacts and local dependencies
 build/
+/artifacts/
 **/node_modules/
 **/bin/
 **/obj/

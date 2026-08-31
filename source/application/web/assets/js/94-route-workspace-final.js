@@ -5,6 +5,7 @@
   let page=1;
   const byId=id=>document.getElementById(id);
   const cards=()=>[...document.querySelectorAll('#tripsArea > .route-card')];
+  const filteredCards=()=>cards().filter(card=>!card.dataset.routeStage||typeof routeStageMatchesV560!=='function'||routeStageMatchesV560(card.dataset.routeStage));
   function mapWrap(){return document.querySelector('#tripsView .route-map-wrap')}
   function parkMap(){
     const wrap=mapWrap(),home=byId('routeMapHomeV590');if(wrap&&home&&wrap.parentElement!==home)home.appendChild(wrap);
@@ -30,10 +31,11 @@
     return el;
   }
   function applyPagination({keepActive=true}={}){
-    const list=cards(),totalPages=Math.max(1,Math.ceil(list.length/PER_PAGE));
+    const all=cards(),list=filteredCards(),totalPages=Math.max(1,Math.ceil(list.length/PER_PAGE));
     if(keepActive){const active=list.find(card=>card.classList.contains('active'));if(active){const idx=list.indexOf(active);if(idx>=0)page=Math.floor(idx/PER_PAGE)+1}}
     page=Math.min(Math.max(1,page),totalPages);
     const start=(page-1)*PER_PAGE,end=start+PER_PAGE,visible=new Set();
+    all.forEach(card=>{card.hidden=true});
     list.forEach((card,index)=>{const show=index>=start&&index<end;card.hidden=!show;if(show)visible.add(card)});
     collapseHiddenActive(visible);
     const pager=ensurePager();if(!pager)return;
@@ -47,6 +49,7 @@
   }
   document.addEventListener('jf:routes-rendered',()=>{window.cleanupRouteUiV591?.();applyPagination({keepActive:true})});
   document.addEventListener('jf:route-opened',()=>applyPagination({keepActive:true}));
+  document.addEventListener('jf:route-stage-filter-changed',()=>{page=1;applyPagination({keepActive:false})});
   function init(){const host=byId('tripsArea');if(host&&!host.dataset.routeWorkspaceV593){host.dataset.routeWorkspaceV593='1';host.addEventListener('click',afterRouteInteraction,true);host.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' ')afterRouteInteraction(event)},true)}window.cleanupRouteUiV591?.();applyPagination({keepActive:true})}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(init,0),{once:true});else setTimeout(init,0);
 })();

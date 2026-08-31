@@ -40,6 +40,79 @@
       "class": "contract"
     },
     {
+      "id": "JF-TEST-AUDIT-TOOLS-UNIT",
+      "name": "Audit Tools Unit",
+      "level": "source",
+      "path": "tests/audit-tools-unit.mjs",
+      "command": "node tests/audit-tools-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node-24",
+        "git"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "audit-registry",
+        "ci",
+        "repository-wide"
+      ],
+      "contracts": [
+        "incremental-impact",
+        "test-runner-policy",
+        "environment-isolation"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "unmapped paths select the full safe test set",
+        "zero runnable tests fail closed",
+        "per-test cwd, timeout and JF environment allowlist are enforced"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request that changes audit selection, the test runner, the catalog or CI",
+      "invalidation_rule": "invalidate when impact mapping, runner policy, catalog metadata or workflow environment changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-UPDATE-CATALOG-SERVICE-CHECK",
+      "name": "Update Catalog Service Check",
+      "level": "source",
+      "path": "source/update-catalog-service/package.json",
+      "command": "npm run check",
+      "cwd": "source/update-catalog-service",
+      "prerequisites": [
+        "node-24",
+        "npm-ci"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "release",
+        "ci",
+        "update-catalog-service"
+      ],
+      "contracts": [
+        "update-catalog-service",
+        "cloudflare-worker-build",
+        "production-dry-run"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "worker syntax and generated binding types agree",
+        "production Worker dry-run bundle succeeds without deployment"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and update catalog service deployment",
+      "invalidation_rule": "invalidate when the catalog Worker, Wrangler configuration, dependencies or production bindings change",
+      "class": "contract"
+    },
+    {
       "id": "JF-TEST-UPDATE-CORE-UNIT",
       "name": "Update Core Unit",
       "level": "source",
@@ -983,6 +1056,301 @@
       "class": "unit"
     },
     {
+      "id": "JF-TEST-ENTITY-REMOTE-APPLY-ATOMICITY-UNIT",
+      "name": "Entity Remote Apply Atomicity Unit",
+      "level": "source",
+      "path": "tests/entity-remote-apply-atomicity-unit.cjs",
+      "command": "node tests/entity-remote-apply-atomicity-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts"
+      ],
+      "contracts": [
+        "atomic-remote-entity-apply",
+        "durable-local-rollback",
+        "server-data-loss-prevention"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "failed remote imports restore the durable local snapshot and sync metadata"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when entity bootstrap, polling, persistence or rollback changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ENTITY-RECOVERY-OWNER-UNIT",
+      "name": "Entity Recovery Owner Unit",
+      "level": "source",
+      "path": "tests/entity-recovery-owner-unit.cjs",
+      "command": "node tests/entity-recovery-owner-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "authentication",
+        "data-contracts"
+      ],
+      "contracts": [
+        "entity-recovery-owner-binding",
+        "cross-user-fail-closed",
+        "logout-flush-before-session-change"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "foreign recovery records are blocked before local import, IndexedDB access or VPS requests"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when authentication, logout, entity recovery, outbox ownership or warehouse lifecycle changes",
+      "invalidation_rule": "invalidate when test file, desktop recovery ownership, authentication, logout, warehouse lifecycle, dependency lock or Node toolchain changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ACTIVE-WAREHOUSE-PERSISTENCE-UNIT",
+      "name": "Active Warehouse Persistence Unit",
+      "level": "source",
+      "path": "tests/active-warehouse-persistence-unit.cjs",
+      "command": "node tests/active-warehouse-persistence-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "authentication",
+        "data-contracts"
+      ],
+      "contracts": [
+        "active-warehouse-native-preference",
+        "startup-scope-before-recovery",
+        "provisional-outbox-gate"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "lost renderer registry restores only the trusted scoped warehouse before recovery and blocks upload until server confirmation"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when active warehouse persistence, startup recovery ordering, authentication or outbox gating changes",
+      "invalidation_rule": "invalidate when the test file, active warehouse native preference, startup recovery, registry refresh, outbox gating or Node toolchain changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ACTIVE-WAREHOUSE-RECOVERY-RUNTIME-UNIT",
+      "name": "Active Warehouse Recovery Runtime Unit",
+      "level": "source",
+      "path": "tests/active-warehouse-recovery-runtime-unit.cjs",
+      "command": "node tests/active-warehouse-recovery-runtime-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "authentication",
+        "data-contracts"
+      ],
+      "contracts": [
+        "clean-online-registry-before-recovery",
+        "provisional-pending-server-registry-confirmation",
+        "provisional-bootstrap-fail-closed",
+        "revoked-warehouse-no-recovery"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "active warehouse recovery confirms authoritative scope before journal replay, bootstrap or mount"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when active warehouse recovery, registry transitions, critical recovery or entity bootstrap ordering changes",
+      "invalidation_rule": "invalidate when this test, startup recovery ordering, provisional registry handling, critical recovery, entity bootstrap or Node toolchain changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-COMPANY-SETTINGS-MUTATION-CONTRACT",
+      "name": "Company Settings Mutation Contract",
+      "level": "source",
+      "path": "tests/company-settings-mutation-contract.cjs",
+      "command": "node tests/company-settings-mutation-contract.cjs",
+      "cwd": ".",
+      "prerequisites": ["node"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "data-contracts"],
+      "contracts": ["company-settings-durable-mutation", "logo-async-guard"],
+      "expected_outputs": ["exit_code=0", "company settings and logo changes stay inside the durable mutation guard"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when company settings, logo persistence or entity guards change",
+      "invalidation_rule": "invalidate when this test, company settings persistence, logo loading or entity guards change",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ORDER-DETAIL-CONTROL-PERMISSIONS-CONTRACT",
+      "name": "Order Detail Control Permissions Contract",
+      "level": "source",
+      "path": "tests/order-detail-control-permissions-contract.cjs",
+      "command": "node tests/order-detail-control-permissions-contract.cjs",
+      "cwd": ".",
+      "prerequisites": ["node", "tests/node_modules"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "authorization"],
+      "contracts": ["order-detail-control-permissions", "dynamic-role-markers"],
+      "expected_outputs": ["exit_code=0", "order detail controls retain exact permission and denied-role state"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when order detail controls, roles or permissions change",
+      "invalidation_rule": "invalidate when this test, order detail rendering or permission controls change",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-REVERSE-INVENTORY-MOVEMENT-GUARD-CONTRACT",
+      "name": "Reverse Inventory Movement Guard Contract",
+      "level": "source",
+      "path": "tests/reverse-inventory-movement-guard-contract.cjs",
+      "command": "node tests/reverse-inventory-movement-guard-contract.cjs",
+      "cwd": ".",
+      "prerequisites": ["node"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "inventory", "authorization"],
+      "contracts": ["inventory-reversal-permission", "inventory-reversal-durable-guard"],
+      "expected_outputs": ["exit_code=0", "inventory reversal uses the exact movement id and inventory.stock guard"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when inventory reversal, permissions or mutation guards change",
+      "invalidation_rule": "invalidate when this test, inventory reversal or entity guards change",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ROUTE-CLOSURE-CLEANUP-CONTRACT",
+      "name": "Route Closure Cleanup Contract",
+      "level": "source",
+      "path": "tests/route-closure-cleanup-contract.cjs",
+      "command": "node tests/route-closure-cleanup-contract.cjs",
+      "cwd": ".",
+      "prerequisites": ["node"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "routes", "data-contracts"],
+      "contracts": ["route-close-cleanup", "manual-route-order-rollback"],
+      "expected_outputs": ["exit_code=0", "route closure durably removes manual order and route overrides with rollback coverage"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when route closure, manual order or rollback snapshots change",
+      "invalidation_rule": "invalidate when this test, route closure cleanup or route rollback changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ROUTE-DRIVER-TERMS-BINDING-CONTRACT",
+      "name": "Route Driver Terms Binding Contract",
+      "level": "source",
+      "path": "tests/route-driver-terms-binding-contract.cjs",
+      "command": "node tests/route-driver-terms-binding-contract.cjs",
+      "cwd": ".",
+      "prerequisites": ["node"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "routes", "drivers"],
+      "contracts": ["route-driver-assignment-only", "driver-bound-route-terms"],
+      "expected_outputs": ["exit_code=0", "route terms remain bound to the assigned driver and assignment uses one durable transaction"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when driver assignment or route payment terms change",
+      "invalidation_rule": "invalidate when this test, driver assignment, route overrides or mutation guards change",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-ROUTE-PLANNING-PERMISSION-CONTRACT",
+      "name": "Route Planning Permission Contract",
+      "level": "source",
+      "path": "tests/route-planning-permission-contract.cjs",
+      "command": "node tests/route-planning-permission-contract.cjs",
+      "cwd": ".",
+      "prerequisites": ["node", "tests/node_modules"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "routes", "authorization"],
+      "contracts": ["route-plan-exact-permissions", "route-plan-durable-guard"],
+      "expected_outputs": ["exit_code=0", "route planning cannot assign drivers without permission and uses durable guards"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when route planning, driver assignment permissions or guards change",
+      "invalidation_rule": "invalidate when this test, route planning permissions or entity guards change",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-STARTUP-OUTBOX-TOPOLOGY-REGRESSION",
+      "name": "Startup Outbox Topology Regression",
+      "level": "source",
+      "path": "tests/startup-outbox-topology-regression.cjs",
+      "command": "node tests/startup-outbox-topology-regression.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts"
+      ],
+      "contracts": [
+        "online-authoritative-bootstrap",
+        "bootstrap-single-flight",
+        "offline-outbox-overlay"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "online startup performs one VPS bootstrap/import without a standalone restore; offline startup performs one local overlay import"
+      ],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when startup synchronization, entity bootstrap or outbox restore changes",
+      "invalidation_rule": "invalidate when test file, desktop startup topology, entity bootstrap, outbox restore, dependency lock or Node toolchain changes",
+      "class": "unit"
+    },
+    {
       "id": "JF-TEST-ERROR-BOUNDARY-REGRESSION-V783",
       "name": "Error Boundary Regression V783",
       "level": "integration",
@@ -1235,6 +1603,39 @@
       "class": "schema"
     },
     {
+      "id": "JF-TEST-LICENSE-EXACT-PERMISSIONS-RUNTIME-UNIT",
+      "name": "License Exact Permissions Runtime Unit",
+      "level": "source",
+      "path": "tests/license-exact-permissions-runtime-unit.mjs",
+      "command": "node tests/license-exact-permissions-runtime-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
+    },
+    {
       "id": "JF-TEST-LICENSE-GRANULAR-PERMISSION-MIGRATION-TEST",
       "name": "License Granular Permission Migration Test",
       "level": "source",
@@ -1264,6 +1665,37 @@
       "run_rule": "FULL baseline and when any mapped module or contract changes",
       "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
       "class": "schema"
+    },
+    {
+      "id": "JF-TEST-LICENSE-INVITATION-ACCEPT-UNIT",
+      "name": "License Invitation Accept Unit",
+      "level": "source",
+      "path": "tests/license-invitation-accept-unit.mjs",
+      "command": "node tests/license-invitation-accept-unit.mjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "data-contracts",
+        "license-server"
+      ],
+      "contracts": [
+        "data-contracts",
+        "license-server"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when any mapped module or contract changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "unit"
     },
     {
       "id": "JF-TEST-LICENSE-SCHEMA-TEST",
@@ -1598,6 +2030,39 @@
       "class": "unit"
     },
     {
+      "id": "JF-TEST-ADDRESS-INTELLIGENCE-UNIT-V783",
+      "name": "Address Intelligence Unit V783",
+      "level": "integration",
+      "path": "tests/address-intelligence-unit-v783.cjs",
+      "command": "node tests/address-intelligence-unit-v783.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "ux"
+      ],
+      "contracts": [
+        "application",
+        "ux"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "normalization, fuzzy ranking, deduplication and Top-3 selection pass",
+        "manual map fallback remains available"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when application or UX address-search code changes",
+      "invalidation_rule": "invalidate when the address intelligence module, renderer integration, test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
       "id": "JF-TEST-MAP-DIAGNOSTIC-REGRESSION-V783",
       "name": "Map Diagnostic Regression V783",
       "level": "integration",
@@ -1790,6 +2255,42 @@
       "class": "schema"
     },
     {
+      "id": "JF-TEST-REG-ADDRESS-SEARCH-TEST",
+      "name": "REG Address Search Test",
+      "level": "integration",
+      "path": "tests/reg-address-search-test.py",
+      "command": "python tests/reg-address-search-test.py",
+      "cwd": ".",
+      "prerequisites": [
+        "python"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "contracts": [
+        "application",
+        "data-contracts",
+        "vps-integration"
+      ],
+      "expected_outputs": [
+        "exit_code=0",
+        "versioned scoped address contract is strictly validated",
+        "remote provider candidates are ranked, deduplicated and limited to Top-3",
+        "autocomplete never falls through to the public Nominatim service"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when address-search server, provider or deployment code changes",
+      "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, provider adapter, installer or audit rule digest changes",
+      "class": "integration-isolated"
+    },
+    {
       "id": "JF-TEST-REG-MAP-PROXY-TEST",
       "name": "Reg Map Proxy Test",
       "level": "integration",
@@ -1896,9 +2397,14 @@
       "command": "python tests/reg-storage-v3-integration.py",
       "cwd": ".",
       "prerequisites": [
-        "python"
+        "python",
+        "PostgreSQL 16"
       ],
-      "env_allowlist": [],
+      "env_allowlist": [
+        "JF_REQUIRE_POSTGRES_TESTS",
+        "JF_TEST_POSTGRES_ADMIN_DSN",
+        "JF_TEST_POSTGRES_DSN"
+      ],
       "network_allowed": false,
       "executable_allowed": false,
       "requires_explicit_live_authorization": false,
@@ -1985,10 +2491,10 @@
     },
     {
       "id": "JF-TEST-RUNTIME-BUTTON-MATRIX",
-      "name": "Runtime Button Matrix",
+      "name": "Runtime UI Inventory",
       "level": "source",
       "path": "tests/runtime-button-matrix.py",
-      "command": "python tests/runtime-button-matrix.py source/application/web --edition full --report <evidence-report.json>",
+      "command": "python tests/runtime-button-matrix.py source/application/web --edition full --list-only --report artifacts/ui-control-inventory-full.json",
       "cwd": ".",
       "prerequisites": [
         "python"
@@ -2014,11 +2520,11 @@
       ],
       "timeout_ms": 900000,
       "artifact_paths": [
-        "<evidence-report.json>"
+        "artifacts/ui-control-inventory-full.json"
       ],
       "run_rule": "FULL baseline and when any mapped module or contract changes",
       "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
-      "class": "visual"
+      "class": "source-inventory"
     },
     {
       "id": "JF-TEST-RUNTIME-OVERRIDES-REGRESSION-V783",
@@ -2301,6 +2807,35 @@
       "run_rule": "FULL baseline and when any mapped module or contract changes",
       "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
       "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-TELEGRAM-SYSTEM-PROXY-TRANSPORT",
+      "name": "Telegram System Proxy Transport",
+      "level": "source",
+      "path": "tests/telegram-system-proxy-transport-unit.cjs",
+      "command": "node tests/telegram-system-proxy-transport-unit.cjs",
+      "cwd": ".",
+      "prerequisites": [
+        "node"
+      ],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": [
+        "application"
+      ],
+      "contracts": [
+        "telegram-native-provisioning"
+      ],
+      "expected_outputs": [
+        "exit_code=0"
+      ],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "FULL baseline and when Telegram provisioning transport changes",
+      "invalidation_rule": "invalidate when the provisioner, Electron runtime, test file, dependency lock, or proxy policy changes",
+      "class": "source-isolated"
     },
     {
       "id": "JF-TEST-TELEGRAM-SCOPE-REGRESSION-V783",
@@ -2601,6 +3136,195 @@
       "run_rule": "explicit live authorization and configured environment only",
       "invalidation_rule": "invalidate when test file, mapped module, dependency lock, toolchain, or audit rule digest changes",
       "class": "live"
+    },
+    {
+      "id": "JF-TEST-LOCAL-OUTBOX-V783-UNIT",
+      "name": "Local Outbox V783 Unit",
+      "level": "source",
+      "path": "tests/local-outbox-v783-unit.cjs",
+      "command": "node tests/local-outbox-v783-unit.cjs",
+      "cwd": ".",
+      "prerequisites": ["node-24"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "data-contracts"],
+      "contracts": ["local-first", "idempotent-outbox", "scope-isolation"],
+      "expected_outputs": ["exit_code=0", "outbox commands remain durable, scoped and idempotent"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when local persistence, entity outbox or scope handling changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-REG-LEGACY-MIGRATION-UNIT",
+      "name": "REG Legacy Migration Unit",
+      "level": "source",
+      "path": "tests/reg-legacy-migration-unit.py",
+      "command": "python tests/reg-legacy-migration-unit.py",
+      "cwd": ".",
+      "prerequisites": ["python-3.12"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "data-contracts", "vps-integration"],
+      "contracts": ["legacy-database-migration", "schema-versioning", "rollback-safety"],
+      "expected_outputs": ["exit_code=0", "legacy schema fixtures migrate deterministically without data loss"],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when legacy schema detection, migrations or rollback behavior changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-REG-LEGACY-MIGRATION-INTEGRATION",
+      "name": "REG Legacy Migration Integration",
+      "level": "live",
+      "path": "tests/reg-legacy-migration-integration.py",
+      "command": "python tests/reg-legacy-migration-integration.py",
+      "cwd": ".",
+      "prerequisites": ["python-3.12", "dedicated-postgresql-fixture"],
+      "env_allowlist": ["JF_TEST_POSTGRES_ADMIN_DSN"],
+      "network_allowed": true,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": ["application", "data-contracts", "vps-integration"],
+      "contracts": ["legacy-database-migration", "migration-resume", "schema-versioning"],
+      "expected_outputs": ["exit_code=0", "interrupted legacy migrations resume to the canonical schema"],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "explicit live authorization against an isolated PostgreSQL fixture only",
+      "invalidation_rule": "invalidate when migration ordering, resume checkpoints or schema versions change",
+      "class": "live"
+    },
+    {
+      "id": "JF-TEST-ROLE-MATRIX-ALL",
+      "name": "All Role Runtime Matrix",
+      "level": "integration",
+      "path": "tests/role-matrix-all.mjs",
+      "command": "node tests/role-matrix-all.mjs",
+      "cwd": ".",
+      "prerequisites": ["node-24", "tests/node_modules"],
+      "env_allowlist": ["JF_TEST_EDITION", "JF_TEST_ROLE"],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "authorization", "ui"],
+      "contracts": ["role-matrix", "least-privilege", "workspace-mount"],
+      "expected_outputs": ["exit_code=0", "every supported role sees only its allowed actions"],
+      "timeout_ms": 600000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when roles, permissions, UI actions or workspace startup changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-ROUTE-STAGE-PAGINATION-UNIT",
+      "name": "Route Stage Pagination Unit",
+      "level": "source",
+      "path": "tests/route-stage-pagination-unit.cjs",
+      "command": "node tests/route-stage-pagination-unit.cjs",
+      "cwd": ".",
+      "prerequisites": ["node-24", "tests/node_modules"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "routes", "ui"],
+      "contracts": ["route-stage-filter", "pagination", "visible-card-count"],
+      "expected_outputs": ["exit_code=0", "filter and pagination state remain consistent"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when route filters, stage cards or pagination changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-TZ3-LIVE-DEFECTS-UNIT",
+      "name": "TZ3 Live Defects Unit",
+      "level": "source",
+      "path": "tests/tz3-live-defects-unit.cjs",
+      "command": "node tests/tz3-live-defects-unit.cjs",
+      "cwd": ".",
+      "prerequisites": ["node-24"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "desktop-runtime", "integrations"],
+      "contracts": ["tz3-regressions", "connection-controls", "diagnostics"],
+      "expected_outputs": ["exit_code=0", "recorded TZ3 live defects remain covered by deterministic regressions"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when a covered TZ3 defect path or its regression fixture changes",
+      "class": "unit"
+    },
+    {
+      "id": "JF-TEST-VERIFY-PE-ICON",
+      "name": "Verify PE Icon",
+      "level": "windows",
+      "path": "tests/verify-pe-icon.mjs",
+      "command": "node tests/verify-pe-icon.mjs <executable> <icon>",
+      "cwd": ".",
+      "prerequisites": ["node-24", "resedit", "completed-protected-payload"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": true,
+      "modules": ["desktop-runtime", "installer", "branding"],
+      "contracts": ["official-icon", "pe-resource-integrity"],
+      "expected_outputs": ["exit_code=0", "all PE icon resources equal the approved ICO bytes and metadata"],
+      "timeout_ms": 60000,
+      "artifact_paths": ["<executable>", "<icon>"],
+      "run_rule": "every protected payload and installer build",
+      "invalidation_rule": "invalidate when the executable resource writer, official logo or icon assets change",
+      "class": "windows-release"
+    },
+    {
+      "id": "JF-TEST-RUNTIME-ENTITY-ACK-VALIDATION",
+      "name": "Runtime Entity ACK Validation",
+      "level": "integration",
+      "path": "tests/runtime-smoke.mjs",
+      "command": "node tests/runtime-smoke.mjs source/application/web entity-ack-validation",
+      "cwd": ".",
+      "prerequisites": ["node-24", "tests/node_modules"],
+      "env_allowlist": ["JF_TEST_EDITION"],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["application", "data-contracts", "vps-integration"],
+      "contracts": ["entity-ack", "command-idempotency", "outbox-retry"],
+      "expected_outputs": ["exit_code=0", "partial or wrong-command acknowledgements stay pending and only an exact ACK confirms the outbox command"],
+      "timeout_ms": 180000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when entity ACK validation, batch response handling or outbox retry changes",
+      "class": "integration-isolated"
+    },
+    {
+      "id": "JF-TEST-INSTALLER-BUILDER-UNIT",
+      "name": "Installer Builder Unit",
+      "level": "source",
+      "path": "tests/installer-builder-unit.py",
+      "command": "python tests/installer-builder-unit.py",
+      "cwd": ".",
+      "prerequisites": ["python-3.12"],
+      "env_allowlist": [],
+      "network_allowed": false,
+      "executable_allowed": false,
+      "requires_explicit_live_authorization": false,
+      "modules": ["installer", "release", "ci"],
+      "contracts": ["verified-release-inputs", "atomic-output", "mandatory-post-build-gates"],
+      "expected_outputs": ["exit_code=0", "tampered inputs fail closed and installer output is published only after mandatory evidence passes"],
+      "timeout_ms": 60000,
+      "artifact_paths": [],
+      "run_rule": "every pull request and release build",
+      "invalidation_rule": "invalidate when installer input verification, build evidence, atomic publication or post-build gates change",
+      "class": "unit"
     }
   ]
 }

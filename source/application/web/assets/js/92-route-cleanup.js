@@ -14,15 +14,6 @@
   routeOperationalLinksV560=function(){return''};
   routeExecutionTimingV560=function(){return null};
 
-  doPrint=function(){
-    const area=$('printArea');if(!area)return;
-    area.style.display='block';
-    let pageStyle=document.getElementById('dynamicPrintPageStyle');
-    if(!pageStyle){pageStyle=document.createElement('style');pageStyle.id='dynamicPrintPageStyle';document.head.appendChild(pageStyle)}
-    pageStyle.textContent='@page{size:A4 landscape;margin:8mm}';
-    requestAnimationFrame(()=>setTimeout(()=>{window.print();setTimeout(()=>{area.style.display='none';area.innerHTML=''},50)},60));
-  };
-
   printRoute=function(id){
     const def=routeState().allDefs.find(d=>d.id===id),plan=def?validRoutePlan(def):null;if(!def||!plan||plan.finalized===false)return;
     const ordered=asArray(plan.orderedIds).map(oid=>def.orders.find(o=>o.id===oid)).filter(Boolean),driver=assignedDriverForRoute(def.id),rules=routeRuleMetrics(plan,ordered.length),paymentInfo=rules.paymentInfo||{total:0},returns=routeReturnsToWarehouse(),printedAt=formatDateTime(new Date().toISOString()),slot=routeLoadingSlot(def),adjusted=adjustedRouteSchedule(def,plan,slot),routeTitle=def.displayDistrict||def.district||'Рейс';

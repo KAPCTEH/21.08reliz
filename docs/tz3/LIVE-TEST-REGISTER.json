@@ -1,0 +1,2587 @@
+{
+  "schema_version": 1,
+  "tz_version": "3/2.1",
+  "cycle_id": "JF3-20260823-001",
+  "started_at": "2026-08-23T02:10:42+03:00",
+  "status": "in_progress",
+  "workspace": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821",
+  "repository": "C:\\Users\\zvd1\\Desktop\\JUSTFUN-AUDIT-WORK-20260821\\release-main",
+  "github_repository": "KAPCTEH/21.08reliz",
+  "execution_branch": "codex/tz3-execution-baseline",
+  "baseline": {
+    "branch": "main",
+    "commit": "b3a9e7c0f2892b4e3276b51ca5c0ee1760e88568",
+    "product_version": "7.8.3",
+    "working_tree_clean": true,
+    "remote_main_matches": true,
+    "repository_public": true
+  },
+  "github_evidence": {
+    "audit_run": {
+      "id": 32600392032,
+      "conclusion": "success",
+      "url": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32600392032"
+    },
+    "windows_run": {
+      "id": 32600392031,
+      "conclusion": "success",
+      "url": "https://github.com/KAPCTEH/21.08reliz/actions/runs/32600392031"
+    },
+    "artifact": {
+      "id": 9482860446,
+      "name": "justfun-windows-b3a9e7c0f2892b4e3276b51ca5c0ee1760e88568",
+      "size_bytes": 1325925788,
+      "expired": false,
+      "expires_at": "2026-09-05T21:54:11Z",
+      "digest": "sha256:c1c3ef9ca65fbaf05b687ee46bc5f1215025f4683f385ac1a485538900cc8973"
+    }
+  },
+  "steps": [
+    {
+      "step_id": "JF3-S0001",
+      "stage": 0,
+      "action": "verify canonical workspace",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0002",
+      "stage": 0,
+      "action": "record local git baseline",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0003",
+      "stage": 0,
+      "action": "compare local and remote main",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0004",
+      "stage": 0,
+      "action": "verify GitHub actions and artifact",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0005",
+      "stage": 0,
+      "action": "inspect release and update configuration",
+      "result": "PASS",
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-001"
+    },
+    {
+      "step_id": "JF3-S0006",
+      "stage": 0,
+      "action": "create execution branch",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0007",
+      "stage": 0,
+      "action": "probe selected-test runner help interface",
+      "result": "NOT APPLICABLE",
+      "note": "runner expects a plan path and has no --help command"
+    },
+    {
+      "step_id": "JF3-S0008",
+      "stage": 0,
+      "action": "inventory local runtimes",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0009",
+      "stage": 0,
+      "action": "run release, security, hygiene and static source checks",
+      "result": "PASS",
+      "checks": 78,
+      "security_files_scanned": 172,
+      "security_findings": 0
+    },
+    {
+      "step_id": "JF3-S0010",
+      "stage": 0,
+      "action": "run updater source tests",
+      "result": "PASS",
+      "checks": 180
+    },
+    {
+      "step_id": "JF3-S0011",
+      "stage": 0,
+      "action": "run release, visual and business regressions",
+      "result": "PASS",
+      "deep_business_checks": 69,
+      "deep_business_failures": 0
+    },
+    {
+      "step_id": "JF3-S0012",
+      "stage": 0,
+      "action": "map current address search implementation",
+      "result": "PASS",
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-002"
+    },
+    {
+      "step_id": "JF3-S0013",
+      "stage": 0,
+      "action": "complete baseline stage",
+      "result": "PASS"
+    },
+    {
+      "step_id": "JF3-S0014",
+      "stage": 0,
+      "action": "create GitHub issues for confirmed release blockers",
+      "result": "PASS",
+      "issues": [
+        "https://github.com/KAPCTEH/21.08reliz/issues/23",
+        "https://github.com/KAPCTEH/21.08reliz/issues/24"
+      ]
+    },
+    {
+      "step_id": "JF3-S0015",
+      "stage": 1,
+      "action": "implement and isolate-test first address intelligence increment",
+      "result": "PASS",
+      "commit": "4ba860a25cceb2cef4a43c85ea25a0fc9cd030b3",
+      "implemented": [
+        "russian address normalization",
+        "fuzzy candidate ranking",
+        "house and plot matching",
+        "preferred-region bias",
+        "deduplication",
+        "Top-3 results",
+        "debounced suggestions",
+        "confidence warnings"
+      ],
+      "tests": {
+        "address_intelligence": "PASS",
+        "release_contract_count": 79,
+        "runtime_scripts": 24,
+        "runtime_errors": 0,
+        "security_findings": 0
+      },
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-002",
+      "limitations": [
+        "no configured live address provider",
+        "no golden corpus metrics",
+        "no live installed-app acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0016",
+      "stage": 1,
+      "action": "replace planned GAR/FIAS import with remote on-demand address provider",
+      "owner_decision": "do not add the address database; learn to find addresses on demand",
+      "result": "PASS",
+      "commit": "ad4136d",
+      "implemented": [
+        "no GAR/FIAS archive or persistent address database",
+        "scoped versioned VPS address-search contract",
+        "DaData Suggestions adapter with FIAS identifiers and coordinates",
+        "explicit-only Nominatim fallback",
+        "public Nominatim autocomplete policy guard",
+        "transient bounded memory cache",
+        "provider key preserved by VPS reinstall without logging"
+      ],
+      "tests": {
+        "reg_address_provider": "9/9 PASS",
+        "desktop_main": "PASS",
+        "address_intelligence": "PASS",
+        "reg_map_proxy": "5/5 PASS",
+        "installer_source": "20/20 PASS",
+        "release_contract_count": 80,
+        "runtime_smoke": "24/24 scripts, 349 buttons, 0 runtime errors",
+        "security_audit": "173 files, 0 findings",
+        "source_hygiene": "286 tracked files",
+        "workflow_regressions": "PASS"
+      },
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-002",
+      "limitations": [
+        "real DaData key not configured",
+        "production VPS not checked",
+        "golden corpus metrics not run",
+        "installed Windows UI not checked"
+      ]
+    },
+    {
+      "step_id": "JF3-S0017",
+      "stage": 1,
+      "action": "harden provider response validation and rerun impacted source gates",
+      "result": "PASS",
+      "commit": "ad4136d",
+      "finding": "jsdom did not expose the standard Electron Chromium structuredClone API",
+      "resolution": "runtime harness now supplies the Chromium API; production code was not weakened",
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-002",
+      "limitations": [
+        "real provider API not exercised",
+        "production VPS not checked",
+        "installed Windows UI not checked"
+      ]
+    },
+    {
+      "step_id": "JF3-S0018",
+      "stage": 1,
+      "action": "verify update trust, live catalog service and GitHub Release download path",
+      "result": "PARTIAL PASS",
+      "commit": "bdce184",
+      "github_issue": "https://github.com/KAPCTEH/21.08reliz/issues/25",
+      "confirmed": [
+        "no original Ed25519 signing key in the allowed workspace or matching environment variables",
+        "staging Worker health HTTP 200 version 1.0.0",
+        "production Worker health HTTP 200 version 1.0.0",
+        "staging and stable catalogs return CATALOG_NOT_PUBLISHED",
+        "policy contains the verified catalog endpoints and exact host allowlists",
+        "GitHub Release redirect is accepted only through allowlisted HTTPS hosts",
+        "payload size and SHA-256 verification remain mandatory"
+      ],
+      "tests": {
+        "update_core": 44,
+        "update_downloader": 19,
+        "update_controller": 48,
+        "update_ui": 58,
+        "update_helper_runner": 16,
+        "catalog_worker": 23,
+        "catalog_operations": 15,
+        "total": 223,
+        "release_contract": 80,
+        "security_findings": 0
+      },
+      "release_effect": "BLOCKED",
+      "blocker": "JF3-BLOCKER-001",
+      "limitations": [
+        "original update signing key is absent",
+        "trust store is empty",
+        "updater remains disabled",
+        "no signed staging catalog or live Windows update"
+      ]
+    },
+    {
+      "step_id": "JF3-S0019",
+      "stage": 2,
+      "action": "implement durable end-to-end warehouse deletion lifecycle",
+      "result": "SOURCE PASS",
+      "commit": "d55ab31e1fec5da6d54c1d5d7d9d7bdb2ab25d6b",
+      "implemented": [
+        "durable prepare and lease contract",
+        "archive-before-delete and atomic LIVE/DEMO tombstones",
+        "business history payload redaction",
+        "HMAC-attested central Telegram deprovision",
+        "secret-free PostgreSQL release outbox",
+        "actor and session scoped desktop recovery journal"
+      ],
+      "tests": {
+        "local_pr_runnable": "64/64 PASS",
+        "postgres_local": "22 discovered, skipped because no DSN"
+      },
+      "limitations": [
+        "production services not deployed",
+        "installed application not tested",
+        "multi-PC acceptance not run"
+      ]
+    },
+    {
+      "step_id": "JF3-S0020",
+      "stage": 2,
+      "action": "run first mandatory PostgreSQL CI and record tombstone failure",
+      "result": "FAIL FOUND AND FIXED",
+      "commit": "d55ab31e1fec5da6d54c1d5d7d9d7bdb2ab25d6b",
+      "audit_run": 32624425249,
+      "tests": {
+        "safe_passed": 63,
+        "safe_failed": 1,
+        "postgres_discovered": 22
+      },
+      "finding": "payload=null tombstone was misclassified as an immutable identity mutation before final lease validation",
+      "cancelled_stale_windows_run": 32624425321,
+      "release_effect": "BLOCKED"
+    },
+    {
+      "step_id": "JF3-S0021",
+      "stage": 2,
+      "action": "fix tombstone validation and rerun PostgreSQL gate",
+      "result": "PASS",
+      "commit": "c45eb07242e59fa3df95724bb283ec6d90ad07ae",
+      "audit_run": 32624837813,
+      "windows_run": {
+        "id": 32624837780,
+        "status": "completed",
+        "conclusion": "success"
+      },
+      "tests": {
+        "revision": "35/35 PASS",
+        "ci_pr_runnable": "64/64 PASS",
+        "postgresql_16": "22/22 PASS without skip"
+      },
+      "confirmed": [
+        "atomic LIVE/DEMO deletion",
+        "full rollback when lease validation fails before commit",
+        "prepared delete survives Telegram deprovision failure",
+        "RLS company and warehouse isolation",
+        "release outbox retries after temporary network failure"
+      ],
+      "release_effect": "BLOCKED"
+    },
+    {
+      "step_id": "JF3-S0022",
+      "stage": 2,
+      "action": "regenerate complete source UI inventory",
+      "result": "SOURCE INVENTORY PASS",
+      "commit": "c45eb07242e59fa3df95724bb283ec6d90ad07ae",
+      "full": {
+        "buttons": 302,
+        "controls": 695,
+        "safe_candidates": 88,
+        "destructive_or_expensive": 41,
+        "sha256": "0a87218d3c06fcce79fee8564b9855fe12b40868ff5cdd4d429f1ae19f7affed"
+      },
+      "demo": {
+        "buttons": 349,
+        "controls": 776,
+        "safe_candidates": 90,
+        "destructive_or_expensive": 41,
+        "sha256": "a367c6a19da6307f3ea2fd54c32fba79fc416b5f16a060d01f2bb6039db60387"
+      },
+      "limitations": [
+        "source inventory does not prove clicks or business outcomes",
+        "installed EXE visual acceptance not run"
+      ]
+    },
+    {
+      "step_id": "JF3-S0023",
+      "stage": 2,
+      "action": "remove duplicate audit execution for pull request branches",
+      "result": "PASS",
+      "cancelled_duplicate_run": 32624835080,
+      "retained_successful_run": 32624837813,
+      "audit_ledger_commit": "1f4f52f41536886293d2488ba772f6e7e1f66c95",
+      "test_catalog_count": 82
+    },
+    {
+      "step_id": "JF3-S0024",
+      "stage": 2,
+      "action": "complete Windows native release gate for current product source",
+      "result": "CI PASS",
+      "product_source_commit": "c45eb07242e59fa3df95724bb283ec6d90ad07ae",
+      "windows_run": 32624837780,
+      "confirmed": [
+        "Update Helper build and self-test",
+        "protected Electron payload",
+        "Recovery, update payload and premium Setup",
+        "installer screen rendering",
+        "hidden application visual acceptance",
+        "interrupted update recovery",
+        "isolated full installer acceptance",
+        "shortcut, icon and destructive-operation refusals",
+        "SBOM and release evidence"
+      ],
+      "artifact": {
+        "id": 9489539095,
+        "name": "justfun-windows-7105a7e48987ba4926730a3d7841c2f4dcf8b180",
+        "size_bytes": 1326877942,
+        "digest": "sha256:522522e4dbcd5b67e6b3813513b3274d2ea172814a8ca336e16d9aec7ad76d71"
+      },
+      "attestation": "skipped for pull request",
+      "limitations": [
+        "artifact not installed on the user's physical PC",
+        "production services not deployed",
+        "multi-PC and live business acceptance not run"
+      ]
+    },
+    {
+      "step_id": "JF3-S0025",
+      "stage": 3,
+      "action": "build and download the current pull-request Windows release candidate",
+      "result": "PASS",
+      "branch_head": "965908883996c124c18ce37fe8ff7f4439568128",
+      "audit_run": 32625667383,
+      "windows_run": 32625667386,
+      "build_merge_sha": "ac822fd4e6653496bee58fccc0750be4706d5282",
+      "artifact": {
+        "id": 9489746908,
+        "name": "justfun-windows-ac822fd4e6653496bee58fccc0750be4706d5282",
+        "size_bytes": 1327268715,
+        "digest": "sha256:b21f5e4941fa3f36e5bf9209ba353dd0aac614b7383296faf336bb0fcab79345"
+      }
+    },
+    {
+      "step_id": "JF3-S0026",
+      "stage": 3,
+      "action": "verify physical-PC installation and installed executable provenance",
+      "result": "PASS",
+      "version": "7.8.3",
+      "edition": "full",
+      "installed_exe_sha256": "c7e943e9b100cbb98f1df9565a851e46904a4bc5df10704c902f6c7034e3f163",
+      "manifest_match": true,
+      "electron_processes": 4,
+      "responding_processes": 4
+    },
+    {
+      "step_id": "JF3-S0027",
+      "stage": 3,
+      "action": "verify owner registration, authorization and current-session logs",
+      "result": "PASS",
+      "confirmed": [
+        "old protected auth state was rejected and self-recovered",
+        "new owner registration succeeded",
+        "next boot authorized=true",
+        "release integrity and runtime hardening passed",
+        "no credentials or API secrets found in current-session log lines"
+      ],
+      "pending": [
+        "VPS configuration",
+        "Telegram configuration"
+      ]
+    },
+    {
+      "step_id": "JF3-S0028",
+      "stage": 3,
+      "action": "start installed-app owner UI acceptance",
+      "result": "PARTIAL PASS",
+      "confirmed": [
+        "settings screen renders owner and active warehouse",
+        "VPS is visibly not configured",
+        "orders screen is empty for the new company and warehouse",
+        "create-order, pickup and filter controls are visible",
+        "all Electron processes remained responsive after test-harness timeout",
+        "desktop log received no new application error"
+      ],
+      "interruption": "Windows UI control helper timed out while capturing and reactivating the next screen",
+      "product_defect_confirmed": false
+    },
+    {
+      "step_id": "JF3-S0029",
+      "stage": 3,
+      "action": "verify local company and warehouse scope isolation without reading secrets",
+      "result": "LOCAL PASS / SERVER UNKNOWN",
+      "safe_counts": {
+        "company_scopes": 1,
+        "warehouse_scopes": 1,
+        "live_key_signatures": 4,
+        "system_key_signatures": 1,
+        "entity_count": "UNKNOWN"
+      },
+      "confirmed": [
+        "no prior-company key found in the new desktop profile",
+        "legacy AppData integration metadata is stored under other company and warehouse scopes",
+        "native-secrets.json was not opened"
+      ],
+      "limitations": [
+        "LevelDB values were not disclosed",
+        "server cross-company isolation requires a second account and device"
+      ]
+    },
+    {
+      "step_id": "JF3-S0030",
+      "stage": 3,
+      "action": "prevent Windows rebuilds for pull-request changes limited to TZ3 documentation",
+      "result": "PASS",
+      "evidence_commit": "61174ef73c4f989b9b4c12db9d0bfa7302e580bb",
+      "audit_run": {
+        "id": 32629199929,
+        "conclusion": "success"
+      },
+      "cancelled_windows_run": 32629199936,
+      "workflow_change": "pull_request paths-ignore docs/tz3/**",
+      "tests": {
+        "release_contract": "82 PASS",
+        "release_regression": "PASS",
+        "installer_source": "20/20 PASS",
+        "security_scan": "20 files, 0 findings"
+      },
+      "preserved": [
+        "workflow_dispatch",
+        "push main release gate",
+        "pull-request gate when any non-docs/tz3 path changes"
+      ]
+    },
+    {
+      "step_id": "JF3-S0031",
+      "stage": 3,
+      "action": "restore full pull-request Windows gate after owner removed verification budget limits",
+      "result": "PASS",
+      "owner_decision": "do not economize verification limits; TZ3 live acceptance is the primary stage",
+      "workflow_change": "remove pull_request paths-ignore docs/tz3/**",
+      "tests": {
+        "release_contract": "82 PASS",
+        "release_regression": "PASS",
+        "installer_source": "20/20 PASS",
+        "security_scan": "20 files, 0 findings"
+      }
+    },
+    {
+      "step_id": "JF3-S0032",
+      "stage": 3,
+      "action": "resume installed-app owner UI acceptance",
+      "result": "PARTIAL PASS",
+      "confirmed": [
+        "exactly one installed JustFun 7.8.3 window was targetable",
+        "orders view contains zero records for the new warehouse",
+        "trips view contains zero trips and exposes planning and diagnostic controls",
+        "no business data was changed",
+        "all four Electron processes remained responsive",
+        "desktop log did not grow"
+      ],
+      "log_baseline": {
+        "offset_bytes": 729150,
+        "line": 5598,
+        "last_record_utc": "2026-08-23T08:13:00.101Z"
+      },
+      "scenario_document": "docs/tz3/LIVE-ACCEPTANCE-SCENARIOS.md",
+      "interruption": "window capture timed out after attempting to open Products and again during recovery",
+      "product_defect_confirmed": false
+    },
+    {
+      "step_id": "JF3-S0033",
+      "stage": 3,
+      "action": "install the current full Windows 7.8.3 release candidate on the physical PC",
+      "result": "INSTALL PASS / FIRST LAUNCH PENDING CONFIRMATION",
+      "ci": {
+        "audit_run": 32631434485,
+        "windows_run": 32631434527,
+        "artifact_id": 9491281647,
+        "artifact_digest": "sha256:5a2bcbf1f6b852292998669e0871b1025a07d21e30c8ce81ff5db2ee39e99d40"
+      },
+      "backup": {
+        "path": "C:/Users/zvd1/Desktop/JUSTFUN-AUDIT-WORK-20260821/release-candidates/preinstall-backups/20260823-7.8.3-current",
+        "primary_files": "17/17 hash match",
+        "profile_files": "1/1 hash match",
+        "secret_values_read": false
+      },
+      "installer": {
+        "file": "Orders-Logistics-Setup-7.8.3-Premium.exe",
+        "sha256": "9faa6c163e70377a2bd0ca2c5211e994fc55e798dd71a61ed902d0cefbb3aa1b",
+        "log_result": "SUCCESS"
+      },
+      "installed": {
+        "version": "7.8.3",
+        "mode": "full",
+        "exe_sha256": "d0f2dbed32d57d82dfe2f86347f0c06fbbe32d0045d04599f46ca73e93da3783",
+        "manifest_hash_match": true,
+        "desktop_shortcut": true,
+        "start_menu_shortcut": true
+      },
+      "pending": [
+        "first launch of the newly installed current build",
+        "owner authorization recheck",
+        "resume full live acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0034",
+      "stage": 3,
+      "action": "first launch of the current installed build and owner-session restoration check",
+      "result": "STARTUP PASS / AUTH PERSISTENCE FAIL / RELOGIN PASS",
+      "confirmed": [
+        "exactly one JustFun Logistics 7.8.3 window opened",
+        "runtime hardening reported no errors",
+        "protected ASAR integrity passed",
+        "renderer reached the cloud-auth surface",
+        "previously authorized owner session was rejected after reinstall",
+        "normal existing-company login form opened",
+        "owner entered company code, login and password personally",
+        "existing-company authorization succeeded and workspace opened",
+        "no new-company activation was attempted",
+        "native-secrets values were not read"
+      ],
+      "application_archive_sha256": "DAC8D24BDA2357F7332D9E1053DE2120B0BE9BFE1D2AB8CE762D92240B6441DA",
+      "auth_rejection": {
+        "log_code": "cloud auth state rejected",
+        "message": "Защищённый локальный ключ повреждён или создан другим пользователем Windows.",
+        "authorized": false,
+        "defect": "JF3-DEFECT-002"
+      },
+      "safe_metadata_only": {
+        "native_secrets_backup_bytes": 3512,
+        "native_secrets_current_bytes": 1256,
+        "hashes_differ": true,
+        "values_opened": false
+      },
+      "pending": [
+        "continue live business-flow acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0035",
+      "stage": 3,
+      "action": "existing-company context isolation and safe visual traversal of the installed application",
+      "result": "PASS WITH OPEN DEFECTS / BUSINESS FLOWS CONTINUE",
+      "confirmed": [
+        "owner workspace is open after successful relogin",
+        "only one active warehouse is listed",
+        "only the owner and one current connected computer are listed",
+        "orders count is 0",
+        "drivers count is 0",
+        "trips count is 0",
+        "built-in catalog has 62 products with 0 tracked inventory and 0 stock value",
+        "orders, products, drivers, trips, reports, route settings, and program settings opened without destructive actions",
+        "instruction modal scroll, Escape close, and focus return passed",
+        "update center reports installed 7.8.3 and not connected; update actions are disabled",
+        "REG.RU reports not configured and the VPS IP field is empty",
+        "Telegram and Cloudflare report restore required; bot and warehouse group are not connected",
+        "default Nominatim, OSRM, and map tile endpoints are present",
+        "program-settings tab changes the shared product header and violates visual consistency"
+      ],
+      "open_defects": [
+        "JF3-DEFECT-002",
+        "JF3-DEFECT-003"
+      ],
+      "pending": [
+        "create four synthetic orders and exercise address search",
+        "create drivers and exercise route and status lifecycle",
+        "verify reports and delete/archive lifecycle",
+        "configure and verify VPS with owner-entered credentials",
+        "restore Telegram and Cloudflare with owner-entered credentials",
+        "verify second warehouse, second user, and second device isolation"
+      ]
+    },
+    {
+      "step_id": "JF3-S0036",
+      "stage": 3,
+      "action": "record continuous discovery-first live-test policy before batch repair",
+      "result": "TEST POLICY RECORDED / DISCOVERY CONTINUES",
+      "rules": [
+        "do not interrupt the first full live pass to repair each individual product defect",
+        "record functional, code, log, design, layout, scroll, and consistency findings with evidence",
+        "continue every independent scenario after a finding",
+        "mark only the actually unavailable path as blocked",
+        "record successful steps and the complete observed cycle as well as defects",
+        "group confirmed root causes and repair them in one controlled batch after discovery",
+        "install one controlled replacement build and run complete live regression"
+      ],
+      "exception": "an emergency product fix requires a separate owner decision and is allowed only when the application cannot be safely started and no independent scenario remains testable"
+    },
+    {
+      "step_id": "JF3-S0037",
+      "stage": 3,
+      "action": "consolidate the complete project history into the authoritative TZ3 commercial-release specification",
+      "result": "SPECIFICATION RECORDED / RELEASE REMAINS NO-GO",
+      "document": "docs/tz3/TZ3-COMPLETE-RELEASE-SPEC.md",
+      "confirmed": [
+        "38 requirement sections are consolidated in one specification",
+        "eight measurable GO/NO-GO gates are defined",
+        "the discovery-first then batch-repair then full-regression sequence is mandatory",
+        "Windows publisher certificate is not a release gate by owner decision",
+        "cryptographic signing of automatic updates remains mandatory",
+        "Yandex Maps comparison and local address archives are excluded",
+        "the proposed shared Telegram bot architecture is excluded and the current integration remains in scope",
+        "no product source or infrastructure was changed by this specification step"
+      ]
+    },
+    {
+      "step_id": "JF3-S0038",
+      "stage": 3,
+      "action": "record unattended end-to-end acceptance and supported database migration matrix",
+      "result": "SPECIFICATION RECORDED / NOT EXECUTED / RELEASE REMAINS NO-GO",
+      "document": "docs/tz3/UNATTENDED-E2E-AND-DATABASE-MIGRATION-SPEC.md",
+      "credential_handling": {
+        "test_bundle_supplied_locally": true,
+        "secret_values_copied_to_documents_or_register": false,
+        "required_runtime_handling": "protected aliases in Windows or isolated CI secret storage"
+      },
+      "scope": [
+        "scoped localStorage and IndexedDB",
+        "protected desktop state",
+        "VPS PostgreSQL V3",
+        "license server schema and migrations",
+        "company Telegram broker D1",
+        "Telegram Worker legacy, v2 and deprovision D1 schemas",
+        "Cloudflare KV update catalog format"
+      ],
+      "acceptance": [
+        "full run completes unattended after one-time secure preparation",
+        "100% of declared supported historical schema paths reach current schema",
+        "zero lost, duplicated, orphaned or cross-scope records",
+        "partial, repeated, interrupted, concurrent and large-data migrations pass",
+        "backup is restored and reread by the application",
+        "unknown or corrupt schemas stop without modifying source data",
+        "incompatible old clients cannot write"
+      ],
+      "limitations": [
+        "unattended runner is not yet implemented or executed",
+        "historical migration matrix is not yet proven",
+        "no product source, database or external infrastructure was changed in this step"
+      ]
+    },
+    {
+      "step_id": "JF3-S0039",
+      "stage": 3,
+      "action": "complete the first discovery pass of the installed JustFun 7.8.3 application and correlate UI, logs, source, packaging, and local backup evidence",
+      "result": "DISCOVERY PASS WITH 5 OPEN BLOCKERS / RELEASE REMAINS NO-GO",
+      "live_scope": {
+        "demo_dataset": {
+          "orders": 70,
+          "products": 62,
+          "drivers": 18,
+          "working_trips": 17
+        },
+        "passed": [
+          "order search, status filter, pagination and detail card",
+          "exact Saint Petersburg address search and administrative parsing",
+          "product search and product detail",
+          "inventory movement form and live preview before save",
+          "driver and aggregator cards",
+          "weekly report recalculation for 2026-08-17 through 2026-08-23",
+          "route card, map, stop sequence, driver and lifecycle presentation",
+          "route, program, company, warehouse, backup, integration and OSM settings traversal",
+          "backup export, safety backup, restore and semantic reread",
+          "built-in database diagnostics 17 of 17 with zero warnings and zero critical errors",
+          "QA JSON export"
+        ],
+        "failed_or_blocked": [
+          "demo order save requires a working VPS",
+          "demo inventory movement save requires a working VPS",
+          "demo exposes live user invitation and live warehouse creation actions",
+          "address query with a simple typo was not found",
+          "route lifecycle filter is overwritten by pagination",
+          "VPS installer shell script fails with CRLF line endings",
+          "Telegram Bot API verification timed out",
+          "signed live update catalog is not configured"
+        ]
+      },
+      "log_evidence": [
+        "protected ASAR integrity and runtime hardening passed",
+        "Telegram company profile is missing or damaged and bindings are not configured",
+        "Telegram bot verification timed out at 149.154.166.110:443",
+        "public Nominatim fallback was used because the managed provider was not configured",
+        "all backup and QA downloads completed",
+        "one OpenStreetMap tile request reported net::ERR_FAILED with HTTP 200",
+        "no new application crash or renderer-fatal event was recorded"
+      ],
+      "new_findings": [
+        "JF3-BLOCKER-004",
+        "JF3-BLOCKER-005",
+        "JF3-DEFECT-004",
+        "JF3-DEFECT-005"
+      ],
+      "safety": {
+        "real_business_data_changed": false,
+        "warehouse_creation_submitted": false,
+        "user_invitation_submitted": false,
+        "ssh_fingerprint_bypass_used": false,
+        "secret_values_copied_to_register": false
+      },
+      "pending": [
+        "batch repair confirmed root causes",
+        "build and install one controlled replacement build",
+        "repeat complete live business regression",
+        "verify VPS, Telegram, second warehouse, second user, second PC, updater and database migration matrix"
+      ]
+    },
+    {
+      "step_id": "JF3-S0040",
+      "stage": 4,
+      "action": "implement and verify the first consolidated source repair batch after the installed-application discovery pass",
+      "result": "SOURCE FIX BATCH PASS / WINDOWS REBUILD AND LIVE RETEST REQUIRED / RELEASE REMAINS NO-GO",
+      "commit": "afb1821",
+      "branch": "codex/tz3-execution-baseline",
+      "repairs": [
+        "normalize the VPS install shell payload to UTF-8 LF and remove BOM before SFTP upload",
+        "preserve encrypted cloud authorization during temporary Windows secure-storage or decrypt failures",
+        "separate the active training data environment from the licensed edition",
+        "keep ordinary DEMO mutations local and disable real users, warehouses, VPS and Telegram administration",
+        "combine route lifecycle filtering with pagination",
+        "apply one active branding source across tabs",
+        "remove the JavaScript Error prefix from driver Telegram messages"
+      ],
+      "automated_evidence": {
+        "demo_deep_business": "69/69 PASS, runtime errors 0, cloud sync uploads 0",
+        "demo_bridge_calls": [
+          "local backup download only"
+        ],
+        "full_atomic_mutation": "PASS: confirmed delete submitted; rejected delete rolled back locally",
+        "route_stage_pagination": "PASS: 11 filtered routes across two pages; three-route filter resets to page one",
+        "focused_suites": [
+          "main unit",
+          "REG.RU native SSH unit",
+          "current-cycle regression",
+          "entity/bootstrap reconciliation",
+          "release regression",
+          "REG entity source contract",
+          "source hygiene",
+          "experience regression",
+          "visual QA contract",
+          "security regression"
+        ]
+      },
+      "pending": [
+        "build and inspect the protected Windows package and app.asar",
+        "install the replacement build on the physical PC",
+        "repeat the affected live UI and log paths",
+        "verify VPS provisioning, TLS, schema V3, backup, restore and idempotent reinstall",
+        "continue the remaining TZ3 blockers and acceptance matrix"
+      ]
+    },
+    {
+      "step_id": "JF3-S0041",
+      "stage": 4,
+      "action": "repair the confirmed priority-region address typo without adding a local address archive",
+      "result": "KNOWN TYPO SOURCE PASS / ADDRESS BLOCKER REMAINS OPEN",
+      "commit": "8cf881a",
+      "input": "санкт петербуг невский 28",
+      "normalized_query": "санкт петербург невский 28",
+      "evidence": [
+        "address intelligence unit passed",
+        "main unit passed",
+        "release regression passed",
+        "security regression passed",
+        "source hygiene passed",
+        "the real public Nominatim contract returned three results and ranked Дом Зингера, 28, Невский проспект, Санкт-Петербург first"
+      ],
+      "safety": {
+        "local_address_database_added": false,
+        "automatic_public_autocomplete_enabled": false,
+        "maximum_returned_candidates_unchanged": 3
+      },
+      "pending": [
+        "rebuild and repeat the same query in the installed application",
+        "configure and prove the production address provider",
+        "run the approved large reference corpus and priority-region acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0042",
+      "stage": 4,
+      "action": "implement a durable local-first entity outbox while keeping critical shared-state transitions fail-closed",
+      "result": "SOURCE PASS / REBUILD AND LIVE CONNECTIVITY MATRIX REQUIRED",
+      "commit": "d512f89",
+      "evidence": [
+        "local outbox unit passed: restart recovery, stable command id, scope isolation, corruption fail-closed and conflict overlay",
+        "full local-first retry runtime passed: local deletion persisted, survived restart and bootstrap, then retried with the same command id and was confirmed",
+        "full offline runtime passed: ordinary deletion persisted while critical workspace clearing remained blocked and preserved data",
+        "demo deep-business runtime passed 69 of 69 with 25 of 25 scripts, zero runtime errors and zero cloud sync uploads",
+        "13 regression tests and the isolated Windows main unit passed"
+      ],
+      "safety": {
+        "ordinary_changes_local_first": true,
+        "critical_transitions_fail_closed": true,
+        "server_bootstrap_preserves_durable_local_intent": true,
+        "corrupt_outbox_overwrite_forbidden": true,
+        "installed_application_replaced": true
+      },
+      "pending": [
+        "repeat the local-only, reconnect, conflict, second-PC and log acceptance matrix",
+        "prove production VPS schema, backup, restore and legacy migration paths"
+      ]
+    },
+    {
+      "step_id": "JF3-S0043",
+      "stage": 5,
+      "action": "build, accept and install the protected Windows replacement, then perform its first live startup",
+      "result": "BUILD AND INSTALL PASS / LIVE STARTUP FAIL / RELEASE NO-GO",
+      "commit": "bfdf126",
+      "evidence": [
+        "release contract 82 of 82 and security scan 181 files with zero findings passed",
+        "full runtime, demo 69 of 69, visual, release and installer source checks passed",
+        "full installer acceptance passed after the running application was closed normally",
+        "installed EXE and ASAR hashes matched the protected build manifest",
+        "startup verified ASAR integrity, runtime hardening and an authorized owner session",
+        "renderer context was rejected because a persisted demo environment was submitted to the live desktop core"
+      ],
+      "artifacts": {
+        "installer_sha256": "782fd1c7811edaeb37c74e65233ac4d177a13910e363408f9626c60e3e11422b",
+        "payload_exe_sha256": "5bc573edc67c35128e1a5c8301a0d2fd27a041fd1e2ccd8107d4d6e256f72f49",
+        "asar_sha256": "ae1c80a8a9962826df392a9622c8941bf96af38f73b79668eca677362a5d59c6",
+        "owner_archive_sha256": "73138f275f6b17054c73f1033fad56d3b1818cf4bc113594264a043d08333025"
+      },
+      "defects": [
+        "JF3-DEFECT-006"
+      ]
+    },
+    {
+      "step_id": "JF3-S0044",
+      "stage": 5,
+      "action": "repair and regress the persisted training-environment startup failure",
+      "result": "SOURCE PASS / PROTECTED REBUILD AND LIVE RETEST REQUIRED",
+      "commit": "dc5e9c2",
+      "evidence": [
+        "training startup performs zero live desktop-core warehouse confirmations",
+        "live startup still performs exactly one warehouse confirmation with environment live",
+        "experience, current-cycle, source hygiene, static audit, main unit, entity bootstrap, REG entity, release and security checks passed"
+      ],
+      "pending": [
+        "rebuild and install the protected package",
+        "repeat startup with persisted demo state",
+        "switch back to live and continue the local-first, VPS, Telegram, multi-PC and migration acceptance matrices"
+      ]
+    },
+    {
+      "step_id": "JF3-S0045",
+      "stage": 5,
+      "action": "build, install and live-retest the protected persisted-demo startup repair",
+      "result": "BUILD INSTALL STARTUP AND DEMO-LIVE RETEST PASS",
+      "commit": "8d73d83",
+      "artifacts": {
+        "installer_sha256": "D0D9B788C8CA282CBF1808F382AB309B2D07A973FD94588EDE1C51F14D168695",
+        "installed_exe_sha256": "2BCF7DAE215FD386EE9558F3A422DBCF40B0D15E551DB47D8A149D2C77285CD2",
+        "installed_asar_sha256": "293F161174CDEC19E28160385EF04239570C978D5B04ED2DCA8CADB6F90010EC"
+      },
+      "closed_defects": [
+        "JF3-DEFECT-006"
+      ]
+    },
+    {
+      "step_id": "JF3-S0046",
+      "stage": 6,
+      "action": "create and persist four local orders without a configured VPS",
+      "result": "LOCAL-FIRST ORDERS PASS / CRITICAL STATUS TRANSITIONS FAIL",
+      "evidence": [
+        "four orders persisted across restart",
+        "Saint Petersburg typo returned three candidates",
+        "real SNT returned one candidate and invented SNT returned none",
+        "village short form returned two candidates while the long form failed",
+        "pickup payment persisted"
+      ],
+      "defects": [
+        "JF3-DEFECT-007",
+        "JF3-DEFECT-008"
+      ]
+    },
+    {
+      "step_id": "JF3-S0047",
+      "stage": 6,
+      "action": "exercise drivers, route optimization, route calculation and management reporting",
+      "result": "CORE CALCULATION AND EXPORT PASS WITH OPEN LIFECYCLE AND UX DEFECTS",
+      "evidence": [
+        "three drivers persisted and Boris body length persisted at four metres",
+        "two Leningrad-region deliveries merged into one 182 km route",
+        "Boris was assigned automatically and capacity passed",
+        "CSV report was exported and read from disk"
+      ],
+      "defects": [
+        "JF3-DEFECT-008",
+        "JF3-DEFECT-009",
+        "JF3-DEFECT-010",
+        "JF3-DEFECT-020"
+      ]
+    },
+    {
+      "step_id": "JF3-S0048",
+      "stage": 6,
+      "action": "exercise stock movements, backup, restore, database diagnostics and invitation creation",
+      "result": "INVENTORY BACKUP RESTORE AND RESTART PASS / SECOND USER LOGIN PENDING",
+      "evidence": [
+        "test SKU TZ3-STOCK-001 received ten and issued two, leaving eight",
+        "inventory value persisted at 800 rubles",
+        "database diagnostics passed 17 of 17",
+        "manual backup and automatic safety backup were written",
+        "restore completed and business data survived restart",
+        "one-time restricted invitation was created"
+      ],
+      "defects": [
+        "JF3-DEFECT-011",
+        "JF3-DEFECT-017"
+      ]
+    },
+    {
+      "step_id": "JF3-S0049",
+      "stage": 6,
+      "action": "exercise second warehouse, updater, VPS, Telegram and map service settings",
+      "result": "SECOND WAREHOUSE AND UPDATER FAIL / EXTERNAL CREDENTIAL TESTS PENDING",
+      "evidence": [
+        "warehouse address search failed with a corrupt request identifier",
+        "local second warehouse creation was rejected and coupled to Telegram setup",
+        "updater actions are disabled and no catalog is connected",
+        "VPS is unconfigured but one action displayed a false green server-read message",
+        "Telegram unconfigured paths returned explicit errors and recovered button state",
+        "standard Nominatim OSRM and OSM tile endpoints were retained"
+      ],
+      "defects": [
+        "JF3-DEFECT-012",
+        "JF3-DEFECT-013",
+        "JF3-DEFECT-014",
+        "JF3-BLOCKER-001"
+      ]
+    },
+    {
+      "step_id": "JF3-S0050",
+      "stage": 6,
+      "action": "exercise route settings and verify all current local data after a controlled restart",
+      "result": "RESTART PERSISTENCE PASS / ROUTE SETTINGS PARTIAL PASS / RELEASE NO-GO",
+      "evidence": [
+        "all five route settings accordions and help modal rendered",
+        "three no-op saves increased the outbox from five to eight",
+        "four orders, three drivers, 32.40 cubic metres and stock eight persisted",
+        "comfortable density and local behavior preferences persisted",
+        "current startup log verified protected integrity and live warehouse context"
+      ],
+      "defects": [
+        "JF3-DEFECT-012",
+        "JF3-DEFECT-015",
+        "JF3-DEFECT-016",
+        "JF3-DEFECT-017",
+        "JF3-DEFECT-018",
+        "JF3-DEFECT-019"
+      ],
+      "pending": [
+        "repair the consolidated live defect batch and rebuild",
+        "repeat all affected live paths",
+        "connect and accept production VPS PostgreSQL V3, server backup and restore",
+        "connect and accept Telegram with owner credentials",
+        "complete second-user, second-profile and second-PC synchronization",
+        "execute old database migration and mixed-client matrices",
+        "connect and live-test the signed updater catalog"
+      ]
+    },
+    {
+      "step_id": "JF3-S0051",
+      "stage": 6,
+      "action": "create edit delete and restart disposable local product and driver records",
+      "result": "LOCAL CREATE EDIT DELETE AND RESTART PASS",
+      "evidence": [
+        "disposable product create edit and delete completed",
+        "disposable driver create and delete completed",
+        "both deleted records remained absent after restart",
+        "four orders three real drivers and stock eight remained unchanged",
+        "thirteen local outbox operations survived restart"
+      ],
+      "pending": [
+        "repeat deletion after VPS connection and from a second PC"
+      ]
+    },
+    {
+      "step_id": "JF3-S0052",
+      "stage": 7,
+      "action": "repair the first consolidated local live defect batch",
+      "result": "SOURCE FIX AND AUTOMATED RETEST PASS / PROTECTED BUILD AND LIVE RETEST REQUIRED",
+      "evidence": [
+        "warehouse address search now generates a valid request identifier",
+        "route picking preparation and pickup ready are durable local commands",
+        "autonomous local warehouse creation edit archive and context switch are supported",
+        "Telegram is decoupled from warehouse creation",
+        "missing VPS cannot produce a successful server-read message",
+        "unchanged warehouse coordinates do not update the registry timestamp",
+        "FULL local warehouse runtime completed without runtime errors"
+      ],
+      "source_fixed_defects": [
+        "JF3-DEFECT-007",
+        "JF3-DEFECT-008",
+        "JF3-DEFECT-012",
+        "JF3-DEFECT-014",
+        "JF3-DEFECT-015"
+      ],
+      "partially_fixed_defects": [
+        "JF3-DEFECT-013",
+        "JF3-DEFECT-019"
+      ],
+      "pending": [
+        "complete controlled local-to-server migration",
+        "build and install a protected release candidate",
+        "repeat every affected live scenario",
+        "continue remaining P1 and P2 defect repair"
+      ]
+    },
+    {
+      "step_id": "JF3-S0053",
+      "stage": 7,
+      "action": "implement controlled local company migration to an explicitly empty VPS",
+      "result": "SOURCE FIX AND AUTOMATED MIGRATION RESUME PASS / PRODUCTION VPS BACKUP AND LIVE RETEST REQUIRED",
+      "evidence": [
+        "two isolated local LIVE warehouses were uploaded to an explicitly uninitialized server registry",
+        "the first warehouse order and second warehouse product were preserved",
+        "the intentionally empty catalog and original active warehouse were preserved",
+        "migration journal stores fingerprints and stable command identifiers without business payloads or secrets",
+        "a restart replayed four stable commands without increasing the four processed server commands",
+        "foreign populated VPS and missing previously migrated warehouse states fail closed",
+        "local source records remain available after server confirmation",
+        "both FULL migration runtimes completed with zero runtime errors"
+      ],
+      "source_fixed_defects": [
+        "JF3-DEFECT-013"
+      ],
+      "pending": [
+        "perform production VPS backup and controlled live migration acceptance",
+        "execute old PostgreSQL schema migration matrix without destructive legacy drops",
+        "build and install the next protected release candidate",
+        "repeat every affected live scenario"
+      ]
+    },
+    {
+      "step_id": "JF3-S0054",
+      "stage": 7,
+      "action": "replace destructive legacy PostgreSQL startup drops with registered fail-closed V1 and V2 migrations",
+      "result": "SOURCE IMPLEMENTED AND UNIT PASS / POSTGRESQL INTEGRATION AND PRODUCTION MIGRATION NOT RUN",
+      "evidence": [
+        "known V1 snapshot and V2 entity event command schemas are matched by exact columns",
+        "unknown schema corrupt scope invalid identifiers duplicate entities and digest mismatches fail closed",
+        "V2 wins per entity while V1 fills only missing records",
+        "legacy source tables are atomically retained as archive tables instead of being dropped",
+        "migration uses an advisory lock stable checksums and batches of one thousand rows",
+        "VPS installer verifies pg_dump readability and SHA-256 before startup and restores the full dump on rollback",
+        "health publishes schema version and applied migration checksums",
+        "five migration unit tests and adjacent REG API revision source release and security suites passed"
+      ],
+      "not_run": [
+        "two PostgreSQL integration scenarios skipped because JF_TEST_POSTGRES_ADMIN_DSN is not configured",
+        "production VPS inventory backup migration reread and restore",
+        "mixed old and new clients",
+        "cross-tenant and multi-PC acceptance"
+      ],
+      "pending": [
+        "run the prepared PostgreSQL integration matrix against an isolated database",
+        "inventory and back up the production test VPS without exposing secrets",
+        "perform migration repeat reread and real restore acceptance",
+        "continue remaining P1 and P2 repair before rebuilding"
+      ]
+    },
+    {
+      "step_id": "JF3-S0055",
+      "stage": 7,
+      "action": "repair the second consolidated defect batch from the completed local live pass",
+      "result": "SOURCE FIX AND AUTOMATED RETEST PASS / PRODUCTION MIGRATIONS PROTECTED BUILD AND LIVE RETEST REQUIRED",
+      "commit": "f4db9a8",
+      "evidence": [
+        "route outcome counters use one lifecycle model and separate ready blocked and draft routes",
+        "director report gate is derived from reliability critical checks and action priorities",
+        "invitation registry and owner revocation do not expose invitation codes or hashes",
+        "D1 migration 009 preserves legacy invitations and rejects revoked or expired claims",
+        "Windows backup confirmation requires atomic write reread and SHA-256",
+        "restore requires a confirmed safety backup",
+        "native autosave checkbox and three logo positions use the shared style tokens",
+        "equal cargo and body dimensions pass while overlength returns a numeric explanation",
+        "security source schema design release installer and FULL runtime gates passed",
+        "deep business runtime passed 69 of 69 checks without runtime errors"
+      ],
+      "source_fixed_defects": [
+        "JF3-DEFECT-009",
+        "JF3-DEFECT-010",
+        "JF3-DEFECT-011",
+        "JF3-DEFECT-016",
+        "JF3-DEFECT-017",
+        "JF3-DEFECT-018",
+        "JF3-DEFECT-020"
+      ],
+      "partially_fixed_defects": [
+        "JF3-DEFECT-019"
+      ],
+      "not_run": [
+        "PostgreSQL integration because JF_TEST_POSTGRES_ADMIN_DSN is not configured",
+        "Cloudflare Worker production migration and deployment",
+        "protected Windows build install and live visual retest",
+        "second user second profile second device and cross-tenant acceptance"
+      ],
+      "pending": [
+        "run isolated and production database migration acceptance with backup and restore",
+        "publish and verify the license Worker only after migration 009",
+        "build install and live-retest every affected defect",
+        "complete multi-user multi-PC and update rollback acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0056",
+      "stage": 8,
+      "action": "exercise the installed 7.8.3 local business flow and verify durability by controlled restarts",
+      "result": "LOCAL DATA PARTIAL PASS / PAYMENT AND ROUTE DURABILITY FAIL / RELEASE NO-GO",
+      "installed_build": {
+        "build_id": "jf-7.8.3-87c3619895c8",
+        "installed_exe_sha256": "6694368D3D7BE1A3BC8E898B824011B71B286A23D6876867A085F80F852EDC42",
+        "installed_asar_sha256": "776B398FAB086A7F03EBCFCF4C5CC5B8400BCABA4D85F76CB3D9286AC422FB4B"
+      },
+      "scope": {
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "warehouse_name": "Склад ТЗ3 — изоляция",
+        "orders": 4,
+        "orders_total_rub": 10400,
+        "products": 4,
+        "tracked_products": 1,
+        "tracked_stock": 11,
+        "drivers": 1,
+        "routes": 2
+      },
+      "durable_after_restart": [
+        "warehouse context",
+        "four orders and total",
+        "four product cards and stock eleven",
+        "driver and vehicle",
+        "route settings including error hints"
+      ],
+      "failed_after_restart": [
+        "confirmed order payment reverted to awaiting payment",
+        "ready and blocked calculated routes reverted to two draft routes",
+        "calculated route distance time and driver expense were lost"
+      ],
+      "defects": [
+        "JF3-DEFECT-008",
+        "JF3-DEFECT-011",
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-021",
+        "JF3-DEFECT-022",
+        "JF3-DEFECT-023",
+        "JF3-DEFECT-024",
+        "JF3-DEFECT-025"
+      ],
+      "log_evidence": [
+        "archive integrity verified on both restarts",
+        "live warehouse context 39bcd203-0a96-4dd1-9f68-df333171493c confirmed",
+        "invitation list NOT_FOUND repeats",
+        "Telegram configuration remains absent",
+        "no payment mutation or payment failure was recorded"
+      ],
+      "pending": [
+        "finish the remaining live control and visual matrix",
+        "repair all confirmed defects as one consolidated source batch",
+        "build install and repeat the affected local scenarios",
+        "run production VPS PostgreSQL migration backup restore and reconnect acceptance",
+        "complete second user second profile second PC Telegram and updater acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0057",
+      "stage": 8,
+      "action": "exercise exact short and misspelled village addresses in the installed order editor and compare the safe log delta",
+      "result": "ADDRESS VILLAGE MATRIX FAIL / PUBLIC DEVELOPMENT FALLBACK CONFIRMED / RELEASE NO-GO",
+      "unsaved_order": "ORD-2026-0005",
+      "not_found": [
+        "Pskov region Pskov district village Rodina full form",
+        "village Rodina Pskov short form",
+        "Novgorod region Novgorod district village Syrkovo full form",
+        "village Syrkovo Veliky Novgorod short form",
+        "Republic of Karelia Prionezhsky district village Vilga full form",
+        "Moscow region Odintsovo urban district village Zhukovka full form"
+      ],
+      "found": [
+        "misspelled short Zhukovka query returned one correct result at 92 percent"
+      ],
+      "log_evidence": [
+        "development public address fallback configured false",
+        "queryCorrected true",
+        "Nominatim parser detected region but not district for the returned Zhukovka result"
+      ],
+      "defects": [
+        "JF3-DEFECT-026"
+      ],
+      "blockers": [
+        "JF3-BLOCKER-002"
+      ],
+      "pending": [
+        "configure the production address provider",
+        "repair normalization ranking and administrative parsing",
+        "run the approved priority-region corpus automatically and repeat representative live cases"
+      ]
+    },
+    {
+      "step_id": "JF3-S0058",
+      "stage": 8,
+      "action": "create edit archive and reserve a temporary pickup then verify each state with two controlled restarts",
+      "result": "CREATE EDIT DURABLE / ARCHIVE PICKUP READY AND RESERVATION DURABILITY FAIL / RELEASE NO-GO",
+      "order": {
+        "number": "ORD-2026-0005",
+        "product": "Груз ТЗ3 №4",
+        "quantity": 2,
+        "total_rub": 2400
+      },
+      "durable_after_restart": [
+        "order creation",
+        "quantity two",
+        "total 2400 rubles"
+      ],
+      "failed_after_restart": [
+        "not relevant status",
+        "archive state and reason",
+        "pickup ready status",
+        "two unit inventory reservation"
+      ],
+      "inventory_before_second_restart": {
+        "physical": 11,
+        "reserved": 2,
+        "available": 9
+      },
+      "inventory_after_second_restart": {
+        "physical": 11,
+        "reserved": 0,
+        "available": 11
+      },
+      "defects": [
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-027",
+        "JF3-DEFECT-028"
+      ],
+      "pending": [
+        "repair atomic lifecycle and reservation persistence",
+        "add complete mutation audit logging with correlation ids",
+        "build install and repeat both restart cycles",
+        "verify reconnect conflict and second PC without archive resurrection"
+      ]
+    },
+    {
+      "step_id": "JF3-S0059",
+      "stage": 8,
+      "action": "inspect responsive layouts and exercise director report export settings save and Windows print",
+      "result": "CSV EXPORT PASS / NO OP SAVE PASS / RESPONSIVE LAYOUT PARTIAL FAIL / REPORT PRINT OUTPUT REQUIRES VISUAL VERIFICATION / RELEASE NO-GO",
+      "responsive_widths": {
+        "about_1366": "top surfaces fit",
+        "about_1280": "right report filter clipped",
+        "about_1100": "header and final navigation controls clipped"
+      },
+      "export": {
+        "files": 2,
+        "bytes_each": 8499,
+        "log_state": "completed",
+        "verified_fields": [
+          "Russian title",
+          "version 7.8.3",
+          "period",
+          "warehouse",
+          "reliability 86",
+          "open order value 12800"
+        ]
+      },
+      "no_op_methodology_save": {
+        "ui": "success",
+        "outbox_before": 5,
+        "outbox_after": 5
+      },
+      "print": {
+        "device": "Microsoft Print to PDF",
+        "preview": false,
+        "save_dialog": "initially hidden and later found",
+        "pdf_created": true,
+        "log_result": false
+      },
+      "defects": [
+        "JF3-DEFECT-025",
+        "JF3-DEFECT-029",
+        "JF3-DEFECT-030"
+      ],
+      "pending": [
+        "repair responsive breakpoints and per view scroll context",
+        "provide a working print preview and verified PDF output",
+        "repeat visual screenshots for every view and modal at approved widths"
+      ]
+    },
+    {
+      "step_id": "JF3-S0060",
+      "stage": 8,
+      "action": "save the director report through Microsoft Print to PDF then structurally inspect and render the actual page",
+      "result": "PDF FILE CREATED / RUSSIAN CONTENT PRESENT / ROTATED LAYOUT AND NO TEXT LAYER FAIL / RELEASE NO-GO",
+      "pdf": {
+        "name": "TZ3-report-print-20260824.pdf",
+        "bytes": 133733,
+        "pages": 1,
+        "page_points": [595.3, 841.9],
+        "extracted_text_characters": 0,
+        "visual_content_present": true,
+        "content_rotated_90_degrees": true
+      },
+      "defects": [
+        "JF3-DEFECT-025",
+        "JF3-DEFECT-031"
+      ],
+      "pending": [
+        "align print CSS and Windows page orientation",
+        "preserve a searchable text layer",
+        "verify portrait landscape and multi page report outputs"
+      ]
+    },
+    {
+      "step_id": "JF3-S0061",
+      "stage": 8,
+      "action": "create edit and delete one temporary employee and one temporary expense then verify report recalculation and deletion durability after restart",
+      "result": "EMPLOYEE AND EXPENSE CRUD RECALCULATION DELETE DURABILITY PASS / MUTATION AUDIT LOGGING FAIL / RELEASE NO-GO",
+      "employee": {
+        "name": "Сотрудник ТЗ3 Тестовый",
+        "position": "Тестовый менеджер",
+        "salary_created_rub": 30000,
+        "salary_edited_rub": 31000,
+        "started_on": "2026-08-01"
+      },
+      "expense": {
+        "name": "Расход ТЗ3 Тестовый",
+        "category": "Склад",
+        "amount_created_rub": 1000,
+        "amount_edited_rub": 1100,
+        "expense_date": "2026-08-24",
+        "comment": "Проверка ТЗ3"
+      },
+      "report_totals_rub": {
+        "after_create": 31000,
+        "after_edit": 32100,
+        "after_delete": 0,
+        "after_restart": 0
+      },
+      "durability": {
+        "deleted_employee_returned_after_restart": false,
+        "deleted_expense_returned_after_restart": false
+      },
+      "log_evidence": [
+        "application exiting and clean boot recorded",
+        "release integrity and same live warehouse context confirmed",
+        "employee and expense create edit delete mutations absent from desktop log"
+      ],
+      "defects": [
+        "JF3-DEFECT-019"
+      ],
+      "pending": [
+        "add centralized mutation audit events and correlation ids for employee and expense CRUD",
+        "repeat CRUD and audit verification after the repaired build",
+        "compare the same report entities from a second authorized PC"
+      ]
+    },
+    {
+      "step_id": "JF3-S0062",
+      "stage": 8,
+      "action": "create search edit availability and delete a temporary driver and vehicle then verify deletion durability after restart",
+      "result": "DRIVER CREATE EDIT SEARCH DELETE DURABILITY PASS / FILTERED EMPTY STATE AND MUTATION AUDIT LOGGING FAIL / RELEASE NO-GO",
+      "driver": {
+        "name": "Водитель ТЗ3 Временный",
+        "contact": "+79990000222",
+        "vehicle": "ТЗ3 Фургон Временный",
+        "registration": "В000ТТ178",
+        "body_m": [3.2, 1.8, 1.9],
+        "volume_m3": 10.94,
+        "payload_kg": 800,
+        "rate_rub_per_km_round_trip": 70
+      },
+      "summary": {
+        "executors_before": 1,
+        "executors_after_create": 2,
+        "active_after_create": 2,
+        "active_after_edit": 1,
+        "executors_after_delete": 1,
+        "executors_after_restart": 1,
+        "volume_before_m3": 9.72,
+        "volume_after_create_m3": 20.66,
+        "volume_after_delete_m3": 9.72,
+        "outbox_before": 5,
+        "outbox_after_create": 6,
+        "outbox_after_edit": 7,
+        "outbox_after_delete": 8
+      },
+      "durability": {
+        "deleted_driver_returned_after_restart": false,
+        "original_driver_preserved": true
+      },
+      "log_evidence": [
+        "application exiting and clean boot recorded",
+        "release integrity and same live warehouse context confirmed",
+        "driver create availability edit and delete mutations absent from desktop log"
+      ],
+      "defects": [
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-032"
+      ],
+      "pending": [
+        "replace the filtered no results message with an accurate search empty state",
+        "add centralized mutation audit events and correlation ids for driver CRUD",
+        "repeat driver availability and assignment checks after the repaired build and on a second PC"
+      ]
+    },
+    {
+      "step_id": "JF3-S0063",
+      "stage": 8,
+      "action": "create a second local warehouse verify empty isolation create separate product stock and pickup then switch restart and compare both warehouses",
+      "result": "WAREHOUSE DATA ISOLATION AND LOCAL RESTART DURABILITY PASS / ORDER OUTBOX AND TRANSIENT CLOUD SESSION FAIL / RELEASE NO-GO",
+      "warehouses": {
+        "a": {
+          "id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+          "name": "Склад ТЗ3 — изоляция",
+          "orders": 5,
+          "orders_total_rub": 12800,
+          "products": 4,
+          "tracked_products": 1,
+          "tracked_physical_stock": 11,
+          "drivers": 1,
+          "active_drivers": 1,
+          "vehicle_volume_m3": 9.72,
+          "routes": 2,
+          "route_points": 3,
+          "route_orders_total_rub": 9650,
+          "outbox": 8
+        },
+        "b": {
+          "id": "5799ff6a-1081-404d-a2be-c10b9da938f7",
+          "name": "Склад ТЗ3 B — изоляция",
+          "code": "B03",
+          "initial_orders": 0,
+          "initial_products": 0,
+          "initial_drivers": 0,
+          "initial_routes": 0,
+          "created_product": "Товар ТЗ3 B",
+          "sku": "TZ3-B-001",
+          "physical_stock": 5,
+          "available_stock": 5,
+          "reserved_stock": 0,
+          "stock_value_rub": 2500,
+          "created_order": "ORD-2026-0001",
+          "orders": 1,
+          "orders_total_rub": 700,
+          "outbox_after_product": 1,
+          "outbox_after_receipt": 2,
+          "outbox_after_order": 2,
+          "outbox_after_restart": 2
+        }
+      },
+      "durability": {
+        "warehouse_b_restored_after_restart": true,
+        "warehouse_b_order_restored": true,
+        "warehouse_b_product_and_stock_restored": true,
+        "warehouse_a_unchanged_after_return": true,
+        "cross_warehouse_data_leak_detected": false
+      },
+      "log_evidence": [
+        "both live warehouse ids confirmed",
+        "release integrity verified after restart",
+        "warehouse product receipt and order mutations absent from desktop log",
+        "one warehouse reload produced INVALID_SESSION for cloud user invitation and Telegram calls",
+        "full restart restored authorized true and the ordinary NOT_FOUND invitation response"
+      ],
+      "defects": [
+        "JF3-DEFECT-012",
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-030",
+        "JF3-DEFECT-033",
+        "JF3-DEFECT-034"
+      ],
+      "pending": [
+        "enqueue every durable order mutation in the scoped idempotent outbox",
+        "stabilize cloud session continuity across warehouse reloads and reproduce ten switches",
+        "repeat the same isolation cycle with production PostgreSQL V3 and two authorized PCs",
+        "add centralized mutation audit events and correlation ids for warehouse inventory and order operations"
+      ]
+    },
+    {
+      "step_id": "JF3-S0064",
+      "stage": 8,
+      "action": "verify company branding document settings and behavior settings with reversible saves and full restarts",
+      "result": "BRANDING POSITION AND BEHAVIOR PERSISTENCE PASS / LOGO VISIBILITY AND AUTOSAVE CONTROL UI FAIL / RELEASE NO-GO",
+      "branding": {
+        "position_left": {
+          "logo_x_px_approx": 40,
+          "applied": true
+        },
+        "position_center": {
+          "logo_x_px_approx": 118,
+          "applied": true
+        },
+        "position_right": {
+          "logo_x_px_approx": 198,
+          "applied": true,
+          "persisted_after_restart": true
+        },
+        "show_in_app_unchecked_persisted": true,
+        "logo_hidden_immediately": false,
+        "logo_hidden_after_restart": false,
+        "restored_show_in_app": true,
+        "restored_position": "left"
+      },
+      "documents_inspected": {
+        "legal_contact_and_bank_fields": true,
+        "invoice_number_preview": "ТЗ3-240826",
+        "customer_promotional_block": true,
+        "print_logo_visibility_live_output_pending": true
+      },
+      "behavior": {
+        "startup_products_persisted_after_restart": true,
+        "compact_size_persisted_after_restart": true,
+        "restored_start_section": "orders",
+        "restored_size": "comfortable",
+        "autosave_indicator_toggle_saved": true,
+        "autosave_checkbox_visible": false,
+        "autosave_indicator_restored_on": true,
+        "downstream_indicator_behavior_proven": false
+      },
+      "summary": {
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "outbox_before": 8,
+        "outbox_after": 8,
+        "orders_after": 5,
+        "orders_total_rub_after": 12800
+      },
+      "log_evidence": [
+        "three normal full restarts confirmed",
+        "release integrity and archive hash verified after every restart",
+        "same warehouse restored after every restart",
+        "branding and behavior setting mutations absent from desktop log",
+        "invitation list NOT_FOUND and Telegram owner repair required remained unchanged"
+      ],
+      "defects": [
+        "JF3-DEFECT-018",
+        "JF3-DEFECT-019",
+        "JF3-DEFECT-035",
+        "JF3-DEFECT-016"
+      ],
+      "pending": [
+        "make the show logo in app setting control the common header immediately and after restart",
+        "render an explicit accessible autosave indicator checkbox and verify keyboard operation",
+        "verify the print documents logo setting in actual output",
+        "add centralized safe audit events and correlation ids for settings mutations"
+      ]
+    },
+    {
+      "step_id": "JF3-S0065",
+      "stage": 8,
+      "action": "verify the installed updater screen rerun built in quality checks export their result create and parse a live backup open logs and restart",
+      "result": "BUILT-IN QA AND VERIFIED BACKUP PASS / UPDATE CHANNEL BLOCKED AND BACKUP HEALTH REFRESH DELAYED / RELEASE NO-GO",
+      "update_center": {
+        "installed_version": "7.8.3",
+        "channel": "stable",
+        "status": "not connected",
+        "available_version": null,
+        "last_check": "never",
+        "download_size": null,
+        "check_enabled": false,
+        "download_enabled": false,
+        "apply_enabled": false,
+        "after_close_enabled": false,
+        "remind_later_enabled": false,
+        "help_dialog_opened_with_keyboard": true,
+        "help_dialog_scrolled": true,
+        "help_dialog_closed_with_escape": true
+      },
+      "built_in_quality": {
+        "created_at": "2026-08-24T20:51:34Z",
+        "total": 17,
+        "passed": 17,
+        "warnings": 0,
+        "failed": 0,
+        "exported_json_bytes": 2481,
+        "exported_json_sha256": "5B5D7A2D3EF5C7E43E20E1341871FB636F013DAFC166D06664979CAFF255A0EC",
+        "export_reread_ok": true
+      },
+      "backup": {
+        "verified_manual_files_created": 4,
+        "latest_file": "ТЗ3_WORK_backup_2026-08-24-1787604892739.json",
+        "latest_bytes": 58912,
+        "latest_sha256": "35FBCDA51C93FC289E7521A128F8075B73EC56A11DB13E98EABF6C6BF85EC585",
+        "app_version": "7.8.3",
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "environment": "live",
+        "orders": 5,
+        "products": 4,
+        "inventory_movements": 1,
+        "drivers": 1,
+        "route_catalog_entries": 2,
+        "warehouse_id_inside_matches": true,
+        "ui_timestamp_before_restart": "2026-08-23 21:10 MSK",
+        "ui_timestamp_after_restart": "2026-08-24 23:54 MSK",
+        "kind_after_restart": "manual"
+      },
+      "logs": {
+        "open_logs_folder_button_passed": true,
+        "desktop_log_visible": true,
+        "installer_log_visible": true,
+        "uninstaller_log_visible": true,
+        "backup_file_verified_events": 4,
+        "qa_download_start_and_finish_logged": true,
+        "qa_execution_audit_event_logged": false
+      },
+      "post_restart": {
+        "release_integrity_verified": true,
+        "archive_hash_verified": true,
+        "authorized": true,
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "orders": 5,
+        "orders_total_rub": 12800,
+        "products": 4,
+        "tracked_physical_stock": 11,
+        "outbox": 8
+      },
+      "defects": [
+        "JF3-BLOCKER-001",
+        "JF3-DEFECT-017",
+        "JF3-DEFECT-019"
+      ],
+      "pending": [
+        "complete the original update signing trust and live staging update rollback cycle",
+        "refresh the confirmed backup timestamp immediately after verified write without restart",
+        "log the built in quality execution itself with a safe correlation id",
+        "run a controlled restore only in a disposable warehouse or after explicit destructive acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0066",
+      "stage": 8,
+      "action": "exercise REG RU VPS and Telegram controls without entering owner secrets and verify safe local first failures and logs",
+      "result": "LOCAL-FIRST VPS GUARDS AND TELEGRAM FAILURE GUIDANCE PASS / LIVE EXTERNAL SETUP PENDING OWNER CREDENTIALS / MUTATION AUDIT PARTIAL / RELEASE NO-GO",
+      "vps": {
+        "status": "not configured",
+        "ip": null,
+        "ssh_user": "root",
+        "ssh_port": 22,
+        "instruction_opened": true,
+        "install_without_ip_blocked": true,
+        "connection_without_setup_blocked": true,
+        "save_without_setup_blocked": true,
+        "false_server_read_message_reproduced": false,
+        "local_data_explicitly_unchanged": true,
+        "restore_with_pending_outbox_blocked": true,
+        "pending_outbox_at_restore_guard": 8,
+        "external_change_performed": false
+      },
+      "telegram": {
+        "status": "owner repair required",
+        "company_profile_saved": false,
+        "warehouse_group_connected": false,
+        "instruction_opened": true,
+        "secure_setup_wizard_opened": true,
+        "cloudflare_token_entered": false,
+        "bot_token_entered": false,
+        "secret_persisted": false,
+        "repair_without_initial_setup_blocked": true,
+        "webhook_without_setup_failed_meaningfully": true,
+        "group_link_without_setup_code": "TELEGRAM_NOT_CONFIGURED",
+        "external_change_performed": false
+      },
+      "restart": {
+        "application_relaunched": true,
+        "release_integrity_verified": true,
+        "archive_hash_verified": true,
+        "authorized": true,
+        "warehouse_id": "39bcd203-0a96-4dd1-9f68-df333171493c",
+        "orders": 5,
+        "products": 4,
+        "outbox": 8
+      },
+      "log_evidence": [
+        "REG RU setup failure without IP logged at 2026-08-24T21:06:34.577Z",
+        "Telegram secure setup wizard shown logged at 2026-08-24T21:08:19.739Z",
+        "normal application exit and restart logged",
+        "release integrity and archive hash verified after restart",
+        "Telegram owner repair required and TELEGRAM_NOT_CONFIGURED logged",
+        "Telegram group link failure logged at 2026-08-24T21:12:26.048Z",
+        "VPS connection save and restore validation actions lack distinct audit correlation events"
+      ],
+      "defects": [
+        "JF3-DEFECT-014",
+        "JF3-DEFECT-019"
+      ],
+      "closed_defects": [
+        "JF3-DEFECT-014"
+      ],
+      "pending": [
+        "enter the owner VPS address and SSH password only in the protected flow then verify SSH and TLS fingerprints PostgreSQL V3 upload reconnect and two PC isolation",
+        "enter the temporary limited Cloudflare token and Telegram bot token only in the protected wizard then deploy Worker D1 webhook delete the temporary token and run group end to end statuses",
+        "add safe audit events and correlation ids for every VPS validation action",
+        "keep VPS and Telegram acceptance independent and compare local data before and after each integration"
+      ]
+    },
+    {
+      "step_id": "JF3-S0067",
+      "stage": 9,
+      "action": "repair the live defect batch bootstrap a new update trust key and rerun source runtime visual PDF offline and migration gates",
+      "result": "SOURCE REPAIR AND AUTOMATED VISUAL PDF OFFLINE MIGRATION PASS / PRODUCTION AND INSTALLED LIVE GATES OPEN / RELEASE NO-GO",
+      "update_trust": {
+        "legacy_private_key_found": false,
+        "legacy_public_key_found": true,
+        "new_primary_trust_bootstrapped": true,
+        "key_id": "justfun-update-2026-08",
+        "private_key_outside_repository": true,
+        "private_public_match_verified": true
+      },
+      "root_cause": {
+        "affected_defects": [
+          "JF3-DEFECT-021",
+          "JF3-DEFECT-027",
+          "JF3-DEFECT-033"
+        ],
+        "cause": "mutation before snapshot retained live object and array references",
+        "fix": "deep clone both before and after payloads"
+      },
+      "automated_evidence": {
+        "release_contract_tests": 82,
+        "security_files": 185,
+        "security_findings": 0,
+        "deep_business_total": 69,
+        "deep_business_failed": 0,
+        "visual_screens": 26,
+        "responsive_contracts": 8,
+        "visual_errors": 0,
+        "pdf_documents": 5,
+        "pdf_pages": 11,
+        "pdf_orientation_failures": 0,
+        "pdf_text_layer_failures": 0,
+        "style_important_count": 885,
+        "postgres_integration_skipped_without_test_dsn": 2
+      },
+      "source_fixed_defects": [
+        "JF3-DEFECT-021",
+        "JF3-DEFECT-022",
+        "JF3-DEFECT-023",
+        "JF3-DEFECT-024",
+        "JF3-DEFECT-025",
+        "JF3-DEFECT-027",
+        "JF3-DEFECT-028",
+        "JF3-DEFECT-029",
+        "JF3-DEFECT-030",
+        "JF3-DEFECT-031",
+        "JF3-DEFECT-032",
+        "JF3-DEFECT-033",
+        "JF3-DEFECT-035"
+      ],
+      "credentials_presence_without_disclosure": {
+        "vps_ssh": true,
+        "cloudflare": true,
+        "telegram": true,
+        "dadata": false,
+        "github_token": false
+      },
+      "pending": [
+        "run PostgreSQL V1 V2 to V3 integration and backup restore on the production VPS",
+        "configure a production address provider and rerun the priority region address matrix",
+        "build and install the protected candidate then repeat every repaired live defect",
+        "run Telegram end to end without exposing secrets",
+        "publish a signed staging update and prove update and rollback",
+        "repeat synchronization conflict and session continuity on two PCs"
+      ]
+    },
+    {
+      "step_id": "JF3-S0068",
+      "stage": 9,
+      "action": "repair immediate backup health refresh and bridge business mutation audit to the protected desktop log",
+      "result": "SOURCE OBSERVABILITY AND BACKUP REFRESH PASS / INSTALLED LIVE RETEST AND PRODUCTION GATES OPEN / RELEASE NO-GO",
+      "source_fixes": [
+        "JF3-DEFECT-017",
+        "JF3-DEFECT-019"
+      ],
+      "automated_evidence": {
+        "backup_same_session_refresh": true,
+        "payment_durable_storage": true,
+        "payment_outbox_increment": true,
+        "payment_command_persisted": true,
+        "audit_started": true,
+        "audit_pending": true,
+        "single_correlation_id": true,
+        "audit_secret_fields_rejected": true,
+        "security_files": 185,
+        "security_findings": 0
+      },
+      "pending": [
+        "verify the same-session backup timestamp and correlation id in the installed protected build",
+        "complete production VPS address Telegram update rollback and two PC gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0069",
+      "stage": 9,
+      "action": "inventory production VPS attempt protected server update and prove complete rollback on missing V3 protected environment",
+      "result": "PRODUCTION INVENTORY PASS / DATABASE AND SERVER ROLLBACK PASS / FULL PROTECTED VPS BOOTSTRAP REQUIRED / RELEASE NO-GO",
+      "production_evidence": {
+        "ssh_current_credential_pass": true,
+        "services_active_before": true,
+        "https_health_before": true,
+        "database_ready_before": true,
+        "remote_source_outdated": true,
+        "custom_dump_created": true,
+        "restore_list_verified": true,
+        "automatic_rollback_exercised": true,
+        "services_active_after_rollback": true,
+        "https_health_after_rollback": true,
+        "database_ready_after_rollback": true,
+        "original_server_hash_restored": true,
+        "missing_required_environment": [
+          "JF_API_KEY_SHA256",
+          "JF_VPS_ATTESTATION_SECRET"
+        ]
+      },
+      "pending": [
+        "build and install the protected client",
+        "run the full VPS setup wizard so company and server credentials are rotated atomically",
+        "rerun production PostgreSQL migration and entity acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0070",
+      "stage": 9,
+      "action": "run exact commit audited build identify asynchronous GUI print gate race and make the orchestrator wait for completion",
+      "result": "PROTECTED PAYLOAD PASS / BUILD ORCHESTRATOR RACE FIXED / CLEAN REBUILD REQUIRED / RELEASE NO-GO",
+      "build_evidence": {
+        "source_commit": "24c278ea19759ff9ea20c2131d6b3dedb0da6e96",
+        "source_dirty": false,
+        "release_contract_tests": 82,
+        "npm_vulnerabilities": 0,
+        "security_files": 186,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "protected_payload_created": true,
+        "update_helper_self_test": true,
+        "payload_pdf_documents_created": 5,
+        "installer_created": false,
+        "release_eligible": false
+      },
+      "root_cause": "PowerShell did not wait for the Windows GUI executable before reading PRINT-QA.json",
+      "fix": "Start-Process with PassThru Wait Hidden and exit code validation",
+      "pending": [
+        "repeat the clean exact commit audited build",
+        "pass full installer acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0071",
+      "stage": 9,
+      "action": "repeat the exact commit protected build pass full isolated installer acceptance and package the owner release set",
+      "result": "EXACT BUILD + FULL INSTALLER ACCEPTANCE + OWNER PACKAGE PASS / INSTALLED LIVE, PRODUCTION INTEGRATIONS, UPDATE-ROLLBACK AND TWO-PC GATES OPEN / RELEASE NO-GO",
+      "build_evidence": {
+        "source_commit": "0748a21a323eb2adf4f75c5d46854b384e4e501e",
+        "source_dirty": false,
+        "release_contract_tests": 82,
+        "security_files": 187,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "pdf_documents_created": 5,
+        "installer_acceptance": "passed",
+        "setup_exit": 0,
+        "uninstall_exit": 0,
+        "data_preserved_by_default": true,
+        "previous_local_state_restored": true,
+        "setup_sha256": "5b13db0557ffed0c90d2c6e16e41a2ccf9e024247a4cb824719e419fa338c879",
+        "setup_bytes": 209843792,
+        "owner_archive_sha256": "a0a6ebef0fa2922b58e300fa954cd64c08bae19038e976e738f3b8769ab34faf",
+        "owner_archive_bytes": 426542490,
+        "owner_archive_entries": 9,
+        "release_gate_eligible": true
+      },
+      "pending": [
+        "install the accepted protected candidate over the owner installation with a verified backup",
+        "repeat repaired live defects and read the protected desktop log delta",
+        "complete protected production VPS bootstrap and PostgreSQL acceptance",
+        "complete production address Telegram update rollback and two PC gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0075",
+      "stage": 9,
+      "action": "repair the source defects discovered during installed live sessions JF3-S0072 through JF3-S0074 and run the complete affected regression set",
+      "result": "SOURCE FIX BATCH + AUTOMATED REGRESSION PASS / EXACT INSTALLER AND PRODUCTION LIVE RETEST OPEN / RELEASE NO-GO",
+      "source_evidence": {
+        "offline_outbox_restart_overlay": "passed",
+        "vps_backup_permissions": "passed",
+        "ssh_fingerprint_wait_lifecycle": "passed",
+        "telegram_system_proxy_transport": "passed",
+        "telegram_terminal_progress": "passed",
+        "data_diagnostics_dispatch_and_audit": "passed",
+        "address_typo_federation": "passed",
+        "real_typo_query_first_result": "Всеволожск",
+        "release_contract_tests": 83,
+        "security_files": 188,
+        "security_findings": 0,
+        "security_forbidden_artifacts": 0,
+        "source_hygiene_files": 312,
+        "deep_business_passed": 69
+      },
+      "pending": [
+        "commit and push the exact source repair batch",
+        "build and fully accept a new protected Windows installer",
+        "install it and repeat JF3-DEFECT-036 through JF3-DEFECT-042 live",
+        "complete production VPS Telegram address update rollback and second PC gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0076",
+      "stage": 10,
+      "action": "build install and live verify exact f7c6324 candidate production VPS Telegram and online order synchronization restart",
+      "result": "EXACT BUILD + INSTALL + PRODUCTION VPS + TELEGRAM + ONLINE MUTATION RESTART PASS / GROUP FRESH MIGRATION UPDATE ROLLBACK AND SECOND USER PC OPEN / RELEASE NO-GO",
+      "commits": [
+        "6f8c9804aad5c9ef96bbde746f79d0cdd2fc4971",
+        "f7c6324cad3def8aba6075ab5405cb9098d637d3"
+      ],
+      "build_evidence": {
+        "source_commit": "f7c6324cad3def8aba6075ab5405cb9098d637d3",
+        "source_dirty": false,
+        "build_id": "jf-7.8.3-f7c6324cad3d",
+        "release_contract_tests": 83,
+        "npm_vulnerabilities": 0,
+        "security_files": 191,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "installer_acceptance": "passed",
+        "setup_sha256": "b0993eff67e60c89fae86cb0a8dbaa7e4f192eee4cf5782eecffdc691770400c",
+        "setup_bytes": 209918032,
+        "owner_archive_sha256": "6e050ecb86109653f7e52f3b978375c87d3daa8f7c7f612955e70662dd5907f9",
+        "owner_archive_bytes": 426634852,
+        "installed_asar_sha256": "b00ded40ee7952e6c990a318f0053118996496818d550c8570283239ee537ad4"
+      },
+      "production_vps": {
+        "setup_passed": true,
+        "https_version": "7.8.3",
+        "database_ready": true,
+        "legacy_data_preserved": true,
+        "ssh_fingerprint_wait_passed": true,
+        "closed_defects": [
+          "JF3-DEFECT-038",
+          "JF3-DEFECT-039"
+        ]
+      },
+      "telegram": {
+        "provision_completed": true,
+        "proxy_aware_transport_live_passed": true,
+        "d1_schema": 3,
+        "deployment_version": "7.8.3",
+        "shared_database": true,
+        "webhook_verified": true,
+        "repair_diagnostic_passed": true,
+        "cloudflare_token_saved": false,
+        "group_link_created": true,
+        "group_command_sent": false,
+        "closed_defects": [
+          "JF3-DEFECT-040"
+        ],
+        "partially_retested_defects": [
+          "JF3-DEFECT-041"
+        ]
+      },
+      "online_mutation_restart": {
+        "order_id": "ORD-2026-0005",
+        "kind": "order_not_relevant",
+        "server_cursor": 379,
+        "batch_entities": 1,
+        "replayed": false,
+        "confirmed": true,
+        "active_orders_after": 4,
+        "active_total_rub_after": 10400,
+        "restart_bootstrap_cursor": 379,
+        "restart_bootstrap_entities": 24,
+        "ui_reread_matches": true
+      },
+      "pending": [
+        "send the one time command in the real Telegram warehouse group and verify inbound and outbound bot events",
+        "repeat pending outbox migration on a fresh empty server scope and compare a second PC",
+        "deploy the compatible invitation lifecycle worker and complete second user and device isolation",
+        "publish a signed update catalog and prove canary update and automatic rollback",
+        "complete the priority address corpus and installed database diagnostics error path"
+      ]
+    },
+    {
+      "step_id": "JF3-S0077",
+      "stage": 11,
+      "action": "build backup install and live verify updater enabled 7.8.3 transition then prepare desktop 7.8.4 error classification fix",
+      "result": "UPDATER BOOTSTRAP BUILD BACKUP INSTALL DATA PRESERVATION AND LIVE CHECK PASS / 7.8.4 SOURCE FIX READY / SIGNED CATALOG LIVE UPDATE AND ROLLBACK OPEN / RELEASE NO-GO",
+      "commits": [
+        "8981380ea6af11a2d4bd6f58e61a5420b3d1e0e7"
+      ],
+      "bootstrap_build": {
+        "build_id": "jf-7.8.3-8981380ea6af",
+        "release_contract_tests": 83,
+        "security_files": 193,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "setup_sha256": "4c7a3fed57a21e3f3dcb6e0c1e0fa720a16499beaab047f01fbb6ef51c5bfce4",
+        "setup_bytes": 209844304,
+        "payload_sha256": "1bb6103087425e5641a0b01310f47e4ccf05710c9b67cc6c50e14b57bbb9a016",
+        "payload_bytes": 183201291,
+        "asar_sha256": "e8bfde1630cc2d70fa122ef22a488fd22fa1713851568ec8eef287d21cc92821",
+        "initial_combined_gate": "stopped because installed application was running",
+        "standalone_full_installer_acceptance": "passed"
+      },
+      "backup_and_install": {
+        "backup_data_files": 280,
+        "backup_data_bytes": 19524900,
+        "backup_data_digest": "d55e33dc8569103ef31f3355f6a28ced17c1c5e3719cb0d9436dc2b9cd447f53",
+        "backup_manifest_sha256": "858041699d09ddb3ae5e365a1b7536110ca3781e99f7290016123b7fb40ccce5",
+        "installer_exit": 0,
+        "installed_files_matched": "80/80",
+        "user_data_files_preserved": "280/280",
+        "installed_asar_matched": true
+      },
+      "live_update_center": {
+        "enabled": true,
+        "installed_version": "7.8.3",
+        "channel": "stable",
+        "worker_health": "passed",
+        "catalog_http_status": 404,
+        "error_code": "UPDATE_CATALOG_HTTP",
+        "download_enabled": false,
+        "apply_enabled": false,
+        "data_after_restart": "4 active orders / 10400 RUB / server cursor 379 / 24 entities"
+      },
+      "source_7_8_4": {
+        "desktop_version": "7.8.4",
+        "http_network_timeout_error_classification_fixed": true,
+        "update_ui_checks": 60,
+        "update_core_checks": 44,
+        "update_controller_checks": 48,
+        "release_contract_tests": 83
+      },
+      "opened_defects": [
+        "JF3-DEFECT-043"
+      ],
+      "pending": [
+        "commit and build the exact 7.8.4 source",
+        "publish and verify the signed update catalog",
+        "complete live 7.8.3 to 7.8.4 update and proven rollback",
+        "complete Telegram group fresh migration second user PC address and diagnostics gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0078",
+      "stage": 12,
+      "action": "build exact desktop 7.8.4 run full installer acceptance diagnose fail closed uninstaller probe and verify source fix in real Electron",
+      "result": "EXACT 7.8.4 PAYLOAD AND SETUP BUILD PASS / FULL ACCEPTANCE FOUND FAIL CLOSED UNINSTALLER DEFECT / SOURCE FIX AND REAL PROBE PASS / CLEAN REBUILD REQUIRED / RELEASE NO-GO",
+      "commits": [
+        "4c19539d03d6a9e5e27a7b47b4059f5448fed82c"
+      ],
+      "build_evidence": {
+        "build_id": "jf-7.8.4-4c19539d03d6",
+        "release_contract_tests": 83,
+        "security_files": 195,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "asar_sha256": "9d7867295b67e942b204a6487c4da18fb4de2bdadcb22440665ce27c08c5827c",
+        "setup_sha256": "af6c9773aab5596a92f987b5a33fdced43fd5f9f19a7d9132c93659c764caa2d",
+        "setup_bytes": 209836624,
+        "payload_sha256": "94dda02047de0f77f80056267d8544f4cc64e5736009bf56f4646917f3239e53",
+        "payload_bytes": 183201483,
+        "payload_files": 81,
+        "release_gate": false
+      },
+      "installer_acceptance": {
+        "setup_exit": 0,
+        "uninstall_exit": 0,
+        "uninstall_completion_seconds": 120.111,
+        "program_files_removed": false,
+        "data_preservation_not_asserted_after_failure": true,
+        "previous_local_state_restored": true,
+        "exact_log": "FAIL application probe returned timeout state=NOT_RUNNING"
+      },
+      "source_fix": {
+        "probe_result_written_synchronously": true,
+        "single_instance_lock_released": true,
+        "real_probe_forced_exit": true,
+        "main_unit_passed": true,
+        "installer_source_tests": "21/21",
+        "real_electron_probe_exit": 0,
+        "real_electron_probe_state": "NOT_RUNNING",
+        "real_electron_probe_milliseconds": 2786
+      },
+      "opened_defects": [
+        "JF3-DEFECT-044"
+      ],
+      "pending": [
+        "commit the probe lifecycle repair and build from the new exact SHA",
+        "repeat full installer acceptance and close JF3-DEFECT-044",
+        "publish and verify signed update catalog then complete live update and rollback",
+        "complete remaining group migration second user PC address and diagnostics gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0079",
+      "stage": 13,
+      "action": "rebuild exact desktop 7.8.4 verify manifest fix acceptance harness race and complete full setup uninstall data preservation acceptance",
+      "result": "EXACT 7.8.4 BUILD MANIFEST AND FULL INSTALLER ACCEPTANCE PASS / SIGNED CATALOG LIVE UPDATE AND ROLLBACK OPEN / RELEASE NO-GO",
+      "commits": [
+        "00ee971a6665e848ee20ae9c7ddc2c5528ff74be"
+      ],
+      "build_evidence": {
+        "build_id": "jf-7.8.4-00ee971a6665",
+        "release_contract_tests": 83,
+        "security_files": 197,
+        "security_findings": 0,
+        "deep_business_passed": 69,
+        "payload_files": 81,
+        "asar_sha256": "0d2531a88992018d6dde53aa7f2619b48ebc3258942170edde0330f6c8eb83f1",
+        "setup_sha256": "c0c79003db54e0f18e4008e5fad9c00536f2e674e0ae6ffc3d7bf28a5e9959e9",
+        "setup_bytes": 209882192,
+        "payload_sha256": "b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0",
+        "payload_bytes": 183201489
+      },
+      "installer_acceptance": {
+        "setup_exit": 0,
+        "uninstall_exit": 0,
+        "uninstall_completion_seconds": 24.524,
+        "uninstall_log_confirmed": true,
+        "program_files_removed": true,
+        "empty_program_directory_remaining": false,
+        "data_preserved_by_default": true,
+        "previous_local_state_restored": true,
+        "errors": []
+      },
+      "owner_package": {
+        "path": "JUSTFUN-7.8.4-WINDOWS.zip",
+        "bytes": 426606543,
+        "sha256": "d21ff3384907009527de987087733b688eb753c0bc1129bd51134e75b32ecb2f",
+        "entry_count": 9,
+        "source_archive_sha256": "ecb32374123cb946e88806ad224fc205549e4066cda31944e6f1ad704e1b4384",
+        "product_commit": "00ee971a6665e848ee20ae9c7ddc2c5528ff74be",
+        "packaging_commit": "13f74f90ad7bed0748176c3948ea54c67f63b0e5"
+      },
+      "acceptance_harness_repair": {
+        "defect": "JF3-DEFECT-045",
+        "cause": "program directory removed between Test-Path and Get-ChildItem",
+        "same_artifact_retested": true,
+        "powershell_syntax_passed": true
+      },
+      "closed_defects": [
+        "JF3-DEFECT-044",
+        "JF3-DEFECT-045"
+      ],
+      "pending": [
+        "publish and verify signed staging then stable update catalog",
+        "complete live 7.8.3 to 7.8.4 update and proven rollback",
+        "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0080",
+      "stage": 14,
+      "action": "publish the exact 7.8.4 prerelease asset sign and publish staging catalog with immutable Cloudflare KV history and repair first publication workflow semantics",
+      "result": "GITHUB PRERELEASE SIGNED STAGING CATALOG IMMUTABLE KV HISTORY AND PUBLIC EXACT BYTE VERIFICATION PASS / GITHUB TOKEN LIVE UPDATE ROLLBACK AND STABLE CANARY OPEN / RELEASE NO-GO",
+      "github_release": {
+        "tag": "v7.8.4-rc1",
+        "release_id": 376459003,
+        "prerelease": true,
+        "asset_name": "JustFun-7.8.4-win-x64.zip",
+        "asset_id": 529300132,
+        "asset_bytes": 183201489,
+        "asset_sha256": "b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0"
+      },
+      "signed_catalog": {
+        "path": "release/catalogs/staging.json",
+        "channel": "staging",
+        "catalog_sequence": 1,
+        "build_id": "jf-7.8.4-00ee971a6665",
+        "version": "7.8.4",
+        "rollout_percent": 100,
+        "signing_key_id": "justfun-update-2026-08",
+        "signing_digest": "c67b11c0b92b98e81b344f2b4c036d9607e72ca99c81b7fbc1a5f4667ac55583",
+        "exact_document_sha256": "04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "bytes": 2032
+      },
+      "cloudflare_publication": {
+        "account_name": "Pw-fanat@mail.ru's Account",
+        "account_id": "e8df719511b420cbd7a4b146525a8a3b",
+        "oauth_authenticated": true,
+        "workers_kv_write": true,
+        "namespace_id": "e40a786ac97947f5b574a3162381827a",
+        "active_key_preexisting": false,
+        "immutable_key_preexisting": false,
+        "immutable_key": "history:staging:1:04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "active_key": "catalog:staging",
+        "public_url": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/staging",
+        "http_status": 200,
+        "published_bytes": 2032,
+        "published_sha256": "04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "exact_match": true,
+        "etag": "sha256-04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6"
+      },
+      "github_automation": {
+        "first_run_id": 32858886678,
+        "first_run_started": false,
+        "first_run_reason": "required environment secrets were absent",
+        "staging_environment_secret_names_present": true,
+        "production_environment_secret_names_present": true,
+        "api_token_target_account_correct": false,
+        "api_token_replacement_required": true
+      },
+      "workflow_repair": {
+        "defect": "JF3-DEFECT-046",
+        "missing_key_behavior": "wrangler exits 1 with HTTP 404",
+        "text_mode_appended_lf": true,
+        "raw_read_exact_bytes": true,
+        "yaml_parse_passed": true,
+        "worker_check_and_dry_run_passed": true,
+        "catalog_operations_checks": "17/17",
+        "worker_unit_checks": "23/23",
+        "github_actions_retest_pending": true
+      },
+      "pending": [
+        "replace the GitHub environment API token with one scoped to Cloudflare account e8df719511b420cbd7a4b146525a8a3b and rerun the staging workflow",
+        "complete non mutating live staging check and payload download verification",
+        "confirm apply and restart then prove live 7.8.3 to 7.8.4 update and rollback",
+        "publish stable canary only after staging acceptance",
+        "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0081",
+      "stage": 15,
+      "action": "use the installed bootstrap updater production modules to fetch validate and fully download the real staging update without applying it",
+      "result": "REAL STAGING FETCH ED25519 ROLLOUT AND FULL PAYLOAD SIZE SHA256 PASS / APPLY RESTART HEALTH CONFIRMATION AND ROLLBACK OPEN / RELEASE NO-GO",
+      "source_parity": {
+        "installed_bootstrap_commit": "8981380ea6af11a2d4bd6f58e61a5420b3d1e0e7",
+        "catalog_client_unchanged": true,
+        "catalog_validator_unchanged": true,
+        "payload_downloader_unchanged": true
+      },
+      "live_staging_probe": {
+        "catalog_url": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/staging",
+        "signature_verified": true,
+        "signing_key_id": "justfun-update-2026-08",
+        "signing_digest": "c67b11c0b92b98e81b344f2b4c036d9607e72ca99c81b7fbc1a5f4667ac55583",
+        "installed_version": "7.8.3",
+        "target_version": "7.8.4",
+        "rollout_eligible": true,
+        "payload_bytes_verified": true,
+        "payload_bytes": 183201489,
+        "payload_sha256_verified": true,
+        "payload_sha256": "b5d6e9668fca6d106003413a56034bb518d952d934c7d0fc382fad21a82be6f0"
+      },
+      "mutation_scope": {
+        "temporary_download_only": true,
+        "temporary_directory_removed_after_pass": true,
+        "application_files_changed": false,
+        "user_database_changed": false,
+        "registry_changed": false,
+        "payload_applied": false,
+        "application_restarted": false
+      },
+      "pending": [
+        "replace the GitHub environment API token and rerun the staging publication workflow",
+        "confirm update apply and restart then verify installed 7.8.4 health and data preservation",
+        "exercise a signed rollback catalog and prove automatic restoration",
+        "publish stable canary only after complete staging acceptance",
+        "complete remaining Telegram group fresh migration second user PC address and diagnostics gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0082",
+      "stage": 16,
+      "action": "validate the replacement Cloudflare API token update protected GitHub environment secrets recheck live catalog endpoints and refresh the release gate status",
+      "result": "CLOUDFLARE TOKEN + GITHUB ENVIRONMENT SECRET ROTATION + LIVE ENDPOINT RECHECK PASS / STAGING ACTION RETEST TWO CI REPAIRS UPDATE APPLY ROLLBACK AND STABLE OPEN / RELEASE NO-GO",
+      "cloudflare_token_validation": {
+        "token_active_http": 200,
+        "workers_kv_http": 200,
+        "workers_scripts_read_http": 200,
+        "account_id": "e8df719511b420cbd7a4b146525a8a3b",
+        "secret_value_disclosed": false
+      },
+      "github_environment_secrets": {
+        "environments": [
+          "update-staging",
+          "update-production"
+        ],
+        "updated_secret_names": [
+          "CLOUDFLARE_API_TOKEN",
+          "CLOUDFLARE_ACCOUNT_ID"
+        ],
+        "updated_at_utc_range": "2026-08-26T09:57:29Z/2026-08-26T09:57:34Z",
+        "values_read_back": false,
+        "post_rotation_workflow_run": false
+      },
+      "live_update_catalog": {
+        "staging_health_http": 200,
+        "staging_catalog_http": 200,
+        "staging_catalog_bytes": 2032,
+        "staging_catalog_sha256": "04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "staging_exact_match": true,
+        "production_health_http": 200,
+        "stable_catalog_http": 404
+      },
+      "github_gate_status": {
+        "branch": "codex/tz3-execution-baseline",
+        "head": "5cb39abae50e410e59d4ad89fac8f03d34eb948d",
+        "audit_incremental_run": 32945436332,
+        "audit_incremental_result": "failure:test_map_catalog_mismatch",
+        "windows_release_gate_run": 32945436369,
+        "windows_release_gate_result": "failure:source_hygiene_packager_contract_mismatch",
+        "last_staging_publish_run": 32858886678,
+        "last_staging_publish_predates_secret_rotation": true,
+        "pull_request": 26,
+        "pull_request_draft": true,
+        "pull_request_blocked": true
+      },
+      "pending": [
+        "repair the permanent audit ledger test map and source hygiene packager contract then obtain two green GitHub checks",
+        "rerun the staging publication workflow with the rotated secrets and obtain success",
+        "apply the signed update restart and verify installed 7.8.4 health login data and logs",
+        "exercise a signed rollback and prove automatic restoration",
+        "complete the stable canary only after staging acceptance",
+        "complete the remaining address Telegram database migration second user second PC and full business UI gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0083",
+      "stage": 17,
+      "action": "repair the two mandatory CI failures harden the update publication workflow and owner package path then prepare a newly signed staging sequence for a real GitHub Actions write",
+      "result": "AUDIT LEDGER + SOURCE HYGIENE + PUBLICATION HARDENING + SIGNED STAGING SEQUENCE 2 LOCAL PASS / GITHUB CI AND ACTIONS PUBLICATION OPEN / RELEASE NO-GO",
+      "audit_ledger": {
+        "branch": "audit-ledger",
+        "commit": "088a1dcabffb1e76d89b05ff441b59b18348cf27",
+        "test_catalog_count": 83,
+        "verification_passed": true,
+        "failures": [],
+        "pushed": true
+      },
+      "release_branch_repairs": {
+        "publication_commit": "298ea06aa707d4f074557ddb4deeaf869faa6666",
+        "packager_commit": "c5396fe6703e719350a5043c75e36131a040b0bd",
+        "source_hygiene_passed": true,
+        "owner_archive_path_confined_to_output": true,
+        "environment_secrets_consumed_by_protected_job": true,
+        "cloudflare_secrets_limited_to_wrangler_steps": true,
+        "exact_sequence_repeat_action": "noop-with-immutable-history-verification",
+        "same_sequence_different_bytes": "fail-closed:CATALOG_SEQUENCE_CONFLICT",
+        "lower_sequence": "fail-closed:CATALOG_SEQUENCE_NOT_ADVANCED"
+      },
+      "signed_staging_candidate": {
+        "catalog_sequence": 2,
+        "build_id": "jf-7.8.4-00ee971a6665",
+        "signing_key_id": "justfun-update-2026-08",
+        "private_key_matches_trust_store": true,
+        "private_key_disclosed": false,
+        "signing_digest": "cb0eca16a91ae45a76f2169d8efdb2e09ae280ba26fa23205da2443a381c52d9",
+        "exact_document_sha256": "d9bad4f4fa2cafcdc23759bc3bf012018fbc07a3deb72f7cd31d6f6a3ff21ae5",
+        "previous_live_sequence": 1,
+        "previous_live_sha256": "04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "publication_action": "publish"
+      },
+      "local_verification": {
+        "catalog_operations": "31/31",
+        "catalog_worker": "23/23",
+        "workflow_yaml": "9/9",
+        "release_contract": "83/83",
+        "powershell_syntax": "PASS",
+        "git_diff_check": "PASS"
+      },
+      "pending": [
+        "obtain green Audit incremental and Windows native release gate runs on the exact branch head",
+        "dispatch staging sequence 2 from that approved revision and compare public bytes with the signed Git file",
+        "apply the signed update restart and verify installed 7.8.4 health login data and logs",
+        "exercise a signed rollback and prove automatic restoration",
+        "complete the stable canary only after staging acceptance",
+        "complete the remaining address Telegram database migration second user second PC and full business UI gates"
+      ]
+    },
+    {
+      "step_id": "JF3-S0084",
+      "stage": 18,
+      "action": "obtain green CI on the exact final workflow revision publish signed staging sequence 2 preserve immutable history and prove exact public bytes signature and idempotent evidence",
+      "result": "EXACT HEAD CI + IMMUTABLE STAGING SEQUENCE 2 + PUBLIC SIGNATURE/BYTES + IDEMPOTENT NOOP EVIDENCE PASS / LIVE APPLY RESTART HEALTH CONFIRMATION ROLLBACK FULL TZ3 AND STABLE OPEN / RELEASE NO-GO",
+      "exact_head": {
+        "branch": "codex/tz3-execution-baseline",
+        "commit": "fa9a1245f232317c14194ae6597fcf669f02e25c",
+        "remote_match": true,
+        "audit_incremental_run": 32968320704,
+        "audit_incremental_result": "success",
+        "windows_release_gate_run": 32968320625,
+        "windows_release_gate_result": "success"
+      },
+      "workflow_repairs": {
+        "environment_secret_bridge_commit": "0c10e82f0fec6f8b936ede592a6740db562fc676",
+        "environment_secret_bridge": "secrets: inherit required by current GitHub reusable-workflow runner behavior",
+        "secret_values_disclosed": false,
+        "cloudflare_secrets_limited_to_wrangler_steps": true,
+        "hidden_evidence_commit": "fa9a1245f232317c14194ae6597fcf669f02e25c",
+        "include_hidden_files": true,
+        "catalog_operations_checks": "32/32",
+        "workflow_yaml": "9/9",
+        "source_hygiene": "PASS"
+      },
+      "staging_publication": {
+        "failed_prewrite_run": 32966343858,
+        "failed_prewrite_reason": "GitHub reusable workflow resolved environment secrets as empty without secrets inherit",
+        "publish_run": 32968060479,
+        "publish_result": "success",
+        "publish_action": "publish",
+        "control_run": 32969389305,
+        "control_result": "success",
+        "control_action": "noop",
+        "evidence_artifact_files": 6,
+        "active_key": "catalog:staging",
+        "previous_immutable_key": "history:staging:1:04fd5897697203b760b423466f921ff4c88fde0a3d7e2e04fceaf4313179c7a6",
+        "current_immutable_key": "history:staging:2:d9bad4f4fa2cafcdc23759bc3bf012018fbc07a3deb72f7cd31d6f6a3ff21ae5"
+      },
+      "public_verification": {
+        "url": "https://justfun-update-catalog-staging.pw-fanat.workers.dev/v1/catalog/staging",
+        "http_status": 200,
+        "catalog_sequence": 2,
+        "bytes": 2032,
+        "exact_document_sha256": "d9bad4f4fa2cafcdc23759bc3bf012018fbc07a3deb72f7cd31d6f6a3ff21ae5",
+        "exact_match": true,
+        "signature_verified": true,
+        "signing_key_id": "justfun-update-2026-08",
+        "signing_digest": "cb0eca16a91ae45a76f2169d8efdb2e09ae280ba26fa23205da2443a381c52d9",
+        "stable_catalog_http": 404
+      },
+      "pending": [
+        "back up the installed 7.8.3 and apply the signed 7.8.4 update",
+        "restart and verify installed version owner login warehouse data integrations and logs",
+        "exercise a signed rollback and prove automatic restoration",
+        "complete the full live TZ3 business UI database migration and two user two PC acceptance",
+        "publish stable canary only after complete staging acceptance"
+      ]
+    },
+    {
+      "step_id": "JF3-S0085",
+      "stage": 19,
+      "action": "create an exact pre-update backup verify the installed 7.8.3 owner warehouse orders and update center baseline then stop the unsafe staging apply before mutation",
+      "result": "FULL BACKUP + INSTALLED 7.8.3 OWNER WAREHOUSE ORDERS BASELINE PASS / SEQUENCE 2 APPLY SAFELY STOPPED BEFORE MUTATION / CHANNEL PERSISTENCE FIX AND NEW SEQUENCE REQUIRED / RELEASE NO-GO",
+      "backup": {
+        "directory": "pre-update-20260826-155021-7.8.3-to-7.8.4",
+        "program": "83 files / 411490104 bytes / exact",
+        "local_state": "20 files / 902335 bytes / exact",
+        "release_keys": "2 files / 464 bytes / exact",
+        "roaming_vps": "3 files / 4127 bytes / exact",
+        "business_data": "282 files / 19614825 bytes / exact",
+        "registry_exported": true,
+        "source_data_modified": false
+      },
+      "installed_baseline": {
+        "version": "7.8.3",
+        "edition": "full",
+        "owner": "local owner account verified; personal name omitted",
+        "warehouse": "Склад ТЗ3 — изоляция",
+        "orders": 4,
+        "orders_total_rub": 10400,
+        "unsaved_changes": false,
+        "critical_self_check_errors": false
+      },
+      "safe_stop": {
+        "embedded_runtime_channel": "stable",
+        "stable_catalog_http": 404,
+        "staging_runtime_override_available": false,
+        "sequence_2_applied": false,
+        "program_or_business_data_mutated": false,
+        "defect": "JF3-DEFECT-047"
+      },
+      "pending": [
+        "complete the signed channel persistence fix and exact Windows gate",
+        "build and publish a new immutable staging sequence 3",
+        "install the audited 7.8.3 staging bootstrap",
+        "apply restart confirm health verify data and exercise signed rollback"
+      ]
+    },
+    {
+      "step_id": "JF3-S0086",
+      "stage": 20,
+      "action": "persist the accepted update channel only from a reverified signed catalog correlate proof with the active journal and cover fail-closed restart rollback and same-build sequence rotation",
+      "result": "SIGNED CHANNEL PERSISTENCE SOURCE FIX + ADVERSARIAL TESTS + INDEPENDENT REVIEW + AUDIT CI PASS / WINDOWS ARTIFACT STAGING SEQUENCE 3 LIVE APPLY AND ROLLBACK OPEN / RELEASE NO-GO",
+      "source_fix": {
+        "commit": "609b99dfe77186ddbe07b95903bd2263718cec60",
+        "pushed": true,
+        "missing_state_fail_closed": true,
+        "tampered_or_unrelated_proof_fail_closed": true,
+        "journal_proof_fields": [
+          "channel",
+          "build_id",
+          "catalog_sequence",
+          "to_version",
+          "commit_sha"
+        ],
+        "rollback_source_not_first_supported": true,
+        "same_build_new_sequence_rotated": true,
+        "catalog_fetch_blocked_during_apply_or_recovery": true,
+        "independent_review": "GO"
+      },
+      "local_verification": {
+        "update_controller": "87/87",
+        "update_core": "44/44",
+        "update_downloader": "19/19",
+        "update_ui": "60/60",
+        "update_helper_runner": "16/16",
+        "source_hygiene_tracked_files": 315,
+        "static_implementation_bindings": 56,
+        "static_implementation_overrides": 23,
+        "security_files": 198,
+        "security_findings": 0
+      },
+      "github_gate": {
+        "audit_incremental_run": 32983630712,
+        "audit_incremental_result": "success",
+        "windows_release_gate_run": 32983630661,
+        "windows_release_gate_result": "success_pr_merge_sha_not_used_as_release_artifact",
+        "pr_merge_sha": "9dc93854e97639fa791f92edb66b5151e1e168dc",
+        "exact_commit_dispatch_run": 32984663174,
+        "exact_commit_dispatch_sha": "609b99dfe77186ddbe07b95903bd2263718cec60",
+        "exact_commit_dispatch_result": "queued_at_record_time"
+      },
+      "pending": [
+        "obtain the completed green Windows gate and download its exact evidence artifact",
+        "publish the rebuilt 7.8.4 payload and signed staging sequence 3",
+        "install the audited staging bootstrap and perform live update health data and log acceptance",
+        "exercise signed rollback and complete the remaining TZ3 gates before stable"
+      ]
+    }
+  ],
+  "current_gate": "stage-20/channel-persistence-fix-audit-pass-windows-build-sequence-3-live-apply-rollback-open",
+  "release_status": "NO-GO"
+}

@@ -16,6 +16,10 @@ $tempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\') + '\'
 $tempRoot = Join-Path $tempBase ("JustFun-Full-Installer-QA-" + [Guid]::NewGuid().ToString('N'))
 $program = Join-Path $tempRoot 'NeverExisted\Program'
 $data = Join-Path $tempRoot 'Data'
+$interruptedProgram = Join-Path $tempRoot 'InterruptedUpdate\Program'
+$interruptedData = Join-Path $tempRoot 'InterruptedUpdate\Data'
+$interruptedBackup = "$interruptedProgram.__justfun_backup__"
+$interruptedStage = "$interruptedProgram.__justfun_stage__"
 $configPath = Join-Path $env:LOCALAPPDATA 'JustFun\OrdersLogistics\install.json'
 $configBackup = Join-Path $tempRoot 'state-backup\install.json'
 $productReg = 'Registry::HKEY_CURRENT_USER\Software\JustFun\OrdersLogistics'
@@ -28,6 +32,7 @@ $uninstallLog = Join-Path $localLogDirectory "uninstall-$productVersion.log"
 $desktopLog = Join-Path $localLogDirectory 'desktop.log'
 $evidenceLog = Join-Path $evidence 'full-installer.log'
 $evidenceUninstallLog = Join-Path $evidence 'full-uninstaller.log'
+$evidenceInterruptedLog = Join-Path $evidence 'full-installer-interrupted-recovery.log'
 $logState = @(
   [pscustomobject]@{ Path = $log; Backup = (Join-Path $tempRoot "state-backup\installer-$productVersion.log"); Existed = (Test-Path -LiteralPath $log -PathType Leaf) },
   [pscustomobject]@{ Path = $uninstallLog; Backup = (Join-Path $tempRoot "state-backup\uninstall-$productVersion.log"); Existed = (Test-Path -LiteralPath $uninstallLog -PathType Leaf) },
@@ -44,6 +49,10 @@ $programFilesRemoved = $false
 $emptyProgramDirectoryRemaining = $false
 $uninstallCompletionSeconds = $null
 $uninstallConfirmed = $false
+$interruptedRecoveryConfirmed = $false
+$interruptedUninstallConfirmed = $false
+$interruptedSetupExit = $null
+$interruptedUninstallExit = $null
 $failure = $null
 
 function Assert-True([bool]$Condition, [string]$Message) {
@@ -65,6 +74,18 @@ function Invoke-Native([string]$File, [string[]]$Arguments) {
   if (-not $process) { throw "Windows did not start $File" }
   $process.WaitForExit()
   return $process.ExitCode
+}
+
+function Get-RemainingProgramFiles([string]$Path) {
+  if (-not (Test-Path -LiteralPath $Path -PathType Container)) { return }
+  try {
+    Get-ChildItem -LiteralPath $Path -Recurse -Force -File -ErrorAction Stop
+  } catch {
+    # The temporary NSIS process can remove the directory after Test-Path but
+    # before Get-ChildItem opens it. That race is the successful uninstall
+    # outcome, not a test failure. Preserve every other enumeration error.
+    if (Test-Path -LiteralPath $Path -PathType Container) { throw }
+  }
 }
 
 function Export-RegistryKey([string]$NativePath, [string]$Destination) {
@@ -147,9 +168,7 @@ try {
   $uninstallWatch = [Diagnostics.Stopwatch]::StartNew()
   $uninstallDeadline = [TimeSpan]::FromSeconds(120)
   do {
-    $remainingProgramFiles = @(
-      Get-ChildItem -LiteralPath $program -Recurse -Force -File -ErrorAction SilentlyContinue
-    )
+    $remainingProgramFiles = @(Get-RemainingProgramFiles $program)
     $uninstallLogText = if (Test-Path -LiteralPath $uninstallLog -PathType Leaf) {
       Get-Content -LiteralPath $uninstallLog -Raw -ErrorAction SilentlyContinue
     } else { '' }
@@ -163,9 +182,7 @@ try {
   if (Test-Path -LiteralPath $uninstallLog -PathType Leaf) {
     Copy-Item -LiteralPath $uninstallLog -Destination $evidenceUninstallLog -Force
   }
-  $remainingProgramFiles = @(
-    Get-ChildItem -LiteralPath $program -Recurse -Force -File -ErrorAction SilentlyContinue
-  )
+  $remainingProgramFiles = @(Get-RemainingProgramFiles $program)
   Assert-True ($remainingProgramFiles.Count -eq 0) "Program files remain after uninstall: $($remainingProgramFiles.FullName -join ', ')"
   Assert-True $uninstallConfirmed 'Uninstaller did not record PROGRAM removed before the acceptance deadline.'
   Assert-True $uninstallLogText.Contains('START uninstall') 'Uninstaller log is missing START uninstall.'
@@ -173,6 +190,54 @@ try {
   $programFilesRemoved = $true
   $emptyProgramDirectoryRemaining = Test-Path -LiteralPath $program -PathType Container
   Assert-True (Test-Path -LiteralPath $data -PathType Container) 'User data was deleted by the default uninstall.'
+
+  # Exercise the exact released Premium Setup against a disk state left by a
+  # power loss after the previous installation was moved to its backup. This
+  # complements the isolated NSIS fixture with artifact-bound proof: the real
+  # wrapper must restore the known-good backup, remove partial trees, install
+  # the protected payload, and remain uninstallable.
+  New-Item -ItemType Directory -Path (Join-Path $interruptedProgram 'resources'), (Join-Path $interruptedBackup 'resources'), $interruptedStage -Force | Out-Null
+  'partial-current' | Set-Content -LiteralPath (Join-Path $interruptedProgram 'partial-current.txt') -Encoding UTF8
+  'partial-stage' | Set-Content -LiteralPath (Join-Path $interruptedStage 'partial-stage.txt') -Encoding UTF8
+  Copy-Item -LiteralPath "$env:WINDIR\System32\notepad.exe" -Destination (Join-Path $interruptedBackup 'OrdersLogistics.exe') -Force
+  'known-good-asar' | Set-Content -LiteralPath (Join-Path $interruptedBackup 'resources\app.asar') -Encoding UTF8
+  'known-good-backup' | Set-Content -LiteralPath (Join-Path $interruptedBackup 'known-good-backup.txt') -Encoding UTF8
+  if (Test-Path -LiteralPath $uninstallLog -PathType Leaf) { Remove-Item -LiteralPath $uninstallLog -Force }
+
+  $interruptedSetupExit = Invoke-Native $setupPath @(
+    '/S',
+    "/DATADIR=$interruptedData",
+    '/MODE=demo',
+    '/NODESKTOP',
+    '/NOSTART',
+    "/D=$interruptedProgram"
+  )
+  Assert-True ($interruptedSetupExit -eq 0) "Interrupted-update recovery install returned $interruptedSetupExit."
+  $interruptedLogText = Get-Content -LiteralPath $log -Raw
+  foreach ($marker in @('RECOVERY interrupted-update-backup detected', 'RECOVERY previous installation restored', 'STEP smoke-test', 'SUCCESS')) {
+    Assert-True ($interruptedLogText.Contains($marker)) "Interrupted-update installer log is missing: $marker"
+  }
+  Assert-True (-not (Test-Path -LiteralPath (Join-Path $interruptedProgram 'partial-current.txt'))) 'Partial current tree survived artifact-bound recovery.'
+  Assert-True (-not (Test-Path -LiteralPath $interruptedStage)) 'Partial staging tree survived artifact-bound recovery.'
+  Assert-True (-not (Test-Path -LiteralPath $interruptedBackup)) 'Previous backup survived the completed artifact-bound update.'
+  Assert-True (Test-Path -LiteralPath (Join-Path $interruptedProgram 'OrdersLogistics.exe') -PathType Leaf) 'Released payload is missing after artifact-bound recovery.'
+  Copy-Item -LiteralPath $log -Destination $evidenceInterruptedLog -Force
+  $interruptedRecoveryConfirmed = $true
+
+  $interruptedUninstaller = Join-Path $interruptedProgram 'Orders-Logistics-Uninstall.exe'
+  $interruptedUninstallExit = Invoke-Native $interruptedUninstaller @('/S')
+  Assert-True ($interruptedUninstallExit -eq 0) "Recovered-install uninstaller returned $interruptedUninstallExit."
+  $interruptedDeadline = (Get-Date).AddSeconds(120)
+  do {
+    $interruptedRemaining = @(Get-RemainingProgramFiles $interruptedProgram)
+    $interruptedUninstallLog = if (Test-Path -LiteralPath $uninstallLog -PathType Leaf) {
+      Get-Content -LiteralPath $uninstallLog -Raw -ErrorAction SilentlyContinue
+    } else { '' }
+    $interruptedUninstallConfirmed = $interruptedRemaining.Count -eq 0 -and $interruptedUninstallLog.Contains('PROGRAM removed')
+    if (-not $interruptedUninstallConfirmed) { Start-Sleep -Milliseconds 500 }
+  } while (-not $interruptedUninstallConfirmed -and (Get-Date) -lt $interruptedDeadline)
+  Assert-True $interruptedUninstallConfirmed 'Recovered installation was not completely removed before the acceptance deadline.'
+  Assert-True (Test-Path -LiteralPath $interruptedData -PathType Container) 'Recovered installation deleted user data by default.'
   $completed = $true
 }
 catch {
@@ -184,6 +249,10 @@ finally {
     $uninstaller = Join-Path $program 'Orders-Logistics-Uninstall.exe'
     if (Test-Path -LiteralPath $uninstaller -PathType Leaf) {
       $null = Invoke-Native $uninstaller @('/S')
+    }
+    $interruptedUninstaller = Join-Path $interruptedProgram 'Orders-Logistics-Uninstall.exe'
+    if (Test-Path -LiteralPath $interruptedUninstaller -PathType Leaf) {
+      $null = Invoke-Native $interruptedUninstaller @('/S')
     }
   } catch {}
 
@@ -208,7 +277,7 @@ finally {
   }
 
   [ordered]@{
-    schema = 3
+    schema = 4
     product = 'JustFun Логистика'
     version = $productVersion
     setup_sha256 = (Get-FileHash -LiteralPath $setupPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -220,7 +289,14 @@ finally {
     program_files_removed = $programFilesRemoved
     empty_program_directory_remaining = $emptyProgramDirectoryRemaining
     data_preserved_by_default = $completed
-    previous_local_state_restored = $true
+    interrupted_update = [ordered]@{
+      setup_exit = $interruptedSetupExit
+      recovery_confirmed = $interruptedRecoveryConfirmed
+      uninstall_exit = $interruptedUninstallExit
+      uninstall_confirmed = $interruptedUninstallConfirmed
+      log_sha256 = if (Test-Path -LiteralPath $evidenceInterruptedLog -PathType Leaf) { (Get-FileHash -LiteralPath $evidenceInterruptedLog -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null }
+    }
+    previous_local_state_restored = $interruptedRecoveryConfirmed
     errors = @($(if ($failure) { $failure }))
   } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $resultPath -Encoding UTF8
 

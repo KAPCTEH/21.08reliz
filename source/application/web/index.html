@@ -6,7 +6,7 @@
 <meta content="default-src 'self'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://tile.openstreetmap.org; connect-src 'self' https://nominatim.openstreetmap.org https://router.project-osrm.org; font-src 'self' data:; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'self'" http-equiv="Content-Security-Policy"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
 <meta content="origin-when-cross-origin" name="referrer"/>
-<title>JustFun Логистика · 7.8.3</title>
+<title>JustFun Логистика · 7.8.4</title>
 <link href="assets/vendor/leaflet/leaflet.css" rel="stylesheet"/>
 <link href="assets/css/00-base.css" rel="stylesheet"/>
 <link href="assets/css/01-design-tokens-v783.css" id="design-tokens-v783" rel="stylesheet"/>
@@ -17,7 +17,7 @@
 <link href="assets/css/20-demonstration.css" id="demonstration-mode-5-2-0" rel="stylesheet"/>
 <link href="assets/css/30-full-audit.css" id="full-audit-5-0-1-fixes" rel="stylesheet"/>
 <link href="assets/css/40-premium-extension.css" rel="stylesheet"/>
-<link href="assets/css/99-stability-v595.css" id="stability-style-v595" rel="stylesheet"/><meta content="JustFun Логистика 7.8.3" name="application-name"/><meta content="7.8.3-warehouse-isolation" name="justfun-build"/><link href="assets/css/110-desktop-platform-v750.css" id="desktop-platform-style-v750" rel="stylesheet"/></head>
+<link href="assets/css/99-stability-v595.css" id="stability-style-v595" rel="stylesheet"/><meta content="JustFun Логистика 7.8.4" name="application-name"/><meta content="7.8.4-warehouse-isolation" name="justfun-build"/><link href="assets/css/110-desktop-platform-v750.css" id="desktop-platform-style-v750" rel="stylesheet"/></head>
 <body>
 <header class="topbar">
 <div class="nav">
@@ -325,14 +325,14 @@
 <div class="maintenance-grid">
 <div class="maintenance-card"><b>Резервная копия</b><span>Сохраните заказы, складские остатки, движения товаров, водителей, рейсы и настройки в один файл.</span><button class="btn-soft" data-jf-onclick="exportBackup()" style="margin-top:10px">Скачать копию</button></div>
 <div class="maintenance-card"><b>Восстановление</b><span>Загрузите ранее сохранённую копию. Перед импортом автоматически создаётся страховочная копия.</span><button class="btn-blue" data-jf-onclick="chooseBackupFile()" style="margin-top:10px">Загрузить копию</button><input accept="application/json,.json" id="backupFileInput" data-jf-onchange="importBackupFile(event)" style="display:none" type="file"/></div>
-<div class="maintenance-card"><b>Проверка базы</b><span>Исправляет повреждённые связи, дубли идентификаторов и устаревшие назначения рейсов.</span><button class="btn-primary" data-jf-onclick="runDataDiagnostics(true)" style="margin-top:10px">Проверить систему</button></div>
+<div class="maintenance-card"><b>Проверка базы</b><span>Исправляет повреждённые связи, дубли идентификаторов и устаревшие назначения рейсов.</span><button class="btn-primary" id="jfRunDataDiagnostics" style="margin-top:10px" type="button">Проверить систему</button></div>
 <div class="maintenance-card"><b>Журналы запуска</b><span id="jfLogPath">%LOCALAPPDATA%\JustFun\OrdersLogistics\logs</span><button class="btn-gray" id="jfOpenLogs" type="button" style="margin-top:10px">Открыть папку logs</button></div>
 </div>
-<div class="notice notice-info" id="diagnosticStatus" style="margin-top:12px">Версия системы: 7.8.3 · автоматическая проверка изоляции склада, LIVE/DEMO, заказов, рейсов, оплат и архива выполняется при каждом запуске.</div>
+<div class="notice notice-info" id="diagnosticStatus" style="margin-top:12px">Версия системы: 7.8.4 · автоматическая проверка изоляции склада, LIVE/DEMO, заказов, рейсов, оплат и архива выполняется при каждом запуске.</div>
 </div>
 <div class="settings-box span-2 jf-update-center" id="jfUpdateCenter" aria-labelledby="jfUpdateTitle">
 <div class="jf-update-head"><div><h3 id="jfUpdateTitle">Обновление программы</h3><p class="jf-integration-lead">Новые версии скачиваются только после проверки цифровой подписи и устанавливаются с автоматическим возвратом к рабочей версии при сбое.</p></div><span class="jf-update-badge" id="jfUpdateBadge">Проверяется…</span></div>
-<div class="jf-update-versions" aria-label="Сведения о версии"><div><span>Установлена</span><b id="jfUpdateCurrentVersion">7.8.3</b></div><div><span>Доступна</span><b id="jfUpdateTargetVersion">—</b></div><div><span>Канал</span><b id="jfUpdateChannel">Стабильный</b></div><div><span>Последняя проверка</span><b id="jfUpdateLastChecked">Ещё не выполнялась</b></div><div><span>Размер загрузки</span><b id="jfUpdatePayloadSize">—</b></div></div>
+<div class="jf-update-versions" aria-label="Сведения о версии"><div><span>Установлена</span><b id="jfUpdateCurrentVersion">7.8.4</b></div><div><span>Доступна</span><b id="jfUpdateTargetVersion">—</b></div><div><span>Канал</span><b id="jfUpdateChannel">Стабильный</b></div><div><span>Последняя проверка</span><b id="jfUpdateLastChecked">Ещё не выполнялась</b></div><div><span>Размер загрузки</span><b id="jfUpdatePayloadSize">—</b></div></div>
 <div class="jf-update-status" id="jfUpdateStatus" role="status" aria-live="polite">Получаем состояние системы обновлений…</div>
 <div class="jf-update-summary" id="jfUpdateReleaseSummary" hidden></div>
 <div class="jf-update-progress" id="jfUpdateProgress" hidden><div><span id="jfUpdateProgressText">Скачивание обновления</span><b id="jfUpdateProgressPercent">0%</b></div><div class="jf-update-progress-track" id="jfUpdateProgressTrack" role="progressbar" aria-label="Скачивание обновления" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="jfUpdateProgressBar"></i></div></div>
@@ -351,7 +351,7 @@
 <div class="field"><label for="jfRegPort">SSH-порт</label><input id="jfRegPort" type="number" min="1" max="65535" value="22"/></div>
 </div>
 <div class="jf-integration-note">Домен не нужен. Пароль SSH вводится в отдельном защищённом окне JustFun, используется только в памяти и не сохраняется. Перед входом программа обязательно проверяет отпечаток SSH-ключа VPS. Порт PostgreSQL наружу не открывается.</div>
-<div class="inline-actions"><button class="btn-primary" id="jfRegConfigure" type="button">Установить или обновить VPS</button><button class="btn-gray" id="jfRegCheck" type="button">Проверить связь</button><button class="btn-blue" id="jfRegSync" type="button">Сохранить активный склад</button><button class="btn-soft" id="jfRegRestore" type="button">Восстановить активный склад</button></div>
+<div class="inline-actions"><button class="btn-primary" id="jfRegConfigure" type="button" data-jf-integration-action>Установить или обновить VPS</button><button class="btn-gray" id="jfRegCheck" type="button" data-jf-integration-action>Проверить связь</button><button class="btn-blue" id="jfRegSync" type="button" data-jf-integration-action>Сохранить активный склад</button><button class="btn-soft" id="jfRegRestore" type="button" data-jf-integration-action>Восстановить активный склад</button></div>
 <div class="jf-integration-status" id="jfRegStatus">Введите IP своего VPS REG.RU.</div>
 </section>
 </div>
@@ -362,7 +362,7 @@
 <div class="jf-integration-head"><div><b>Telegram + Cloudflare</b><span>Временный API-токен → автоматические Worker, D1 и webhook</span></div><i id="jfTelegramBadge">Не настроен</i></div>
 <div class="jf-integration-note"><b>Отдельное подключение активного склада.</b> Для каждого склада владелец указывает своего Telegram-бота. Программа создаёт отдельные Worker, D1, webhook и защищённый ключ, поэтому бот и сообщения другого склада сюда попасть не могут. Собственный домен не требуется; временный Cloudflare API-токен после настройки рекомендуется удалить.</div>
 <div class="jf-integration-status" id="jfTelegramWarehouseContext">Активный склад: определяется…</div>
-<div class="inline-actions"><button class="btn-primary" id="jfTelegramConfigure" type="button">Настроить Telegram</button><button class="btn-gray" id="jfTelegramReconnect" type="button">Проверить и восстановить</button><button class="btn-gray" id="jfTelegramCheck" type="button">Проверить webhook</button><button class="btn-blue" id="jfTelegramWarehouse" type="button">Подключить группу склада</button></div>
+<div class="inline-actions"><button class="btn-primary" id="jfTelegramConfigure" type="button" data-jf-integration-action>Настроить Telegram</button><button class="btn-gray" id="jfTelegramReconnect" type="button" data-jf-integration-action>Проверить и восстановить</button><button class="btn-gray" id="jfTelegramCheck" type="button" data-jf-integration-action>Проверить webhook</button><button class="btn-blue" id="jfTelegramWarehouse" type="button" data-jf-integration-action>Подключить группу склада</button></div>
 <div class="jf-telegram-progress" id="jfTelegramProgress" hidden>
 <div class="jf-telegram-progress-head"><span id="jfTelegramProgressText">Подготовка…</span><b id="jfTelegramProgressPercent">0%</b></div>
 <div class="jf-telegram-progress-track"><i id="jfTelegramProgressBar"></i></div>
@@ -403,14 +403,14 @@
 <div class="field"><label>Статус оплаты</label><select id="paymentStatus"><option value="pending">Ожидает оплаты</option><option value="paid">Оплата произведена</option></select></div>
 </div>
 <div class="section-title"><h2>Адрес доставки</h2></div>
-<div class="field"><textarea id="deliveryAddress" placeholder="Область, район, населённый пункт, улица, дом; для СНТ — название, линия и участок" required="" data-jf-oninput="invalidateDeliveryAddressSearch()"></textarea></div>
+<div class="field"><textarea aria-autocomplete="list" aria-controls="geoResults" id="deliveryAddress" placeholder="Область, район, населённый пункт, улица, дом; для СНТ — название, линия и участок" required="" data-jf-oninput="invalidateDeliveryAddressSearch()" data-jf-onkeydown="selectAddressSuggestionByKeyboard(event)"></textarea></div>
 <div class="geo-panel">
 <div class="geo-controls">
 <button class="btn-primary" id="addressSearchBtn" data-jf-onclick="searchDeliveryAddress()" type="button">🔎 Найти адрес и район</button>
 <button class="btn-gray" data-jf-onclick="clearSelectedPoint()" type="button">Сбросить точку</button>
 </div>
 <div class="notice notice-info" id="geoStatus" style="margin-top:10px">Введите адрес и нажмите поиск. Также можно поставить точку непосредственно кликом по карте или перетащить маркер.</div>
-<div class="geo-results" id="geoResults"></div>
+<div aria-label="Варианты адреса" class="geo-results" id="geoResults" role="listbox"></div>
 <div class="selected-address" id="selectedAddress">
 <div class="notice notice-ok"><b id="selectedFullAddress">Адрес выбран</b></div>
 <div class="address-grid">
@@ -589,7 +589,7 @@
 <div class="field"><label>Штрихкод</label><input id="productBarcode" placeholder="EAN / внутренний штрихкод"/></div>
 <div class="field"><label>Категория</label><select id="productCategory" data-jf-onchange="smartProductCategoryChanged(true);updateProductPreview()"><option value="">Сначала выберите категорию</option></select><div class="field-help">Категория определяет рекомендуемые правила хранения и перевозки</div></div>
 <div class="field"><label>Подкатегория</label><select id="productSubcategory" data-jf-onchange="updateProductPreview()"><option value="">Сначала выберите категорию</option></select></div>
-<div class="field"><label>Единица измерения</label><select id="productUnit" data-jf-onchange="updateProductPreview()"><option value="шт">шт</option><option value="лист">лист</option><option value="м">м</option><option value="м²">м²</option><option value="м.п.">м.п.</option><option value="упак.">упак.</option><option value="компл.">компл.</option><option value="бухта">бухта</option><option value="кг">кг</option><option value="л">л</option></select></div>
+<div class="field"><label>Единица измерения</label><select id="productUnit" data-jf-onchange="updateProductPreview()"><option value="шт">шт</option><option value="лист">лист</option><option value="м">м</option><option value="м²">м²</option><option value="м³">м³</option><option value="м.п.">м.п.</option><option value="упак.">упак.</option><option value="компл.">компл.</option><option value="бухта">бухта</option><option value="кг">кг</option><option value="л">л</option></select></div>
 <div class="field"><label>Цена закупки, ₽</label><input id="productPurchasePrice" min="0" data-jf-oninput="updateProductPreview()" step="0.01" type="number" value="0"><div class="field-help">Внутренняя учётная цена</div></div>
 <div class="field"><label>Цена продажи в каталоге, ₽</label><input id="productPrice" min="0" data-jf-oninput="updateProductPreview()" required="" step="0.01" type="number" value="0"><div class="field-help">Ручная цена в заказе её не изменяет</div></div>
 <div class="field"><label>Статус</label><select id="productActive" data-jf-onchange="updateProductPreview()"><option value="yes">Активен</option><option value="no">Неактивен / архив</option></select></div>
@@ -735,6 +735,8 @@
 <script id="warehouse-bootstrap-v600" src="assets/js/00-warehouse-bootstrap-v600.js"></script>
 <script id="action-dispatch-v783" src="assets/js/01-action-dispatch-v783.js"></script>
 <script id="icon-system-v783" src="assets/js/03-icon-system-v783.js"></script>
+<script id="address-intelligence-v783" src="assets/js/04-address-intelligence-v783.js"></script>
+<script id="local-outbox-v783" src="assets/js/05-local-outbox-v783.js"></script>
 <script id="app-bundle-v595" src="assets/js/00-app-bundle-v595.js"></script>
 <script id="runtime-overrides-v783" src="assets/js/02-runtime-overrides-v783.js"></script>
 <link href="assets/css/105-map-reliability-v772.css" id="map-reliability-style-v772" rel="stylesheet"/>

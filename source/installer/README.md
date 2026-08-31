@@ -1,4 +1,4 @@
-# Нативный Windows-установщик JustFun 7.8.3
+# Нативный Windows-установщик JustFun 7.8.4
 
 Setup, Recovery и штатный Uninstall собираются NSIS 3.x как самостоятельные
 Windows PE-файлы. Установочный контур не запускает PowerShell, CMD, BAT/CMD или

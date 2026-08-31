@@ -4,6 +4,16 @@ const ACCESS_SECONDS = 15 * 60;
 const OFFLINE_SECONDS = 3 * 24 * 60 * 60;
 const REFRESH_SECONDS = 30 * 24 * 60 * 60;
 const DEMO_SECONDS = 72 * 60 * 60;
+const WAREHOUSE_DELETE_LEASE_SECONDS = 120;
+const WAREHOUSE_DELETE_LEASE_ACQUIRE_LIMIT = 12;
+const WAREHOUSE_DELETE_LEASE_ACQUIRE_WINDOW_SECONDS = 15 * 60;
+const VPS_ATTESTATION_MAX_SKEW_SECONDS = 90;
+const INVALID_SHA256_HASH = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA';
+const INVALID_VPS_ATTESTATION_SECRET = `jfvps_${'A'.repeat(43)}`;
+const INTEGRATION_SECRET_CONTEXTS = Object.freeze({
+  telegramClientKey: 'telegram-client-key-v1',
+  dataApiAttestation: 'data-api-attestation-secret-v1',
+});
 // Cloudflare Workers WebCrypto rejects PBKDF2 iteration counts above 100000.
 // Store the iteration count with each password so existing hashes remain
 // verifiable while all newly created accounts use the strongest supported
@@ -13,10 +23,11 @@ const MAX_BODY_BYTES = 64 * 1024;
 const MAX_UPSTREAM_BYTES = 3 * 1024 * 1024;
 
 class ApiError extends Error {
-  constructor(status, code, message = code) {
+  constructor(status, code, message = code, details = null) {
     super(message);
     this.status = status;
     this.code = code;
+    this.details = details && typeof details === 'object' && !Array.isArray(details) ? details : null;
   }
 }
 
@@ -53,6 +64,15 @@ const timingEqual = (left, right) => {
 async function sha256(value) {
   return b64url(await crypto.subtle.digest('SHA-256', encoder.encode(String(value))));
 }
+const hex = bytes => Array.from(new Uint8Array(bytes), byte => byte.toString(16).padStart(2, '0')).join('');
+const fromHex = value => {
+  const text = String(value);
+  if (!/^(?:[0-9a-f]{2})+$/.test(text)) throw new ApiError(400, 'VPS_ATTESTATION_INVALID');
+  return Uint8Array.from(text.match(/.{2}/g), pair => Number.parseInt(pair, 16));
+};
+async function sha256Hex(value) {
+  return hex(await crypto.subtle.digest('SHA-256', encoder.encode(String(value))));
+}
 async function hashPassword(password, salt = randomToken(24), iterations = PASSWORD_ITERATIONS) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits(
@@ -71,6 +91,9 @@ async function jwtSecret(env) {
   if (secret.length < 32) throw new ApiError(500, 'SERVER_CONFIGURATION_ERROR');
   return crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign', 'verify']);
 }
+async function jwtSecretHmac(env, value) {
+  return b64url(await crypto.subtle.sign('HMAC', await jwtSecret(env), encoder.encode(String(value))));
+}
 async function integrationKeyFromSecret(secretValue) {
   const secret = clean(secretValue);
   if (secret.length < 32) throw new ApiError(500, 'SERVER_CONFIGURATION_ERROR');
@@ -82,23 +105,38 @@ function integrationSecrets(env) {
   if (!secrets.some(secret => secret.length >= 32)) throw new ApiError(500, 'SERVER_CONFIGURATION_ERROR');
   return secrets.filter(secret => secret.length >= 32);
 }
-async function encryptIntegrationSecret(env, companyId, value) {
+function validateIntegrationSecretContext(value) {
+  const context = clean(value || INTEGRATION_SECRET_CONTEXTS.telegramClientKey);
+  if (!Object.values(INTEGRATION_SECRET_CONTEXTS).includes(context)) {
+    throw new ApiError(500, 'SERVER_CONFIGURATION_ERROR');
+  }
+  return context;
+}
+function integrationSecretConfigurationError(context) {
+  return context === INTEGRATION_SECRET_CONTEXTS.dataApiAttestation
+    ? 'VPS_ATTESTATION_CONFIGURATION_REQUIRED'
+    : 'TELEGRAM_CONFIGURATION_REQUIRED';
+}
+async function encryptIntegrationSecret(env, companyId, value, contextValue = INTEGRATION_SECRET_CONTEXTS.telegramClientKey) {
+  const context = validateIntegrationSecretContext(contextValue);
   const iv = new Uint8Array(12);
   crypto.getRandomValues(iv);
   const ciphertext = await crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv, additionalData: encoder.encode(`telegram-client-key-v1:${companyId}`) },
+    { name: 'AES-GCM', iv, additionalData: encoder.encode(`${context}:${companyId}`) },
     await integrationKeyFromSecret(integrationSecrets(env)[0]),
     encoder.encode(String(value)),
   );
   return `v1.${b64url(iv)}.${b64url(ciphertext)}`;
 }
-async function decryptIntegrationSecret(env, companyId, value) {
+async function decryptIntegrationSecret(env, companyId, value, contextValue = INTEGRATION_SECRET_CONTEXTS.telegramClientKey) {
+  const context = validateIntegrationSecretContext(contextValue);
+  const configurationError = integrationSecretConfigurationError(context);
   const parts = clean(value).split('.');
-  if (parts.length !== 3 || parts[0] !== 'v1') throw new ApiError(500, 'TELEGRAM_CONFIGURATION_REQUIRED');
+  if (parts.length !== 3 || parts[0] !== 'v1') throw new ApiError(500, configurationError);
   for (const secret of integrationSecrets(env)) {
     try {
       const plaintext = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: fromB64url(parts[1]), additionalData: encoder.encode(`telegram-client-key-v1:${companyId}`) },
+        { name: 'AES-GCM', iv: fromB64url(parts[1]), additionalData: encoder.encode(`${context}:${companyId}`) },
         await integrationKeyFromSecret(secret),
         fromB64url(parts[2]),
       );
@@ -107,7 +145,7 @@ async function decryptIntegrationSecret(env, companyId, value) {
       // Support a controlled migration from the JWT fallback to INTEGRATION_SECRET.
     }
   }
-  throw new ApiError(500, 'TELEGRAM_CONFIGURATION_REQUIRED');
+  throw new ApiError(500, configurationError);
 }
 async function signJwt(env, claims, seconds) {
   const header = b64url(encoder.encode(JSON.stringify({ alg: 'HS256', typ: 'JWT' })));
@@ -175,7 +213,10 @@ function validateFullName(value) {
 }
 function safePermissions(value) {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.map(clean).filter(item => /^[a-z0-9.*_:-]{1,120}$/i.test(item)))].slice(0, 100);
+  return [...new Set(value.map(clean).map(permission => {
+    const warehouseCode = permission.match(/^jf\.warehouse-code:([A-ZА-ЯЁ0-9]{1,3})$/iu);
+    return warehouseCode ? `jf.warehouse-code:${normalizeCode(warehouseCode[1])}` : permission;
+  }).filter(item => /^[\p{L}\p{N}.*_:-]{1,120}$/u.test(item)))].slice(0, 100);
 }
 const ASSIGNABLE_PERMISSIONS = new Set([
   'orders.read','orders.create','orders.update','orders.status','orders.payment','orders.pricing','orders.delete',
@@ -186,23 +227,6 @@ const ASSIGNABLE_PERMISSIONS = new Set([
   'company.update','warehouses.manage','integrations.manage','users.read','users.create','users.update','devices.manage',
   'orders.update','routes.update','inventory.update','reports.update',
 ]);
-const LEGACY_PERMISSION_EXPANSIONS = Object.freeze({
-  'orders.update':['orders.create','orders.status','orders.payment','orders.pricing','orders.delete'],
-  'routes.update':['routes.plan','routes.approve','routes.pick','routes.start','routes.return','routes.close','routes.cancel','routes.settings'],
-  'inventory.update':['inventory.catalog','inventory.stock','inventory.pricing','inventory.pick','inventory.delete'],
-  'drivers.update':['drivers.assign','drivers.delete'],
-  'reports.update':['reports.settings','reports.expenses'],
-});
-function expandLegacyPermissions(value) {
-  const result=[];
-  for (const permission of safePermissions(value)) {
-    if (!result.includes(permission)) result.push(permission);
-    for (const expanded of LEGACY_PERMISSION_EXPANSIONS[permission] || []) {
-      if (!result.includes(expanded)) result.push(expanded);
-    }
-  }
-  return result;
-}
 function validateRoleName(value) {
   const role = clean(value).replace(/\s+/g, ' ');
   if (role.toLowerCase() === 'owner' || role.length < 2 || role.length > 50) {
@@ -213,11 +237,14 @@ function validateRoleName(value) {
 }
 function permissionsForRole(role, value) {
   if (role === 'owner') return ['*'];
-  return expandLegacyPermissions(value).filter(permission => (
+  // Migration 006 expanded the old coarse permissions exactly once. Runtime
+  // requests are already the owner's explicit per-action selection and must
+  // never grow into destructive rights (for example update -> delete).
+  return safePermissions(value).filter(permission => (
     ASSIGNABLE_PERMISSIONS.has(permission)
     || permission === 'jf.warehouse:*'
     || /^jf\.warehouse:[A-Za-z0-9_-]{1,120}$/.test(permission)
-    || /^jf\.warehouse-code:[A-Za-z0-9_-]{1,40}$/.test(permission)
+    || /^jf\.warehouse-code:[A-ZА-ЯЁ0-9]{1,3}$/u.test(permission)
   ));
 }
 function permissionCoveredBy(grantorPermissions, permission) {
@@ -267,6 +294,11 @@ function validateWarehouseId(value) {
   if (!/^[A-Za-z0-9_-]{1,120}$/.test(warehouseId)) throw new ApiError(400, 'WAREHOUSE_REQUIRED');
   return warehouseId;
 }
+function validateWarehouseCode(value) {
+  const warehouseCode = normalizeCode(value);
+  if (!/^[A-ZА-ЯЁ0-9]{1,3}$/u.test(warehouseCode)) throw new ApiError(400, 'WAREHOUSE_CODE_REQUIRED');
+  return warehouseCode;
+}
 function validateEnvironment(value) {
   const environment = clean(value).toLowerCase();
   if (!['live', 'demo'].includes(environment)) throw new ApiError(400, 'ENVIRONMENT_REQUIRED');
@@ -303,9 +335,12 @@ async function rateLimit(env, request, group, limit = 30, windowSeconds = 900, o
   if (Number(row?.hits || 0) > limit) throw new ApiError(429, 'TOO_MANY_ATTEMPTS');
 }
 async function audit(env, requestId, action, companyId = null, userId = null, entityId = null, details = {}) {
-  await env.DB.prepare(
+  await auditStatement(env, requestId, action, companyId, userId, entityId, details).run();
+}
+function auditStatement(env, requestId, action, companyId = null, userId = null, entityId = null, details = {}) {
+  return env.DB.prepare(
     'INSERT INTO audit_log(id,company_id,user_id,action,entity_id,details_json,request_id,created_at) VALUES(?,?,?,?,?,?,?,?)',
-  ).bind(id('audit'), companyId, userId, action, entityId, JSON.stringify(details && typeof details === 'object' ? details : {}), requestId, nowIso()).run();
+  ).bind(id('audit'), companyId, userId, action, entityId, JSON.stringify(details && typeof details === 'object' ? details : {}), requestId, nowIso());
 }
 function publicUser(row) {
   return {
@@ -341,21 +376,27 @@ function publicCompany(row) {
   if (telegramService) company.telegram_service = telegramService;
   return company;
 }
-async function issueTokenSet(env, row, deviceId, refreshToken, refreshExpiresAt) {
+async function issueTokenSet(env, row, deviceId, sessionId, refreshToken, refreshExpiresAt) {
   const permissions = permissionsFromRow(row);
   const claims = {
     sub: row.id,
     cid: row.company_id,
     did: deviceId,
+    sid: sessionId,
     role: row.role,
     permissions,
+    user_status: row.status,
+    company_status: row.company_status,
+    auth_context_version: 2,
   };
   return {
     ok: true,
     auth_context_version: 2,
+    session_binding_contract: 1,
     user_id: row.id,
     company_id: row.company_id,
     device_id: deviceId,
+    session_id: sessionId,
     role: row.role,
     permissions,
     access_token: await signJwt(env, { ...claims, typ: 'access' }, ACCESS_SECONDS),
@@ -372,32 +413,45 @@ async function createSession(env, row, deviceId, parentSessionId = null) {
   const refreshToken = randomToken(48);
   const expiresAt = new Date(Date.now() + REFRESH_SECONDS * 1000).toISOString();
   const sessionId = id('ses');
-  await env.DB.prepare(
-    'INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at) VALUES(?,?,?,?,?,?,\'active\',?,?)',
-  ).bind(sessionId, row.company_id, row.id, deviceId, await sha256(refreshToken), parentSessionId, nowIso(), expiresAt).run();
-  return issueTokenSet(env, row, deviceId, refreshToken, expiresAt);
+  const createdAt = nowIso();
+  const inserted = await env.DB.prepare(`
+    INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at)
+    SELECT ?,u.company_id,u.id,d.id,?,?, 'active',?,?
+    FROM users u
+    JOIN companies c ON c.id=u.company_id AND c.status='active'
+    JOIN licenses l ON l.company_id=c.id AND l.status='active'
+    JOIN devices d ON d.id=? AND d.user_id=u.id AND d.company_id=u.company_id AND d.status='active'
+    WHERE u.id=? AND u.company_id=? AND u.status='active'
+  `).bind(sessionId, await sha256(refreshToken), parentSessionId, createdAt, expiresAt, deviceId, row.id, row.company_id).run();
+  if (Number(inserted?.meta?.changes || 0) !== 1) throw new ApiError(401, 'INVALID_SESSION');
+  return issueTokenSet(env, row, deviceId, sessionId, refreshToken, expiresAt);
 }
 async function authenticate(env, request) {
   const authorization = clean(request.headers.get('authorization'));
   if (!authorization.startsWith('Bearer ')) throw new ApiError(401, 'INVALID_TOKEN');
   const claims = await verifyJwt(env, authorization.slice(7), 'access');
+  const sessionId = clean(claims.sid);
+  if (!sessionId) throw new ApiError(401, 'SESSION_UPGRADE_REQUIRED');
   const row = await env.DB.prepare(`
     SELECT u.*, c.code company_code, c.name company_name, c.status company_status,
            c.data_api_address,c.data_api_port,c.data_api_tls_sha256,c.data_api_updated_at,
            c.telegram_worker_url,c.telegram_client_key_ciphertext,c.telegram_bot_username,
            c.telegram_installation_id,c.telegram_deployment_version,c.telegram_updated_at,
-           l.status license_status, d.status device_status
+           l.status license_status, d.status device_status,
+           s.status session_status,s.expires_at session_expires
     FROM users u
     JOIN companies c ON c.id=u.company_id
     JOIN licenses l ON l.company_id=c.id
-    JOIN devices d ON d.id=? AND d.user_id=u.id
+    JOIN devices d ON d.id=? AND d.user_id=u.id AND d.company_id=u.company_id
+    JOIN sessions s ON s.id=? AND s.user_id=u.id AND s.company_id=u.company_id AND s.device_id=d.id
     WHERE u.id=? AND u.company_id=?
-  `).bind(claims.did, claims.sub, claims.cid).first();
+  `).bind(claims.did, sessionId, claims.sub, claims.cid).first();
   if (!row) throw new ApiError(401, 'INVALID_SESSION');
   if (row.license_status !== 'active' || row.company_status !== 'active') throw new ApiError(403, 'LICENSE_BLOCKED');
   if (row.status !== 'active') throw new ApiError(403, 'USER_BLOCKED');
   if (row.device_status !== 'active') throw new ApiError(403, 'DEVICE_BLOCKED');
-  return { ...publicUser(row), company_id: row.company_id, company: publicCompany(row), device_id: claims.did };
+  if (row.session_status !== 'active' || Date.parse(row.session_expires) <= Date.now()) throw new ApiError(401, 'INVALID_SESSION');
+  return { ...publicUser(row), company_id: row.company_id, company: publicCompany(row), device_id: claims.did, session_id: sessionId };
 }
 async function ensureDevice(env, row, deviceValue, deviceName) {
   const normalizedDevice = clean(deviceValue);
@@ -513,7 +567,7 @@ async function registerOwner(env, request, data, requestId) {
     status: 'active',
   };
   await audit(env, requestId, 'owner.register', license.company_id, userId, license.id);
-  return issueTokenSet(env, row, deviceId, refreshToken, refreshExpiresAt);
+  return issueTokenSet(env, row, deviceId, sessionId, refreshToken, refreshExpiresAt);
 }
 async function login(env, request, data, requestId) {
   // A generous IP ceiling stops request floods without locking an entire
@@ -550,42 +604,107 @@ async function login(env, request, data, requestId) {
 async function refresh(env, request, data) {
   await rateLimit(env, request, 'refresh', 600, 900);
   const refreshToken = clean(data.refresh_token);
+  const rotationId = clean(data.rotation_id);
   const deviceHash = await sha256(clean(data.device_id));
   if (!refreshToken || !clean(data.device_id)) throw new ApiError(401, 'INVALID_SESSION');
+  if (rotationId && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rotationId)) {
+    throw new ApiError(400, 'INVALID_ROTATION_ID');
+  }
   const row = await env.DB.prepare(`
-    SELECT s.id session_id,s.expires_at session_expires,u.*,c.code company_code,c.name company_name,c.status company_status,
+    SELECT s.id session_id,s.status session_status,s.created_at session_created,s.expires_at session_expires,u.*,c.code company_code,c.name company_name,c.status company_status,
            c.data_api_address,c.data_api_port,c.data_api_tls_sha256,c.data_api_updated_at,
            c.telegram_worker_url,c.telegram_client_key_ciphertext,c.telegram_bot_username,
            c.telegram_installation_id,c.telegram_deployment_version,c.telegram_updated_at,
            l.status license_status,d.id device_id,d.device_hash,d.status device_status
     FROM sessions s
-    JOIN users u ON u.id=s.user_id
+    JOIN users u ON u.id=s.user_id AND u.company_id=s.company_id
     JOIN companies c ON c.id=s.company_id
     JOIN licenses l ON l.company_id=c.id
-    JOIN devices d ON d.id=s.device_id
-    WHERE s.refresh_hash=? AND s.status='active'
+    JOIN devices d ON d.id=s.device_id AND d.user_id=s.user_id AND d.company_id=s.company_id
+    WHERE s.refresh_hash=?${rotationId?'':' AND s.status=\'active\''}
   `).bind(await sha256(refreshToken)).first();
-  if (!row || Date.parse(row.session_expires) <= Date.now() || !timingEqual(row.device_hash, deviceHash)) {
+  if (!row || (!rotationId&&Date.parse(row.session_expires)<=Date.now()) || !timingEqual(row.device_hash, deviceHash)) {
     throw new ApiError(401, 'INVALID_SESSION');
   }
   if (row.license_status !== 'active' || row.company_status !== 'active') throw new ApiError(403, 'LICENSE_BLOCKED');
   if (row.status !== 'active') throw new ApiError(403, 'USER_BLOCKED');
   if (row.device_status !== 'active') throw new ApiError(403, 'DEVICE_BLOCKED');
+  if (rotationId) return refreshIdempotently(env,row,rotationId);
   const newToken = randomToken(48);
+  const childSessionId = id('ses');
   const expiresAt = new Date(Date.now() + REFRESH_SECONDS * 1000).toISOString();
+  const createdAt = nowIso();
   try {
-    await env.DB.batch([
-      env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE id=? AND status=\'active\'').bind(row.session_id),
+    const results = await env.DB.batch([
       env.DB.prepare(`
         INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at)
-        VALUES(?,?,?,?,?,?,\'active\',?,?)
-      `).bind(id('ses'), row.company_id, row.id, row.device_id, await sha256(newToken), row.session_id, nowIso(), expiresAt),
+        SELECT ?,s.company_id,s.user_id,s.device_id,?,s.id,'active',?,?
+        FROM sessions s
+        JOIN users u ON u.id=s.user_id AND u.company_id=s.company_id AND u.status='active'
+        JOIN companies c ON c.id=s.company_id AND c.status='active'
+        JOIN licenses l ON l.company_id=s.company_id AND l.status='active'
+        JOIN devices d ON d.id=s.device_id AND d.user_id=s.user_id AND d.company_id=s.company_id AND d.status='active'
+        WHERE s.id=? AND s.status='active' AND s.expires_at>?
+      `).bind(childSessionId, await sha256(newToken), createdAt, expiresAt, row.session_id, createdAt),
+      env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE id=? AND status=\'active\'').bind(row.session_id),
       env.DB.prepare('UPDATE devices SET last_seen_at=? WHERE id=?').bind(nowIso(), row.device_id),
     ]);
+    if (Number(results?.[0]?.meta?.changes || 0) !== 1 || Number(results?.[1]?.meta?.changes || 0) !== 1) {
+      throw new Error('REFRESH_ROTATION_RACE');
+    }
   } catch {
     throw new ApiError(401, 'INVALID_SESSION');
   }
-  return issueTokenSet(env, row, row.device_id, newToken, expiresAt);
+  return issueTokenSet(env, row, row.device_id, childSessionId, newToken, expiresAt);
+}
+async function deterministicRefreshRotation(env,parentSessionId,rotationId) {
+  const domain=`justfun-refresh-rotation-v2:${parentSessionId}:${rotationId}`;
+  const childDigest=await jwtSecretHmac(env,`${domain}:child-session`);
+  const tokenDigest=await jwtSecretHmac(env,`${domain}:refresh-token`);
+  return {childSessionId:`sesr_${childDigest}`,refreshToken:`jfr2_${tokenDigest}`};
+}
+async function exactIdempotentRefreshChild(env,row,material) {
+  const parent=await env.DB.prepare('SELECT id,status FROM sessions WHERE id=?').bind(row.session_id).first();
+  const child=await env.DB.prepare(`
+    SELECT id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at
+    FROM sessions WHERE parent_session_id=?
+  `).bind(row.session_id).first();
+  const createdAt=Date.parse(child?.created_at),expiresAt=Date.parse(child?.expires_at);
+  const expectedHash=await sha256(material.refreshToken);
+  const expectedExpiresAt=Number.isFinite(createdAt)?new Date(createdAt+REFRESH_SECONDS*1000).toISOString():'';
+  if(!parent||parent.status!=='revoked'||!child||child.id!==material.childSessionId||child.parent_session_id!==row.session_id||child.company_id!==row.company_id||child.user_id!==row.id||child.device_id!==row.device_id||child.status!=='active'||!timingEqual(child.refresh_hash,expectedHash)||!Number.isFinite(createdAt)||!Number.isFinite(expiresAt)||child.expires_at!==expectedExpiresAt||expiresAt<=Date.now()){
+    throw new ApiError(401,'INVALID_SESSION');
+  }
+  return child;
+}
+async function refreshIdempotently(env,row,rotationId) {
+  const material=await deterministicRefreshRotation(env,row.session_id,rotationId);
+  if(row.session_status==='active'){
+    if(Date.parse(row.session_expires)<=Date.now())throw new ApiError(401,'INVALID_SESSION');
+    const createdAt=nowIso(),expiresAt=new Date(Date.parse(createdAt)+REFRESH_SECONDS*1000).toISOString(),refreshHash=await sha256(material.refreshToken);
+    try{
+      const results=await env.DB.batch([
+        env.DB.prepare(`
+          INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,parent_session_id,status,created_at,expires_at)
+          SELECT ?,s.company_id,s.user_id,s.device_id,?,s.id,'active',?,?
+          FROM sessions s
+          JOIN users u ON u.id=s.user_id AND u.company_id=s.company_id AND u.status='active'
+          JOIN companies c ON c.id=s.company_id AND c.status='active'
+          JOIN licenses l ON l.company_id=s.company_id AND l.status='active'
+          JOIN devices d ON d.id=s.device_id AND d.user_id=s.user_id AND d.company_id=s.company_id AND d.status='active'
+          WHERE s.id=? AND s.status='active' AND s.expires_at>?
+        `).bind(material.childSessionId,refreshHash,createdAt,expiresAt,row.session_id,createdAt),
+        env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE id=? AND status=\'active\'').bind(row.session_id),
+      ]);
+      if(Number(results?.[0]?.meta?.changes||0)!==1||Number(results?.[1]?.meta?.changes||0)!==1)throw new Error('REFRESH_ROTATION_RACE');
+    }catch{
+      // A concurrent request may have committed the exact deterministic child.
+      // Only the full replay verifier below is allowed to accept that outcome.
+    }
+  }else if(row.session_status!=='revoked')throw new ApiError(401,'INVALID_SESSION');
+  const child=await exactIdempotentRefreshChild(env,row,material);
+  await env.DB.prepare('UPDATE devices SET last_seen_at=? WHERE id=?').bind(nowIso(),row.device_id).run();
+  return {...(await issueTokenSet(env,row,row.device_id,child.id,material.refreshToken,child.expires_at)),rotation_id:rotationId};
 }
 async function createInvitation(env, request, data, requestId) {
   const auth = await authenticate(env, request);
@@ -599,7 +718,7 @@ async function createInvitation(env, request, data, requestId) {
   const pending = await env.DB.prepare(`
     SELECT 1 found FROM invitations i
     LEFT JOIN invitation_claims c ON c.invitation_id=i.id
-    WHERE i.company_id=? AND i.login=? AND i.expires_at>? AND c.invitation_id IS NULL
+    WHERE i.company_id=? AND i.login=? AND i.revoked_at IS NULL AND i.expires_at>? AND c.invitation_id IS NULL
   `).bind(auth.company_id, login, nowIso()).first();
   if (pending) throw new ApiError(409, 'INVITATION_ALREADY_EXISTS');
   const rawCode = `JFI-${randomToken(12).toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 16).match(/.{1,4}/g).join('-')}`;
@@ -612,21 +731,28 @@ async function createInvitation(env, request, data, requestId) {
     permissions: permissionsGrantableBy(auth, role, data.permissions),
     expires_at: new Date(Date.now() + expiresHours * 3600000).toISOString(),
   };
-  await env.DB.prepare(`
-    INSERT INTO invitations(id,company_id,code_hash,login,full_name,role,permissions_json,created_by,created_at,expires_at)
-    VALUES(?,?,?,?,?,?,?,?,?,?)
-  `).bind(
-    invitation.id,
-    auth.company_id,
-    await sha256(normalizeCode(rawCode)),
-    invitation.login,
-    invitation.full_name,
-    invitation.role,
-    JSON.stringify(invitation.permissions),
-    auth.id,
-    nowIso(),
-    invitation.expires_at,
-  ).run();
+  try {
+    await env.DB.prepare(`
+      INSERT INTO invitations(id,company_id,code_hash,login,full_name,role,permissions_json,created_by,created_at,expires_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?)
+    `).bind(
+      invitation.id,
+      auth.company_id,
+      await sha256(normalizeCode(rawCode)),
+      invitation.login,
+      invitation.full_name,
+      invitation.role,
+      JSON.stringify(invitation.permissions),
+      auth.id,
+      nowIso(),
+      invitation.expires_at,
+    ).run();
+  } catch (error) {
+    if (String(error).includes('WAREHOUSE_DELETE_IN_PROGRESS')) {
+      throw new ApiError(409, 'WAREHOUSE_DELETE_IN_PROGRESS');
+    }
+    throw error;
+  }
   await audit(env, requestId, 'invitation.create', auth.company_id, auth.id, invitation.id, { role, permissions: invitation.permissions });
   return { ok: true, invitation: { ...invitation, code: rawCode } };
 }
@@ -646,12 +772,13 @@ async function acceptInvitation(env, request, data, requestId) {
     FROM invitations i JOIN companies c ON c.id=i.company_id JOIN licenses l ON l.company_id=c.id
     WHERE i.code_hash=?
   `).bind(await sha256(code)).first();
-  if (!row || row.already_used || Date.parse(row.expires_at) <= Date.now()) throw new ApiError(404, 'INVITATION_INVALID_OR_EXPIRED');
+  if (!row || row.revoked_at || row.already_used || Date.parse(row.expires_at) <= Date.now()) throw new ApiError(404, 'INVITATION_INVALID_OR_EXPIRED');
   if (row.license_status !== 'active' || row.company_status !== 'active') throw new ApiError(403, 'LICENSE_BLOCKED');
   const passwordRecord = await hashPassword(password);
   const invitationPermissions = permissionsForRole(row.role, (()=>{try{return JSON.parse(row.permissions_json||'[]')}catch{return[]}})());
   const userId = id('usr');
   const deviceId = id('dev');
+  const sessionId = id('ses');
   const refreshToken = randomToken(48);
   const expiresAt = new Date(Date.now() + REFRESH_SECONDS * 1000).toISOString();
   const createdAt = nowIso();
@@ -669,9 +796,13 @@ async function acceptInvitation(env, request, data, requestId) {
       env.DB.prepare(`
         INSERT INTO sessions(id,company_id,user_id,device_id,refresh_hash,status,created_at,expires_at)
         VALUES(?,?,?,?,?,\'active\',?,?)
-      `).bind(id('ses'), row.company_id, userId, deviceId, await sha256(refreshToken), createdAt, expiresAt),
+      `).bind(sessionId, row.company_id, userId, deviceId, await sha256(refreshToken), createdAt, expiresAt),
     ]);
   } catch (error) {
+    if (String(error).includes('WAREHOUSE_DELETE_IN_PROGRESS')) {
+      throw new ApiError(409, 'WAREHOUSE_DELETE_IN_PROGRESS');
+    }
+    if (String(error).includes('INVITATION_INVALID_OR_EXPIRED')) throw new ApiError(404, 'INVITATION_INVALID_OR_EXPIRED');
     if (/UNIQUE|EMPLOYEE_LIMIT_REACHED/i.test(String(error))) {
       if (String(error).includes('EMPLOYEE_LIMIT_REACHED')) throw new ApiError(409, 'EMPLOYEE_LIMIT_REACHED');
       throw new ApiError(409, 'LOGIN_ALREADY_EXISTS_OR_INVITATION_USED');
@@ -701,7 +832,7 @@ async function acceptInvitation(env, request, data, requestId) {
     status: 'active',
   };
   await audit(env, requestId, 'invitation.accept', row.company_id, userId, row.id);
-  return issueTokenSet(env, user, deviceId, refreshToken, expiresAt);
+  return issueTokenSet(env, user, deviceId, sessionId, refreshToken, expiresAt);
 }
 async function listUsers(env, request) {
   const auth = await authenticate(env, request);
@@ -712,21 +843,74 @@ async function listUsers(env, request) {
   `).bind(auth.company_id).all();
   return { ok: true, users: result.results.map(publicUser) };
 }
+function publicInvitation(row, at=Date.now()) {
+  const status = row?.revoked_at ? 'revoked' : row?.claimed_at ? 'used' : Date.parse(row?.expires_at) <= at ? 'expired' : 'pending';
+  let permissions=[];try{permissions=permissionsForRole(row?.role,JSON.parse(row?.permissions_json||'[]'))}catch{}
+  return {
+    id: clean(row?.id), login: clean(row?.login), full_name: clean(row?.full_name), role: clean(row?.role), permissions,
+    created_at: clean(row?.created_at), expires_at: clean(row?.expires_at), status,
+    claimed_at: clean(row?.claimed_at), claimed_by_user_id: clean(row?.claimed_by_user_id),
+    revoked_at: clean(row?.revoked_at), revoked_by_user_id: clean(row?.revoked_by),
+  };
+}
+async function listInvitations(env, request) {
+  const auth = await authenticate(env, request);
+  if (!hasPermission(auth, 'users.read')) throw new ApiError(403, 'ACCESS_BLOCKED');
+  const result = await env.DB.prepare(`
+    SELECT i.id,i.login,i.full_name,i.role,i.permissions_json,i.created_at,i.expires_at,i.revoked_at,i.revoked_by,
+           c.claimed_at,c.user_id claimed_by_user_id
+    FROM invitations i
+    LEFT JOIN invitation_claims c ON c.invitation_id=i.id
+    WHERE i.company_id=?
+    ORDER BY i.created_at DESC,i.id DESC
+    LIMIT 500
+  `).bind(auth.company_id).all();
+  return { ok: true, invitations: result.results.map(row=>publicInvitation(row)) };
+}
+async function revokeInvitation(env, request, invitationId, requestId) {
+  const auth = await authenticate(env, request);
+  if (auth.role !== 'owner') throw new ApiError(403, 'ACCESS_BLOCKED');
+  const target = await env.DB.prepare(`
+    SELECT i.id,i.revoked_at,i.expires_at,c.claimed_at
+    FROM invitations i LEFT JOIN invitation_claims c ON c.invitation_id=i.id
+    WHERE i.id=? AND i.company_id=?
+  `).bind(invitationId,auth.company_id).first();
+  if (!target) throw new ApiError(404, 'INVITATION_NOT_FOUND');
+  if (target.revoked_at) return {ok:true,invitation_id:invitationId,status:'revoked',replayed:true};
+  if (target.claimed_at) throw new ApiError(409, 'INVITATION_ALREADY_USED');
+  if (Date.parse(target.expires_at) <= Date.now()) throw new ApiError(409, 'INVITATION_ALREADY_EXPIRED');
+  const revokedAt=nowIso(),result=await env.DB.prepare(`
+    UPDATE invitations SET revoked_at=?,revoked_by=?
+    WHERE id=? AND company_id=? AND revoked_at IS NULL
+      AND NOT EXISTS (SELECT 1 FROM invitation_claims WHERE invitation_id=invitations.id)
+  `).bind(revokedAt,auth.id,invitationId,auth.company_id).run();
+  if (Number(result?.meta?.changes||0)!==1) throw new ApiError(409, 'INVITATION_STATE_CHANGED');
+  await audit(env,requestId,'invitation.revoke',auth.company_id,auth.id,invitationId);
+  return {ok:true,invitation_id:invitationId,status:'revoked',revoked_at:revokedAt};
+}
 async function setUserStatus(env, request, userId, data, requestId) {
   const auth = await authenticate(env, request);
   if (!hasPermission(auth, 'users.update')) throw new ApiError(403, 'ACCESS_BLOCKED');
   const status = clean(data.status);
   if (!['active', 'blocked'].includes(status)) throw new ApiError(400, 'INVALID_STATUS');
   if (userId === auth.id) throw new ApiError(409, 'CANNOT_BLOCK_SELF');
-  const target = await env.DB.prepare('SELECT role FROM users WHERE id=? AND company_id=?').bind(userId, auth.company_id).first();
+  const target = await env.DB.prepare('SELECT role,status FROM users WHERE id=? AND company_id=?').bind(userId, auth.company_id).first();
   if (!target) throw new ApiError(404, 'USER_NOT_FOUND');
   if (target.role === 'owner') throw new ApiError(409, 'OWNER_CANNOT_BE_BLOCKED_HERE');
-  await env.DB.prepare('UPDATE users SET status=?,updated_at=? WHERE id=? AND company_id=?')
-    .bind(status, nowIso(), userId, auth.company_id).run();
+  const statements = [
+    env.DB.prepare('UPDATE users SET status=?,updated_at=? WHERE id=? AND company_id=?')
+      .bind(status, nowIso(), userId, auth.company_id),
+  ];
   if (status === 'blocked') {
-    await env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE user_id=?').bind(userId).run();
+    statements.push(env.DB.prepare("UPDATE sessions SET status='revoked' WHERE user_id=? AND company_id=? AND status='active'")
+      .bind(userId, auth.company_id));
   }
-  await audit(env, requestId, 'user.status', auth.company_id, auth.id, userId);
+  statements.push(auditStatement(env, requestId, 'user.status', auth.company_id, auth.id, userId, {
+    before: target.status,
+    after: status,
+  }));
+  const results = await env.DB.batch(statements);
+  if (Number(results?.[0]?.meta?.changes || 0) !== 1) throw new ApiError(409, 'USER_STATE_CHANGED');
   return { ok: true, user_id: userId, status };
 }
 async function setUserAccess(env, request, userId, data, requestId) {
@@ -739,13 +923,725 @@ async function setUserAccess(env, request, userId, data, requestId) {
   if (!target) throw new ApiError(404, 'USER_NOT_FOUND');
   if (target.role === 'owner') throw new ApiError(409, 'OWNER_CANNOT_BE_CHANGED_HERE');
   const permissions = permissionsGrantableBy(auth, role, data.permissions);
-  await env.DB.prepare('UPDATE users SET role=?,permissions_json=?,updated_at=? WHERE id=? AND company_id=?')
-    .bind(role, JSON.stringify(permissions), nowIso(), userId, auth.company_id).run();
+  try {
+    await env.DB.prepare('UPDATE users SET role=?,permissions_json=?,updated_at=? WHERE id=? AND company_id=?')
+      .bind(role, JSON.stringify(permissions), nowIso(), userId, auth.company_id).run();
+  } catch (error) {
+    if (String(error).includes('WAREHOUSE_DELETE_IN_PROGRESS')) {
+      throw new ApiError(409, 'WAREHOUSE_DELETE_IN_PROGRESS');
+    }
+    throw error;
+  }
   await audit(env, requestId, 'user.access', auth.company_id, auth.id, userId, {
     before: { role: target.role, permissions: permissionsFromRow(target) },
     after: { role, permissions },
   });
   return { ok: true, user_id: userId, role, permissions };
+}
+function normalizeWarehouseDeleteTarget(data) {
+  return {
+    warehouse_id: validateWarehouseId(data?.warehouse_id),
+    warehouse_code: validateWarehouseCode(data?.warehouse_code),
+  };
+}
+function normalizeVpsAttestationPayload(data, includeLeaseToken) {
+  const rawCompanyId = typeof data?.company_id === 'string' ? data.company_id : '';
+  const rawWarehouseId = typeof data?.warehouse_id === 'string' ? data.warehouse_id : '';
+  const rawWarehouseCode = typeof data?.warehouse_code === 'string' ? data.warehouse_code : '';
+  const rawDeleteCommandId = typeof data?.delete_command_id === 'string' ? data.delete_command_id : '';
+  const rawLeaseToken = typeof data?.lease_token === 'string' ? data.lease_token : '';
+  const companyId = clean(rawCompanyId);
+  const warehouseId = clean(rawWarehouseId);
+  const warehouseCode = normalizeCode(rawWarehouseCode);
+  const deleteCommandId = clean(rawDeleteCommandId);
+  const deleteBaseVersion = data?.delete_base_version;
+  const leaseToken = includeLeaseToken ? clean(rawLeaseToken) : '';
+  if (
+    rawCompanyId !== companyId
+    || rawWarehouseId !== warehouseId
+    || rawWarehouseCode !== warehouseCode
+    || rawDeleteCommandId !== deleteCommandId
+    || (includeLeaseToken && rawLeaseToken !== leaseToken)
+    || !/^[A-Za-z0-9_-]{1,120}$/.test(companyId)
+    || !/^[A-Za-z0-9_-]{1,120}$/.test(warehouseId)
+    || !/^[A-ZА-ЯЁ0-9]{1,3}$/u.test(warehouseCode)
+    || !/^[A-Za-z0-9._:-]{1,220}$/.test(deleteCommandId)
+    || !Number.isSafeInteger(deleteBaseVersion)
+    || deleteBaseVersion < 1
+    || (includeLeaseToken && !/^jfdl_[A-Za-z0-9_-]{32,220}$/.test(leaseToken))
+    || (!includeLeaseToken && data?.lease_token !== undefined && data.lease_token !== '')
+  ) {
+    throw new ApiError(400, 'VPS_ATTESTATION_INVALID');
+  }
+  return {
+    company_id: companyId,
+    warehouse_id: warehouseId,
+    warehouse_code: warehouseCode,
+    delete_command_id: deleteCommandId,
+    delete_base_version: deleteBaseVersion,
+    lease_token: leaseToken,
+  };
+}
+function vpsAttestationSignatureHeaders(request) {
+  const timestampText = clean(request.headers.get('x-justfun-vps-timestamp'));
+  const nonce = clean(request.headers.get('x-justfun-vps-nonce'));
+  const signature = clean(request.headers.get('x-justfun-vps-signature'));
+  if (
+    !/^[1-9][0-9]{9,11}$/.test(timestampText)
+    || !/^[A-Za-z0-9_-]{16,120}$/.test(nonce)
+    || !/^v1=[0-9a-f]{64}$/.test(signature)
+  ) {
+    throw new ApiError(401, 'VPS_ATTESTATION_INVALID');
+  }
+  const timestamp = Number(timestampText);
+  if (!Number.isSafeInteger(timestamp) || Math.abs(unix() - timestamp) > VPS_ATTESTATION_MAX_SKEW_SECONDS) {
+    throw new ApiError(401, 'VPS_ATTESTATION_INVALID');
+  }
+  return { timestamp, timestamp_text: timestampText, nonce, signature_hex: signature.slice(3) };
+}
+async function buildVpsAttestationCanonicalString(payload, timestamp, nonce) {
+  return [
+    'justfun-vps-telegram-deprovision-v1',
+    payload.company_id,
+    payload.warehouse_id,
+    payload.warehouse_code,
+    payload.delete_command_id,
+    String(payload.delete_base_version),
+    await sha256Hex(payload.lease_token || ''),
+    String(timestamp),
+    nonce,
+  ].join('\n');
+}
+async function companyVpsAttestationSecret(env, companyId) {
+  const row = await env.DB.prepare(`
+    SELECT data_api_attestation_secret_ciphertext
+    FROM companies WHERE id=?
+  `).bind(companyId).first();
+  let secret = INVALID_VPS_ATTESTATION_SECRET;
+  let configured = false;
+  if (row?.data_api_attestation_secret_ciphertext) {
+    try {
+      const decrypted = await decryptIntegrationSecret(
+        env,
+        companyId,
+        row.data_api_attestation_secret_ciphertext,
+        INTEGRATION_SECRET_CONTEXTS.dataApiAttestation,
+      );
+      if (/^jfvps_[A-Za-z0-9_-]{43,120}$/.test(decrypted)) {
+        secret = decrypted;
+        configured = true;
+      }
+    } catch {
+      // Missing, corrupt, cross-company and cross-purpose ciphertext all fail identically.
+    }
+  }
+  return { secret, configured };
+}
+async function verifyVpsAttestationRequest(env, request, data, includeLeaseToken) {
+  const payload = normalizeVpsAttestationPayload(data, includeLeaseToken);
+  const headers = vpsAttestationSignatureHeaders(request);
+  const canonical = await buildVpsAttestationCanonicalString(payload, headers.timestamp_text, headers.nonce);
+  const stored = await companyVpsAttestationSecret(env, payload.company_id);
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(stored.secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify'],
+  );
+  const verified = await crypto.subtle.verify(
+    'HMAC',
+    key,
+    fromHex(headers.signature_hex),
+    encoder.encode(canonical),
+  );
+  if (!stored.configured || !verified) throw new ApiError(401, 'VPS_ATTESTATION_INVALID');
+  return payload;
+}
+function publicWarehouseDeleteLease(row) {
+  const prepared = row.status === 'prepared';
+  return {
+    id: row.id,
+    company_id: row.company_id,
+    warehouse_id: row.warehouse_id,
+    warehouse_code: row.warehouse_code,
+    actor_user_id: row.actor_user_id,
+    status: row.status,
+    expires_at: prepared ? null : new Date(Number(row.expires_at) * 1000).toISOString(),
+  };
+}
+function fixedSha256Bytes(value) {
+  try {
+    const bytes = fromB64url(value);
+    if (bytes.length === 32) return { bytes, valid: true };
+  } catch {
+    // Corrupt stored data must fail closed after the same fixed-size compare.
+  }
+  return { bytes: new Uint8Array(32), valid: false };
+}
+function timingSafeHashEqual(left, right) {
+  const a = fixedSha256Bytes(left);
+  const b = fixedSha256Bytes(right);
+  let equal;
+  if (typeof crypto.subtle.timingSafeEqual === 'function') {
+    equal = crypto.subtle.timingSafeEqual(a.bytes, b.bytes);
+  } else {
+    let difference = 0;
+    for (let index = 0; index < 32; index++) difference |= a.bytes[index] ^ b.bytes[index];
+    equal = difference === 0;
+  }
+  return a.valid && b.valid && equal;
+}
+async function warehouseDeleteLeaseTokenMatches(token, expectedHash) {
+  return timingSafeHashEqual(await sha256(String(token ?? '')), expectedHash);
+}
+async function authorizeWarehouseDeleteLease(env, request) {
+  const auth = await authenticate(env, request);
+  const permissions = Array.isArray(auth.permissions) ? auth.permissions : [];
+  const globalWarehouseAccess = auth.role === 'owner'
+    || permissions.includes('*')
+    || permissions.includes('jf.warehouse:*');
+  if (!globalWarehouseAccess || !hasPermission(auth, 'warehouses.manage')) {
+    throw new ApiError(403, 'ACCESS_BLOCKED');
+  }
+  return auth;
+}
+async function cleanupExpiredWarehouseDeleteLeases(env, companyId) {
+  await env.DB.prepare(`
+    UPDATE warehouse_delete_leases
+    SET status='expired',updated_at=?
+    WHERE company_id=? AND status='active' AND expires_at<=?
+  `).bind(nowIso(), companyId, unix()).run();
+}
+async function warehouseAssignmentSummary(env, companyId, target) {
+  const exactId = `jf.warehouse:${target.warehouse_id}`;
+  const exactCode = `jf.warehouse-code:${target.warehouse_code}`;
+  const row = await env.DB.prepare(`
+    SELECT
+      (
+        SELECT COUNT(*)
+        FROM users AS u
+        WHERE u.company_id=?
+          AND EXISTS (
+            SELECT 1
+            FROM json_each(CASE WHEN json_valid(u.permissions_json) THEN u.permissions_json ELSE '[]' END) AS permission
+            WHERE CAST(permission.value AS TEXT)=? OR CAST(permission.value AS TEXT)=?
+          )
+      ) AS users,
+      (
+        SELECT COUNT(*)
+        FROM invitations AS invitation
+        WHERE invitation.company_id=?
+          AND invitation.expires_at>?
+          AND NOT EXISTS (
+            SELECT 1 FROM invitation_claims AS claim WHERE claim.invitation_id=invitation.id
+          )
+          AND EXISTS (
+            SELECT 1
+            FROM json_each(CASE WHEN json_valid(invitation.permissions_json) THEN invitation.permissions_json ELSE '[]' END) AS permission
+            WHERE CAST(permission.value AS TEXT)=? OR CAST(permission.value AS TEXT)=?
+          )
+      ) AS pending_invitations
+  `).bind(
+    companyId,
+    exactId,
+    exactCode,
+    companyId,
+    nowIso(),
+    exactId,
+    exactCode,
+  ).first();
+  const users = Math.max(0, Math.floor(Number(row?.users) || 0));
+  const pendingInvitations = Math.max(0, Math.floor(Number(row?.pending_invitations) || 0));
+  return { count: users + pendingInvitations, users, pending_invitations: pendingInvitations };
+}
+async function auditWarehouseDeleteLeaseConflict(env, requestId, auth, target, assigned) {
+  await audit(
+    env,
+    requestId,
+    'warehouse.delete-lease.conflict',
+    auth.company_id,
+    auth.id,
+    target.warehouse_id,
+    { ...target, assigned },
+  );
+}
+function warehouseDeleteLeaseResponse(row, remainingSeconds, extra = {}) {
+  const prepared = row.status === 'prepared';
+  return {
+    ok: true,
+    active: true,
+    prepared,
+    status: row.status,
+    lease: publicWarehouseDeleteLease(row),
+    remaining_seconds: prepared ? null : remainingSeconds,
+    ...extra,
+  };
+}
+async function rotatePreparedWarehouseDeleteLease(env, auth, target, requestId) {
+  const leaseToken = `jfdl_${randomToken(32)}`;
+  const tokenHash = await sha256(leaseToken);
+  const rotatedAt = nowIso();
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      UPDATE warehouse_delete_leases
+      SET token_hash=?,actor_user_id=?,updated_at=?
+      WHERE company_id=? AND warehouse_id=? AND warehouse_code=?
+        AND status='prepared'
+      RETURNING id,company_id,warehouse_id,warehouse_code,actor_user_id,token_hash,status,expires_at,created_at,updated_at
+    `).bind(
+      tokenHash,
+      auth.id,
+      rotatedAt,
+      auth.company_id,
+      target.warehouse_id,
+      target.warehouse_code,
+    ),
+    env.DB.prepare(`
+      INSERT INTO audit_log(id,company_id,user_id,action,entity_id,details_json,request_id,created_at)
+      SELECT ?,?,?,?,?,?,?,? WHERE changes()=1
+    `).bind(
+      id('audit'),
+      auth.company_id,
+      auth.id,
+      'warehouse.delete-lease.recover',
+      target.warehouse_id,
+      JSON.stringify({ ...target, status: 'prepared', actor_takeover_allowed: true }),
+      requestId,
+      rotatedAt,
+    ),
+  ]);
+  const row = results?.[0]?.results?.[0] || null;
+  return row ? { row, leaseToken } : null;
+}
+async function acquireWarehouseDeleteLease(env, request, data, requestId) {
+  const auth = await authorizeWarehouseDeleteLease(env, request);
+  await rateLimit(
+    env,
+    request,
+    'warehouse-delete-lease-acquire',
+    WAREHOUSE_DELETE_LEASE_ACQUIRE_LIMIT,
+    WAREHOUSE_DELETE_LEASE_ACQUIRE_WINDOW_SECONDS,
+    { subject: `${auth.company_id}:${auth.id}` },
+  );
+  const target = normalizeWarehouseDeleteTarget(data);
+  await cleanupExpiredWarehouseDeleteLeases(env, auth.company_id);
+  const recovered = await rotatePreparedWarehouseDeleteLease(env, auth, target, requestId);
+  if (recovered) {
+    return warehouseDeleteLeaseResponse(recovered.row, null, {
+      recovered: true,
+      lease_token: recovered.leaseToken,
+    });
+  }
+  let assigned = await warehouseAssignmentSummary(env, auth.company_id, target);
+  if (assigned.count) {
+    await auditWarehouseDeleteLeaseConflict(env, requestId, auth, target, assigned);
+    throw new ApiError(409, 'WAREHOUSE_ASSIGNED', 'WAREHOUSE_ASSIGNED', { assigned });
+  }
+
+  const leaseToken = `jfdl_${randomToken(32)}`;
+  const lease = {
+    id: id('wdl'),
+    company_id: auth.company_id,
+    warehouse_id: target.warehouse_id,
+    warehouse_code: target.warehouse_code,
+    actor_user_id: auth.id,
+    token_hash: await sha256(leaseToken),
+    status: 'active',
+    expires_at: unix() + WAREHOUSE_DELETE_LEASE_SECONDS,
+    created_at: nowIso(),
+  };
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`
+        INSERT INTO warehouse_delete_leases(
+          id,company_id,warehouse_id,warehouse_code,actor_user_id,token_hash,status,expires_at,created_at,updated_at
+        ) VALUES(?,?,?,?,?,?,'active',?,?,?)
+      `).bind(
+        lease.id,
+        lease.company_id,
+        lease.warehouse_id,
+        lease.warehouse_code,
+        lease.actor_user_id,
+        lease.token_hash,
+        lease.expires_at,
+        lease.created_at,
+        lease.created_at,
+      ),
+      env.DB.prepare(`
+        INSERT INTO audit_log(id,company_id,user_id,action,entity_id,details_json,request_id,created_at)
+        VALUES(?,?,?,?,?,?,?,?)
+      `).bind(
+        id('audit'),
+        lease.company_id,
+        lease.actor_user_id,
+        'warehouse.delete-lease.acquire',
+        lease.id,
+        JSON.stringify({
+          warehouse_id: lease.warehouse_id,
+          warehouse_code: lease.warehouse_code,
+          expires_at: publicWarehouseDeleteLease(lease).expires_at,
+        }),
+        requestId,
+        lease.created_at,
+      ),
+    ]);
+  } catch (error) {
+    const message = String(error);
+    if (message.includes('WAREHOUSE_ASSIGNED')) {
+      assigned = await warehouseAssignmentSummary(env, auth.company_id, target);
+      await auditWarehouseDeleteLeaseConflict(env, requestId, auth, target, assigned);
+      throw new ApiError(409, 'WAREHOUSE_ASSIGNED', 'WAREHOUSE_ASSIGNED', { assigned });
+    }
+    if (/UNIQUE constraint failed|SQLITE_CONSTRAINT_UNIQUE/i.test(message)) {
+      throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_ACTIVE');
+    }
+    throw error;
+  }
+  return warehouseDeleteLeaseResponse(lease, WAREHOUSE_DELETE_LEASE_SECONDS, {
+    recovered: false,
+    lease_token: leaseToken,
+  });
+}
+async function resolveWarehouseDeleteLease(env, auth, data, minimumRemainingSeconds = 0) {
+  const target = normalizeWarehouseDeleteTarget(data);
+  await cleanupExpiredWarehouseDeleteLeases(env, auth.company_id);
+  const row = await env.DB.prepare(`
+    SELECT id,company_id,warehouse_id,warehouse_code,actor_user_id,token_hash,status,expires_at,created_at,updated_at
+    FROM warehouse_delete_leases
+    WHERE company_id=? AND warehouse_id=? AND warehouse_code=? AND actor_user_id=?
+      AND (
+        status='prepared'
+        OR (status='active' AND expires_at>?)
+      )
+    ORDER BY CASE status WHEN 'prepared' THEN 0 ELSE 1 END, created_at DESC LIMIT 1
+  `).bind(
+    auth.company_id,
+    target.warehouse_id,
+    target.warehouse_code,
+    auth.id,
+    unix(),
+  ).first();
+  const tokenMatches = await warehouseDeleteLeaseTokenMatches(
+    data?.lease_token,
+    row?.token_hash || INVALID_SHA256_HASH,
+  );
+  if (!row || !tokenMatches) {
+    throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED');
+  }
+  const durable = row.status === 'prepared' || row.status === 'released';
+  const remainingSeconds = durable ? null : Number(row.expires_at) - unix();
+  if (!durable && remainingSeconds < minimumRemainingSeconds) {
+    throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_REACQUIRE_REQUIRED');
+  }
+  return { row, target, remaining_seconds: remainingSeconds };
+}
+async function resolveWarehouseDeleteLeaseForRelease(env, auth, data) {
+  const target = normalizeWarehouseDeleteTarget(data);
+  await cleanupExpiredWarehouseDeleteLeases(env, auth.company_id);
+  const result = await env.DB.prepare(`
+    SELECT id,company_id,warehouse_id,warehouse_code,actor_user_id,token_hash,status,expires_at,created_at,updated_at
+    FROM warehouse_delete_leases
+    WHERE company_id=? AND warehouse_id=? AND warehouse_code=? AND actor_user_id=?
+      AND (status='prepared' OR status='released' OR (status='active' AND expires_at>?))
+    ORDER BY created_at DESC
+  `).bind(
+    auth.company_id,
+    target.warehouse_id,
+    target.warehouse_code,
+    auth.id,
+    unix(),
+  ).all();
+  const rows = Array.isArray(result?.results) ? result.results : [];
+  const actualHash = await sha256(String(data?.lease_token ?? ''));
+  let row = null;
+  if (!rows.length) timingSafeHashEqual(actualHash, INVALID_SHA256_HASH);
+  for (const candidate of rows) {
+    const matches = timingSafeHashEqual(actualHash, candidate?.token_hash || INVALID_SHA256_HASH);
+    if (matches && !row) row = candidate;
+  }
+  if (!row) throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED');
+  return { row, target };
+}
+async function prepareWarehouseDeleteLease(env, request, data, requestId) {
+  const auth = await authorizeWarehouseDeleteLease(env, request);
+  const resolved = await resolveWarehouseDeleteLease(env, auth, data);
+  if (resolved.row.status === 'prepared') {
+    return warehouseDeleteLeaseResponse(resolved.row, null, { idempotent: true });
+  }
+
+  const preparedAt = nowIso();
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      UPDATE warehouse_delete_leases
+      SET status='prepared',updated_at=?
+      WHERE id=? AND company_id=? AND warehouse_id=? AND warehouse_code=? AND actor_user_id=?
+        AND token_hash=? AND status='active' AND expires_at>?
+    `).bind(
+      preparedAt,
+      resolved.row.id,
+      auth.company_id,
+      resolved.target.warehouse_id,
+      resolved.target.warehouse_code,
+      auth.id,
+      resolved.row.token_hash,
+      unix(),
+    ),
+    env.DB.prepare(`
+      INSERT INTO audit_log(id,company_id,user_id,action,entity_id,details_json,request_id,created_at)
+      SELECT ?,?,?,?,?,?,?,? WHERE changes()=1
+    `).bind(
+      id('audit'),
+      auth.company_id,
+      auth.id,
+      'warehouse.delete-lease.prepare',
+      resolved.row.id,
+      JSON.stringify({ ...resolved.target, status: 'prepared', idempotent: false }),
+      requestId,
+      preparedAt,
+    ),
+  ]);
+  if (!Number(results?.[0]?.meta?.changes || 0)) {
+    const concurrent = await resolveWarehouseDeleteLease(env, auth, data);
+    if (concurrent.row.status !== 'prepared') {
+      throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED');
+    }
+    return warehouseDeleteLeaseResponse(concurrent.row, null, { idempotent: true });
+  }
+  return warehouseDeleteLeaseResponse(
+    { ...resolved.row, status: 'prepared', updated_at: preparedAt },
+    null,
+    { idempotent: false },
+  );
+}
+async function verifyWarehouseDeleteLease(env, request, data, requestId) {
+  const auth = await authorizeWarehouseDeleteLease(env, request);
+  const resolved = await resolveWarehouseDeleteLease(env, auth, data, 30);
+  await audit(
+    env,
+    requestId,
+    'warehouse.delete-lease.verify',
+    auth.company_id,
+    auth.id,
+    resolved.row.id,
+    { ...resolved.target, remaining_seconds: resolved.remaining_seconds },
+  );
+  return warehouseDeleteLeaseResponse(resolved.row, resolved.remaining_seconds);
+}
+async function releaseWarehouseDeleteLease(env, request, data, requestId) {
+  const auth = await authorizeWarehouseDeleteLease(env, request);
+  const resolved = await resolveWarehouseDeleteLeaseForRelease(env, auth, data);
+  if (resolved.row.status === 'released') {
+    return {
+      ok: true,
+      released: true,
+      prepared: false,
+      status: 'released',
+      idempotent: true,
+      lease: publicWarehouseDeleteLease(resolved.row),
+    };
+  }
+  const releasedAt = nowIso();
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      UPDATE warehouse_delete_leases
+      SET status='released',updated_at=?
+      WHERE id=? AND company_id=? AND actor_user_id=? AND token_hash=?
+        AND (status='prepared' OR (status='active' AND expires_at>?))
+    `).bind(
+      releasedAt,
+      resolved.row.id,
+      auth.company_id,
+      auth.id,
+      resolved.row.token_hash,
+      unix(),
+    ),
+    env.DB.prepare(`
+      INSERT INTO audit_log(id,company_id,user_id,action,entity_id,details_json,request_id,created_at)
+      SELECT ?,?,?,?,?,?,?,? WHERE changes()=1
+    `).bind(
+      id('audit'),
+      auth.company_id,
+      auth.id,
+      'warehouse.delete-lease.release',
+      resolved.row.id,
+      JSON.stringify(resolved.target),
+      requestId,
+      releasedAt,
+    ),
+  ]);
+  if (!Number(results?.[0]?.meta?.changes || 0)) {
+    throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED');
+  }
+  return {
+    ok: true,
+    released: true,
+    prepared: false,
+    status: 'released',
+    idempotent: false,
+    lease: publicWarehouseDeleteLease({ ...resolved.row, status: 'released', updated_at: releasedAt }),
+  };
+}
+async function resolveVpsAttestedPreparedLease(env, payload) {
+  const row = await env.DB.prepare(`
+    SELECT id,company_id,warehouse_id,warehouse_code,actor_user_id,token_hash,status,expires_at,created_at,updated_at
+    FROM warehouse_delete_leases
+    WHERE company_id=? AND warehouse_id=? AND warehouse_code=? AND status='prepared'
+    ORDER BY created_at DESC LIMIT 1
+  `).bind(
+    payload.company_id,
+    payload.warehouse_id,
+    payload.warehouse_code,
+  ).first();
+  const tokenMatches = await warehouseDeleteLeaseTokenMatches(
+    payload.lease_token,
+    row?.token_hash || INVALID_SHA256_HASH,
+  );
+  if (!row || !tokenMatches) throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED');
+  return row;
+}
+async function verifyVpsAttestation(env, request, data, requestId) {
+  const payload = await verifyVpsAttestationRequest(env, request, data, true);
+  const row = await resolveVpsAttestedPreparedLease(env, payload);
+  await audit(
+    env,
+    requestId,
+    'warehouse.delete-lease.verify-vps-attestation',
+    payload.company_id,
+    null,
+    row.id,
+    {
+      system_actor: 'vps-attestation',
+      warehouse_id: payload.warehouse_id,
+      warehouse_code: payload.warehouse_code,
+      delete_command_id: payload.delete_command_id,
+      delete_base_version: payload.delete_base_version,
+    },
+  );
+  return {
+    ok: true,
+    verified: true,
+    active: true,
+    prepared: true,
+    status: 'prepared',
+    company_id: payload.company_id,
+    warehouse_id: payload.warehouse_id,
+    warehouse_code: payload.warehouse_code,
+    delete_command_id: payload.delete_command_id,
+    delete_base_version: payload.delete_base_version,
+    lease: publicWarehouseDeleteLease(row),
+  };
+}
+async function resolveVpsAttestedLeaseForRelease(env, payload) {
+  return env.DB.prepare(`
+    SELECT id,company_id,warehouse_id,warehouse_code,actor_user_id,token_hash,status,expires_at,created_at,updated_at
+    FROM warehouse_delete_leases
+    WHERE company_id=? AND warehouse_id=? AND warehouse_code=?
+    ORDER BY created_at DESC, rowid DESC LIMIT 1
+  `).bind(
+    payload.company_id,
+    payload.warehouse_id,
+    payload.warehouse_code,
+  ).first();
+}
+async function resolveExactVpsAttestedLease(env, payload, leaseId) {
+  return env.DB.prepare(`
+    SELECT id,company_id,warehouse_id,warehouse_code,actor_user_id,token_hash,status,expires_at,created_at,updated_at
+    FROM warehouse_delete_leases
+    WHERE id=? AND company_id=? AND warehouse_id=? AND warehouse_code=?
+    LIMIT 1
+  `).bind(
+    leaseId,
+    payload.company_id,
+    payload.warehouse_id,
+    payload.warehouse_code,
+  ).first();
+}
+async function releaseWarehouseDeleteLeaseByVpsAttestation(env, request, data, requestId) {
+  const payload = await verifyVpsAttestationRequest(env, request, data, false);
+  let row = await resolveVpsAttestedLeaseForRelease(env, payload);
+  if (!row || !['prepared', 'released'].includes(row.status)) {
+    throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED');
+  }
+  if (row.status === 'released') {
+    return {
+      ok: true,
+      released: true,
+      status: 'released',
+      idempotent: true,
+      company_id: payload.company_id,
+      warehouse_id: payload.warehouse_id,
+      warehouse_code: payload.warehouse_code,
+      delete_command_id: payload.delete_command_id,
+      delete_base_version: payload.delete_base_version,
+      lease: publicWarehouseDeleteLease(row),
+    };
+  }
+
+  const releasedAt = nowIso();
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      UPDATE warehouse_delete_leases
+      SET status='released',updated_at=?
+      WHERE id=? AND company_id=? AND warehouse_id=? AND warehouse_code=? AND status='prepared'
+    `).bind(
+      releasedAt,
+      row.id,
+      payload.company_id,
+      payload.warehouse_id,
+      payload.warehouse_code,
+    ),
+    env.DB.prepare(`
+      INSERT INTO audit_log(id,company_id,user_id,action,entity_id,details_json,request_id,created_at)
+      SELECT ?,?,?,?,?,?,?,? WHERE changes()=1
+    `).bind(
+      id('audit'),
+      payload.company_id,
+      null,
+      'warehouse.delete-lease.release-vps-attestation',
+      row.id,
+      JSON.stringify({
+        system_actor: 'vps-attestation',
+        warehouse_id: payload.warehouse_id,
+        warehouse_code: payload.warehouse_code,
+        delete_command_id: payload.delete_command_id,
+        delete_base_version: payload.delete_base_version,
+      }),
+      requestId,
+      releasedAt,
+    ),
+  ]);
+  if (!Number(results?.[0]?.meta?.changes || 0)) {
+    row = await resolveExactVpsAttestedLease(env, payload, row.id);
+    if (!row || row.status !== 'released') {
+      throw new ApiError(409, 'WAREHOUSE_DELETE_LEASE_INVALID_OR_EXPIRED');
+    }
+    return {
+      ok: true,
+      released: true,
+      status: 'released',
+      idempotent: true,
+      company_id: payload.company_id,
+      warehouse_id: payload.warehouse_id,
+      warehouse_code: payload.warehouse_code,
+      delete_command_id: payload.delete_command_id,
+      delete_base_version: payload.delete_base_version,
+      lease: publicWarehouseDeleteLease(row),
+    };
+  }
+  row = { ...row, status: 'released', updated_at: releasedAt };
+  return {
+    ok: true,
+    released: true,
+    status: 'released',
+    idempotent: false,
+    company_id: payload.company_id,
+    warehouse_id: payload.warehouse_id,
+    warehouse_code: payload.warehouse_code,
+    delete_command_id: payload.delete_command_id,
+    delete_base_version: payload.delete_base_version,
+    lease: publicWarehouseDeleteLease(row),
+  };
 }
 async function listDevices(env, request) {
   const auth = await authenticate(env, request);
@@ -763,14 +1659,52 @@ async function setDeviceStatus(env, request, deviceId, data, requestId) {
   const status = clean(data.status);
   if (!['active', 'blocked'].includes(status)) throw new ApiError(400, 'INVALID_STATUS');
   if (deviceId === auth.device_id && status === 'blocked') throw new ApiError(409, 'CANNOT_BLOCK_SELF');
-  const result = await env.DB.prepare('UPDATE devices SET status=? WHERE id=? AND company_id=?')
-    .bind(status, deviceId, auth.company_id).run();
-  if (!result.meta?.changes) throw new ApiError(404, 'DEVICE_NOT_FOUND');
+  const target = await env.DB.prepare('SELECT id,status FROM devices WHERE id=? AND company_id=?')
+    .bind(deviceId, auth.company_id).first();
+  if (!target) throw new ApiError(404, 'DEVICE_NOT_FOUND');
+  const statements = [
+    env.DB.prepare('UPDATE devices SET status=? WHERE id=? AND company_id=?')
+      .bind(status, deviceId, auth.company_id),
+  ];
   if (status === 'blocked') {
-    await env.DB.prepare('UPDATE sessions SET status=\'revoked\' WHERE device_id=?').bind(deviceId).run();
+    statements.push(env.DB.prepare("UPDATE sessions SET status='revoked' WHERE device_id=? AND company_id=? AND status='active'")
+      .bind(deviceId, auth.company_id));
   }
-  await audit(env, requestId, 'device.status', auth.company_id, auth.id, deviceId);
+  statements.push(auditStatement(env, requestId, 'device.status', auth.company_id, auth.id, deviceId, {
+    before: target.status,
+    after: status,
+  }));
+  const results = await env.DB.batch(statements);
+  if (Number(results?.[0]?.meta?.changes || 0) !== 1) throw new ApiError(409, 'DEVICE_STATE_CHANGED');
   return { ok: true, device_id: deviceId, status };
+}
+async function logoutSession(env, request, requestId) {
+  const authorization = clean(request.headers.get('authorization'));
+  if (!authorization.startsWith('Bearer ')) throw new ApiError(401, 'INVALID_TOKEN');
+  const claims = await verifyJwt(env, authorization.slice(7), 'access');
+  const sessionId = clean(claims.sid);
+  if (!sessionId) throw new ApiError(401, 'SESSION_UPGRADE_REQUIRED');
+  const target = await env.DB.prepare(`
+    SELECT id,company_id,user_id,device_id,status
+    FROM sessions
+    WHERE id=? AND company_id=? AND user_id=? AND device_id=?
+  `).bind(sessionId, claims.cid, claims.sub, claims.did).first();
+  if (!target) throw new ApiError(401, 'INVALID_SESSION');
+  const results = await env.DB.batch([
+    env.DB.prepare(`
+      WITH RECURSIVE session_chain(id) AS (
+        SELECT id FROM sessions WHERE id=? AND company_id=? AND user_id=? AND device_id=?
+        UNION ALL
+        SELECT child.id
+        FROM sessions child JOIN session_chain parent ON child.parent_session_id=parent.id
+        WHERE child.company_id=? AND child.user_id=? AND child.device_id=?
+      )
+      UPDATE sessions SET status='revoked'
+      WHERE id IN (SELECT id FROM session_chain) AND status='active'
+    `).bind(sessionId, claims.cid, claims.sub, claims.did, claims.cid, claims.sub, claims.did),
+    auditStatement(env, requestId, 'auth.logout', claims.cid, claims.sub, sessionId),
+  ]);
+  return { ok: true, session_id: sessionId, replayed: Number(results?.[0]?.meta?.changes || 0) === 0 };
 }
 async function introspect(env, request) {
   const auth = await authenticate(env, request);
@@ -788,9 +1722,12 @@ async function introspect(env, request) {
       full_name: auth.full_name,
       role: auth.role,
       permissions: auth.permissions,
+      status: auth.status,
     },
     company: auth.company,
     device_id: auth.device_id,
+    session_id: auth.session_id,
+    session_binding_contract: 1,
   };
 }
 async function setCompanyDataService(env, request, data, requestId) {
@@ -799,16 +1736,39 @@ async function setCompanyDataService(env, request, data, requestId) {
   const address = clean(data.address);
   const port = Number(data.api_port) || 443;
   const fingerprint = normalizeCode(data.tls_sha256).replace(/[^A-F0-9]/g, '');
+  const attestationSecret = typeof data.attestation_secret === 'string' ? data.attestation_secret : '';
   if (!/^[A-Za-z0-9.-]{1,253}$/.test(address) && !/^[A-Fa-f0-9:]{2,80}$/.test(address)) {
     throw new ApiError(400, 'REQUIRED_FIELDS_MISSING');
   }
-  if (!Number.isInteger(port) || port < 1 || port > 65535 || !/^[A-F0-9]{64}$/.test(fingerprint)) {
+  if (
+    !Number.isInteger(port)
+    || port < 1
+    || port > 65535
+    || !/^[A-F0-9]{64}$/.test(fingerprint)
+    || !/^jfvps_[A-Za-z0-9_-]{43,120}$/.test(attestationSecret)
+  ) {
     throw new ApiError(400, 'REQUIRED_FIELDS_MISSING');
   }
   const updatedAt = nowIso();
+  const attestationSecretCiphertext = await encryptIntegrationSecret(
+    env,
+    auth.company_id,
+    attestationSecret,
+    INTEGRATION_SECRET_CONTEXTS.dataApiAttestation,
+  );
   await env.DB.prepare(`
-    UPDATE companies SET data_api_address=?,data_api_port=?,data_api_tls_sha256=?,data_api_updated_at=? WHERE id=?
-  `).bind(address, port, fingerprint, updatedAt, auth.company_id).run();
+    UPDATE companies
+    SET data_api_address=?,data_api_port=?,data_api_tls_sha256=?,
+        data_api_attestation_secret_ciphertext=?,data_api_updated_at=?
+    WHERE id=?
+  `).bind(
+    address,
+    port,
+    fingerprint,
+    attestationSecretCiphertext,
+    updatedAt,
+    auth.company_id,
+  ).run();
   await audit(env, requestId, 'company.data-service', auth.company_id, auth.id, auth.company_id);
   return {
     ok: true,
@@ -1045,22 +2005,51 @@ async function route(env, request, requestId) {
   const path = url.pathname;
   const method = request.method.toUpperCase();
   if (method === 'GET' && (path === '/health' || path === '/v1/health')) {
-    return { ok: true, service: 'justfun-license-api', version: '7.8.3', auth_contract: 4 };
+    return {
+      ok: true,
+      service: 'justfun-license-api',
+      version: '7.8.4',
+      auth_contract: 6,
+      session_binding_contract: 1,
+      warehouse_delete_lease_contract: 3,
+    };
   }
   const data = method === 'GET' ? {} : await body(request);
   if (method === 'POST' && path === '/v1/license/check') return licenseCheck(env, request, data);
   if (method === 'POST' && path === '/v1/owner/register') return registerOwner(env, request, data, requestId);
   if (method === 'POST' && path === '/v1/auth/login') return login(env, request, data, requestId);
   if (method === 'POST' && path === '/v1/auth/refresh') return refresh(env, request, data);
+  if (method === 'POST' && path === '/v1/auth/logout') return logoutSession(env, request, requestId);
   if (method === 'POST' && path === '/v1/auth/introspect') return introspect(env, request);
   if (method === 'POST' && path === '/v1/invitations/accept') return acceptInvitation(env, request, data, requestId);
+  if (method === 'GET' && path === '/v1/invitations') return listInvitations(env, request);
   if (method === 'POST' && path === '/v1/demo/start') return demoStart(env, request, data);
   if (method === 'GET' && path === '/v1/users') return listUsers(env, request);
   if (method === 'POST' && path === '/v1/users/invite') return createInvitation(env, request, data, requestId);
+  if (method === 'POST' && path === '/v1/warehouse-delete-leases/acquire') {
+    return acquireWarehouseDeleteLease(env, request, data, requestId);
+  }
+  if (method === 'POST' && path === '/v1/warehouse-delete-leases/prepare') {
+    return prepareWarehouseDeleteLease(env, request, data, requestId);
+  }
+  if (method === 'POST' && path === '/v1/warehouse-delete-leases/verify') {
+    return verifyWarehouseDeleteLease(env, request, data, requestId);
+  }
+  if (method === 'POST' && path === '/v1/warehouse-delete-leases/release') {
+    return releaseWarehouseDeleteLease(env, request, data, requestId);
+  }
+  if (method === 'POST' && path === '/v1/vps-attestations/verify') {
+    return verifyVpsAttestation(env, request, data, requestId);
+  }
+  if (method === 'POST' && path === '/v1/vps-attestations/release-warehouse-delete') {
+    return releaseWarehouseDeleteLeaseByVpsAttestation(env, request, data, requestId);
+  }
   let match = path.match(/^\/v1\/users\/([^/]+)\/status$/);
   if (method === 'PATCH' && match) return setUserStatus(env, request, decodeURIComponent(match[1]), data, requestId);
   match = path.match(/^\/v1\/users\/([^/]+)\/access$/);
   if (method === 'PATCH' && match) return setUserAccess(env, request, decodeURIComponent(match[1]), data, requestId);
+  match = path.match(/^\/v1\/invitations\/([^/]+)\/revoke$/);
+  if (method === 'PATCH' && match) return revokeInvitation(env, request, decodeURIComponent(match[1]), requestId);
   if (method === 'GET' && path === '/v1/devices') return listDevices(env, request);
   match = path.match(/^\/v1\/devices\/([^/]+)\/status$/);
   if (method === 'PATCH' && match) return setDeviceStatus(env, request, decodeURIComponent(match[1]), data, requestId);
@@ -1083,7 +2072,9 @@ export default {
       if (!['GET', 'POST', 'PATCH', 'PUT'].includes(request.method.toUpperCase())) throw new ApiError(405, 'METHOD_NOT_ALLOWED');
       return json(await route(env, request, requestId), 200, requestId);
     } catch (error) {
-      if (error instanceof ApiError) return json({ ok: false, error: error.code }, error.status, requestId);
+      if (error instanceof ApiError) {
+        return json({ ok: false, error: error.code, ...(error.details || {}) }, error.status, requestId);
+      }
       console.error(JSON.stringify({ request_id: requestId, error: String(error?.stack || error) }));
       return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, requestId);
     }
@@ -1098,20 +2089,33 @@ export const _internals = {
   hashPassword,
   verifyPassword,
   sha256,
+  sha256Hex,
   signJwt,
   verifyJwt,
   newLicenseKey,
   safePermissions,
-  expandLegacyPermissions,
   permissionsForRole,
   validateRoleName,
   permissionCoveredBy,
   permissionsGrantableBy,
   permissionsFromRow,
+  publicInvitation,
   canAccessWarehouse,
+  validateWarehouseCode,
+  normalizeWarehouseDeleteTarget,
+  normalizeVpsAttestationPayload,
+  vpsAttestationSignatureHeaders,
+  buildVpsAttestationCanonicalString,
+  verifyVpsAttestationRequest,
+  publicWarehouseDeleteLease,
+  warehouseDeleteLeaseResponse,
+  timingSafeHashEqual,
+  warehouseDeleteLeaseTokenMatches,
+  warehouseAssignmentSummary,
   validateTelegramWorkerUrl,
   encryptIntegrationSecret,
   decryptIntegrationSecret,
+  INTEGRATION_SECRET_CONTEXTS,
   publicCompany,
   issueTokenSet,
   rateLimit,

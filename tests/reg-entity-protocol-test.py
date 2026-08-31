@@ -208,6 +208,50 @@ class EntityProtocolTests(unittest.TestCase):
         self.assertTrue(SERVER.entity_permission_allowed(auth, "orders", write=False))
         self.assertFalse(SERVER.entity_permission_allowed(auth, "orders", write=True))
 
+    def test_assigned_viewer_reads_company_but_cannot_write_or_cross_warehouse(self):
+        auth = {
+            "company_id": "company-12345678",
+            "role": "Аудитор",
+            "permissions": {"orders.read", f"jf.warehouse:{self.warehouse_id}"},
+            "user_id": "auditor-1",
+            "device_id": "entity-protocol-test",
+        }
+        self.assertTrue(SERVER.entity_permission_allowed(auth, "company", write=False))
+        self.assertFalse(SERVER.entity_permission_allowed(auth, "company", write=True))
+        readable_types = {
+            entity_type
+            for entity_type in SERVER.ENTITY_SECTIONS
+            if SERVER.entity_permission_allowed(auth, entity_type, write=False)
+        }
+        self.assertIn("company", readable_types)
+
+        original_snapshot_loader = SERVER.load_entity_access_snapshot
+        try:
+            SERVER.load_entity_access_snapshot = lambda _workspace, warehouse_id, _environment, _auth: {
+                "warehouse": {
+                    "id": warehouse_id,
+                    "code": "MAIN" if warehouse_id == self.warehouse_id else "OTHER",
+                    "environment": self.environment,
+                },
+                "data": {"warehouseId": warehouse_id},
+            }
+            SERVER.require_entity_scope_access(
+                auth,
+                auth["company_id"],
+                self.warehouse_id,
+                self.environment,
+            )
+            with self.assertRaises(SERVER.ApiError) as caught:
+                SERVER.require_entity_scope_access(
+                    auth,
+                    auth["company_id"],
+                    "warehouse-2",
+                    self.environment,
+                )
+            self.assertEqual(caught.exception.code, "warehouse_access_denied")
+        finally:
+            SERVER.load_entity_access_snapshot = original_snapshot_loader
+
     def test_readable_types_change_with_custom_permissions(self):
         before = {"role": "Кладовщик", "permissions": {"orders.read", "inventory.read"}}
         after = {"role": "Кладовщик", "permissions": {"inventory.read"}}
@@ -317,6 +361,143 @@ class EntityProtocolTests(unittest.TestCase):
         ]
         intent = SERVER.validate_entity_intent({"kind": "pickup_collected", "target_id": "order-1"}, changes)
         self.assertEqual(intent["kind"], "pickup_collected")
+
+    def local_migration_changes(self):
+        return [
+            SERVER.validate_entity_change(
+                {
+                    "type": entity_type,
+                    "id": entity_id,
+                    "base_version": 0,
+                    "payload": {"id": entity_id, "warehouseId": self.warehouse_id},
+                },
+                self.warehouse_id,
+                self.environment,
+            )
+            for entity_type, entity_id in (
+                ("routeExecutions", "route-1"),
+                ("routeArchives", "archive-1"),
+                ("warehouseReservations", "reservation-1"),
+            )
+        ]
+
+    def local_migration_intent(self, **metadata_overrides):
+        metadata = {
+            "snapshot_fingerprint": "1a2b3c:4d5e6f:12345",
+            "chunk_index": 0,
+            "chunk_count": 1,
+            **metadata_overrides,
+        }
+        return {
+            "kind": SERVER.LOCAL_MIGRATION_INTENT_KIND,
+            "target_id": self.warehouse_id,
+            "metadata": metadata,
+        }
+
+    def test_owner_local_migration_can_create_protected_entities(self):
+        changes = self.local_migration_changes()
+        intent = SERVER.validate_entity_intent(self.local_migration_intent(), changes)
+        auth = {
+            "role": "owner",
+            "permissions": {"warehouses.manage", "jf.warehouse:*"},
+            "legacy": False,
+        }
+        SERVER.validate_local_migration_import_request(
+            intent,
+            auth,
+            self.warehouse_id,
+            self.environment,
+            changes,
+        )
+        for item in changes:
+            SERVER.validate_entity_field_permissions(auth, item, None, False, intent)
+
+    def test_ordinary_write_still_rejects_protected_entity(self):
+        item = self.local_migration_changes()[0]
+        with self.assertRaises(SERVER.ApiError) as caught:
+            SERVER.validate_entity_field_permissions(
+                {"role": "owner", "permissions": {"*"}},
+                item,
+                None,
+                False,
+                None,
+            )
+        self.assertEqual(caught.exception.code, "server_intent_required")
+
+    def test_local_migration_rejects_non_owner_even_with_global_permissions(self):
+        changes = self.local_migration_changes()
+        intent = SERVER.validate_entity_intent(self.local_migration_intent(), changes)
+        with self.assertRaises(SERVER.ApiError) as caught:
+            SERVER.validate_local_migration_import_request(
+                intent,
+                {"role": "administrator", "permissions": {"*"}, "legacy": False},
+                self.warehouse_id,
+                self.environment,
+                changes,
+            )
+        self.assertEqual(caught.exception.code, "local_migration_access_denied")
+
+    def test_local_migration_rejects_owner_without_global_warehouse_scope(self):
+        changes = self.local_migration_changes()
+        intent = SERVER.validate_entity_intent(self.local_migration_intent(), changes)
+        with self.assertRaises(SERVER.ApiError) as caught:
+            SERVER.validate_local_migration_import_request(
+                intent,
+                {"role": "owner", "permissions": {"warehouses.manage"}, "legacy": False},
+                self.warehouse_id,
+                self.environment,
+                changes,
+            )
+        self.assertEqual(caught.exception.code, "local_migration_access_denied")
+
+    def test_local_migration_rejects_malformed_metadata(self):
+        changes = self.local_migration_changes()
+        malformed = [
+            self.local_migration_intent(snapshot_fingerprint="ABC:def:1"),
+            self.local_migration_intent(chunk_index=True),
+            self.local_migration_intent(chunk_index=1, chunk_count=1),
+            self.local_migration_intent(chunk_count=0),
+            self.local_migration_intent(chunk_count=SERVER.LOCAL_MIGRATION_MAX_CHUNKS + 1),
+            {**self.local_migration_intent(), "unexpected": True},
+            {**self.local_migration_intent(), "metadata": {"snapshot_fingerprint": "a:b:1"}},
+        ]
+        for raw_intent in malformed:
+            with self.subTest(raw_intent=raw_intent):
+                with self.assertRaises(SERVER.ApiError) as caught:
+                    SERVER.validate_entity_intent(raw_intent, changes)
+                self.assertEqual(caught.exception.code, "invalid_local_migration_metadata")
+
+    def test_local_migration_requires_exact_live_warehouse_and_create_only_changes(self):
+        changes = self.local_migration_changes()
+        intent = SERVER.validate_entity_intent(self.local_migration_intent(), changes)
+        auth = {"role": "owner", "permissions": {"*"}, "legacy": False}
+        cases = [
+            ("warehouse-2", "live", changes, "local_migration_scope_mismatch"),
+            (self.warehouse_id, "demo", changes, "local_migration_live_only"),
+            (
+                self.warehouse_id,
+                "live",
+                [{**changes[0], "base_version": 1}],
+                "local_migration_create_only",
+            ),
+            (
+                self.warehouse_id,
+                "live",
+                [{**changes[0], "deleted": True, "payload": None}],
+                "local_migration_create_only",
+            ),
+        ]
+        for warehouse_id, environment, candidate_changes, code in cases:
+            with self.subTest(code=code):
+                with self.assertRaises(SERVER.ApiError) as caught:
+                    SERVER.validate_local_migration_import_request(
+                        intent,
+                        auth,
+                        warehouse_id,
+                        environment,
+                        candidate_changes,
+                    )
+                self.assertEqual(caught.exception.code, code)
 
     def test_inventory_conflict_includes_route_and_pickup_reservations(self):
         maps = {
@@ -468,6 +649,33 @@ class EntityProtocolTests(unittest.TestCase):
             {"type": "routeCatalog", "id": "route-1", "deleted": True, "payload": None},
         ]
 
+    def route_close_rows(self):
+        return {
+            ("routeExecutions", "route-1"): {"id": "route-1", "status": "awaiting_close", "orderIds": ["order-1"]},
+            ("routePlans", "route-1"): {"id": "route-1", "lifecycleStatus": "awaiting_close", "orderedIds": ["order-1"]},
+            ("routeDriverAssignments", "route-1"): {"__jf_wrapped_value": True, "value": "driver-1"},
+            ("routeCatalog", "route-1"): {"id": "route-1", "title": "Рейс"},
+            ("routeOverrides", "route-1"): {"routeMode": "round", "manualDriverPayment": 500},
+            ("manualRouteSequences", "route-1"): {"orderIds": ["order-1"]},
+            ("routeLocks", "order-1"): {"__jf_wrapped_value": True, "value": "route-1"},
+            ("routeAssignments", "order-1"): {"__jf_wrapped_value": True, "value": "route-1"},
+            ("orders", "order-1"): {"id": "order-1", "fulfillmentStatus": "awaiting_close", "warehouseFlowStatus": "loaded"},
+        }
+
+    def route_close_changes(self):
+        return [
+            {"type": "routeExecutions", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "routeArchives", "id": "route-1", "deleted": False, "payload": {"id": "route-1", "status": "closed", "outcomes": [{"orderId": "order-1", "outcome": "delivered"}]}},
+            {"type": "orders", "id": "order-1", "deleted": False, "payload": {"id": "order-1", "fulfillmentStatus": "delivered", "warehouseFlowStatus": "shipped", "fulfillmentResult": {"deliveredItems": []}}},
+            {"type": "routeLocks", "id": "order-1", "deleted": True, "payload": None},
+            {"type": "routeAssignments", "id": "order-1", "deleted": True, "payload": None},
+            {"type": "routePlans", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "routeDriverAssignments", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "routeCatalog", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "routeOverrides", "id": "route-1", "deleted": True, "payload": None},
+            {"type": "manualRouteSequences", "id": "route-1", "deleted": True, "payload": None},
+        ]
+
     def test_server_route_picking_accepts_complete_transition(self):
         SERVER.validate_entity_intent_current(EntityCursor(self.route_picking_rows()), "company-1", self.warehouse_id, self.environment, {"kind": "route_picking", "target_id": "route-1"}, self.route_picking_changes())
 
@@ -499,6 +707,28 @@ class EntityProtocolTests(unittest.TestCase):
         with self.assertRaises(SERVER.ApiError) as caught:
             SERVER.validate_entity_intent_current(EntityCursor(rows), "company-1", self.warehouse_id, self.environment, {"kind": "route_start", "target_id": "route-1"}, self.route_start_changes())
         self.assertEqual(caught.exception.code, "route_reservation_missing")
+
+    def test_server_route_close_accepts_and_authorizes_complete_route_cleanup(self):
+        changes = self.route_close_changes()
+        intent = SERVER.validate_entity_intent({"kind": "route_close", "target_id": "route-1"}, changes)
+        auth = {"role": "Логист", "permissions": {"routes.close"}}
+        for entity_type in ("routeOverrides", "manualRouteSequences"):
+            SERVER.validate_entity_field_permissions(
+                auth,
+                next(item for item in changes if item["type"] == entity_type),
+                self.route_close_rows()[(entity_type, "route-1")],
+                False,
+                intent,
+            )
+        SERVER.validate_entity_intent_current(EntityCursor(self.route_close_rows()), "company-1", self.warehouse_id, self.environment, intent, changes)
+
+    def test_server_route_close_rejects_stale_route_specific_state(self):
+        for omitted_type in ("routeOverrides", "manualRouteSequences"):
+            with self.subTest(omitted_type=omitted_type):
+                changes = [item for item in self.route_close_changes() if item["type"] != omitted_type]
+                with self.assertRaises(SERVER.ApiError) as caught:
+                    SERVER.validate_entity_intent_current(EntityCursor(self.route_close_rows()), "company-1", self.warehouse_id, self.environment, {"kind": "route_close", "target_id": "route-1"}, changes)
+                self.assertEqual(caught.exception.code, "route_state_not_closed")
 
     def test_server_route_close_rejects_missing_stock_expense(self):
         rows = {

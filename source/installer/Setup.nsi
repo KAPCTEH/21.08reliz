@@ -2,8 +2,7 @@ Unicode True
 ManifestDPIAware True
 RequestExecutionLevel user
 CRCCheck force
-SetCompressor /SOLID lzma
-SetCompressorDictSize 64
+SetCompressor zlib
 
 !ifndef VERSION
   !error "VERSION must come from the canonical release contract"

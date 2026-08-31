@@ -54,7 +54,7 @@
     "artifacts": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["setup", "recovery_helper", "update_helper", "update_payload", "update_file_manifest", "embedded_setup_engine", "official_logo_sha256", "source_encoding"],
+      "required": ["setup", "recovery_helper", "update_helper", "update_payload", "update_file_manifest", "embedded_setup_engine", "pe_resource_evidence", "crash_recovery_evidence", "protected_payload_security", "official_logo_sha256", "source_encoding"],
       "properties": {
         "setup": { "$ref": "#/$defs/file" },
         "recovery_helper": { "$ref": "#/$defs/file" },
@@ -73,6 +73,9 @@
         },
         "update_file_manifest": { "$ref": "#/$defs/file" },
         "embedded_setup_engine": { "$ref": "#/$defs/file" },
+        "pe_resource_evidence": { "$ref": "#/$defs/file" },
+        "crash_recovery_evidence": { "$ref": "#/$defs/file" },
+        "protected_payload_security": { "$ref": "#/$defs/file" },
         "official_logo_sha256": { "$ref": "#/$defs/sha256" },
         "source_encoding": { "const": "utf-8-bom" }
       }

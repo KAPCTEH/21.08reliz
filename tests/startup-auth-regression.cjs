@@ -15,8 +15,14 @@ const load=Module._load;Module._load=(request,parent,isMain)=>request==='electro
 const main=require('../source/application/main.js');Module._load=load;
 const enc=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
 const token=claims=>`${enc({alg:'HS256',typ:'JWT'})}.${enc({iss:'justfun-license-api',typ:'access',exp:Math.floor(Date.now()/1000)+900,...claims})}.signature`;
-const claims={sub:'usr_owner_production_123',cid:'cmp_company_production_123',did:'dev_windows_production_123',role:'owner',permissions:['*']};
-const session=main.saveCloudSession({access_token:token(claims),offline_token:token({...claims,typ:'offline'}),refresh_token:'refresh',user:{full_name:'Owner',login:'admin',role:'owner',permissions:['*']},company:{code:'JFWD4H54',name:'Company'}});
+const claims={sub:'usr_owner_production_123',cid:'cmp_company_production_123',did:'dev_windows_production_123',role:'owner',permissions:['*'],user_status:'active',company_status:'active',auth_context_version:2};
+const session=main.saveCloudSession({
+  access_token:token(claims),offline_token:token({...claims,typ:'offline'}),refresh_token:'refresh',
+  user_id:claims.sub,company_id:claims.cid,device_id:claims.did,role:claims.role,permissions:claims.permissions,
+  auth_context_version:2,session_binding_contract:0,
+  user:{id:claims.sub,full_name:'Owner',login:'admin',role:'owner',permissions:['*'],status:'active'},
+  company:{id:claims.cid,code:'JFWD4H54',name:'Company',status:'active'}
+});
 assert.equal(session.company.id,claims.cid,'company id must be restored from signed cid');
 assert.equal(main.companyWorkspaceId(session),claims.cid);
 assert.equal(main.canConfigureCompanyServer(session),true);

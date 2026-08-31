@@ -4,6 +4,14 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const provisioner = require('../source/application/integrations/telegram-cloudflare-native/provisioner.cjs');
+const provisionerSource = fs.readFileSync(path.resolve(
+  __dirname,
+  '../source/application/integrations/telegram-cloudflare-native/provisioner.cjs'
+), 'utf8');
+const deprovisionMigration = fs.readFileSync(path.resolve(
+  __dirname,
+  '../source/application/integrations/telegram-cloudflare-native/migrations/0003_deprovision.sql'
+), 'utf8');
 
 const mskScope = 'cmp_company:live:warehouse_msk';
 const spbScope = 'cmp_company:live:warehouse_spb';
@@ -18,6 +26,15 @@ assert.match(mskWorker, /^justfun-logistics-bot-[a-f0-9]{12}$/);
 assert.ok(mskWorker.length <= 63);
 assert.equal(provisioner.sharedDatabaseName(mskScope), provisioner.sharedDatabaseName(spbScope));
 assert.equal(provisioner.sharedDatabaseName(), 'justfun-logistics-bot-db');
+assert.equal(provisioner.SCHEMA_VERSION, 3);
+assert.match(provisionerSource, /0003_deprovision\.sql/);
+const deprovisionStatements = provisioner.splitSql(deprovisionMigration);
+assert.ok(deprovisionStatements.some(statement => (
+  statement.includes('CREATE TRIGGER IF NOT EXISTS require_telegram_data_purge_before_deprovision_complete')
+    && statement.includes("RAISE(ABORT, 'TELEGRAM_DEPROVISION_PURGE_INCOMPLETE');")
+    && /END\s*$/.test(statement)
+)));
+assert.equal(deprovisionStatements.some(statement => /^END\s*$/i.test(statement)), false);
 const databases = [
   {uuid: 'db-bbb', name: 'justfun-logistics-bot-db-bbb'},
   {uuid: 'db-aaa', name: 'justfun-logistics-bot-db-aaa'},
@@ -55,4 +72,6 @@ console.log(JSON.stringify({
   sharedDatabase: true,
   unsafeLegacyAutolinkBlocked: true,
   boundedPolling: true,
+  telegramDeprovisionMigration: true,
+  triggerAwareMigrationSplit: true,
 }));

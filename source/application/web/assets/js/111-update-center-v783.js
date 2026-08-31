@@ -21,6 +21,9 @@
   const codeMessages={
     UPDATE_DISABLED:'Автоматические обновления ещё не подключены к этому проверочному выпуску.',
     UPDATE_ENDPOINT_MISSING:'Адрес сервера обновлений ещё не настроен.',
+    UPDATE_CATALOG_HTTP:'Каталог обновлений пока не опубликован или временно недоступен. Повторите проверку позже.',
+    UPDATE_CATALOG_NETWORK:'Не удалось связаться с сервером обновлений. Проверьте интернет и повторите позже.',
+    UPDATE_CATALOG_TIMEOUT:'Сервер обновлений отвечает слишком долго. Повторите проверку позже.',
     UPDATE_DOWNLOAD_NETWORK:'Сервер обновлений временно недоступен. Повторите позже.',
     UPDATE_DOWNLOAD_TIMEOUT:'Скачивание заняло слишком много времени. Повторите проверку.',
     UPDATE_NOT_AVAILABLE:'Сначала проверьте наличие обновления.',
@@ -38,7 +41,7 @@
   function safeState(value){return /^[A-Z_]{2,40}$/.test(String(value||''))?String(value):'IDLE'}
   function failureMessage(result){
     const code=String(result?.code||result?.error?.code||'');if(codeMessages[code])return codeMessages[code];
-    if(/^UPDATE_(?:SIGNATURE|KEY|CATALOG|PRODUCT|CHANNEL|SEQUENCE|COMMIT|CONTRACT|DOWNGRADE|URL)/.test(code))return'Проверка безопасности обновления не пройдена. Установка заблокирована.';
+    if(/^UPDATE_(?:SIGNATURE|KEY|CATALOG_(?:REDIRECT|ENCODING|SIZE|JSON|EXPIRED)|PRODUCT|CHANNEL|SEQUENCE|COMMIT|CONTRACT|DOWNGRADE|URL)/.test(code))return'Проверка безопасности обновления не пройдена. Установка заблокирована.';
     if(/^UPDATE_DOWNLOAD/.test(code))return'Не удалось безопасно скачать обновление. Проверьте интернет и повторите позже.';
     if(/^UPDATE_(?:STATE|JOURNAL|HELPER|ROLLBACK|RECOVERY)/.test(code))return'Система обновления остановила операцию. Рабочие данные не изменены; откройте журналы запуска для поддержки.';
     const fallback=String(result?.message||result?.error?.message||'');return/[А-Яа-яЁё]/.test(fallback)?fallback.slice(0,500):'Не удалось выполнить операцию обновления. Повторите позже.';

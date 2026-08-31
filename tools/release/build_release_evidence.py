@@ -314,6 +314,9 @@ def main() -> int:
         f"JustFun-{release['version']}-UpdateHelper.exe": manifest["artifacts"]["update_helper"],
         f"JustFun-{release['version']}-win-x64.zip": manifest["artifacts"]["update_payload"],
         "UPDATE-FILES.json": manifest["artifacts"]["update_file_manifest"],
+        "PE-RESOURCE-QA.json": manifest["artifacts"]["pe_resource_evidence"],
+        "INSTALLER-CRASH-RECOVERY-QA.json": manifest["artifacts"]["crash_recovery_evidence"],
+        "PROTECTED-PAYLOAD-SECURITY.json": manifest["artifacts"]["protected_payload_security"],
     }
     verified_sources: dict[str, Path] = {}
     for destination_name, record in artifacts.items():
